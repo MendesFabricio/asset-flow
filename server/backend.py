@@ -16,6 +16,7 @@ from routes.dividends import dividends_bp
 from routes.maintenance import maintenance_bp
 from services import PortfolioService
 from utils.cvm_processor import CVMProcessor # 👈 Importação necessária
+from routes.finance import finance_bp
 
 logging.basicConfig(level=logging.INFO)
 app = Flask(__name__)
@@ -29,6 +30,7 @@ app.register_blueprint(calendar_bp)
 app.register_blueprint(alerts_bp)
 app.register_blueprint(dividends_bp)
 app.register_blueprint(maintenance_bp)
+app.register_blueprint(finance_bp, url_prefix='/api/finance')
 
 # Instância única do serviço
 service = PortfolioService()
