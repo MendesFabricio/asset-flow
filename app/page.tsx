@@ -21,10 +21,21 @@ import MonteCarloChart from './components/MonteCarloChart';
 import CorrelationMatrix from './components/CorrelationMatrix';
 import { AlertsButton } from './components/AlertsButton';
 import { SmartAllocationModal } from './components/SmartAllocationModal'; // 👈 Adicionado Import
+import { ReceivablesTab } from './components/ReceivablesTab';
+import { CheckCircle, AlertTriangle, X } from 'lucide-react';
 
 export default function Home() {
   const { data, history, loading, refreshing, error, refetch } = useAssetData();
   const { isHidden, togglePrivacy } = usePrivacy();
+
+  // 1. Estado da Notificação (Toast)
+  const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
+
+  // 2. Função auxiliar para disparar a notificação
+  const notify = (msg: string, type: 'success' | 'error' = 'success') => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3000); // Some após 3 segundos
+  };
 
   const [tab, setTab] = useState('Resumo');
   const [editingAsset, setEditingAsset] = useState<any>(null);
@@ -48,6 +59,7 @@ export default function Home() {
     { id: 'Reserva', icon: <Wallet size={16} />, label: 'Reserva' },
     { id: 'Evolução', icon: <LineChart size={16} /> },
     { id: 'Correlação', icon: <Grip size={16} />, label: "Heatmap" },
+    { id: 'Financeiro', icon: <Wallet size={16} />, label: 'Reembolsos' },
   ];
 
   const filteredAssets = data?.ativos?.filter((a) =>
@@ -80,17 +92,18 @@ export default function Home() {
   const handleSyncReports = async () => {
     setSyncingReports(true);
     try {
-      const response = await fetch('http://localhost:5000/api/sync-reports', { method: 'POST' });
+      // ⚠️ LEMBRE-SE: Garanta que a porta aqui seja a correta (5328 ou a que estiver usando)
+      const response = await fetch('http://localhost:5328/api/sync-reports', { method: 'POST' });
       const result = await response.json();
       if (result.status === "Sucesso") {
-        alert(result.msg);
+        notify(result.msg, 'success'); // ✅ Trocado alert por notify
         refetch(true);
       } else {
-        alert("Erro: " + result.msg);
+        notify("Erro: " + result.msg, 'error'); // ✅ Trocado alert por notify
       }
     } catch (e) {
       console.error(e);
-      alert("Falha ao conectar com o servidor para sincronizar relatórios.");
+      notify("Falha ao conectar com o servidor para sincronizar relatórios.", 'error'); // ✅ Trocado alert por notify
     } finally {
       setSyncingReports(false);
     }
@@ -99,8 +112,8 @@ export default function Home() {
   const handleUpdateFundamentals = async () => {
     setUpdatingFundamentals(true);
     try {
-      await fetch('http://localhost:5000/api/update-fundamentals', { method: 'POST' });
-      alert("Sucesso! Inteligência atualizada.");
+      await fetch('http://localhost:5328/api/update-fundamentals', { method: 'POST' });
+      notify("Sucesso! Inteligência atualizada.", 'success'); // ✅ Trocado alert por notify
       refetch(true);
     } catch (e) { console.error(e); }
     finally { setUpdatingFundamentals(false); }
@@ -119,7 +132,7 @@ export default function Home() {
       setTimeout(() => setShowRefreshSuccess(false), 2000);
     } catch (e) {
       console.error("Erro ao atualizar:", e);
-      alert("Erro ao atualizar preços. Verifique se o backend está rodando na porta 5328.");
+      notify("Erro ao atualizar preços. Verifique se o backend está rodando na porta 5328.", 'error'); // ✅ Trocado alert por notify
     } finally {
       setIsRefetching(false);
     }
@@ -310,8 +323,14 @@ export default function Home() {
           </div>
         )}
 
+        {tab === 'Financeiro' && (
+          <div className="animate-in fade-in w-full">
+            <ReceivablesTab />
+          </div>
+        )}
+
         {/* TABELA DE ATIVOS */}
-        {!['Resumo', 'Evolução', 'Correlação'].includes(tab) && (
+        {!['Resumo', 'Evolução', 'Correlação', 'Financeiro'].includes(tab) && (
           <div className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden shadow-xl animate-in slide-in-from-bottom-4 mt-6">
             <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-slate-700">
               <table className="w-full text-left text-sm">
@@ -346,6 +365,25 @@ export default function Home() {
           onClose={() => setIsSmartModalOpen(false)}
           ativos={data?.ativos || []}
         />
+
+        {/* 👇 COMPONENTE DO TOAST (NOTIFICAÇÃO FLUTUANTE) 👇 */}
+        {toast && (
+          <div className={`fixed bottom-5 right-5 z-50 flex items-center gap-3 px-4 py-3 rounded-xl shadow-2xl border transition-all duration-300 animate-in slide-in-from-right-10 fade-in ${toast.type === 'success'
+              ? 'bg-emerald-950/90 border-emerald-500/50 text-emerald-200'
+              : 'bg-red-950/90 border-red-500/50 text-red-200'
+            }`}>
+            {toast.type === 'success' ? <CheckCircle size={20} /> : <AlertTriangle size={20} />}
+            <div className="flex flex-col">
+              <span className="text-xs font-bold uppercase tracking-wider opacity-70">
+                {toast.type === 'success' ? 'Sucesso' : 'Atenção'}
+              </span>
+              <span className="text-sm font-medium">{toast.msg}</span>
+            </div>
+            <button onClick={() => setToast(null)} className="ml-2 hover:bg-white/10 p-1 rounded-full transition-colors">
+              <X size={14} />
+            </button>
+          </div>
+        )}
 
         <div className="text-center text-[10px] text-slate-600 mt-12 mb-4">AssetFlow v7.5 (Matrix Edition)</div>
       </div>

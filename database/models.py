@@ -97,7 +97,19 @@ class PortfolioSnapshot(Base):
     date = Column(Date, default=datetime.now)
     total_equity = Column(Float)      
     total_invested = Column(Float)    
-    profit = Column(Float)            
+    profit = Column(Float)   
+
+class Receivable(Base):
+    __tablename__ = "receivables"
+
+    id = Column(Integer, primary_key=True, index=True)
+    descricao = Column(String)      # Ex: TV Sala
+    devedor = Column(String)        # Ex: Pai
+    valor_parcela = Column(Float)   # Ex: 100.00
+    parcela_atual = Column(Integer) # Ex: 3
+    total_parcelas = Column(Integer)# Ex: 10
+    vencimento_dia = Column(Integer)# Ex: 10 (todo dia 10)
+    status = Column(String)         # 'Pendente', 'Pago'         
 
 # Configuração do Banco
 engine = create_engine('sqlite:///assetflow.db', echo=False)
