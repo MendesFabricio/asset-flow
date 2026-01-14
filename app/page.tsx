@@ -1,9 +1,10 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   TrendingUp, Wallet, DollarSign, Activity,
   Target, Layers, RefreshCw, PiggyBank, BarChart3, LineChart, ArrowUpRight, PlusCircle,
-  Brain, Calendar, Eye, EyeOff, Percent, Grip, Building2, Globe, Landmark, Bitcoin, Calculator
+  Brain, Calendar, Eye, EyeOff, Percent, Grip, Building2, Globe, Landmark, Bitcoin, Calculator,
+  CheckCircle, AlertTriangle, X, ArrowUp, ArrowDown // <--- ADICIONEI AS SETAS AQUI
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePrivacy } from './context/PrivacyContext';
@@ -22,7 +23,6 @@ import CorrelationMatrix from './components/CorrelationMatrix';
 import { AlertsButton } from './components/AlertsButton';
 import { SmartAllocationModal } from './components/SmartAllocationModal';
 import { ReceivablesTab } from './components/ReceivablesTab';
-import { CheckCircle, AlertTriangle, X } from 'lucide-react';
 
 export default function Home() {
   const { data, history, loading, refreshing, error, refetch } = useAssetData();
@@ -48,6 +48,50 @@ export default function Home() {
 
   // 🆕 Novo State para o Modal de Aporte Inteligente
   const [isSmartModalOpen, setIsSmartModalOpen] = useState(false);
+
+  // 👇 INÍCIO DA LÓGICA DO CAROUSEL DE MERCADO 👇
+  const [indices, setIndices] = useState<{
+    ibov: { price: number; change: number } | null;
+    ifix: { price: number; change: number } | null;
+  }>({ ibov: null, ifix: null });
+
+  const [tickerIndex, setTickerIndex] = useState(0);
+
+  // 1. Busca os dados
+  useEffect(() => {
+    const fetchIndices = async () => {
+      try {
+        const res = await fetch('http://localhost:5328/api/market/indices');
+        const data = await res.json();
+        setIndices({
+          ibov: data.ibov || null,
+          ifix: data.ifix || null,
+        });
+      } catch (e) {
+        console.error("Erro ao buscar índices:", e);
+      }
+    };
+    fetchIndices();
+  }, []);
+
+  // 2. Prepara a lista para o carousel (filtra o que estiver nulo)
+  const activeTickers = [
+    { name: 'IBOV', data: indices.ibov },
+    { name: 'IFIX', data: indices.ifix }
+  ].filter(item => item.data);
+
+  // 3. Timer para rodar o carousel a cada 4 segundos
+  useEffect(() => {
+    if (activeTickers.length <= 1) return;
+    const interval = setInterval(() => {
+      setTickerIndex((prev) => (prev + 1) % activeTickers.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [activeTickers.length]);
+
+  const currentTicker = activeTickers[tickerIndex];
+  // 👆 FIM DA LÓGICA DO CAROUSEL 👆
+
 
   const categories = [
     { id: 'Resumo', icon: <Layers size={16} /> },
@@ -152,11 +196,28 @@ export default function Home() {
       {/* HEADER FIXO */}
       <div className="sticky top-0 z-30 bg-[#0b0f19]/95 backdrop-blur-md border-b border-slate-800/50">
         <div className="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+
+          {/* LADO ESQUERDO: LOGO + TÍTULO + WIDGET DE MERCADO */}
           <div className="flex items-center gap-3">
             <div className="bg-blue-600 p-1.5 rounded-lg shadow-[0_0_15px_rgba(37,99,235,0.5)]">
               <Wallet className="text-white" size={18} />
             </div>
-            <h1 className="text-lg font-bold text-white tracking-tight">AssetFlow <span className="text-blue-500 text-xs font-normal ml-1">Pro</span></h1>
+            <h1 className="text-lg font-bold text-white tracking-tight mr-2">AssetFlow <span className="text-blue-500 text-xs font-normal ml-1">Pro</span></h1>
+
+            {/* 👇 WIDGET DE MERCADO ROTATIVO AQUI 👇 */}
+            {currentTicker && currentTicker.data && (
+              <div key={currentTicker.name} className="hidden sm:flex items-center gap-2 px-3 py-1 bg-slate-800/80 rounded-full border border-slate-700/50 animate-in fade-in slide-in-from-top-2 duration-500">
+                <span className="text-[10px] font-bold text-slate-400 tracking-wider w-8 text-center">{currentTicker.name}</span>
+                <span className="text-xs font-bold text-slate-200 tabular-nums">
+                  {currentTicker.data.price.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}
+                </span>
+                <div className={`flex items-center gap-0.5 text-xs font-bold ${currentTicker.data.change >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {currentTicker.data.change >= 0 ? <ArrowUp size={10} /> : <ArrowDown size={10} />}
+                  {Math.abs(currentTicker.data.change).toFixed(2)}%
+                </div>
+              </div>
+            )}
+            {/* 👆 FIM DO WIDGET 👆 */}
           </div>
 
           <div className="flex items-center gap-3">

@@ -88,6 +88,11 @@ def pay_receivable(id):
     item = db.query(Receivable).filter(Receivable.id == id).first()
     if item:
         item.parcela_atual += 1 
+        
+        # ESSA LÓGICA AQUI QUE MUDA O STATUS:
+        if item.parcela_atual > item.total_parcelas:
+            item.status = 'Pago' # ou 'Pago'
+
         db.commit()
     db.close()
     return jsonify({"msg": "Recebido!"})
