@@ -7,8 +7,11 @@ import { PrivacyProvider } from "./context/PrivacyContext";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "AssetFlow Pro",
-  description: "Gestão Inteligente de Ativos",
+  title: 'AssetFlow Pro | Gestão Inteligente',
+  description: 'Controle de patrimônio, dividendos e rebalanceamento de carteira.',
+  icons: {
+    icon: '/favicon.ico', // Certifique-se de que o ícone existe em public/
+  },
 };
 
 export default function RootLayout({
