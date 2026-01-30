@@ -1,17 +1,18 @@
 'use client';
 import { useState, useRef, useMemo } from 'react';
-import { Snowflake, TrendingUp, TrendingDown, Pencil, FileText, Info, Layers } from 'lucide-react';
+import { Snowflake, TrendingUp, TrendingDown, Pencil, FileText, Info, Layers, Search } from 'lucide-react'; // 👈 Adicionado Search
 import { formatMoney, getStatusBg, getStatusColor } from '../utils';
 import { Asset } from '../types';
 import { usePrivacy } from '../context/PrivacyContext';
 import ReportModal from './ReportModal';
-import { AssetTooltip } from './AssetTooltip'; // 👈 Importando o componente novo (ou coloque no mesmo arquivo)
+import { AssetTooltip } from './AssetTooltip';
 
 interface AssetRowProps {
   ativo: Asset;
   tab: string;
   onEdit: (ativo: Asset) => void;
   onViewNews?: (ticker: string) => void;
+  onViewDetails: (ativo: Asset) => void; // 👈 Nova Prop
   index: number;
   total: number;
 }
@@ -20,7 +21,7 @@ const PrivateValue = ({ value, isHidden, className = "" }: { value: string | num
   <span className={className}>{isHidden ? (className.includes('pct') ? '•••%' : '••••••') : value}</span>
 );
 
-export const AssetRow = ({ ativo, tab, onEdit, onViewNews, index, total }: AssetRowProps) => {
+export const AssetRow = ({ ativo, tab, onEdit, onViewNews, onViewDetails, index, total }: AssetRowProps) => {
   const { isHidden } = usePrivacy() as any;
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [tooltip, setTooltip] = useState<{ x: number; y: number; position: 'top' | 'bottom'; type: 'rec' | 'fin' } | null>(null);
@@ -28,22 +29,18 @@ export const AssetRow = ({ ativo, tab, onEdit, onViewNews, index, total }: Asset
   const [imgError, setImgError] = useState(false);
 
   // --- MEMOIZATION: Cálculos Pesados ---
-  // Calculamos isso apenas quando o objeto 'ativo' mudar
   const stats = useMemo(() => {
     const isUSD = (ativo as any).currency === 'USD';
     const variacaoIntraday = (ativo as any).change_percent ?? 0;
     const isPositiveIntraday = variacaoIntraday >= 0;
 
-    // Cálculo Financeiro
     const divisor = 1 + (variacaoIntraday / 100);
     const variacaoFinanceira = divisor > 0.0001 ? ativo.total_atual - (ativo.total_atual / divisor) : 0;
 
-    // Parsing de Motivos
     const motivosRaw = ativo.motivo || "";
     const separator = motivosRaw.includes(' • ') ? ' • ' : ' + ';
     const motivosLista = motivosRaw ? motivosRaw.split(separator) : [];
 
-    // Metas
     const percentualDaMeta = ativo.meta > 0 ? (ativo.pct_na_categoria / ativo.meta) * 100 : 0;
 
     return {
@@ -61,12 +58,10 @@ export const AssetRow = ({ ativo, tab, onEdit, onViewNews, index, total }: Asset
     };
   }, [ativo]);
 
-  // Indicadores Específicos
   const showIndicators = tab === 'Ação' || tab === 'FII';
   const lucroPositivo = ativo.lucro_valor >= 0;
   const atingiuMagic = (ativo.magic_number || 0) > 0 && ativo.qtd >= (ativo.magic_number || 0);
 
-  // Handlers Tooltip
   const handleMouseEnter = (e: React.MouseEvent, type: 'rec' | 'fin') => {
     if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
     const rect = e.currentTarget.getBoundingClientRect();
@@ -82,7 +77,8 @@ export const AssetRow = ({ ativo, tab, onEdit, onViewNews, index, total }: Asset
   return (
     <>
       <tr className="hover:bg-slate-800/40 transition-colors border-b border-slate-800/50 last:border-0 group text-xs sm:text-sm">
-        {/* COLUNA 1: IDENTIFICAÇÃO */}
+
+        {/* COLUNA 1: IDENTIFICAÇÃO (Agora clicável) */}
         <td className="p-4 pl-6">
           <div className="flex items-center gap-3">
             <div className="relative h-9 w-9 shrink-0 rounded-full bg-slate-800 overflow-hidden shadow-sm group-hover:scale-110 transition-transform duration-300">
@@ -96,8 +92,17 @@ export const AssetRow = ({ ativo, tab, onEdit, onViewNews, index, total }: Asset
             </div>
             <div>
               <div className="font-bold text-white text-sm flex items-center gap-2">
-                {ativo.ticker}
-                <div className="flex opacity-0 group-hover:opacity-100 transition-all gap-1">
+
+                {/* 👇 BOTÃO CLICÁVEL PARA ABRIR DETALHES 👇 */}
+                <button
+                  onClick={() => onViewDetails(ativo)}
+                  className="hover:text-blue-400 hover:underline flex items-center gap-1 transition-all group/name text-left"
+                >
+                  {ativo.ticker}
+                  <Search size={10} className="text-slate-500 opacity-0 group-hover/name:opacity-100 transition-opacity" />
+                </button>
+
+                <div className="flex opacity-0 group-hover:opacity-100 transition-all gap-1 ml-1">
                   <button onClick={() => setIsReportModalOpen(true)} className={`p-1 hover:bg-slate-700 rounded transition-colors ${stats.hasReports ? 'text-blue-400' : 'text-slate-600'}`} title="Docs">
                     <Layers size={12} />
                   </button>
@@ -126,7 +131,7 @@ export const AssetRow = ({ ativo, tab, onEdit, onViewNews, index, total }: Asset
           </div>
         </td>
 
-        {/* COLUNA 3: PREÇO + VARIAÇÃO (Com Tooltip 'fin') */}
+        {/* COLUNA 3: PREÇO + VARIAÇÃO */}
         <td className="p-4 text-right hidden sm:table-cell">
           <div className="flex flex-col items-end">
             <div className="flex items-center gap-2 justify-end">
@@ -171,7 +176,7 @@ export const AssetRow = ({ ativo, tab, onEdit, onViewNews, index, total }: Asset
           </div>
         </td>
 
-        {/* COLUNA 6: APORTE + RECOMENDAÇÃO (Com Tooltip 'rec') */}
+        {/* COLUNA 6: APORTE + RECOMENDAÇÃO */}
         <td className="p-4 text-right">
           <div className="flex flex-col items-end gap-1.5">
             {ativo.falta_comprar > 1 ? (
@@ -187,7 +192,6 @@ export const AssetRow = ({ ativo, tab, onEdit, onViewNews, index, total }: Asset
               <Info size={10} className="opacity-60 hover:opacity-100 transition-opacity" />
             </div>
 
-            {/* RENDERIZAÇÃO DO COMPONENTE TOOLTIP LIMPO */}
             {tooltip && (
               <AssetTooltip
                 type={tooltip.type}

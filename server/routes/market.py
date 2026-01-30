@@ -1,10 +1,25 @@
 from flask import Blueprint, jsonify
 import yfinance as yf
+import time
+import logging
 
 market_bp = Blueprint('market', __name__)
 
-@market_bp.route('/indices', methods=['GET'])
-def get_market_indices():
+# --- CACHE EM MEMÓRIA ---
+# Guarda os dados para não consultar o Yahoo a toda hora
+MARKET_CACHE = {
+    "data": {
+        "ibov": {"price": 0, "change": 0},
+        "ifix": {"price": 0, "change": 0}
+    },
+    "last_update": 0
+}
+
+def update_market_cache():
+    """
+    Função chamada pelo Agendador (backend.py) para atualizar os dados em background.
+    """
+    logging.info("🔄 JOB: Atualizando índices de mercado (IBOV/IFIX)...")
     try:
         # TRUQUE: Usamos XFIX11.SA (ETF) pois o IFIX.SA falha muito no Yahoo
         tickers = ["^BVSP", "XFIX11.SA"] 
@@ -23,18 +38,27 @@ def get_market_indices():
                 variacao = ((atual - anterior) / anterior) * 100
                 
                 return {
-                    # AQUI APLICAMOS O MULTIPLICADOR PARA O VALOR FICAR "BONITO"
                     "price": atual * multiplier, 
                     "change": variacao
                 }
-            except Exception as e:
+            except:
                 return None
 
-        return jsonify({
-            "ibov": get_stats("^BVSP", 1.0), # IBOV é original (x1)
-            "ifix": get_stats("XFIX11.SA", 283.33) # XFIX x 283.33 ≈ Valor do IFIX
-        })
+        new_data = {
+            "ibov": get_stats("^BVSP", 1.0),
+            "ifix": get_stats("XFIX11.SA", 283.33)
+        }
 
+        # Atualiza o cache global se vieram dados válidos
+        if new_data["ibov"] or new_data["ifix"]:
+            MARKET_CACHE["data"] = new_data
+            MARKET_CACHE["last_update"] = time.time()
+            logging.info("✅ JOB: Índices atualizados no cache.")
+        
     except Exception as e:
-        print(f"Erro Market Data: {e}")
-        return jsonify({"error": "Falha ao buscar índices"}), 500
+        logging.error(f"❌ Erro ao atualizar índices: {e}")
+
+@market_bp.route('/indices', methods=['GET'])
+def get_market_indices():
+    # A rota agora é burra e rápida: só entrega o que está na memória
+    return jsonify(MARKET_CACHE["data"])

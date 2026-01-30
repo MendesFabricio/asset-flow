@@ -21,6 +21,7 @@ from database.models import Asset, Position, Category, MarketData, PortfolioSnap
 
 session_factory = sessionmaker(bind=engine)
 Session = scoped_session(session_factory)
+USD_CACHE = {"rate": 5.80, "last_update": 0}
 
 class PortfolioService:
     def __init__(self):
@@ -34,13 +35,27 @@ class PortfolioService:
         except: return 0.0
 
     def get_usd_rate(self):
+        """Retorna taxa do dólar com cache de 1 hora"""
+        now = time.time()
+        
+        # 1. Se faz menos de 1 hora (3600s) que atualizou, usa o cache
+        if (now - USD_CACHE["last_update"]) < 3600:
+            return USD_CACHE["rate"]
+
         try:
             ticker = yf.Ticker("BRL=X")
             data = ticker.history(period="1d")
-            if not data.empty: return float(data['Close'].iloc[-1])
+            if not data.empty: 
+                rate = float(data['Close'].iloc[-1])
+                
+                # 2. Atualiza o cache global
+                USD_CACHE["rate"] = rate
+                USD_CACHE["last_update"] = now
+                return rate
         except Exception as e:
             print(f"⚠️ Erro ao buscar Dólar: {e}")
-        return 5.80 
+        
+        return USD_CACHE["rate"] 
 
     def _calculate_rsi(self, series, period=14):
         if len(series) < period + 1: return 50.0

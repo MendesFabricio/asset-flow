@@ -4,7 +4,7 @@ import {
   TrendingUp, Wallet, DollarSign, Activity,
   Target, Layers, RefreshCw, PiggyBank, BarChart3, LineChart, ArrowUpRight, PlusCircle,
   Brain, Calendar, Eye, EyeOff, Percent, Grip, Building2, Globe, Landmark, Bitcoin, Calculator,
-  CheckCircle, AlertTriangle, X, ArrowUp, ArrowDown // <--- ADICIONEI AS SETAS AQUI
+  CheckCircle, AlertTriangle, X // ArrowUp e ArrowDown estão no MarketTicker agora
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePrivacy } from './context/PrivacyContext';
@@ -23,18 +23,19 @@ import CorrelationMatrix from './components/CorrelationMatrix';
 import { AlertsButton } from './components/AlertsButton';
 import { SmartAllocationModal } from './components/SmartAllocationModal';
 import { ReceivablesTab } from './components/ReceivablesTab';
+import { MarketTicker } from './components/MarketTicker';
+// 👇 1. Importação do Novo Modal
+import { AssetDetailsModal } from './components/AssetDetailsModal';
 
 export default function Home() {
   const { data, history, loading, refreshing, error, refetch } = useAssetData();
   const { isHidden, togglePrivacy } = usePrivacy();
 
-  // 1. Estado da Notificação (Toast)
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
-  // 2. Função auxiliar para disparar a notificação
   const notify = (msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ msg, type });
-    setTimeout(() => setToast(null), 3000); // Some após 3 segundos
+    setTimeout(() => setToast(null), 3000);
   };
 
   const [tab, setTab] = useState('Resumo');
@@ -45,53 +46,10 @@ export default function Home() {
   const [syncingReports, setSyncingReports] = useState(false);
   const [showRefreshSuccess, setShowRefreshSuccess] = useState(false);
   const [isRefetching, setIsRefetching] = useState(false);
-
-  // 🆕 Novo State para o Modal de Aporte Inteligente
   const [isSmartModalOpen, setIsSmartModalOpen] = useState(false);
 
-  // 👇 INÍCIO DA LÓGICA DO CAROUSEL DE MERCADO 👇
-  const [indices, setIndices] = useState<{
-    ibov: { price: number; change: number } | null;
-    ifix: { price: number; change: number } | null;
-  }>({ ibov: null, ifix: null });
-
-  const [tickerIndex, setTickerIndex] = useState(0);
-
-  // 1. Busca os dados
-  useEffect(() => {
-    const fetchIndices = async () => {
-      try {
-        const res = await fetch('http://localhost:5328/api/market/indices');
-        const data = await res.json();
-        setIndices({
-          ibov: data.ibov || null,
-          ifix: data.ifix || null,
-        });
-      } catch (e) {
-        console.error("Erro ao buscar índices:", e);
-      }
-    };
-    fetchIndices();
-  }, []);
-
-  // 2. Prepara a lista para o carousel (filtra o que estiver nulo)
-  const activeTickers = [
-    { name: 'IBOV', data: indices.ibov },
-    { name: 'IFIX', data: indices.ifix }
-  ].filter(item => item.data);
-
-  // 3. Timer para rodar o carousel a cada 4 segundos
-  useEffect(() => {
-    if (activeTickers.length <= 1) return;
-    const interval = setInterval(() => {
-      setTickerIndex((prev) => (prev + 1) % activeTickers.length);
-    }, 4000);
-    return () => clearInterval(interval);
-  }, [activeTickers.length]);
-
-  const currentTicker = activeTickers[tickerIndex];
-  // 👆 FIM DA LÓGICA DO CAROUSEL 👆
-
+  // 👇 2. Novo State para controlar qual ativo está sendo detalhado
+  const [selectedDetailsAsset, setSelectedDetailsAsset] = useState<any>(null);
 
   const categories = [
     { id: 'Resumo', icon: <Layers size={16} /> },
@@ -117,17 +75,11 @@ export default function Home() {
     ? ((data.resumo.RendaMensal * 12) / data.resumo.TotalInvestido) * 100
     : 0;
 
-  // 👇 CÁLCULO CORRIGIDO DA VARIAÇÃO DIÁRIA TOTAL 👇
   const variacaoDiariaTotal = data?.ativos?.reduce((acc: number, asset: any) => {
     const variacaoPct = asset.change_percent || 0;
     const totalAtual = asset.total_atual || 0;
-
-    // Cálculo Reverso: Se hoje = ontem * (1 + pct), então ontem = hoje / (1 + pct)
     const divisor = 1 + (variacaoPct / 100);
-    // Proteção contra divisão por zero se algo bizarro acontecer
     const valOntem = divisor > 0.0001 ? totalAtual / divisor : totalAtual;
-
-    // O lucro do dia é a diferença entre o valor de hoje e o valor de ontem
     return acc + (totalAtual - valOntem);
   }, 0) || 0;
 
@@ -167,7 +119,6 @@ export default function Home() {
     try {
       await fetch('http://localhost:5328/api/refresh_prices', { method: 'POST' });
       await refetch(true);
-
       setShowRefreshSuccess(true);
       setTimeout(() => setShowRefreshSuccess(false), 2000);
     } catch (e) {
@@ -197,27 +148,13 @@ export default function Home() {
       <div className="sticky top-0 z-30 bg-[#0b0f19]/95 backdrop-blur-md border-b border-slate-800/50">
         <div className="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
 
-          {/* LADO ESQUERDO: LOGO + TÍTULO + WIDGET DE MERCADO */}
           <div className="flex items-center gap-3">
             <div className="bg-blue-600 p-1.5 rounded-lg shadow-[0_0_15px_rgba(37,99,235,0.5)]">
               <Wallet className="text-white" size={18} />
             </div>
             <h1 className="text-lg font-bold text-white tracking-tight mr-2">AssetFlow <span className="text-blue-500 text-xs font-normal ml-1">Pro</span></h1>
 
-            {/* 👇 WIDGET DE MERCADO ROTATIVO AQUI 👇 */}
-            {currentTicker && currentTicker.data && (
-              <div key={currentTicker.name} className="hidden sm:flex items-center gap-2 px-3 py-1 bg-slate-800/80 rounded-full border border-slate-700/50 animate-in fade-in slide-in-from-top-2 duration-500">
-                <span className="text-[10px] font-bold text-slate-400 tracking-wider w-8 text-center">{currentTicker.name}</span>
-                <span className="text-xs font-bold text-slate-200 tabular-nums">
-                  {currentTicker.data.price.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}
-                </span>
-                <div className={`flex items-center gap-0.5 text-xs font-bold ${currentTicker.data.change >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                  {currentTicker.data.change >= 0 ? <ArrowUp size={10} /> : <ArrowDown size={10} />}
-                  {Math.abs(currentTicker.data.change).toFixed(2)}%
-                </div>
-              </div>
-            )}
-            {/* 👆 FIM DO WIDGET 👆 */}
+            <MarketTicker />
           </div>
 
           <div className="flex items-center gap-3">
@@ -227,7 +164,6 @@ export default function Home() {
                 <span className="hidden sm:inline">Proventos</span>
               </Link>
 
-              {/* 🆕 BOTÃO SIMULADOR DE APORTE (COM GLOW ROXO) */}
               <button
                 onClick={() => setIsSmartModalOpen(true)}
                 className="bg-purple-600 hover:bg-purple-500 text-white px-3 py-2 rounded-lg transition-all flex items-center gap-2 text-xs font-bold border border-purple-500/50 shadow-[0_0_15px_rgba(147,51,234,0.3)] hover:shadow-[0_0_25px_rgba(147,51,234,0.6)] duration-300"
@@ -236,7 +172,6 @@ export default function Home() {
                 <span className="hidden sm:inline">Simular Aporte</span>
               </button>
 
-              {/* 🆕 BOTÃO NOVO ATIVO (COM GLOW AZUL) */}
               <button
                 onClick={() => setIsAddModalOpen(true)}
                 className="bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded-lg transition-all flex items-center gap-2 text-xs font-bold shadow-[0_0_15px_rgba(37,99,235,0.3)] hover:shadow-[0_0_25px_rgba(37,99,235,0.6)] duration-300"
@@ -341,11 +276,8 @@ export default function Home() {
                 subtext="Total Histórico"
                 icon={BarChart3}
                 colorClass={lucroTotal >= 0 ? "text-green-400" : "text-red-400"}
-                // 👇 AQUI ESTÁ A LIGAÇÃO COM O NOVO CÁLCULO
                 dailyResult={variacaoDiariaTotal}
               />
-
-              {/* TOP INSIGHT */}
               <StatCard
                 title="Top Insight"
                 type="insight"
@@ -410,7 +342,16 @@ export default function Home() {
                 </thead>
                 <tbody className="divide-y divide-slate-800/50">
                   {filteredAssets.length > 0 ? filteredAssets.map((ativo, index) => (
-                    <AssetRow key={ativo.ticker} ativo={ativo} tab={tab} onEdit={(a) => setEditingAsset(a)} onViewNews={(ticker) => setNewsTicker(ticker)} index={index} total={filteredAssets.length} />
+                    <AssetRow
+                      key={ativo.ticker}
+                      ativo={ativo}
+                      tab={tab}
+                      onEdit={(a) => setEditingAsset(a)}
+                      onViewNews={(ticker) => setNewsTicker(ticker)}
+                      onViewDetails={(a) => setSelectedDetailsAsset(a)} // 👈 3. Passando a função para o AssetRow
+                      index={index}
+                      total={filteredAssets.length}
+                    />
                   )) : <tr><td colSpan={7} className="p-8 text-center text-slate-500">Nenhum ativo encontrado.</td></tr>}
                 </tbody>
               </table>
@@ -422,14 +363,20 @@ export default function Home() {
         <AddAssetModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onSuccess={() => refetch(true)} />
         <AssetNewsPanel ticker={newsTicker} onClose={() => setNewsTicker(null)} />
 
-        {/* 🆕 MODAL DE SIMULAÇÃO DE APORTE */}
         <SmartAllocationModal
           isOpen={isSmartModalOpen}
           onClose={() => setIsSmartModalOpen(false)}
           ativos={data?.ativos || []}
         />
 
-        {/* 👇 COMPONENTE DO TOAST (COM GLOW SUTIL) 👇 */}
+        {/* 👇 4. Inserindo o Modal de Detalhes aqui */}
+        <AssetDetailsModal
+          isOpen={!!selectedDetailsAsset}
+          onClose={() => setSelectedDetailsAsset(null)}
+          asset={selectedDetailsAsset}
+        />
+
+        {/* TOAST NOTIFICATIONS */}
         {toast && (
           <div className={`fixed bottom-5 right-5 z-50 flex items-center gap-3 px-4 py-3 rounded-xl shadow-[0_0_20px_rgba(0,0,0,0.5)] border transition-all duration-300 animate-in slide-in-from-right-10 fade-in ${toast.type === 'success'
             ? 'bg-emerald-950/90 border-emerald-500/50 text-emerald-200 shadow-[0_0_20px_rgba(16,185,129,0.2)]'
