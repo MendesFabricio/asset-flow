@@ -7,18 +7,21 @@ finance_bp = Blueprint('finance', __name__)
 @finance_bp.route('/receivables', methods=['GET'])
 def list_receivables():
     db = Session() 
-    items = db.query(Receivable).filter(Receivable.parcela_atual <= Receivable.total_parcelas).all()
+    # CORREÇÃO: Removemos o filtro .filter(Receivable.parcela_atual <= Receivable.total_parcelas)
+    # Agora trazemos TUDO para o frontend poder mostrar o histórico do que já foi pago.
+    # Ordenamos por status para pendentes aparecerem primeiro, ou por nome.
+    items = db.query(Receivable).order_by(Receivable.status.desc(), Receivable.id.desc()).all()
     
     data = [{
         "id": i.id,
         "descricao": i.descricao,
         "devedor": i.devedor,
-        "valor_parcela": i.valor_parcela,     # Valor unitário da parcela
-        "valor_total": i.valor_parcela * i.total_parcelas, # Valor total original (estimado)
+        "valor_parcela": i.valor_parcela,
+        "valor_total": i.valor_parcela * i.total_parcelas,
         "parcela_atual": i.parcela_atual,
         "total_parcelas": i.total_parcelas,
         "dia": i.vencimento_dia,
-        "status": i.status
+        "status": i.status # 'Pendente' ou 'Concluido'
     } for i in items]
     
     db.close()
@@ -55,12 +58,10 @@ def update_receivable(id):
         db.close()
         return jsonify({"msg": "Não encontrado"}), 404
 
-    # Atualiza dados básicos
     item.descricao = data.get('descricao', item.descricao)
     item.devedor = data.get('devedor', item.devedor)
     item.vencimento_dia = int(data.get('dia', item.vencimento_dia))
     
-    # Recalcula valor da parcela se o total mudou
     val_total = float(data.get('valor', 0))
     qtd_parc = int(data.get('parcelas', item.total_parcelas))
     
@@ -87,12 +88,13 @@ def pay_receivable(id):
     db = Session()
     item = db.query(Receivable).filter(Receivable.id == id).first()
     if item:
+        # Avança a parcela
         item.parcela_atual += 1 
         
-        # ESSA LÓGICA AQUI QUE MUDA O STATUS:
+        # Se passou do total, marca como Concluido no banco
         if item.parcela_atual > item.total_parcelas:
-            item.status = 'Pago' # ou 'Pago'
-
+            item.status = 'Concluido'
+        
         db.commit()
     db.close()
     return jsonify({"msg": "Recebido!"})
@@ -105,6 +107,8 @@ def pay_batch():
     count = 0
     for item in items:
         item.parcela_atual += 1
+        if item.parcela_atual > item.total_parcelas:
+            item.status = 'Concluido'
         count += 1
     db.commit()
     db.close()
