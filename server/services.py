@@ -86,9 +86,17 @@ class PortfolioService:
                     continue
 
                 # REGRA 3: Preparação para validar na bolsa (Yahoo)
-                # Adicionamos .SA para ativos que não são Internacionais
                 is_intl = asset.category and asset.category.name == 'Internacional'
-                symbol = ticker_raw if is_intl or ticker_raw.endswith('.SA') else f"{ticker_raw}.SA"
+                
+                # Se for internacional, mas for o VWRA11 ou um BDR (termina em 39, 34, 11), precisa do .SA
+                needs_sa = False
+                if not ticker_raw.endswith('.SA'):
+                    if not is_intl:
+                        needs_sa = True # Ações e FIIs BR precisam
+                    elif ticker_raw == 'VWRA11' or any(ticker_raw.endswith(s) for s in ['39', '34', '33', '11']):
+                        needs_sa = True # Ativos BR dolarizados listados na B3
+                
+                symbol = f"{ticker_raw}.SA" if needs_sa else ticker_raw
                 
                 tickers_map[symbol] = asset
                 download_list.append(symbol)
@@ -637,9 +645,9 @@ class PortfolioService:
         if raw_ticker.endswith(".SA"):
             currency = "BRL"  # Ex: WEGE3.SA, BDRs
         elif raw_ticker.endswith("-USD"):
-            currency = "USD"  # Ex: BTC-USD
+            currency = "BRL"  # Ex: BTC-USD
         elif category_name == "Internacional":
-            currency = "USD"  # Ex: AAPL, MSFT (sem .SA)
+            currency = "BRL" 
         else:
             currency = "BRL"  # Padrão para Ação, FII, Cripto genérico, ETF
 
