@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useMemo, useCallback, memo } from 'react';
+import { API_BASE_URL } from '../config/api';
 import { Activity, X } from 'lucide-react';
 
 // --- CONSTANTES ---
@@ -7,7 +8,6 @@ const CELL_SIZE = 20;
 const GAP_SIZE = 1;
 const HEADER_HEIGHT = 30;
 const LABEL_MARGIN_BOTTOM = 10;
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5328';
 
 interface CorrelationPoint {
     x: string;
@@ -84,7 +84,7 @@ const CorrelationMatrix = () => {
     const [hovered, setHovered] = useState<CorrelationPoint | null>(null);
 
     useEffect(() => {
-        fetch(`${API_URL}/api/correlation`)
+        fetch(`${API_BASE_URL}/api/correlation`)
             .then(res => res.json())
             .then(res => {
                 if (res.status === 'Sucesso') setData(res);

@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../config/api';
 import { ArrowUp, ArrowDown } from 'lucide-react';
 
 export const MarketTicker = () => {
@@ -15,7 +16,7 @@ export const MarketTicker = () => {
   useEffect(() => {
     const fetchIndices = async () => {
       try {
-        const res = await fetch('http://localhost:5328/api/market/indices');
+        const res = await fetch(`${API_BASE_URL}/api/market/indices`);
         const data = await res.json();
         setIndices({
           ibov: data.ibov || null,

@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../config/api';
 import { X, ExternalLink, Newspaper, icon as LucideIcon } from 'lucide-react';
 import { Skeleton } from './ui/Skeleton';
 import { Badge } from './ui/Badge';
@@ -23,7 +24,7 @@ export default function AssetNewsPanel({ ticker, onClose }: Props) {
   useEffect(() => {
     if (ticker) {
       setLoading(true);
-      fetch(`http://localhost:5328/api/news/${ticker}`)
+      fetch(`${API_BASE_URL}/api/news/${ticker}`)
         .then(res => res.json())
         .then(data => {
           setNews(data);

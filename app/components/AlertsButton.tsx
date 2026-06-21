@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../config/api';
 import { Bell, AlertTriangle, CheckCircle, WifiOff, AlertOctagon, Info, Settings, RefreshCw, ChevronRight, FileText } from 'lucide-react';
 
 // Interface alinhada com o backend Python
@@ -25,7 +26,7 @@ export const AlertsButton = ({ onFixAsset }: Props) => {
 
   const fetchAlerts = async () => {
     try {
-      const res = await fetch('http://localhost:5328/api/alerts');
+      const res = await fetch(`${API_BASE_URL}/api/alerts`);
       const data = await res.json();
 
       if (Array.isArray(data)) {

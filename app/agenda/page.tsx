@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { API_BASE_URL } from '../config/api';
 import { Calendar as CalIcon, ArrowLeft, Clock, CalendarCheck, History } from 'lucide-react';
 import Link from 'next/link';
 import { formatMoney } from '../utils';
@@ -24,8 +25,8 @@ export default function ProventosPage() {
   useEffect(() => {
     setLoading(true);
     Promise.all([
-      fetch('http://localhost:5328/api/calendar').then(res => res.json()),
-      fetch('http://localhost:5328/api/dividends/history').then(res => res.json())
+      fetch(`${API_BASE_URL}/api/calendar`).then(res => res.json()),
+      fetch(`${API_BASE_URL}/api/dividends/history`).then(res => res.json())
     ])
     .then(([calendarData, historyData]) => {
       setEvents(calendarData);

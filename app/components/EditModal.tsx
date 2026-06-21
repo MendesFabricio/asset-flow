@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../config/api';
 import { X, Save, Calculator, Trash2, DollarSign, Info, Plus, Minus } from 'lucide-react';
 import { Asset } from '../types';
 
@@ -116,7 +117,7 @@ export const EditModal = ({ isOpen, onClose, onSave, ativo, allAssets = [] }: Ed
         current_price: Number(formData.manual_price)
       };
 
-      const res = await fetch('http://localhost:5328/api/update_asset', {
+      const res = await fetch(`${API_BASE_URL}/api/update_asset`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -137,7 +138,7 @@ export const EditModal = ({ isOpen, onClose, onSave, ativo, allAssets = [] }: Ed
     if (!ativo || !window.confirm(`Excluir ${ativo.ticker}?`)) return;
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:5328/api/delete_asset', {
+      const res = await fetch(`${API_BASE_URL}/api/delete_asset`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: ativo.id }),

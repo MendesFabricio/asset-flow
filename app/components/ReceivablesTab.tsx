@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../config/api';
 import { Plus, CheckCircle, User, Calendar, CheckSquare, Pencil, Trash2, X, Wallet, Filter, History, Check } from 'lucide-react';
 import { formatMoney } from '../utils';
 
@@ -25,7 +26,7 @@ export const ReceivablesTab = () => {
     const [who, setWho] = useState('');
 
     const fetchItems = async () => {
-        const res = await fetch('http://localhost:5328/api/finance/receivables');
+        const res = await fetch(`${API_BASE_URL}/api/finance/receivables`);
         const data = await res.json();
         setItems(data);
     };
@@ -49,27 +50,27 @@ export const ReceivablesTab = () => {
     const handleSave = async () => {
         if (!desc || !val || !who) return alert("Preencha todos os campos.");
         const payload = { descricao: desc, valor: val, parcelas: parc || 1, devedor: who, dia: 10 };
-        const url = editingId ? `http://localhost:5328/api/finance/receivables/${editingId}` : 'http://localhost:5328/api/finance/receivables';
+        const url = editingId ? `${API_BASE_URL}/api/finance/receivables/${editingId}` : `${API_BASE_URL}/api/finance/receivables`;
         await fetch(url, { method: editingId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         setIsModalOpen(false); fetchItems();
     };
 
     const handleDelete = async () => {
         if (!editingId || !confirm("Excluir permanentemente?")) return;
-        await fetch(`http://localhost:5328/api/finance/receivables/${editingId}`, { method: 'DELETE' });
+        await fetch(`${API_BASE_URL}/api/finance/receivables/${editingId}`, { method: 'DELETE' });
         setIsModalOpen(false); fetchItems();
     };
 
     const handlePay = async (id: number) => {
         if (!confirm("Confirmar recebimento?")) return;
-        await fetch(`http://localhost:5328/api/finance/receivables/${id}/pay`, { method: 'POST' });
+        await fetch(`${API_BASE_URL}/api/finance/receivables/${id}/pay`, { method: 'POST' });
         fetchItems();
     };
 
     const handlePayBatch = async (ids: number[], monthName: string) => {
         if (!confirm(`Receber TODOS em ${monthName}?`)) return;
         setLoadingPay(true);
-        await fetch(`http://localhost:5328/api/finance/receivables/pay-batch`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids }) });
+        await fetch(`${API_BASE_URL}/api/finance/receivables/pay-batch`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids }) });
         setLoadingPay(false); fetchItems();
     };
 

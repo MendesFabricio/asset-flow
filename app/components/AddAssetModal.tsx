@@ -1,9 +1,10 @@
 'use client';
 import { Fragment, useState } from 'react';
+import { API_BASE_URL } from '../config/api';
 import { Dialog, Transition } from '@headlessui/react';
 import { X, Plus, Search, AlertCircle } from 'lucide-react';
 // Importação dos componentes do seu novo UI Kit
-import { Card } from './ui/Card'; 
+import { Card } from './ui/Card';
 import { Badge } from './ui/Badge';
 
 interface AddAssetModalProps {
@@ -47,7 +48,7 @@ export const AddAssetModal = ({ isOpen, onClose, onSuccess }: AddAssetModalProps
 
     try {
       // 1. Validação do Ticker no Yahoo Finance via Backend
-      const valRes = await fetch('http://localhost:5328/api/validate_ticker', {
+      const valRes = await fetch(`${API_BASE_URL}/api/validate_ticker`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ticker: formData.ticker.trim() })
@@ -62,7 +63,7 @@ export const AddAssetModal = ({ isOpen, onClose, onSuccess }: AddAssetModalProps
 
       // 2. Se válido, envia para criação no Banco de Dados
       setLoading(true);
-      const saveRes = await fetch('http://localhost:5328/api/add_asset', {
+      const saveRes = await fetch(`${API_BASE_URL}/api/add_asset`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -75,7 +76,7 @@ export const AddAssetModal = ({ isOpen, onClose, onSuccess }: AddAssetModalProps
       });
 
       const saveData = await saveRes.json();
-      
+
       if (saveData.status === 'Sucesso') {
         setFormData(initialState);
         onSuccess();
@@ -121,7 +122,7 @@ export const AddAssetModal = ({ isOpen, onClose, onSuccess }: AddAssetModalProps
               <Dialog.Panel className="w-full max-w-md">
                 {/* Utilização do componente Card para padronização visual */}
                 <Card className="p-6 !bg-slate-900 !border-slate-800 shadow-2xl">
-                  
+
                   <div className="flex justify-between items-center mb-6">
                     <Dialog.Title as="h3" className="text-lg font-bold text-white flex items-center gap-2">
                       <div className="p-1.5 bg-blue-600/20 rounded-lg border border-blue-500/30">
@@ -130,7 +131,7 @@ export const AddAssetModal = ({ isOpen, onClose, onSuccess }: AddAssetModalProps
                       Adicionar Ativo
                     </Dialog.Title>
                     <button onClick={onClose} className="text-slate-500 hover:text-white transition-colors">
-                      <X size={20}/>
+                      <X size={20} />
                     </button>
                   </div>
 
@@ -146,13 +147,13 @@ export const AddAssetModal = ({ isOpen, onClose, onSuccess }: AddAssetModalProps
                     <div className="space-y-1.5">
                       <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Ticker</label>
                       <div className="relative">
-                        <input 
+                        <input
                           name="ticker"
                           autoComplete="off"
-                          type="text" 
-                          placeholder="Ex: PETR4, AAPL, HGLG11..." 
+                          type="text"
+                          placeholder="Ex: PETR4, AAPL, HGLG11..."
                           value={formData.ticker}
-                          onChange={(e) => setFormData({...formData, ticker: e.target.value.toUpperCase()})}
+                          onChange={(e) => setFormData({ ...formData, ticker: e.target.value.toUpperCase() })}
                           className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white placeholder:text-slate-600 focus:ring-2 focus:ring-blue-500 outline-none font-mono uppercase transition-colors autofill:shadow-[0_0_0_30px_#020617_inset] autofill:text-fill-white"
                         />
                         <Search size={16} className="absolute right-3 top-3 text-slate-600" />
@@ -161,7 +162,7 @@ export const AddAssetModal = ({ isOpen, onClose, onSuccess }: AddAssetModalProps
 
                     <div className="space-y-1.5">
                       <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Tipo</label>
-                      <select 
+                      <select
                         name="type"
                         value={formData.type}
                         onChange={handleChange}
@@ -192,11 +193,11 @@ export const AddAssetModal = ({ isOpen, onClose, onSuccess }: AddAssetModalProps
                         <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Meta Inicial (%)</label>
                         <Badge label={`${formData.target_percent}%`} variant="blue" />
                       </div>
-                      <input 
-                        name="target_percent" type="range" min="0" max="100" step="1" 
-                        value={formData.target_percent} 
-                        onChange={(e) => setFormData({...formData, target_percent: Number(e.target.value)})} 
-                        className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500" 
+                      <input
+                        name="target_percent" type="range" min="0" max="100" step="1"
+                        value={formData.target_percent}
+                        onChange={(e) => setFormData({ ...formData, target_percent: Number(e.target.value) })}
+                        className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
                       />
                     </div>
                   </div>
@@ -216,7 +217,7 @@ export const AddAssetModal = ({ isOpen, onClose, onSuccess }: AddAssetModalProps
                           Verificando...
                         </>
                       ) : loading ? (
-                        'Salvando...' 
+                        'Salvando...'
                       ) : (
                         'Adicionar Ativo'
                       )}

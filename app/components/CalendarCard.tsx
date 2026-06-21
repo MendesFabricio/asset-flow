@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { API_BASE_URL } from '../config/api';
 import { Calendar, Clock, CalendarClock } from 'lucide-react';
 import { formatMoney } from '../utils';
 import { Badge } from './ui/Badge';
@@ -19,11 +20,11 @@ export const CalendarCard = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('http://localhost:5328/api/calendar')
+    fetch(`${API_BASE_URL}/api/calendar`)
       .then(res => res.json())
       .then(data => {
         // Ordena por data (mais próximos primeiro)
-        const sorted = data.sort((a: Evento, b: Evento) => 
+        const sorted = data.sort((a: Evento, b: Evento) =>
           new Date(a.date).getTime() - new Date(b.date).getTime()
         );
         setEvents(sorted);

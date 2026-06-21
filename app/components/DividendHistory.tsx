@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { API_BASE_URL } from '../config/api';
 import { Receipt, TrendingUp, CheckCircle2 } from 'lucide-react';
 import { formatMoney } from '../utils';
 import { usePrivacy } from '../context/PrivacyContext';
@@ -16,7 +17,7 @@ export const DividendHistory = () => {
   const { isHidden } = usePrivacy();
 
   useEffect(() => {
-    fetch('http://localhost:5328/api/dividends/history')
+    fetch(`${API_BASE_URL}/api/dividends/history`)
       .then(res => res.json())
       .then(data => setHistory(data))
       .catch(err => console.error("Erro ao carregar extrato:", err));

@@ -62,3 +62,6 @@ docker-data/
 *.db
 server/backups/
 .aider*
+
+SECURITY_ANALYSIS.md
+server/data/cvm_cache/
