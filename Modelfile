@@ -5,7 +5,7 @@ FROM north-mini-code-1.0:latest
 PARAMETER num_gpu -1
 
 # Define um contexto confortável de 32k para ler múltiplos arquivos sem travar a RAM
-PARAMETER num_ctx 131072
+PARAMETER num_ctx 32768
 
 # Limita a geração por resposta para acelerar o terminal e evitar loops infinitos
 PARAMETER num_predict 4096

@@ -1,5 +1,6 @@
 'use client';
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { secureStorage } from '../utils/apiClient';
 
 interface PrivacyContextType {
   isHidden: boolean;
@@ -16,14 +17,14 @@ export const PrivacyProvider = ({ children }: { children: ReactNode }) => {
 
   // Recupera a preferência do usuário (se ele deixou escondido antes)
   useEffect(() => {
-    const saved = localStorage.getItem('assetflow_privacy');
+    const saved = secureStorage.get('assetflow_privacy');
     if (saved === 'true') setIsHidden(true);
   }, []);
 
   const togglePrivacy = () => {
     setIsHidden((prev) => {
       const newState = !prev;
-      localStorage.setItem('assetflow_privacy', String(newState));
+      secureStorage.set('assetflow_privacy', String(newState));
       return newState;
     });
   };
