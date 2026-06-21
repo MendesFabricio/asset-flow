@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { API_BASE_URL } from './config/api';
+import { apiCall } from './utils/apiClient';
 import {
   TrendingUp, Wallet, DollarSign, Activity,
   Target, Layers, RefreshCw, PiggyBank, BarChart3, LineChart, ArrowUpRight, PlusCircle,
@@ -89,8 +89,7 @@ export default function Home() {
   const handleSyncReports = async () => {
     setSyncingReports(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/sync-reports`, { method: 'POST' });
-      const result = await response.json();
+      const result = await apiCall('/api/sync-reports', { method: 'POST', timeout: 180000 });
       if (result.status === "Sucesso") {
         notify(result.msg, 'success');
         refetch(true);
@@ -108,7 +107,7 @@ export default function Home() {
   const handleUpdateFundamentals = async () => {
     setUpdatingFundamentals(true);
     try {
-      await fetch(`${API_BASE_URL}/api/update-fundamentals`, { method: 'POST' });
+      await apiCall('/api/update-fundamentals', { method: 'POST', timeout: 180000 });
       notify("Sucesso! Inteligência atualizada.", 'success');
       refetch(true);
     } catch (e) { console.error(e); }
@@ -118,7 +117,7 @@ export default function Home() {
   const handleManualRefresh = async () => {
     setIsRefetching(true);
     try {
-      await fetch(`${API_BASE_URL}/api/refresh_prices`, { method: 'POST' });
+      await apiCall('/api/refresh_prices', { method: 'POST' });
       await refetch(true);
       setShowRefreshSuccess(true);
       setTimeout(() => setShowRefreshSuccess(false), 2000);
