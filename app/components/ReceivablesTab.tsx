@@ -1,8 +1,8 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { API_BASE_URL } from '../config/api';
 import { Plus, CheckCircle, User, Calendar, CheckSquare, Pencil, Trash2, X, Wallet, Filter, History, Check } from 'lucide-react';
 import { formatMoney } from '../utils';
+import { apiCall } from '../utils/apiClient';
 
 const getMonthName = (offset: number) => {
     const d = new Date();
@@ -26,9 +26,12 @@ export const ReceivablesTab = () => {
     const [who, setWho] = useState('');
 
     const fetchItems = async () => {
-        const res = await fetch(`${API_BASE_URL}/api/finance/receivables`);
-        const data = await res.json();
-        setItems(data);
+        try {
+            const data = await apiCall<any[]>('/api/finance/receivables');
+            setItems(data);
+        } catch (error) {
+            console.error('Erro ao carregar recebíveis:', error);
+        }
     };
 
     useEffect(() => { fetchItems(); }, []);
@@ -50,28 +53,59 @@ export const ReceivablesTab = () => {
     const handleSave = async () => {
         if (!desc || !val || !who) return alert("Preencha todos os campos.");
         const payload = { descricao: desc, valor: val, parcelas: parc || 1, devedor: who, dia: 10 };
-        const url = editingId ? `${API_BASE_URL}/api/finance/receivables/${editingId}` : `${API_BASE_URL}/api/finance/receivables`;
-        await fetch(url, { method: editingId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        setIsModalOpen(false); fetchItems();
+        const endpoint = editingId ? `/api/finance/receivables/${editingId}` : '/api/finance/receivables';
+
+        try {
+            await apiCall(endpoint, {
+                method: editingId ? 'PUT' : 'POST',
+                body: JSON.stringify(payload)
+            });
+            setIsModalOpen(false);
+            fetchItems();
+        } catch (error) {
+            console.error('Erro ao salvar recebível:', error);
+            alert('Erro ao salvar o recebível. Verifique a conexão com o servidor.');
+        }
     };
 
     const handleDelete = async () => {
         if (!editingId || !confirm("Excluir permanentemente?")) return;
-        await fetch(`${API_BASE_URL}/api/finance/receivables/${editingId}`, { method: 'DELETE' });
-        setIsModalOpen(false); fetchItems();
+
+        try {
+            await apiCall(`/api/finance/receivables/${editingId}`, { method: 'DELETE' });
+            setIsModalOpen(false);
+            fetchItems();
+        } catch (error) {
+            console.error('Erro ao excluir recebível:', error);
+        }
     };
 
     const handlePay = async (id: number) => {
         if (!confirm("Confirmar recebimento?")) return;
-        await fetch(`${API_BASE_URL}/api/finance/receivables/${id}/pay`, { method: 'POST' });
-        fetchItems();
+
+        try {
+            await apiCall(`/api/finance/receivables/${id}/pay`, { method: 'POST' });
+            fetchItems();
+        } catch (error) {
+            console.error('Erro ao processar pagamento:', error);
+        }
     };
 
     const handlePayBatch = async (ids: number[], monthName: string) => {
         if (!confirm(`Receber TODOS em ${monthName}?`)) return;
         setLoadingPay(true);
-        await fetch(`${API_BASE_URL}/api/finance/receivables/pay-batch`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids }) });
-        setLoadingPay(false); fetchItems();
+
+        try {
+            await apiCall(`/api/finance/receivables/pay-batch`, {
+                method: 'POST',
+                body: JSON.stringify({ ids })
+            });
+            fetchItems();
+        } catch (error) {
+            console.error('Erro ao processar lote de pagamento:', error);
+        } finally {
+            setLoadingPay(false);
+        }
     };
 
     // --- LÓGICA DE MESES ---
@@ -83,7 +117,6 @@ export const ReceivablesTab = () => {
             const projectedParcel = item.parcela_atual + offset;
 
             let status = 'future';
-            // Se a parcela projetada é menor que a atual do banco, já foi paga
             if (projectedParcel < item.parcela_atual) status = 'paid';
             else if (projectedParcel === item.parcela_atual) status = 'pending';
 
@@ -100,7 +133,6 @@ export const ReceivablesTab = () => {
             };
         }).filter(item => item.isVisible);
 
-        // Separa totais
         const totalPending = monthItems
             .filter(i => i.status === 'pending' || i.status === 'future')
             .reduce((acc, i) => acc + i.valor, 0);
@@ -151,7 +183,7 @@ export const ReceivablesTab = () => {
             {/* Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {monthsData.map((month, idx) => (
-                    <div key={idx} className={`rounded-xl border flex flex-col h-full max-h-[400px] transition-all duration-300 ${month.isCurrentMonth ? 'bg-slate-900 border-blue-500/50 ring-1 ring-blue-500/20 shadow-lg shadow-blue-900/10' : month.isPast ? 'bg-slate-900/30 border-orange-900/20 opacity-90' : 'bg-slate-900/50 border-slate-800 opacity-90'}`}>
+                    <div key={idx} className={`rounded-xl border flex flex-col h-full max-h-[400px] transition-all duration-300 ${month.isCurrentMonth ? 'bg-slate-900 border-blue-500/50 ring-1 ring-blue-500/20 shadow-lg shadow-blue-900/10' : month.isPast ? 'bg-slate-900/30 border-orange-900/20 opacity-90' : 'bg-slate-950/50 border-slate-800 opacity-90'}`}>
 
                         {/* Cabeçalho do Card */}
                         <div className={`p-4 border-b flex justify-between items-start rounded-t-xl ${month.isCurrentMonth ? 'bg-blue-950/20 border-blue-900/30' : month.isPast ? 'bg-orange-950/10 border-orange-900/20' : 'bg-slate-950/30 border-slate-800'}`}>
@@ -161,9 +193,7 @@ export const ReceivablesTab = () => {
                                     <p className={`text-xs uppercase font-bold ${month.isCurrentMonth ? 'text-blue-400' : month.isPast ? 'text-orange-400' : 'text-slate-500'}`}>{month.title}</p>
                                 </div>
 
-                                {/* Lógica de Exibição dos Totais */}
                                 <div className="space-y-1">
-                                    {/* Mês Passado: Destaque para Recebido */}
                                     {month.isPast ? (
                                         <>
                                             <div className="flex justify-between items-baseline">
@@ -178,7 +208,6 @@ export const ReceivablesTab = () => {
                                             )}
                                         </>
                                     ) : (
-                                        /* Mês Atual/Futuro: Destaque para A Receber */
                                         <>
                                             <div className="flex justify-between items-baseline">
                                                 <span className={`text-[10px] uppercase font-bold ${month.totalPending > 0 ? 'text-emerald-500' : 'text-slate-500'}`}>A Receber</span>
@@ -195,7 +224,6 @@ export const ReceivablesTab = () => {
                                 </div>
                             </div>
 
-                            {/* Botão Global do Mês */}
                             {month.items.some((i: any) => i.status === 'pending') && (
                                 <button onClick={() => handlePayBatch(month.items.filter((i: any) => i.status === 'pending').map((i: any) => i.id), month.title)} disabled={loadingPay} className="ml-3 text-xs bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-1.5 rounded flex items-center gap-1 transition-colors font-bold shrink-0">
                                     <CheckSquare size={14} /> Receber
