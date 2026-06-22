@@ -1,11 +1,11 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { API_BASE_URL } from '../config/api';
 import { Calendar as CalIcon, ArrowLeft, Clock, CalendarCheck, History } from 'lucide-react';
 import Link from 'next/link';
 import { formatMoney } from '../utils';
 import { Badge } from '../components/ui/Badge';
 import { Skeleton } from '../components/ui/Skeleton';
+import { apiCall } from '../utils/apiClient';
 
 interface Evento {
   ticker: string;
@@ -25,15 +25,18 @@ export default function ProventosPage() {
   useEffect(() => {
     setLoading(true);
     Promise.all([
-      fetch(`${API_BASE_URL}/api/calendar`).then(res => res.json()),
-      fetch(`${API_BASE_URL}/api/dividends/history`).then(res => res.json())
+      apiCall<Evento[]>('/api/calendar'),
+      apiCall<Evento[]>('/api/dividends/history')
     ])
-    .then(([calendarData, historyData]) => {
-      setEvents(calendarData);
-      setHistory(historyData);
-      setLoading(false);
-    })
-    .catch(() => setLoading(false));
+      .then(([calendarData, historyData]) => {
+        setEvents(calendarData);
+        setHistory(historyData);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Erro ao carregar proventos:", err);
+        setLoading(false);
+      });
   }, []);
 
   const groupedEvents = events.reduce((acc, evt) => {
@@ -48,8 +51,7 @@ export default function ProventosPage() {
   return (
     <div className="min-h-screen bg-[#0b0f19] text-slate-200 p-6 font-sans">
       <div className="max-w-3xl mx-auto">
-        
-        {/* Header - Nomes originais */}
+
         <div className="flex items-center gap-4 mb-8">
           <Link href="/" className="p-2.5 bg-slate-800/50 rounded-xl hover:bg-slate-700 transition-colors border border-slate-700/50">
             <ArrowLeft size={18} />
@@ -57,21 +59,18 @@ export default function ProventosPage() {
           <h1 className="text-2xl font-bold text-white tracking-tight">Proventos</h1>
         </div>
 
-        {/* Seleção de Abas com as cores originais: Azul vs Esmeralda */}
         <div className="flex p-1 bg-slate-900/80 rounded-xl border border-slate-800 mb-8">
-          <button 
+          <button
             onClick={() => setActiveTab('agenda')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${
-              activeTab === 'agenda' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'
-            }`}
+            className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${activeTab === 'agenda' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'
+              }`}
           >
             <CalIcon size={14} /> Agenda Futura
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('extrato')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${
-              activeTab === 'extrato' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'
-            }`}
+            className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${activeTab === 'extrato' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'
+              }`}
           >
             <History size={14} /> Extrato Real
           </button>
@@ -88,7 +87,7 @@ export default function ProventosPage() {
               <div className="space-y-10">
                 {months.map(month => {
                   const [y, m] = month.split('-');
-                  const monthName = new Date(parseInt(y), parseInt(m)-1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+                  const monthName = new Date(parseInt(y), parseInt(m) - 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
                   const totalMonth = groupedEvents[month].reduce((acc, curr) => acc + curr.total, 0);
 
                   return (
@@ -102,18 +101,16 @@ export default function ProventosPage() {
 
                       <div className="grid gap-3">
                         {groupedEvents[month].map((evt, i) => (
-                          <div key={i} className={`flex items-center justify-between p-4 rounded-xl border ${
-                            evt.is_estimate 
-                            ? 'bg-slate-900/40 border-dashed border-slate-800 opacity-70' 
-                            : 'bg-slate-900 border-emerald-900/30'
-                          }`}>
+                          <div key={i} className={`flex items-center justify-between p-4 rounded-xl border ${evt.is_estimate
+                              ? 'bg-slate-900/40 border-dashed border-slate-800 opacity-70'
+                              : 'bg-slate-900 border-emerald-900/30'
+                            }`}>
                             <div className="flex items-center gap-4">
-                              {/* Box de Data "DIA XX" Compacto */}
                               <div className="flex flex-col items-center justify-center min-w-[40px] py-1.5 bg-slate-950 rounded-lg border border-slate-800">
                                 <span className="text-[7px] font-bold text-slate-500 leading-none mb-0.5 uppercase tracking-tighter">DIA</span>
                                 <span className="text-base font-mono font-bold text-slate-200 leading-none">{evt.date.split('-')[2]}</span>
                               </div>
-                              
+
                               <div>
                                 <span className="font-bold text-white text-lg">{evt.ticker}</span>
                                 <p className="text-[11px] text-slate-500 font-medium">{formatMoney(evt.value_per_share)} p/ cota</p>
@@ -125,7 +122,7 @@ export default function ProventosPage() {
                                 {formatMoney(evt.total)}
                               </p>
                               <div className="text-[10px] flex items-center justify-end gap-1 font-bold text-slate-500 uppercase">
-                                {evt.is_estimate ? <Clock size={10}/> : <CalendarCheck size={10}/>} {evt.status}
+                                {evt.is_estimate ? <Clock size={10} /> : <CalendarCheck size={10} />} {evt.status}
                               </div>
                             </div>
                           </div>
@@ -136,7 +133,6 @@ export default function ProventosPage() {
                 })}
               </div>
             ) : (
-              /* --- VISÃO: EXTRATO REAL --- */
               <div className="space-y-8">
                 {['A RECEBER', 'PAGO'].map(statusFilter => {
                   const items = history.filter(d => d.status === statusFilter);
@@ -144,13 +140,12 @@ export default function ProventosPage() {
 
                   return (
                     <div key={statusFilter}>
-                      <h3 className={`text-[10px] font-bold uppercase tracking-widest mb-4 flex items-center gap-2 ${
-                        statusFilter === 'PAGO' ? 'text-emerald-500' : 'text-amber-500'
-                      }`}>
+                      <h3 className={`text-[10px] font-bold uppercase tracking-widest mb-4 flex items-center gap-2 ${statusFilter === 'PAGO' ? 'text-emerald-500' : 'text-amber-500'
+                        }`}>
                         <div className={`w-1.5 h-1.5 rounded-full ${statusFilter === 'PAGO' ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`} />
                         {statusFilter === 'PAGO' ? 'Liquidados (Em Conta)' : 'Provisionados (Aguardando)'}
                       </h3>
-                      
+
                       <div className="grid gap-3">
                         {items.map((div, i) => (
                           <div key={i} className="flex items-center justify-between p-4 bg-slate-900 border border-slate-800 rounded-xl">
