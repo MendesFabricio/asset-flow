@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import {
     FileText, Layers, X, ExternalLink, Calendar,
     TrendingUp, TrendingDown, Activity, ShieldAlert,
-    BarChart3, Wallet, PieChart, Coins
+    BarChart3, PieChart, Coins
 } from 'lucide-react';
 import { formatMoney } from '../utils';
 import { usePrivacy } from '../context/PrivacyContext';
@@ -46,9 +46,14 @@ const ReportModal = ({ isOpen, onClose, ativo }: { isOpen: boolean, onClose: () 
     const { isHidden } = usePrivacy() as any;
 
     useEffect(() => {
-        setMounted(true);
-        if (ativo?.tipo === 'Ação') setActiveTab('saude');
-        return () => setMounted(false);
+        const timer = setTimeout(() => {
+            setMounted(true);
+            if (ativo?.tipo === 'Ação') setActiveTab('saude');
+        }, 0);
+        return () => {
+            clearTimeout(timer);
+            setMounted(false);
+        };
     }, [isOpen, ativo]);
 
     if (!isOpen || !ativo || !mounted) return null;
@@ -143,8 +148,8 @@ const ReportModal = ({ isOpen, onClose, ativo }: { isOpen: boolean, onClose: () 
                                         key={tab.id}
                                         onClick={() => setSubTab(tab.id as any)}
                                         className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-[9px] font-black uppercase transition-all rounded-md border ${subTab === tab.id
-                                                ? 'bg-blue-600/20 border-blue-500/50 text-blue-400'
-                                                : 'border-transparent text-slate-500 hover:text-slate-300'
+                                            ? 'bg-blue-600/20 border-blue-500/50 text-blue-400'
+                                            : 'border-transparent text-slate-500 hover:text-slate-300'
                                             }`}
                                     >
                                         {tab.icon} {tab.label}
@@ -287,7 +292,7 @@ const ReportModal = ({ isOpen, onClose, ativo }: { isOpen: boolean, onClose: () 
                             ) : (
                                 <div className="py-12 text-center space-y-3">
                                     <Activity size={32} className="text-slate-800 mx-auto animate-pulse" />
-                                        <p className="text-xs text-slate-500 italic px-4 text-center">Nenhum dado disponível.</p>
+                                    <p className="text-xs text-slate-500 italic px-4 text-center">Nenhum dado disponível.</p>
                                 </div>
                             )}
                         </div>

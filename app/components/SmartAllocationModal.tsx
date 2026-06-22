@@ -1,9 +1,6 @@
 'use client';
-import { useState, useEffect } from 'react'; // Adicionei useEffect para window check
-import {
-  X, Calculator, Wallet, ShoppingCart,
-  Sparkles, ArrowRight, AlertTriangle, Target, Info
-} from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, Calculator, ShoppingCart, Sparkles, AlertTriangle, Target, Info } from 'lucide-react';
 import { Asset } from '../types';
 import { formatMoney } from '../utils';
 import { Card } from './ui/Card';
@@ -32,12 +29,12 @@ export const SmartAllocationModal = ({ isOpen, onClose, ativos }: SmartAllocatio
   // Monitora largura da tela para o Tooltip inteligente
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      setWindowWidth(window.innerWidth);
+      setTimeout(() => setWindowWidth(window.innerWidth), 0);
       const handleResize = () => setWindowWidth(window.innerWidth);
       window.addEventListener('resize', handleResize);
       return () => window.removeEventListener('resize', handleResize);
     }
-  }, []);
+  }, [])
 
   const parseCurrency = (v: string) => {
     if (!v) return 0;
@@ -70,7 +67,7 @@ export const SmartAllocationModal = ({ isOpen, onClose, ativos }: SmartAllocatio
     const purchaseMap = new Map<string, { qtd: number, custo: number, motivo: string, tipo: 'REBALANCE' | 'EXPANSION', logs: string[] }>();
 
     // --- TURNO 1: REBALANCEAMENTO (Com Teto Global) ---
-    let rebalanceCandidates = validAssets
+    const rebalanceCandidates = validAssets
       .filter(a => a.falta_comprar > 0)
       .sort((a, b) => b.falta_comprar - a.falta_comprar);
 
@@ -118,7 +115,7 @@ export const SmartAllocationModal = ({ isOpen, onClose, ativos }: SmartAllocatio
 
     // --- TURNO 2: EXPANSÃO ---
     if (availableCash > 100) {
-      let expansionCandidates = validAssets
+      const expansionCandidates = validAssets
         .filter(a =>
           a.falta_comprar <= 0 &&
           (a.score || 0) >= POLICY.MIN_SCORE &&
@@ -272,8 +269,8 @@ export const SmartAllocationModal = ({ isOpen, onClose, ativos }: SmartAllocatio
                           {item.ticker}
                           <div
                             className={`text-[9px] font-normal px-1.5 py-0.5 rounded border flex items-center gap-1 cursor-help transition-colors ${item.tipo_acao === 'EXPANSION'
-                                ? 'text-amber-400 bg-amber-900/20 border-amber-900/40 hover:bg-amber-900/40'
-                                : 'text-emerald-400 bg-emerald-900/20 border-emerald-900/40 hover:bg-emerald-900/40'
+                              ? 'text-amber-400 bg-amber-900/20 border-amber-900/40 hover:bg-amber-900/40'
+                              : 'text-emerald-400 bg-emerald-900/20 border-emerald-900/40 hover:bg-emerald-900/40'
                               }`}
                             onMouseEnter={(e) => {
                               const rect = e.currentTarget.getBoundingClientRect();

@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import { API_BASE_URL } from '../config/api';
-import { Activity, X } from 'lucide-react';
+import { Activity } from 'lucide-react';
 
 // --- CONSTANTES ---
 const CELL_SIZE = 20;

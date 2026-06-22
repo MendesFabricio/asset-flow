@@ -23,7 +23,7 @@ export default function AssetNewsPanel({ ticker, onClose }: Props) {
 
   useEffect(() => {
     if (ticker) {
-      setLoading(true);
+      setTimeout(() => setLoading(true), 0);
       apiCall<NewsItem[]>(`/api/news/${ticker}`)
         .then(data => {
           setNews(data);

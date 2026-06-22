@@ -1,6 +1,5 @@
 import useSWR, { mutate } from 'swr';
 import { DashboardData } from '../types';
-import { API_BASE_URL } from '../config/api';
 
 // O fetcher padrão que o SWR vai usar
 const fetcher = async (url: string) => {

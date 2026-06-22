@@ -12,7 +12,7 @@ interface AssetRowProps {
   tab: string;
   onEdit: (ativo: Asset) => void;
   onViewNews?: (ticker: string) => void;
-  onViewDetails: (ativo: Asset) => void; // 👈 Nova Prop
+  onViewDetails: (ativo: Asset) => void;
   index: number;
   total: number;
 }

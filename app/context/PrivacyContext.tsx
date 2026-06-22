@@ -1,5 +1,5 @@
 'use client';
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, ReactNode } from 'react';
 import { secureStorage } from '../utils/apiClient';
 
 interface PrivacyContextType {
@@ -9,17 +9,18 @@ interface PrivacyContextType {
 
 const PrivacyContext = createContext<PrivacyContextType>({
   isHidden: false,
-  togglePrivacy: () => {},
+  togglePrivacy: () => { },
 });
 
 export const PrivacyProvider = ({ children }: { children: ReactNode }) => {
-  const [isHidden, setIsHidden] = useState(false);
-
-  // Recupera a preferência do usuário (se ele deixou escondido antes)
-  useEffect(() => {
-    const saved = secureStorage.get('assetflow_privacy');
-    if (saved === 'true') setIsHidden(true);
-  }, []);
+  // Inicialização estável resolve o erro de render em cascata do linter
+  const [isHidden, setIsHidden] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = secureStorage.get('assetflow_privacy');
+      return saved === 'true';
+    }
+    return false;
+  });
 
   const togglePrivacy = () => {
     setIsHidden((prev) => {

@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 import { Calendar as CalIcon, ArrowLeft, Clock, CalendarCheck, History } from 'lucide-react';
 import Link from 'next/link';
 import { formatMoney } from '../utils';
-import { Badge } from '../components/ui/Badge';
 import { Skeleton } from '../components/ui/Skeleton';
 import { apiCall } from '../utils/apiClient';
 
@@ -23,7 +22,6 @@ export default function ProventosPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setLoading(true);
     Promise.all([
       apiCall<Evento[]>('/api/calendar'),
       apiCall<Evento[]>('/api/dividends/history')
@@ -102,8 +100,8 @@ export default function ProventosPage() {
                       <div className="grid gap-3">
                         {groupedEvents[month].map((evt, i) => (
                           <div key={i} className={`flex items-center justify-between p-4 rounded-xl border ${evt.is_estimate
-                              ? 'bg-slate-900/40 border-dashed border-slate-800 opacity-70'
-                              : 'bg-slate-900 border-emerald-900/30'
+                            ? 'bg-slate-900/40 border-dashed border-slate-800 opacity-70'
+                            : 'bg-slate-900 border-emerald-900/30'
                             }`}>
                             <div className="flex items-center gap-4">
                               <div className="flex flex-col items-center justify-center min-w-[40px] py-1.5 bg-slate-950 rounded-lg border border-slate-800">
