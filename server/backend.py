@@ -19,15 +19,21 @@ from utils.cvm_processor import CVMProcessor
 from routes.finance import finance_bp
 from routes.market import market_bp, update_market_cache 
 
-logging.basicConfig(level=logging.INFO)
+# Configuração refinada de logs para exibir timestamp de forma profissional
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+
 app = Flask(__name__)
 CORS(app)
 
-# 🛡️ MANIPULADOR GLOBAL DE ERROS (Check no Relatório de Auditoria)
+# 🛡️ MANIPULADOR GLOBAL DE ERROS
 @app.errorhandler(Exception)
 def handle_global_exception(e):
     """Captura qualquer exceção não tratada nas rotas e responde em formato JSON estruturado"""
-    logging.error(f"💥 Erro crítico global interceptado: {str(e)}")
+    logging.error(f"💥 Erro crítico global interceptado: {str(e)}", exc_info=True)
     return jsonify({
         "status": "Erro",
         "msg": "Ocorreu um erro interno no servidor de dados do AssetFlow.",
@@ -52,17 +58,18 @@ service = PortfolioService()
 @app.route('/api/sync-reports', methods=['POST'])
 def sync_reports():
     try:
-        logging.info("🚀 Iniciando sincronia manual...")
+        logging.info("🚀 Iniciando sincronia manual de relatórios...")
         
         # 1. Sincroniza FIIs (FNET)
         fnet_result = service.sync_reports_with_fnet() 
         
         # 2. Sincroniza Ações (CVM)
         from database.models import Session, Asset
-        db_session = Session()
         count_cvm = 0
         
-        try:
+        # ⚡ CONTEXT MANAGER INJETADO: Protege a sessão do banco. Se o CVMProcessor demorar ou 
+        # cair no meio do loop, a transação sofre rollback automático e a conexão é liberada.
+        with Session() as db_session:
             acoes_cvm = db_session.query(Asset).filter(
                 Asset.cvm_code != None,
                 Asset.cvm_code != ""
@@ -74,19 +81,17 @@ def sync_reports():
                 count_cvm += 1
             
             db_session.commit()
-        finally:
-            db_session.close()
 
         return jsonify({
             "status": "Sucesso", 
-            "msg": f"FIIs: {fnet_result.get('msg')}. CVM: {count_cvm} ações updated."
+            "msg": f"FIIs: {fnet_result.get('msg')}. CVM: {count_cvm} ações atualizadas."
         }), 200
 
     except Exception as e:
-        logging.error(f"❌ Erro na sincronia: {str(e)}")
+        logging.error(f"❌ Erro grave detectado na esteira de sincronia de relatórios: {str(e)}", exc_info=True)
         return jsonify({"status": "Erro", "msg": str(e)}), 500
 
-# --- JOBS DE AGENDAMENTO ---
+# --- JOBS DE AGENDAMENTO ORQUESTRADO ---
 
 def scheduled_update_prices():
     """⚡ Atualiza preços da carteira a cada 10 minutos de forma eficiente"""
@@ -96,15 +101,16 @@ def scheduled_update_prices():
             service.update_prices()
             service.take_daily_snapshot()
         except Exception as e:
-            logging.error(f"❌ Erro Update Prices: {e}")
+            # 🔍 TRACEBACK COMPLETO: exc_info=True injeta a linha exata do bug no log do Docker
+            logging.error(f"❌ Erro no Job de atualização de cotações da carteira: {e}", exc_info=True)
 
 def scheduled_update_indices():
-    """Atualiza IBOV/IFIX na memória (Cache) a cada 5 minutes"""
+    """Atualiza IBOV/IFIX na memória (Cache) a cada 5 minutos"""
     with app.app_context():
         try:
             update_market_cache() 
         except Exception as e:
-            logging.error(f"❌ Erro Update Indices: {e}")
+            logging.error(f"❌ Erro no Job de atualização de índices macro: {e}", exc_info=True)
 
 def scheduled_dividends_check():
     """Verifica dividendos confirmados uma vez por dia"""
@@ -114,19 +120,17 @@ def scheduled_dividends_check():
             if hasattr(service, 'record_confirmed_dividends'):
                 service.record_confirmed_dividends()
         except Exception as e:
-            logging.error(f"❌ Erro Dividendos: {e}")
+            logging.error(f"❌ Erro no Job automático de rastreamento de dividendos: {e}", exc_info=True)
 
 # Configuração do Agendador
 scheduler = BackgroundScheduler()
 
-# 1. Job Rápido: Índices de Mercado (Cache rápido - 5 min)
-scheduler.add_job(func=scheduled_update_indices, trigger="interval", minutes=5)
-
-# 2. Job Médio: Preços da Carteira (⏱️ Corrigido de 5 para 10 minutos nativos)
-scheduler.add_job(func=scheduled_update_prices, trigger="interval", minutes=10)
-
-# 3. Job Lento: Agenda de Dividendos (Cron executado pontualmente às 08:00)
-scheduler.add_job(func=scheduled_dividends_check, trigger="cron", hour=8, minute=0)
+# ⚡ CALIBRAÇÃO SÊNIOR CONTRA CONCORRÊNCIA:
+# - max_instances=1: Garante que se o Yahoo travar por mais de 10 min, uma segunda instância IDÊNTICA do Job não será disparada.
+# - misfire_grace_time: Dá uma tolerância de segundos caso o servidor sofra lag ou reinicie bem na hora exata do agendamento.
+scheduler.add_job(func=scheduled_update_indices, trigger="interval", minutes=5, max_instances=1, misfire_grace_time=30)
+scheduler.add_job(func=scheduled_update_prices, trigger="interval", minutes=10, max_instances=1, misfire_grace_time=60)
+scheduler.add_job(func=scheduled_dividends_check, trigger="cron", hour=8, minute=0, max_instances=1, misfire_grace_time=3600)
 
 if not scheduler.running:
     scheduler.start()
@@ -137,11 +141,16 @@ def initial_background_update():
     logging.info("🚀 Boot: Rodando atualizações iniciais em thread paralela...")
     
     with app.app_context():
-        try: update_market_cache()
-        except: pass
-        
-        try: scheduled_update_prices()
-        except: pass
+        # 🧼 REMOVIDO BARE EXCEPT: Erros na inicialização agora geram alertas claros nos logs para auditoria
+        try: 
+            update_market_cache()
+        except Exception as e:
+            logging.error(f"⚠️ Falha ao esquentar cache de índices macro no boot: {e}", exc_info=True)
+            
+        try: 
+            scheduled_update_prices()
+        except Exception as e:
+            logging.error(f"⚠️ Falha ao processar cotações automáticas no boot: {e}", exc_info=True)
 
 if __name__ == '__main__':
     boot_thread = threading.Thread(target=initial_background_update)
