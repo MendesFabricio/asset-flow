@@ -33,7 +33,7 @@ def get_secure_session():
             kwargs["timeout"] = kwargs.get("timeout", 8) # ⚡ Timeout de 8s por ativo individual
             return super().send(request, **kwargs)
             
-    adapter = TimeoutHTTPAdapter(max_retries=retries)
+    adapter = TimeoutHTTPAdapter(max_retries=retries, pool_connections=20, pool_maxsize=20)
     session.mount("https://", adapter)
     session.mount("http://", adapter)
     return session

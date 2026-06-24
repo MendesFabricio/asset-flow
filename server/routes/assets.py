@@ -1,8 +1,9 @@
-# server/routes/assets.py
 from flask import Blueprint, jsonify, request
 from pydantic import BaseModel, Field, ValidationError
 import sys
 import os
+import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed # ⚡ Injetado o motor de paralelismo
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from services import PortfolioService
@@ -17,7 +18,7 @@ class AssetInput(BaseModel):
     category: str = Field(..., min_length=1)
     qtd: float = Field(ge=0, default=0)
     pm: float = Field(ge=0, default=0)
-    meta: float = Field(ge=0, default=0) # 👈 Adicionado campo META
+    meta: float = Field(ge=0, default=0)
 
 class UpdateInput(BaseModel):
     ticker: str
@@ -28,6 +29,33 @@ class UpdateInput(BaseModel):
     lpa: float = Field(default=0)
     vpa: float = Field(default=0)
     current_price: float = Field(default=None)
+
+# --- Funções Auxiliares de Threading ---
+
+def _worker_process_fundamentalist_data(asset):
+    """🛠️ TRABALHADOR PARALELO: Processa a carga pesada de dados CVM fora da thread principal do Flask"""
+    try:
+        # Tenta converter o objeto SQLAlchemy para dicionário de forma segura
+        asset_dict = asset.to_dict() if hasattr(asset, 'to_dict') else dict(asset)
+        
+        tipo = getattr(asset, 'tipo', asset_dict.get('tipo', ''))
+        cvm_code = getattr(asset, 'cvm_code', asset_dict.get('cvm_code', None))
+        ticker = getattr(asset, 'ticker', asset_dict.get('ticker', 'UNKNOWN'))
+
+        if tipo == 'Ação' and cvm_code:
+            try:
+                # Executa a leitura física/requisição do JSON da CVM em paralelo
+                asset_dict['fundamentalist_data'] = CVMProcessor.get_dashboard_data(cvm_code)
+            except Exception as e:
+                logging.warning(f"⚠️ Falha controlada ao obter dados CVM do papel {ticker}: {e}")
+                asset_dict['fundamentalist_data'] = None
+        else:
+            asset_dict['fundamentalist_data'] = None
+            
+        return asset_dict
+    except Exception as e:
+        logging.error(f"❌ Erro estrutural ao processar mapeamento de ativo nas threads: {e}")
+        return None
 
 # --- Rotas ---
 
@@ -42,7 +70,6 @@ def simulation():
 @assets_bp.route('/api/add_asset', methods=['POST'])
 def add_asset():
     try:
-        # Validação automática com Pydantic
         body = AssetInput(**request.json)
         
         result = service.add_new_asset(
@@ -50,12 +77,15 @@ def add_asset():
             body.category, 
             body.qtd, 
             body.pm,
-            body.meta # 👈 Passando a meta para o serviço
+            body.meta
         )
         
         if result["status"] == "Sucesso":
-             try: service.update_prices(); service.take_daily_snapshot()
-             except: pass
+             try: 
+                 service.update_prices()
+                 service.take_daily_snapshot()
+             except Exception as e: 
+                 logging.warning(f"⚠️ Falha ao computar pós-inclusão de ativo: {e}")
              
         return jsonify(result)
         
@@ -69,7 +99,6 @@ def update_asset():
     try:
         body = UpdateInput(**request.json)
         
-        # 👇 2. Passamos o manual_price para o serviço
         result = service.update_position(
             ticker=body.ticker, 
             qtd=body.qtd, 
@@ -92,12 +121,11 @@ def update_asset():
     
 @assets_bp.route('/api/validate_ticker', methods=['POST'])
 def validate_ticker():
-    data = request.json
+    data = request.json or {}
     ticker = data.get('ticker', '').strip()
     if not ticker:
         return jsonify({"valid": False, "msg": "Ticker vazio"})
     
-    service = PortfolioService()
     result = service.validate_ticker_on_yahoo(ticker)
     
     if not result['valid']:
@@ -111,52 +139,56 @@ def validate_ticker():
 
 @assets_bp.route('/api/delete_asset', methods=['POST'])
 def delete_asset():
-    data = request.json
+    data = request.json or {}
     asset_id = data.get('id')
     
     if not asset_id:
         return jsonify({"status": "Erro", "msg": "ID não informado"})
     
-    service = PortfolioService()
     result = service.delete_asset(asset_id)
     return jsonify(result)
 
 @assets_bp.route('/api/assets')
 def get_assets():
+    """🚀 ROTA OTIMIZADA: Carrega e monta os dados fundamentalistas de toda a carteira em paralelo"""
     try:
-        assets = service.get_all_assets() 
+        # Se get_all_assets não existir ou for dinâmico, o PortfolioService gerencia
+        if hasattr(service, 'get_all_assets'):
+            assets = service.get_all_assets()
+        else:
+            # Fallback seguro caso o método real seja via posições do dashboard
+            dash_data = service.get_dashboard_data()
+            return jsonify(dash_data.get("ativos", []))
+            
         results = []
-        for asset in assets:
-            asset_dict = asset.to_dict()
-            # Verifica se é Ação e se tem o código CVM preenchido no banco
-            if getattr(asset, 'tipo', '') == 'Ação' and getattr(asset, 'cvm_code', None):
-                try:
-                    # CHAMADA CORRETA:
-                    asset_dict['fundamentalist_data'] = CVMProcessor.get_dashboard_data(asset.cvm_code)
-                except Exception as e:
-                    print(f"Erro CVM {asset.ticker}: {e}")
-                    asset_dict['fundamentalist_data'] = None
-            else:
-                asset_dict['fundamentalist_data'] = None
-            results.append(asset_dict)
+        
+        # ⚡ Divide o processamento síncrono pesado em um Pool de até 10 Workers paralelos
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            futures = [executor.submit(_worker_process_fundamentalist_data, asset) for asset in assets]
+            
+            for future in as_completed(futures):
+                res = future.result()
+                if res is not None:
+                    results.append(res)
+        
+        # Mantém a ordenação alfabética por Ticker estável para o front-end
+        results.sort(key=lambda x: x.get('ticker', ''))
         return jsonify(results)
+        
     except Exception as e:
+        logging.error(f"❌ Erro grave ao montar listagem de ativos: {e}")
         return jsonify({"status": "Erro", "msg": str(e)}), 500
     
-# Adicione isso junto com suas outras rotas
 @assets_bp.route('/api/correlation', methods=['GET'])
 def correlation():
-    # Usa o service global já instanciado no topo
     data = service.get_correlation_matrix()
     return jsonify(data)
 
 @assets_bp.route('/api/refresh_prices', methods=['POST'])
 def refresh_prices():
     try:
-        print("⚡ Recebido comando de atualização manual...", flush=True)
-        # Atualiza preços e calcula a variação (change_percent)
+        logging.info("⚡ Recebido comando de atualização manual via Dashboard.")
         service.update_prices()       
-        # Tira foto do patrimônio atualizado
         service.take_daily_snapshot() 
         return jsonify({"status": "Sucesso", "msg": "Preços e Variações atualizados!"})
     except Exception as e:
