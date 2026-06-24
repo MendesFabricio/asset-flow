@@ -17,12 +17,22 @@ from routes.maintenance import maintenance_bp
 from services import PortfolioService
 from utils.cvm_processor import CVMProcessor 
 from routes.finance import finance_bp
-# 👇 ALTERAÇÃO 1: Importamos a função de cache do market.py
 from routes.market import market_bp, update_market_cache 
 
 logging.basicConfig(level=logging.INFO)
 app = Flask(__name__)
 CORS(app)
+
+# 🛡️ MANIPULADOR GLOBAL DE ERROS (Check no Relatório de Auditoria)
+@app.errorhandler(Exception)
+def handle_global_exception(e):
+    """Captura qualquer exceção não tratada nas rotas e responde em formato JSON estruturado"""
+    logging.error(f"💥 Erro crítico global interceptado: {str(e)}")
+    return jsonify({
+        "status": "Erro",
+        "msg": "Ocorreu um erro interno no servidor de dados do AssetFlow.",
+        "details": str(e)
+    }), 500
 
 # Registro de Rotas
 app.register_blueprint(dashboard_bp)
@@ -38,7 +48,7 @@ app.register_blueprint(market_bp, url_prefix='/api/market')
 # Instância única do serviço
 service = PortfolioService()
 
-# --- ROTA MANTIDA: SINCRONIZAÇÃO CVM E FNET ---
+# --- ROTA: SINCRONIZAÇÃO CVM E FNET ---
 @app.route('/api/sync-reports', methods=['POST'])
 def sync_reports():
     try:
@@ -53,7 +63,6 @@ def sync_reports():
         count_cvm = 0
         
         try:
-            # Pegamos todos os ativos que são Ação e possuem cvm_code preenchido
             acoes_cvm = db_session.query(Asset).filter(
                 Asset.cvm_code != None,
                 Asset.cvm_code != ""
@@ -61,7 +70,6 @@ def sync_reports():
 
             for acao in acoes_cvm:
                 logging.info(f"📊 Processando CVM: {acao.ticker} ({acao.cvm_code})")
-                # Chama o motor para baixar o ZIP e gerar a análise
                 CVMProcessor.get_dashboard_data(acao.cvm_code)
                 count_cvm += 1
             
@@ -71,30 +79,30 @@ def sync_reports():
 
         return jsonify({
             "status": "Sucesso", 
-            "msg": f"FIIs: {fnet_result.get('msg')}. CVM: {count_cvm} ações atualizadas."
+            "msg": f"FIIs: {fnet_result.get('msg')}. CVM: {count_cvm} ações updated."
         }), 200
 
     except Exception as e:
         logging.error(f"❌ Erro na sincronia: {str(e)}")
         return jsonify({"status": "Erro", "msg": str(e)}), 500
 
-# --- NOVOS JOBS DE AGENDAMENTO (SUBSTITUI O ANTIGO scheduled_update) ---
+# --- JOBS DE AGENDAMENTO ---
 
 def scheduled_update_prices():
-    """Atualiza preços da carteira a cada 30 minutos"""
+    """⚡ Atualiza preços da carteira a cada 10 minutos de forma eficiente"""
     with app.app_context():
         try:
-            logging.info("🕒 JOB 30m: Atualizando preços dos ativos...")
+            logging.info("🕒 JOB 10m: Atualizando preços dos ativos e salvando snapshot...")
             service.update_prices()
             service.take_daily_snapshot()
         except Exception as e:
             logging.error(f"❌ Erro Update Prices: {e}")
 
 def scheduled_update_indices():
-    """Atualiza IBOV/IFIX na memória (Cache) a cada 5 minutos"""
+    """Atualiza IBOV/IFIX na memória (Cache) a cada 5 minutes"""
     with app.app_context():
         try:
-            update_market_cache() # Função importada do market.py
+            update_market_cache() 
         except Exception as e:
             logging.error(f"❌ Erro Update Indices: {e}")
 
@@ -111,29 +119,27 @@ def scheduled_dividends_check():
 # Configuração do Agendador
 scheduler = BackgroundScheduler()
 
-# 1. Job Rápido: Indices de Mercado (5 min)
+# 1. Job Rápido: Índices de Mercado (Cache rápido - 5 min)
 scheduler.add_job(func=scheduled_update_indices, trigger="interval", minutes=5)
 
-# 2. Job Médio: Preços da Carteira (30 min) - Antes era 60, otimizado para 30
-scheduler.add_job(func=scheduled_update_prices, trigger="interval", minutes=5)
+# 2. Job Médio: Preços da Carteira (⏱️ Corrigido de 5 para 10 minutos nativos)
+scheduler.add_job(func=scheduled_update_prices, trigger="interval", minutes=10)
 
-# 3. Job Lento: Dividendos (Todo dia as 08:00)
+# 3. Job Lento: Agenda de Dividendos (Cron executado pontualmente às 08:00)
 scheduler.add_job(func=scheduled_dividends_check, trigger="cron", hour=8, minute=0)
 
 if not scheduler.running:
     scheduler.start()
 
 def initial_background_update():
-    """Roda tudo uma vez ao ligar o servidor para não esperar os timers"""
+    """Execução em background pós-inicialização para popular dados de imediato no boot"""
     time.sleep(5) 
-    logging.info("🚀 Boot: Rodando atualizações iniciais...")
+    logging.info("🚀 Boot: Rodando atualizações iniciais em thread paralela...")
     
-    # Atualiza Cache de Mercado Imediatamente
     with app.app_context():
         try: update_market_cache()
         except: pass
         
-        # Atualiza Preços Imediatamente
         try: scheduled_update_prices()
         except: pass
 

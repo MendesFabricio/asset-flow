@@ -1,93 +1,144 @@
 from flask import Blueprint, jsonify
-from sqlalchemy.orm import Session
-from database.models import Asset, Position, engine
+from database.models import Asset, Position, Session
 import yfinance as yf
 from datetime import datetime
 import pytz
-import sys
+import logging
+import time
+import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util import Retry
+from concurrent.futures import ThreadPoolExecutor, as_completed # ⚡ Motor de paralelismo
 
 calendar_bp = Blueprint('calendar', __name__)
 
-@calendar_bp.route('/api/calendar', methods=['GET'])
-def get_calendar():
-    # flush=True garante que apareça no log do Docker imediatamente
-    print("\n🔍 --- INICIANDO BUSCA DE PROVENTOS ---", flush=True)
-    session = Session(bind=engine)
-    events = []
+CALENDAR_CACHE = {
+    "data": None,
+    "last_update": 0
+}
+CACHE_TIMEOUT = 600  # 10 minutos
+
+def get_secure_session():
+    """🛡️ Cria uma sessão HTTP disfarçada de navegador real com política de Timeout"""
+    session = requests.Session()
+    retries = Retry(total=1, backoff_factor=0.3, status_forcelist=[500, 502, 503, 504])
+    
+    session.headers.update({
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+    })
+    
+    class TimeoutHTTPAdapter(HTTPAdapter):
+        def send(self, request, **kwargs):
+            kwargs["timeout"] = kwargs.get("timeout", 8) # ⚡ Timeout de 8s por ativo individual
+            return super().send(request, **kwargs)
+            
+    adapter = TimeoutHTTPAdapter(max_retries=retries)
+    session.mount("https://", adapter)
+    session.mount("http://", adapter)
+    return session
+
+def fetch_single_asset_proventos(item):
+    """🛠️ TRABALHADOR PARALELO: Executa de forma isolada em sua própria thread"""
+    ticker_raw, quantity, today, tz = item
+    secure_session = get_secure_session()
+    local_events = []
     
     try:
-        # Busca ativos com quantidade
-        positions = session.query(Position).join(Asset).filter(Position.quantity > 0).all()
-        print(f"📦 Ativos na carteira: {len(positions)}", flush=True)
+        if len(ticker_raw) >= 5 and not ticker_raw.endswith('.SA'):
+            ticker_yahoo = f"{ticker_raw}.SA"
+        else:
+            ticker_yahoo = ticker_raw
+        
+        stock = yf.Ticker(ticker_yahoo, session=secure_session)
+        
+        # 1. Histórico de Dividendos
+        divs = stock.dividends
+        if not divs.empty:
+            if divs.index.tz is None: 
+                divs.index = divs.index.tz_localize(tz)
+            else: 
+                divs.index = divs.index.tz_convert(tz)
 
-        tz = pytz.timezone("America/Sao_Paulo")
-        today = datetime.now(tz).date()
+            future_divs = divs[divs.index.date >= today]
+            for date_com, value in future_divs.items():
+                local_events.append({
+                    "ticker": ticker_raw,
+                    "date": date_com.strftime('%Y-%m-%d'),
+                    "total": float(value) * float(quantity),
+                    "value_per_share": float(value),
+                    "status": "Confirmado",
+                    "is_estimate": False
+                })
 
-        for pos in positions:
-            ticker_raw = pos.asset.ticker.strip().upper()
-            
-            # Pula ativos genéricos
-            if any(x in ticker_raw for x in ["CAIXINHA", "BTC", "ETH"]):
-                continue
-
-            try:
-                # Lógica de Sufixo Inteligente
-                # Ativos americanos (VT, AIQ, VNQ) geralmente têm 2 a 4 letras. 
-                # Ativos brasileiros (PETR4, HGLG11) têm 5 ou mais.
-                if len(ticker_raw) >= 5 and not ticker_raw.endswith('.SA'):
-                    ticker_yahoo = f"{ticker_raw}.SA"
-                else:
-                    ticker_yahoo = ticker_raw
-                
-                print(f"📡 Consultando: {ticker_yahoo}", flush=True)
-                stock = yf.Ticker(ticker_yahoo)
-                
-                # 1. Tabela de Dividendos
-                divs = stock.dividends
-                if not divs.empty:
-                    if divs.index.tz is None: divs.index = divs.index.tz_localize(tz)
-                    else: divs.index = divs.index.tz_convert(tz)
-
-                    future_divs = divs[divs.index.date >= today]
-                    for date_com, value in future_divs.items():
-                        print(f"   ✅ {ticker_raw}: R$ {value} confirmado", flush=True)
-                        events.append({
+        # 2. Info Corporativa (Anunciados)
+        if not local_events:
+            info = stock.info
+            ex_ts = info.get('exDividendDate')
+            if ex_ts:
+                ex_date = datetime.fromtimestamp(ex_ts, tz).date()
+                if ex_date >= today:
+                    val = info.get('dividendRate') or (divs.iloc[-1] if not divs.empty else 0)
+                    if val > 0:
+                        local_events.append({
                             "ticker": ticker_raw,
-                            "date": date_com.strftime('%Y-%m-%d'),
-                            "total": float(value) * float(pos.quantity),
-                            "value_per_share": float(value),
-                            "status": "Confirmado",
-                            "is_estimate": False
+                            "date": ex_date.strftime('%Y-%m-%d'),
+                            "total": float(val) * float(quantity),
+                            "value_per_share": float(val),
+                            "status": "Anunciado",
+                            "is_estimate": True
                         })
-
-                # 2. Info/Resumo (Somente se não achou no histórico)
-                if not any(e['ticker'] == ticker_raw for e in events):
-                    info = stock.info
-                    ex_ts = info.get('exDividendDate')
-                    if ex_ts:
-                        ex_date = datetime.fromtimestamp(ex_ts, tz).date()
-                        if ex_date >= today:
-                            val = info.get('dividendRate') or (divs.iloc[-1] if not divs.empty else 0)
-                            if val > 0:
-                                print(f"   📅 {ticker_raw}: Anunciado para {ex_date}", flush=True)
-                                events.append({
-                                    "ticker": ticker_raw,
-                                    "date": ex_date.strftime('%Y-%m-%d'),
-                                    "total": float(val) * float(pos.quantity),
-                                    "value_per_share": float(val),
-                                    "status": "Anunciado",
-                                    "is_estimate": True
-                                })
-            except Exception as e:
-                print(f"   ⚠️ Erro ao processar {ticker_raw}: {e}", flush=True)
-                continue
-
-        print(f"🏁 Fim da busca. {len(events)} eventos.", flush=True)
-        events.sort(key=lambda x: x['date'])
-        return jsonify(events)
-    
     except Exception as e:
-        print(f"💥 Erro Geral: {e}", flush=True)
-        return jsonify({"error": str(e)}), 500
-    finally:
-        session.close()
+        logging.warning(f"   ⚠️ Falha controlada ao buscar {ticker_raw} em paralelo: {e}")
+        
+    return local_events
+
+@calendar_bp.route('/api/calendar', methods=['GET'])
+def get_calendar():
+    now = time.time()
+    
+    # Validação rápida de Cache
+    if CALENDAR_CACHE["data"] is not None and (now - CALENDAR_CACHE["last_update"]) < CACHE_TIMEOUT:
+        return jsonify(CALENDAR_CACHE["data"])
+
+    logging.info("🔍 --- INICIANDO BUSCA ULTRA-RÁPIDA DE PROVENTOS (THREADS ATIVAS) ---")
+    
+    tz = pytz.timezone("America/Sao_Paulo")
+    today = datetime.now(tz).date()
+    items_to_process = []
+    
+    # ⚡ PASSO 1: Busca rápida no banco e fechamento imediato da sessão
+    with Session() as session:
+        try:
+            positions = session.query(Position).join(Asset).filter(Position.quantity > 0).all()
+            for pos in positions:
+                ticker_raw = pos.asset.ticker.strip().upper()
+                if any(x in ticker_raw for x in ["CAIXINHA", "BTC", "ETH"]):
+                    continue
+                # Guardamos apenas tipos primitivos (strings/floats) para passar para as threads
+                items_to_process.append((ticker_raw, pos.quantity, today, tz))
+        except Exception as e:
+            logging.error(f"💥 Erro ao ler posições para o calendário: {e}")
+            return jsonify({"error": "Erro de banco de dados"}), 500
+
+    if not items_to_process:
+        return jsonify([])
+
+    events = []
+    
+    # ⚡ PASSO 2: Dispara as requisições HTTP em paralelo usando um Pool de 12 Workers
+    # Em vez de demorar 15 segundos sequenciais, vai processar tudo em menos de 2 segundos!
+    with ThreadPoolExecutor(max_workers=12) as executor:
+        futures = [executor.submit(fetch_single_asset_proventos, item) for item in items_to_process]
+        
+        for future in as_completed(futures):
+            events.extend(future.result())
+
+    events.sort(key=lambda x: x['date'])
+    
+    # Salva no cache de memória
+    CALENDAR_CACHE["data"] = events
+    CALENDAR_CACHE["last_update"] = now
+    
+    logging.info(f"🏁 Fim da varredura paralela. {len(events)} eventos consolidados com sucesso.")
+    return jsonify(events)

@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { X, ExternalLink, Newspaper, icon as LucideIcon } from 'lucide-react';
+import { X, ExternalLink, Newspaper } from 'lucide-react';
 import { Skeleton } from './ui/Skeleton';
 import { Badge } from './ui/Badge';
 import { apiCall } from '../utils/apiClient';

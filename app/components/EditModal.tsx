@@ -150,7 +150,7 @@ export const EditModal = ({ isOpen, onClose, onSave, ativo, allAssets = [] }: Ed
     try {
       await apiCall('/api/delete_asset', {
         method: 'POST',
-        body: JSON.stringify({ id: ativo.id }),
+        body: JSON.stringify({ id: (ativo as Asset & { id?: number }).id }),
       });
       onSave();
       onClose();

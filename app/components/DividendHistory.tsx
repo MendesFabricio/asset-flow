@@ -18,7 +18,7 @@ export const DividendHistory = () => {
 
   useEffect(() => {
     apiCall('/api/dividends/history')
-      .then(data => setHistory(data))
+      .then(data => setHistory(data as DividendRecord[]))
       .catch(err => console.error("Erro ao carregar extrato:", err));
   }, []);
 
@@ -41,7 +41,7 @@ export const DividendHistory = () => {
           <span className="text-[10px] font-bold uppercase tracking-tight">Confirmados</span>
         </div>
       </div>
-      
+
       {/* Lista com Scroll Interno para não quebrar o layout da página */}
       <div className="max-h-[400px] overflow-y-auto divide-y divide-slate-800/50 scrollbar-thin scrollbar-thumb-slate-700">
         {history.map((div, i) => (

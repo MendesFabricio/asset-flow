@@ -5,7 +5,6 @@ import { X, Plus, Search, AlertCircle } from 'lucide-react';
 // Importação dos componentes do seu novo UI Kit
 import { Card } from './ui/Card';
 import { Badge } from './ui/Badge';
-import { apiCall } from '../utils/apiClient';
 
 interface AddAssetModalProps {
   isOpen: boolean;

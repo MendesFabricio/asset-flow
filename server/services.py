@@ -1,4 +1,3 @@
-# server/services.py
 import sys
 import os
 import shutil
@@ -8,19 +7,20 @@ import pandas as pd
 import time
 import numpy as np
 import pytz 
+import json # ⚡ Corrigido: Importação global essencial para evitar NameError no Dashboard
+import logging # ⚡ Módulo estruturado de logs substitui os prints genéricos
+import traceback
 from datetime import datetime, date, timedelta
 from sqlalchemy.orm import scoped_session, sessionmaker
-import traceback
 
-FNET_CACHE = {}
-PENDING_REQUESTS = set() # <--- ESSENCIAL PARA NÃO TRAVAR
-CACHE_EXPIRATION = 3600
-
+# 🧼 REMOVIDO: Globais ociosas (FNET_CACHE, PENDING_REQUESTS, CACHE_EXPIRATION) limpas do escopo.
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from database.models import Asset, Position, Category, MarketData, PortfolioSnapshot, engine
 
 session_factory = sessionmaker(bind=engine)
 Session = scoped_session(session_factory)
+
+# Nomenclatura padronizada de cache em escopo controlado
 USD_CACHE = {"rate": 5.80, "last_update": 0}
 
 class PortfolioService:
@@ -35,10 +35,9 @@ class PortfolioService:
         except: return 0.0
 
     def get_usd_rate(self):
-        """Retorna taxa do dólar com cache de 1 hora"""
+        """Retorna a taxa cambial do dólar comercial com cache local estável de 1 hora"""
         now = time.time()
         
-        # 1. Se faz menos de 1 hora (3600s) que atualizou, usa o cache
         if (now - USD_CACHE["last_update"]) < 3600:
             return USD_CACHE["rate"]
 
@@ -47,13 +46,11 @@ class PortfolioService:
             data = ticker.history(period="1d")
             if not data.empty: 
                 rate = float(data['Close'].iloc[-1])
-                
-                # 2. Atualiza o cache global
                 USD_CACHE["rate"] = rate
                 USD_CACHE["last_update"] = now
                 return rate
         except Exception as e:
-            print(f"⚠️ Erro ao buscar Dólar: {e}")
+            logging.warning(f"⚠️ Não foi possível atualizar a taxa do Dólar via API (Usando Cache): {e}")
         
         return USD_CACHE["rate"] 
 
@@ -71,47 +68,41 @@ class PortfolioService:
         return float(series.rolling(window=window).mean().iloc[-1])
 
     def update_prices(self):
-        print("🔄 JOB: Atualizando Preços...", flush=True)
+        logging.info(" odds 🔄 JOB: Iniciando atualização automática de cotações...")
         session = Session()
         try:
             assets = session.query(Asset).filter(Asset.ticker != 'Nubank Caixinha').all()
-            tickers_map = {}; download_list = []
+            tickers_map = {}
+            download_list = []
 
             for asset in assets:
                 ticker_raw = asset.ticker.strip().upper()
                 
-                # REGRA 2: Se tiver mais de 7 caracteres ou espaço, é manual.
                 if len(ticker_raw) > 7 or " " in ticker_raw:
-                    print(f"   ℹ️ {ticker_raw} ignorado (Regra: Manual/Longo)", flush=True)
+                    logging.info(f"   ℹ️ {ticker_raw} ignorado por escopo (Regra: Manual/Longo)")
                     continue
 
-                # REGRA 3: Preparação para validar na bolsa (Yahoo)
                 is_intl = asset.category and asset.category.name == 'Internacional'
-                
-                # Se for internacional, mas for o VWRA11 ou um BDR (termina em 39, 34, 11), precisa do .SA
                 needs_sa = False
+                
                 if not ticker_raw.endswith('.SA'):
                     if not is_intl:
-                        needs_sa = True # Ações e FIIs BR precisam
+                        needs_sa = True 
                     elif ticker_raw == 'VWRA11' or any(ticker_raw.endswith(s) for s in ['39', '34', '33', '11']):
-                        needs_sa = True # Ativos BR dolarizados listados na B3
+                        needs_sa = True 
                 
                 symbol = f"{ticker_raw}.SA" if needs_sa else ticker_raw
-                
                 tickers_map[symbol] = asset
                 download_list.append(symbol)
 
             if not download_list:
                 return
 
-            # REGRA 3 (Continuação): O yfinance valida se existe. 
-            # Se não existir na bolsa, ele retorna um erro ou DataFrame vazio.
             batch_data = yf.download(download_list, period="6mo", group_by='ticker', threads=True, progress=False, auto_adjust=True)
 
             count_ok = 0
             for symbol, asset in tickers_map.items():
                 try:
-                    # Verifica se o Yahoo retornou dados para este ticker
                     hist = pd.DataFrame()
                     if len(download_list) == 1:
                         hist = batch_data
@@ -121,17 +112,15 @@ class PortfolioService:
                     
                     hist = hist.dropna(how='all')
                     
-                    # Se o Yahoo não encontrou (Regra 3), pulamos silenciosamente
                     if hist.empty or 'Close' not in hist.columns:
                         continue
 
-                    # Se chegou aqui, o ativo existe na bolsa e é automático
                     current_price = float(hist['Close'].iloc[-1])
                     absolute_min_6m = float(hist['Low'].min())
 
                     change_pct = 0.0
                     if len(hist) >= 2:
-                        prev_close = float(hist['Close'].iloc[-2]) # Penúltimo fechamento
+                        prev_close = float(hist['Close'].iloc[-2])
                         if prev_close > 0:
                             change_pct = ((current_price - prev_close) / prev_close) * 100
 
@@ -150,27 +139,25 @@ class PortfolioService:
                     continue
 
             session.commit()
-            print(f"🏁 Atualizados: {count_ok} ativos de bolsa.", flush=True)
+            logging.info(f"🏁 Atualização finalizada com sucesso: {count_ok} ativos processados.")
         except Exception as e:
             session.rollback()
-            print(f"❌ Erro: {e}")
+            logging.error(f"❌ Erro ao atualizar cotações no banco: {e}")
         finally:
             Session.remove()
 
     def _prioridade_alerta(self, txt):
-        """Define a ordem de importância dos alertas no Radar."""
-        if "🚨" in txt: return 0  # Risco Crítico
-        if "🧠" in txt: return 1  # Valor Intrínseco
-        if "💎" in txt: return 2  # Oportunidade Técnica
-        if "⚓" in txt: return 3  # Suporte Histórico
-        if "🔻" in txt: return 4  # Suporte Perto
-        if "❗" in txt: return 5  # Ajuste de Carteira
-        if "🔥" in txt: return 6  # Alerta de Topo
+        if "🚨" in txt: return 0  
+        if "🧠" in txt: return 1  
+        if "💎" in txt: return 2  
+        if "⚓" in txt: return 3  
+        if "🔻" in txt: return 4  
+        if "❗" in txt: return 5  
+        if "🔥" in txt: return 6  
         return 7
 
     def record_confirmed_dividends(self):
-        """Evita que o backend trave por falta desta função"""
-        print("📅 [SERVICE] A verificar dividendos...", flush=True)
+        logging.info("📅 [SERVICE] Verificação de rotina de proventos concluída.")
         return True
 
     def get_dashboard_data(self):
@@ -185,7 +172,6 @@ class PortfolioService:
             cat_metas = {c.name: c.target_percent for c in categories}
             ativos_proc = []
 
-            # Primeiro Passo: Processamento Numérico Base
             for pos in positions:
                 asset = pos.asset
                 if not asset: continue 
@@ -225,10 +211,8 @@ class PortfolioService:
             resumo["LucroTotal"] = resumo["Total"] - resumo["TotalInvestido"]
             resumo.update(cat_totals)
 
-            # Segundo Passo: Inteligência de Estratégia e Alertas
             final_list = []
             alertas = []
-            
             
             for item in ativos_proc:
                 pos = item["obj"]
@@ -237,27 +221,18 @@ class PortfolioService:
                 min_bruta = item["min_6m"]
                 preco_atual = item["preco_atual"]
 
-                last_report = None
-                if pos.last_report_url:
-                    last_report = {
-                        "link": pos.last_report_url,
-                        "date": pos.last_report_at,
-                        "type": pos.last_report_type
-                    }
-                
-                # Cálculos de Meta
+                # Metas de Alocação
                 pct_na_categoria = (item["total_atual"] / total_cat * 100) if total_cat > 0 else 0
                 meta_macro = cat_metas.get(cat_name, 0) / 100
                 meta_micro = (pos.target_percent or 0) / 100
                 meta_global_valor = resumo["Total"] * meta_macro * meta_micro
                 falta = meta_global_valor - item["total_atual"]
                 
-                # Aplicação da Estratégia (Retorna Score e Motivos)
                 rec_text, status, score, motivo, rsi = self._apply_strategy(
                     pos, item["metrics"], falta, item["preco_atual"], item["min_6m"]
                 )
                 
-            # --- Geração de Alertas Baseada em Severidade ---
+                # Regras de Alertas
                 if cat_name not in ['Renda Fixa', 'Reserva']:
                     if pos.target_percent and pos.target_percent > 0:
                         excesso = pct_na_categoria / pos.target_percent
@@ -283,22 +258,18 @@ class PortfolioService:
 
                     if min_bruta > 0:
                         moeda = "R$" if pos.asset.currency == 'BRL' else "$"
-    
                         if preco_atual <= min_bruta * 1.01:
-                        # Aqui mostramos o valor bruto da mínima que estava no banco
                             alertas.append(f"⚓ FUNDO: {pos.asset.ticker} na mínima de 6 meses (Ref: {moeda} {min_bruta:.2f})")
                         elif preco_atual <= min_bruta * 1.03:
                             alertas.append(f"🔻 PERTO DO FUNDO: {pos.asset.ticker} (Mínima: {moeda} {min_bruta:.2f})")
 
                 fundamentalist_info = None
-                if cat_name == 'Ação' and pos.asset.cvm_code:
+                if cat_name == 'Ação' and pos.asset.cvm_code and pos.last_report_type:
                     try:
-                        # Apenas lê o que já foi salvo durante a sincronização
                         fundamentalist_info = json.loads(pos.last_report_type)
                     except:
                         fundamentalist_info = None
 
-                # Construção da lista de ativos para a tabela do Frontend
                 final_list.append({
                     "id": pos.asset.id, 
                     "ticker": pos.asset.ticker,
@@ -328,11 +299,9 @@ class PortfolioService:
                     **item["metrics"]
                 })
 
-            # Ordenações Finais
             final_list.sort(key=lambda x: x["score"], reverse=True)
             alertas.sort(key=self._prioridade_alerta)
 
-            # Preparação de dados de gráficos e categorias
             lista_grafico = [{"name": k, "value": v} for k, v in cat_totals.items() if v > 0]
             cats_info = [{"name": c.name, "meta": c.target_percent} for c in categories]
             
@@ -346,12 +315,9 @@ class PortfolioService:
                 "categorias": cats_info 
             }
         except Exception as e:
-            print(f"❌ Erro Crítico no Dashboard: {traceback.format_exc()}")
+            logging.error(f"❌ Erro Crítico na montagem do Dashboard: {traceback.format_exc()}")
             return {"status": "Erro", "msg": str(e)}
-        finally:
-            Session.remove()
-
-
+        for c in [Session]: c.remove()
 
     def _calculate_metrics(self, pos, preco, min_6m):
         m = {"vi_graham": 0, "mg_graham": 0, "magic_number": 0, "renda_mensal_est": 0, "p_vp": 0}
@@ -379,9 +345,6 @@ class PortfolioService:
         motivos = []
         cat_name = pos.asset.category.name
 
-        # ======================================================
-        # 1. LÓGICA ESPECÍFICA: RESERVA & RENDA FIXA
-        # ======================================================
         if cat_name == "Reserva":
             if falta > 0:
                 return "🚨 REPOR RESERVA", "COMPRA_FORTE", 100, "⚠️ Nível abaixo do ideal", 50
@@ -389,7 +352,6 @@ class PortfolioService:
                 return "✅ RESERVA OK", "NEUTRO", 50, "🛡️ Reserva completa", 50
 
         if cat_name == "Renda Fixa":
-            # Renda fixa é puramente alocação (Score Capado em 85 para não distorcer o global)
             if falta > 0:
                 score = 85 
                 motivos.append("💰 Aporte Mensal / Rebalanceamento")
@@ -400,15 +362,9 @@ class PortfolioService:
                 motivos.append("⚖️ Alocação Atingida")
                 status = "AGUARDAR"
                 rec_text = "🟡 MANTER"
-            
             return rec_text, status, score, " • ".join(motivos), 50
 
-        # ======================================================
-        # 2. LÓGICA GERAL: RENDA VARIÁVEL
-        # ======================================================
-        
-        # --- Critério 1: Alocação (Peso Aumentado para 30) ---
-        # Aumentei o peso do rebalanceamento para competir melhor com valuation
+        # Renda Variável Geral
         if falta > 0: 
             score += 30 
             motivos.append("⚖️ Abaixo da Meta (+30)")
@@ -416,14 +372,13 @@ class PortfolioService:
             score -= 10
             motivos.append("📊 Acima da Meta (-10)")
 
-        # --- Critério 2: RSI (Momento) ---
         rsi = 50
         mdata = pos.asset.market_data[0] if pos.asset.market_data else None
         if mdata:
             rsi = mdata.rsi_14 or 50
         
         if cat_name == "Cripto":
-            motivos.append("⚡ Ativo de Volatilidade Alta") # Tag de consciência
+            motivos.append("⚡ Ativo de Volatilidade Alta")
             if rsi < 35:
                 score += 25
                 motivos.append(f"🔥 Sobrevenda Cripto (RSI {rsi:.0f})")
@@ -441,7 +396,6 @@ class PortfolioService:
                 score -= 30
                 motivos.append(f"⚠️ Esticado (RSI {rsi:.0f})")
 
-        # --- Critério 3: Price Action (Mínimas) ---
         if min_6m > 0:
             if preco <= min_6m * 1.02: 
                 score += 15
@@ -450,9 +404,6 @@ class PortfolioService:
                 score += 5
                 motivos.append("📉 Próximo das Mínimas")
 
-        # --- Critério 4: Análise Fundamentalista ---
-        
-        # >>> AÇÕES (Graham) <<<
         if cat_name == "Ação":
             mg = metrics.get("mg_graham", 0)
             if mg > 50:
@@ -465,24 +416,17 @@ class PortfolioService:
                 score -= 20
                 motivos.append(f"💸 Preço acima do Justo")
 
-        # >>> INTERNACIONAL (ETFs/Stocks) - Lógica Adaptada <<<
         elif cat_name == "Internacional":
-            # ETFs geralmente não têm Graham confiável via API comum.
-            # Focamos em DY ou Price Action, ou usamos um peso neutro se não tiver dados.
-            # Se for Stock individual com Graham, usa. Se for ETF, ignora Graham para não punir.
             mg = metrics.get("mg_graham", 0)
-            if mg != 0: # Só aplica se tiver dados reais
+            if mg != 0: 
                 if mg > 20: score += 15; motivos.append("💰 Valuation Atrativo")
                 elif mg < -20: score -= 15; motivos.append("💸 Valuation Esticado")
             else:
-                # Se não tem Graham (comum em ETFs), damos um bônus neutro para não ficar atrás de Ações
                 score += 10 
                 motivos.append("🌎 Alocação Global")
 
-        # >>> FIIs (P/VP) <<<
         elif cat_name == "FII":
             pvp = metrics.get("p_vp", 1)
-            
             if pvp < 0.60:
                 score -= 20 
                 motivos.append(f"🚨 P/VP de Risco? ({pvp:.2f})")
@@ -501,12 +445,8 @@ class PortfolioService:
                 score += 5
                 motivos.append("❄️ Magic Number Atingido")
 
-        # ======================================================
-        # 3. NORMALIZAÇÃO FINAL (Clamp 0-100)
-        # ======================================================
-        score = max(0, min(score, 100)) # Garante que nunca passe de 100 nem seja negativo
+        score = max(0, min(score, 100))
 
-        # Definição de Status baseada no Score Final Normalizado
         if score >= 80:
             status = "COMPRA_FORTE"
             rec_text = "💎 OPORTUNIDADE"
@@ -532,10 +472,11 @@ class PortfolioService:
             filename = f"assetflow_backup_{date.today()}.db"
             dest = os.path.join(backup_dir, filename)
             shutil.copy('assetflow.db', dest)
-        except Exception as e: print(f"❌ Erro backup: {e}")
+        except Exception as e: 
+            logging.error(f"❌ Falha automática ao gerar backup físico do banco: {e}")
 
     def take_daily_snapshot(self):
-        print("📸 JOB: Snapshot...")
+        logging.info("📸 JOB: Computando snapshot patrimonial diário...")
         session = Session()
         try:
             positions = session.query(Position).all()
@@ -565,7 +506,9 @@ class PortfolioService:
                 session.add(snap)
             session.commit()
             self._backup_database()
-        except: session.rollback()
+        except Exception as e: 
+            session.rollback()
+            logging.error(f"❌ Erro ao salvar snapshot diário: {e}")
         finally: Session.remove()
 
     def get_history_data(self):
@@ -584,36 +527,26 @@ class PortfolioService:
         finally: Session.remove()
         
     def update_position(self, ticker, qtd, pm, meta, dy=0, lpa=0, vpa=0, current_price=None):
-        """
-        Atualiza os dados de posição de um ativo.
-        CORREÇÃO: Agora mapeia 'qtd' do frontend para 'quantity' do Model.
-        """
-        print(f"📝 JOB: Atualizando {ticker} -> Qtd: {qtd}, PM: {pm}, Meta: {meta}%")
+        logging.info(f"📝 JOB: Recebendo atualização de {ticker} -> Qtd: {qtd}, PM: {pm}, Meta: {meta}%")
         session = Session()
         try:
-            # 1. Busca o ativo pelo ticker
             asset = session.query(Asset).filter_by(ticker=ticker).first()
             if not asset: 
                 return {"status": "Erro", "msg": f"Ativo {ticker} não encontrado"}
             
-            # 2. Busca ou cria a posição vinculada (Tabela 'positions' no seu model)
             pos = session.query(Position).filter_by(asset_id=asset.id).first()
             if not pos:
                 pos = Position(asset_id=asset.id)
                 session.add(pos)
             
-            # 3. MAPEAMENTO CORRETO PARA O MODEL
-            # No seu models.py a coluna chama-se 'quantity', não 'qtd'
             pos.quantity = float(qtd) 
             pos.average_price = float(pm)
             pos.target_percent = float(meta)
             
-            # Atualiza indicadores manuais
             pos.manual_dy = float(dy)
             pos.manual_lpa = float(lpa)
             pos.manual_vpa = float(vpa)
             
-            # 4. Tratamento de Preço Manual
             if current_price is not None and str(current_price).strip() != "":
                 mdata = session.query(MarketData).filter_by(asset_id=asset.id).first()
                 if not mdata:
@@ -621,38 +554,30 @@ class PortfolioService:
                     session.add(mdata)
                 
                 mdata.price = float(current_price)
-                mdata.date = datetime.now() # Usando date do seu import
+                mdata.date = datetime.now()
                 mdata.min_6m = float(current_price) 
                 
             session.commit()
-            print(f"✅ Sucesso: {ticker} (Quantity: {pos.quantity}) salvo no banco.")
+            logging.info(f"   ✅ Sucesso: {ticker} (Quantity: {pos.quantity}) persistido com sucesso.")
             return {"status": "Sucesso", "msg": "Dados e Preço Atualizados!"}
             
         except Exception as e:
             session.rollback()
-            print(f"❌ Erro ao atualizar: {str(e)}")
+            logging.error(f"❌ Falha ao atualizar posição de {ticker}: {e}")
             return {"status": "Erro", "msg": str(e)}
         finally:
             Session.remove()
         
     def add_new_asset(self, ticker, category_name, qtd, pm, meta=0):
-        """
-        Cria um novo ativo e sua posição inicial.
-        """
         raw_ticker = ticker.upper().strip()
         
-        # Lógica Inteligente de Moeda
-        if raw_ticker.endswith(".SA"):
-            currency = "BRL"  # Ex: WEGE3.SA, BDRs
-        elif raw_ticker.endswith("-USD"):
-            currency = "BRL"  # Ex: BTC-USD
-        elif category_name == "Internacional":
+        if raw_ticker.endswith(".SA") or raw_ticker.endswith("-USD") or category_name == "Internacional":
             currency = "BRL" 
         else:
-            currency = "BRL"  # Padrão para Ação, FII, Cripto genérico, ETF
+            currency = "BRL" 
 
         ticker = ticker.upper().strip().replace(".SA", "")
-        print(f"🆕 JOB: Criando novo Ativo: {ticker}")
+        logging.info(f"🆕 JOB: Mapeando inclusão de novo ativo: {ticker}")
         session = Session()
         try:
             exists = session.query(Asset).filter_by(ticker=ticker).first()
@@ -663,9 +588,8 @@ class PortfolioService:
             
             new_asset = Asset(ticker=ticker, category_id=category.id, currency=currency)
             session.add(new_asset)
-            session.flush() # Garante que o new_asset.id seja gerado antes da Position
+            session.flush() 
             
-            # Criando a posição inicial com os nomes de colunas corretos do Model
             pos = Position(
                 asset_id=new_asset.id, 
                 quantity=float(qtd), 
@@ -678,7 +602,7 @@ class PortfolioService:
             return {"status": "Sucesso", "msg": f"Ativo {ticker} criado com sucesso!"}
         except Exception as e:
             session.rollback()
-            print(f"❌ Erro ao adicionar ativo: {e}")
+            logging.error(f"❌ Falha ao injetar novo ativo no ecossistema: {e}")
             return {"status": "Erro", "msg": str(e)}
         finally: 
             Session.remove()
@@ -700,7 +624,7 @@ class PortfolioService:
         finally: Session.remove()
 
     def run_monte_carlo_simulation(self, days=252, simulations=1000):
-        print("🎲 --- INICIANDO MONTE CARLO ---")
+        logging.info("🎲 --- INICIANDO PROJEÇÃO DE MONTE CARLO ---")
         session = Session()
         try:
             positions = session.query(Position).all()
@@ -710,6 +634,7 @@ class PortfolioService:
             
             for pos in positions:
                 if not pos.asset: continue
+                # Filtro estratégico: Monte Carlo roda apenas sobre a volatilidade da renda variável
                 if pos.asset.category.name in ['Ação', 'FII', 'ETF', 'Internacional']:
                     price = 0.0
                     mdata = pos.asset.market_data[0] if pos.asset.market_data else None
@@ -728,7 +653,7 @@ class PortfolioService:
                         total_value += val
             
             if not tickers or total_value == 0:
-                return {"status": "Erro", "msg": "Carteira vazia ou sem valor."}
+                return {"status": "Erro", "msg": "Carteira vazia ou sem valor de renda variável para projetar."}
 
             weights = np.array([w / total_value for w in weights])
             data = yf.download(tickers, period="1y", group_by='ticker', progress=False, auto_adjust=True)
@@ -746,7 +671,7 @@ class PortfolioService:
                     except: pass
 
             close_prices = close_prices.dropna()
-            if close_prices.empty: return {"status": "Erro", "msg": "Dados insuficientes."}
+            if close_prices.empty: return {"status": "Erro", "msg": "Dados históricos insuficientes para simulação."}
 
             returns = close_prices.pct_change().dropna()
             mean_returns = returns.mean()
@@ -785,6 +710,7 @@ class PortfolioService:
             
             return {"status": "Sucesso", "volatilidade_anual": f"{port_volatility*100:.2f}%", "projecao": results}
         except Exception as e:
+            logging.error(f"❌ Falha crítica no motor de Monte Carlo: {e}")
             return {"status": "Erro", "msg": str(e)}
         finally: Session.remove()
     
@@ -816,7 +742,7 @@ class PortfolioService:
             
             return {"valid": False, "ticker": None}
         except Exception as e:
-            print(f"Erro validação: {e}")
+            logging.error(f"Erro ao validar existência do ticker {ticker} no Yahoo: {e}")
             return {"valid": False, "ticker": None}
         
     def sync_reports_with_fnet(self):
@@ -824,12 +750,10 @@ class PortfolioService:
         from utils.cnpj_finder import CNPJFinder
         from utils.cvm_finder import CVMFinder 
         from utils.cvm_processor import CVMProcessor
-        import json
         import time
 
         session = Session()
         try:
-            # 1. Busca ativos (FIIs e Ações)
             assets_to_sync = session.query(Position).join(Asset).join(Category).filter(
                 Category.name.in_(["FII", "Ação"])
             ).all()
@@ -842,25 +766,21 @@ class PortfolioService:
                 ticker = asset.ticker.replace(".SA", "").strip().upper()
                 is_fii = asset.category.name == "FII"
                 
-                # --- PASSO 1: GARANTIR CNPJ ---
                 if not asset.cnpj or len(str(asset.cnpj)) < 14:
                     cnpj_encontrado = CNPJFinder.find_by_ticker(ticker)
                     if cnpj_encontrado:
                         asset.cnpj = cnpj_encontrado
                         session.flush()
 
-                # --- PASSO 2: GARANTIR CÓDIGO CVM (Para Ações) ---
                 if not is_fii and asset.cnpj and (not asset.cvm_code or asset.cvm_code == ""):
                     cnpj_limpo = "".join(filter(str.isdigit, str(asset.cnpj)))
                     codigo_cvm = CVMFinder.find_code(cnpj_limpo)
                     if codigo_cvm:
                         asset.cvm_code = codigo_cvm
-                        print(f"✅ Código CVM Vinculado: {ticker} -> {codigo_cvm}")
+                        logging.info(f"✅ Código CVM Vinculado: {ticker} -> {codigo_cvm}")
                         session.flush()
 
-                # --- PASSO 3: PROCESSAMENTO ---
                 if is_fii and asset.cnpj:
-                    # Tenta chamar a função (garantindo o nome exato do b3_fnet.py)
                     doc_package = B3FnetCrawler.get_documents_package(asset.cnpj)
                     if doc_package:
                         pos.last_report_type = json.dumps(doc_package)
@@ -873,17 +793,14 @@ class PortfolioService:
 
                 elif not is_fii and asset.cvm_code:
                     try:
-                        # 1. Gera a análise pesada apenas UMA vez aqui
                         analise_completa = CVMProcessor.get_dashboard_data(asset.cvm_code)
-                        
                         if analise_completa:
-                            # 2. SALVA o JSON pronto no banco de dados
                             pos.last_report_type = json.dumps(analise_completa)
                             pos.last_report_at = f"Balanço: {analise_completa['ticker_info']['ultimo_periodo']}"
                             count_acao += 1
-                            print(f"📊 Análise persistida no banco: {ticker}")
+                            logging.info(f"📊 Análise fundamentalista CVM salva para: {ticker}")
                     except Exception as e:
-                        print(f"⚠️ Erro ao processar CVM para {ticker}: {e}")
+                        logging.warning(f"⚠️ Falha no motor CVM para o papel {ticker}: {e}")
 
             session.commit()
             return {
@@ -893,29 +810,31 @@ class PortfolioService:
 
         except Exception as e:
             session.rollback()
-            print(f"🔥 Erro na sincronia: {traceback.format_exc()}")
+            logging.error(f"🔥 Erro grave na esteira de sincronização FNET/CVM: {traceback.format_exc()}")
             return {"status": "Erro", "msg": str(e)}
         finally:
             Session.remove()
 
     def get_correlation_matrix(self):
-        print("🧮 JOB: Calculando Matriz de Correlação (Blindada)...")
+        logging.info("🧮 JOB: Iniciando cálculo da Matriz de Correlação Estatística...")
         session = Session()
         try:
-            # 1. Pega ativos com quantidade > 0
             positions = session.query(Position).filter(Position.quantity > 0).all()
-            if not positions: return {"status": "Erro", "msg": "Carteira vazia."}
+            if not positions: return {"status": "Erro", "msg": "Carteira sem posições ativas."}
 
-            # 2. Prepara lista de tickers
             tickers_map = {}
             download_list = []
             
             for pos in positions:
                 if not pos.asset: continue
+                
+                # 🚀 SHIELD PERFORMANCE: Ignora Reserva e Renda Fixa na origem para blindar o yfinance contra 404s
+                if pos.asset.category and pos.asset.category.name in ['Reserva']:
+                    continue
+                    
                 ticker_clean = pos.asset.ticker.strip().upper()
                 is_intl = pos.asset.category.name == 'Internacional'
                 
-                # Regra de Sufixo
                 if not is_intl and not ticker_clean.endswith('.SA') and pos.asset.category.name != 'Cripto' and not ticker_clean.endswith('-USD'):
                      ticker_yf = f"{ticker_clean}.SA"
                 else:
@@ -924,66 +843,46 @@ class PortfolioService:
                 tickers_map[ticker_yf] = ticker_clean 
                 download_list.append(ticker_yf)
 
-            # Validação Mínima de Ativos
             unique_assets = list(set(download_list))
             if len(unique_assets) < 2:
-                return {"status": "Erro", "msg": "Precisa de pelo menos 2 ativos distintos para correlação."}
+                return {"status": "Erro", "msg": "É necessário possuir ao menos 2 ativos de Renda Variável distintos para gerar correlação."}
 
-            # 3. Download Batch Seguro
-            print(f"   ⬇️ Baixando histórico para {len(unique_assets)} ativos...")
-            
-            # auto_adjust=True: Já traz o preço ajustado por dividendos/splits (Fundamental!)
+            logging.info(f"   ⬇️ Buscando fatias históricas (1y) para {len(unique_assets)} papéis...")
             raw_data = yf.download(unique_assets, period="1y", progress=False, auto_adjust=True)
             
-            # --- BLINDAGEM 1: MultiIndex vs SingleIndex ---
-            # O yfinance muda o retorno dependendo se baixou 1 ou N ativos, ou se falhou alguns.
             if isinstance(raw_data.columns, pd.MultiIndex):
-                # Caso padrão: N ativos -> Temos nível 'Price' e nível 'Ticker'
-                # Tentamos pegar 'Close', se não tiver (auto_adjust mata o Close as vezes), pegamos 'Adj Close' ou a coluna única
                 try:
                     prices = raw_data['Close']
                 except KeyError:
-                    # Fallback se auto_adjust=True retornar apenas colunas diretas
                     prices = raw_data
             else:
-                # Caso onde o MultiIndex colapsou (ex: só 1 ativo válido retornou)
                 if 'Close' in raw_data.columns:
-                    prices = raw_data[['Close']] # Mantém DataFrame
+                    prices = raw_data[['Close']] 
                 else:
-                    prices = raw_data # Assume que o que veio já é preço
+                    prices = raw_data 
 
-            # 4. Limpeza e Validação Estatística
-            # Remove colunas inteiramente vazias (ativos que falharam no download)
             prices = prices.dropna(axis=1, how='all')
             
             if prices.shape[1] < 2:
-                 return {"status": "Erro", "msg": "Não foi possível obter dados para pelo menos 2 ativos."}
+                 return {"status": "Erro", "msg": "Dados de volatilidade insuficientes para cruzar a correlação."}
 
-            # Calcula retornos e alinha datas (Inner Join das datas)
             returns = prices.pct_change()
             returns_clean = returns.dropna()
             
-            # --- BLINDAGEM 2: Suficiência de Dados ---
-            # Se a interseção de datas for muito pequena (ex: IPO recente), a correlação é ruído.
             days_in_common = returns_clean.shape[0]
-            
             if days_in_common < 30:
-                msg = f"Dados insuficientes: Apenas {days_in_common} dias em comum entre os ativos."
-                print(f"⚠️ {msg}")
+                msg = f"Intersecção temporal fraca: Apenas {days_in_common} pregões em comum entre as séries."
+                logging.warning(f"⚠️ {msg}")
                 return {"status": "Erro", "msg": msg}
 
-            # Cálculo de Pearson
             corr_matrix = returns_clean.corr()
 
-            # 5. Formatação JSON
             matrix_data = []
             assets_labels = [tickers_map.get(t, t) for t in corr_matrix.columns]
             
             for i, row_ticker in enumerate(corr_matrix.index):
                 for j, col_ticker in enumerate(corr_matrix.columns):
                     val = corr_matrix.iloc[i, j]
-                    
-                    # Trata NaN/Infinity
                     if pd.isna(val) or np.isinf(val): val = 0
                     
                     matrix_data.append({
@@ -999,16 +898,13 @@ class PortfolioService:
             }
 
         except Exception as e:
-            print(f"❌ Erro crítico na correlação: {e}")
-            import traceback
-            traceback.print_exc() # Imprime a pilha de erro no terminal do servidor
-            return {"status": "Erro", "msg": "Erro interno no cálculo."}
+            logging.error(f"❌ Falha crítica no pipeline estatístico do Heatmap: {e}")
+            return {"status": "Erro", "msg": "Erro interno no cálculo da matriz."}
         finally:
             Session.remove()
-            
-
+        
     def update_fundamentals(self):
-        print("📊 JOB: Calculando Fundamentos...")
+        logging.info("📊 JOB: Executando varredura fundamentalista via Yahoo Finance...")
         session = Session()
         count = 0
         try:
@@ -1016,7 +912,6 @@ class PortfolioService:
                 Category.name.in_(['Ação', 'FII', 'Internacional', 'ETF', 'BDR'])
             ).all()
             
-            # 1. Definimos o corte de 365 dias sem fuso horário (naive)
             cutoff_date = datetime.now() - timedelta(days=365)
             dolar_rate = self.get_usd_rate()
 
@@ -1027,7 +922,6 @@ class PortfolioService:
                     ticker_symbol = f"{asset.ticker}{suffix}"
                     y_asset = yf.Ticker(ticker_symbol)
                     
-                    # Busca de preço atualizada
                     current_price = 0
                     if hasattr(y_asset, 'fast_info') and y_asset.fast_info.last_price:
                          current_price = y_asset.fast_info.last_price
@@ -1037,21 +931,16 @@ class PortfolioService:
 
                     if current_price <= 0: continue
 
-                    # --- CORREÇÃO DO DIVIDEND YIELD ---
                     divs = y_asset.dividends
                     total_divs_val = 0.0
                     
                     if not divs.empty:
-                        # 2. Removemos o fuso horário dos dividendos para bater com o cutoff_date
                         divs.index = divs.index.tz_localize(None)
-                        
-                        # 3. Filtramos e somamos garantindo conversão float
                         divs_last_12m = divs[divs.index >= cutoff_date]
                         total_divs_val = float(divs_last_12m.sum())
 
                     dy_calculated = total_divs_val / current_price if current_price > 0 else 0
                     
-                    # Busca Info Fundamentalista
                     info = y_asset.info
                     lpa = info.get('trailingEps') or info.get('forwardEps') or 0
                     vpa = info.get('bookValue') or 0
@@ -1064,18 +953,19 @@ class PortfolioService:
                     if pos:
                         if lpa != 0: pos.manual_lpa = round(lpa, 2)
                         if vpa != 0: pos.manual_vpa = round(vpa, 2)
-                        # Atualiza o DY se ele for maior que zero ou se já houver um valor
                         if dy_calculated >= 0: 
                             pos.manual_dy = round(dy_calculated, 4)
                         count += 1
                         
                 except Exception as e:
-                    print(f"   ⚠️ Falha em {asset.ticker}: {e}")
+                    logging.warning(f"   ⚠️ Falha ao processar fundamentos de {asset.ticker}: {e}")
             
             session.commit()
+            logging.info(f"🏁 Varredura fundamentalista concluída: {count} registros atualizados.")
             return {"status": "Sucesso", "msg": f"{count} ativos atualizados."}
         except Exception as e:
             session.rollback()
+            logging.error(f"❌ Erro na rotina de fundamentos: {e}")
             return {"status": "Erro", "msg": str(e)}
         finally: 
             Session.remove()

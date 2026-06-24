@@ -6,6 +6,7 @@ import { Asset } from '../types';
 import { usePrivacy } from '../context/PrivacyContext';
 import ReportModal from './ReportModal';
 import { AssetTooltip } from './AssetTooltip';
+import Image from 'next/image'; // ⚡ Importação nativa mantida para alta performance
 
 interface AssetRowProps {
   ativo: Asset;
@@ -22,6 +23,8 @@ type ExtendedAsset = Asset & {
   currency?: string;
   change_percent?: number;
   fundamentalist_data?: unknown;
+  last_report_url?: string;
+  last_report_type?: string;
 };
 
 const PrivateValue = ({ value, isHidden, className = "" }: { value: string | number, isHidden: boolean, className?: string }) => (
@@ -92,7 +95,14 @@ export const AssetRow = ({ ativo, tab, onEdit, onViewNews, onViewDetails, index:
           <div className="flex items-center gap-3">
             <div className="relative h-9 w-9 shrink-0 rounded-full bg-slate-800 overflow-hidden shadow-sm group-hover:scale-110 transition-transform duration-300">
               {!imgError ? (
-                <img src={`https://raw.githubusercontent.com/thefintz/icones-b3/main/icones/${ativo.ticker}.png`} alt={ativo.ticker} className="h-full w-full object-cover" onError={() => setImgError(true)} />
+                <Image
+                  src={`https://raw.githubusercontent.com/thefintz/icones-b3/main/icones/${ativo.ticker}.png`}
+                  alt={ativo.ticker}
+                  width={36}  // ⚡ Dimensão explícita para renderização otimizada
+                  height={36} // ⚡ Dimensão correspondente a h-9 (36px)
+                  className="h-full w-full object-cover"
+                  onError={() => setImgError(true)}
+                />
               ) : (
                 <div className={`h-full w-full flex items-center justify-center text-[9px] font-bold text-white ${getStatusBg(ativo.status)}`}>
                   {ativo.ticker.substring(0, 2)}
@@ -210,7 +220,7 @@ export const AssetRow = ({ ativo, tab, onEdit, onViewNews, onViewDetails, index:
                   ticker: ativo.ticker,
                   score: ativo.score || 0,
                   motivos: stats.motivosLista,
-                  rsi: ativo.rsi || 50,
+                  rsi: (ativo as Asset & { rsi?: number }).rsi || 50,
                   variacaoFinanceira: stats.variacaoFinanceira,
                   variacaoPct: stats.variacaoIntraday,
                   isUSD: stats.isUSD

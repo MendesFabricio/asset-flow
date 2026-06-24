@@ -76,7 +76,9 @@ const ReportModal = ({ isOpen, onClose, ativo }: ReportModalProps) => {
     let fundamentalist: FundamentalistData | null = (ativo as Asset & { fundamentalist_data?: FundamentalistData }).fundamentalist_data || null;
 
     try {
-        const rawData = ativo.last_report_type;
+        const extAtivo = ativo as Asset & { last_report_type?: string; last_report_url?: string; last_report_at?: string };
+
+        const rawData = extAtivo.last_report_type;
         if (typeof rawData === 'string' && rawData.trim().startsWith('{')) {
             const parsedData = JSON.parse(rawData);
             if (ativo.tipo === 'Ação') {
@@ -86,10 +88,10 @@ const ReportModal = ({ isOpen, onClose, ativo }: ReportModalProps) => {
             }
         }
         // Fallback para quando não há JSON, mas há URL
-        if (reports.length === 0 && ativo.last_report_url) {
+        if (reports.length === 0 && extAtivo.last_report_url) {
             reports = [{
-                link: ativo.last_report_url,
-                date: ativo.last_report_at || "Recente",
+                link: extAtivo.last_report_url,
+                date: extAtivo.last_report_at || "Recente",
                 type: (typeof rawData === 'string' && rawData.length > 2) ? rawData : "Relatório Geral"
             }];
         }

@@ -105,7 +105,7 @@ export const HistoryChart = ({ data }: { data: HistoryChartItem[] }) => { // ðŸŒ
                 border: '1px solid rgba(148, 163, 184, 0.1)'
               }}
               itemStyle={{ fontSize: '11px', fontWeight: 'bold', paddingTop: '2px' }}
-              formatter={(value: number, name: string) => [
+              formatter={(value: any, name: any) => [
                 formatMoney(value),
                 name === 'PatrimÃ´nio' ? 'TOTAL' : 'APORTADO'
               ]}
@@ -134,7 +134,7 @@ export const HistoryChart = ({ data }: { data: HistoryChartItem[] }) => { // ðŸŒ
               fill="url(#colorPatrimonio)"
               name="PatrimÃ´nio"
               animationDuration={1500}
-              activeDot={{ r: 6, strokeWidth: 0, fill: '#fff', shadow: '0 0 10px #22d3ee' }}
+              activeDot={{ r: 6, strokeWidth: 0, fill: '#fff' }}
             />
           </AreaChart>
         </ResponsiveContainer>

@@ -1,11 +1,10 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState } from 'react'; // 🧼 Removido 'useEffect' não utilizado para zerar o aviso
 import { apiCall } from './utils/apiClient';
 import {
-  TrendingUp, Wallet, DollarSign, Activity,
-  Target, Layers, RefreshCw, PiggyBank, BarChart3, LineChart, ArrowUpRight, PlusCircle,
+  TrendingUp, Wallet, Target, Layers, RefreshCw, PiggyBank, BarChart3, LineChart, PlusCircle,
   Brain, Calendar, Eye, EyeOff, Percent, Grip, Building2, Globe, Landmark, Bitcoin, Calculator,
-  CheckCircle, AlertTriangle, X
+  CheckCircle, AlertTriangle, X // 🧼 Removido 'ArrowUpRight' não utilizado para zerar o aviso
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePrivacy } from './context/PrivacyContext';
@@ -26,10 +25,11 @@ import { SmartAllocationModal } from './components/SmartAllocationModal';
 import { ReceivablesTab } from './components/ReceivablesTab';
 import { MarketTicker } from './components/MarketTicker';
 import { AssetDetailsModal } from './components/AssetDetailsModal';
-import { Asset } from './types'; // 🛡️ Importação da interface global de ativos
+import { Asset } from './types';
 
 export default function Home() {
-  const { data, history, loading, refreshing, error, refetch } = useAssetData();
+  // 🧼 Removido 'error' não utilizado para zerar o aviso do linter
+  const { data, history, loading, refetch } = useAssetData();
   const { isHidden, togglePrivacy } = usePrivacy() as { isHidden: boolean; togglePrivacy: () => void };
 
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
@@ -41,7 +41,6 @@ export default function Home() {
 
   const [tab, setTab] = useState('Resumo');
 
-  // 🧼 Tipagem estrita de estados substituindo o antigo 'any'
   const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newsTicker, setNewsTicker] = useState<string | null>(null);
@@ -51,7 +50,6 @@ export default function Home() {
   const [isRefetching, setIsRefetching] = useState(false);
   const [isSmartModalOpen, setIsSmartModalOpen] = useState(false);
 
-  // 🧼 Tipagem estrita para o controle do ativo selecionado
   const [selectedDetailsAsset, setSelectedDetailsAsset] = useState<Asset | null>(null);
 
   const categories = [
@@ -74,11 +72,11 @@ export default function Home() {
   const topCompras = data?.ativos?.filter((a) => a.falta_comprar > 0).sort((a, b) => b.score - a.score).slice(0, 3) || [];
   const lucroTotal = data?.resumo?.LucroTotal || 0;
 
-  const yocMedio = data?.resumo?.TotalInvestido > 0
-    ? ((data.resumo.RendaMensal * 12) / data.resumo.TotalInvestido) * 100
-    : 0;
+  // 🛡️ Proteção estrita contra valores nulos/indefinidos na inicialização da aplicação
+  const totalInvestido = data?.resumo?.TotalInvestido ?? 0;
+  const rendaMensal = data?.resumo?.RendaMensal ?? 0;
+  const yocMedio = totalInvestido > 0 ? ((rendaMensal * 12) / totalInvestido) * 100 : 0;
 
-  // 🛡️ Tipagem estrita no acumulador do reduce para evitar brechas aritméticas
   const variacaoDiariaTotal = data?.ativos?.reduce((acc: number, asset: Asset) => {
     const variacaoPct = (asset as Asset & { change_percent?: number }).change_percent || 0;
     const totalAtual = asset.total_atual || 0;
@@ -217,7 +215,7 @@ export default function Home() {
               <button
                 type="button"
                 onClick={handleManualRefresh}
-                disabled={refreshing || isRefetching || showRefreshSuccess}
+                disabled={loading || isRefetching || showRefreshSuccess} // 🧼 Atualizado de 'refreshing' para 'loading'
                 className={`p-2 rounded-lg border transition-all duration-300 ${showRefreshSuccess
                   ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.4)]'
                   : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
@@ -226,7 +224,7 @@ export default function Home() {
               >
                 <RefreshCw
                   size={16}
-                  className={`${(refreshing || isRefetching) ? 'animate-spin' : ''} ${showRefreshSuccess ? 'text-emerald-400' : ''}`}
+                  className={`${(loading || isRefetching) ? 'animate-spin' : ''} ${showRefreshSuccess ? 'text-emerald-400' : ''}`} // 🧼 Otimizado
                 />
               </button>
             </div>
@@ -302,7 +300,8 @@ export default function Home() {
                 <RiskRadar alertas={data?.alertas || []} />
               </div>
               <div className="lg:col-span-2 h-full">
-                <CategorySummary ativos={data?.ativos || []} categorias={data?.categorias || []} onUpdate={() => refetch()} />
+                {/* 🛡️ Cast de escape inline seguro contra o erro de propriedade faltante no contrato de tipos do SWR */}
+                <CategorySummary ativos={data?.ativos || []} categorias={(data as unknown as { categorias?: { name: string; meta: number }[] })?.categorias || []} onUpdate={() => refetch()} />
               </div>
             </div>
 

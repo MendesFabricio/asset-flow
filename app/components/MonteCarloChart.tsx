@@ -129,7 +129,7 @@ export default function MonteCarloChart() {
               }}
               itemStyle={{ fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', padding: '2px 0' }}
               labelStyle={{ color: '#64748b', marginBottom: '8px', fontSize: '10px', fontWeight: 'bold' }}
-              formatter={(val: number) => [isHidden ? '••••••' : `R$ ${val.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, '']}
+              formatter={(val: any) => [isHidden ? '••••••' : `R$ ${val.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, '']}
               labelFormatter={(label) => `Dia ${label}`}
             />
 
