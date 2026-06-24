@@ -2,8 +2,8 @@
 import { useState, useEffect } from 'react';
 import { Plus, CheckCircle, User, Calendar, CheckSquare, Pencil, Trash2, X, Wallet, Filter, History, Check } from 'lucide-react';
 import { formatMoney } from '../utils';
+import { API_BASE_URL } from '../config/api'; // ⚡ Injetada a URL base dinâmica
 
-// 🛡️ Interfaces estritas para tipagem do fluxo de caixa e parcelamentos
 interface ReceivableItem {
     id: number;
     descricao: string;
@@ -30,7 +30,6 @@ const getMonthName = (offset: number) => {
 };
 
 export const ReceivablesTab = () => {
-    // 🧼 Substituído useState<any[]> por tipos estritos
     const [items, setItems] = useState<ReceivableItem[]>([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [loadingPay, setLoadingPay] = useState(false);
@@ -46,55 +45,56 @@ export const ReceivablesTab = () => {
     const [who, setWho] = useState('');
 
     const fetchItems = async () => {
-        const res = await fetch('http://localhost:5328/api/finance/receivables');
+        // ⚡ OTIMIZAÇÃO DE REDE: Substituído localhost estático pela constante dinâmica
+        const res = await fetch(`${API_BASE_URL}/api/finance/receivables`);
         const data = await res.json() as ReceivableItem[];
         setTimeout(() => setItems(data), 0);
     };
 
     useEffect(() => { fetchItems(); }, []);
 
-    // Filtros
     const debtors = ['Todos', ...Array.from(new Set(items.map(i => i.devedor))).sort()];
     const filteredItems = selectedPerson === 'Todos' ? items : items.filter(i => i.devedor === selectedPerson);
 
-    // Total Geral a Receber (Soma apenas o futuro/pendente)
     const totalGeneral = filteredItems.reduce((acc, item) => {
         const parcelasRestantes = Math.max(0, item.total_parcelas - item.parcela_atual + 1);
         return acc + (parcelasRestantes * item.valor_parcela);
     }, 0);
 
-    // CRUD - Tipagem estrita aplicada nas propriedades do item editado
     const openNewModal = () => { setEditingId(null); setDesc(''); setVal(''); setParc('1'); setWho(''); setIsModalOpen(true); };
     const handleEdit = (item: ReceivableItem) => { setEditingId(item.id); setDesc(item.descricao); setVal(item.valor_total.toString()); setParc(item.total_parcelas.toString()); setWho(item.devedor); setIsModalOpen(true); };
 
     const handleSave = async () => {
         if (!desc || !val || !who) return alert("Preencha todos os campos.");
         const payload = { descricao: desc, valor: val, parcelas: parc || 1, devedor: who, dia: 10 };
-        const url = editingId ? `http://localhost:5328/api/finance/receivables/${editingId}` : 'http://localhost:5328/api/finance/receivables';
+        // ⚡ Rota dinâmica parametrizada
+        const url = editingId ? `${API_BASE_URL}/api/finance/receivables/${editingId}` : `${API_BASE_URL}/api/finance/receivables`;
         await fetch(url, { method: editingId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         setIsModalOpen(false); fetchItems();
     };
 
     const handleDelete = async () => {
         if (!editingId || !confirm("Excluir permanentemente?")) return;
-        await fetch(`http://localhost:5328/api/finance/receivables/${editingId}`, { method: 'DELETE' });
+        // ⚡ Rota dinâmica parametrizada
+        await fetch(`${API_BASE_URL}/api/finance/receivables/${editingId}`, { method: 'DELETE' });
         setIsModalOpen(false); fetchItems();
     };
 
     const handlePay = async (id: number) => {
         if (!confirm("Confirmar recebimento?")) return;
-        await fetch(`http://localhost:5328/api/finance/receivables/${id}/pay`, { method: 'POST' });
+        // ⚡ Rota dinâmica parametrizada
+        await fetch(`${API_BASE_URL}/api/finance/receivables/${id}/pay`, { method: 'POST' });
         fetchItems();
     };
 
     const handlePayBatch = async (ids: number[], monthName: string) => {
         if (!confirm(`Receber TODOS em ${monthName}?`)) return;
         setLoadingPay(true);
-        await fetch(`http://localhost:5328/api/finance/receivables/pay-batch`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids }) });
+        // ⚡ Rota dinâmica parametrizada
+        await fetch(`${API_BASE_URL}/api/finance/receivables/pay-batch`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids }) });
         setLoadingPay(false); fetchItems();
     };
 
-    // --- LÓGICA DE MESES ---
     const monthsData = Array.from({ length: 7 }, (_, i) => {
         const offset = i - 1;
         const monthTitle = getMonthName(offset);
@@ -153,7 +153,6 @@ export const ReceivablesTab = () => {
                     <button type="button" onClick={openNewModal} className="w-full md:w-auto bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 text-sm font-bold shadow-lg shadow-blue-900/20 transition-all"><Plus size={16} /> Novo</button>
                 </div>
 
-                {/* Filtro de Pessoas */}
                 {debtors.length > 1 && (
                     <div className="flex items-center gap-2 pt-2 border-t border-slate-800/50 overflow-x-auto pb-2 scrollbar-thin">
                         <div className="flex items-center gap-1 text-slate-500 mr-2 shrink-0"><Filter size={14} /><span className="text-[10px] uppercase font-bold">Filtrar:</span></div>
@@ -171,7 +170,6 @@ export const ReceivablesTab = () => {
                 {monthsData.map((month, idx) => (
                     <div key={idx} className={`rounded-xl border flex flex-col h-full max-h-[400px] transition-all duration-300 ${month.isCurrentMonth ? 'bg-slate-900 border-blue-500/50 ring-1 ring-blue-500/20 shadow-lg shadow-blue-900/10' : month.isPast ? 'bg-slate-900/30 border-orange-900/20 opacity-90' : 'bg-slate-900/50 border-slate-800 opacity-90'}`}>
 
-                        {/* Cabeçalho do Card */}
                         <div className={`p-4 border-b flex justify-between items-start rounded-t-xl ${month.isCurrentMonth ? 'bg-blue-950/20 border-blue-900/30' : month.isPast ? 'bg-orange-950/10 border-orange-900/20' : 'bg-slate-950/30 border-slate-800'}`}>
                             <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-2">
@@ -210,7 +208,6 @@ export const ReceivablesTab = () => {
                                 </div>
                             </div>
 
-                            {/* 🧼 Removido 'any' do loop de verificação em lote */}
                             {month.items.some((i: ProjectedReceivableItem) => i.status === 'pending') && (
                                 <button type="button" onClick={() => handlePayBatch(month.items.filter((i: ProjectedReceivableItem) => i.status === 'pending').map((i: ProjectedReceivableItem) => i.id), month.title)} disabled={loadingPay} className="ml-3 text-xs bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-1.5 rounded flex items-center gap-1 transition-colors font-bold shrink-0">
                                     <CheckSquare size={14} /> Receber
@@ -218,10 +215,9 @@ export const ReceivablesTab = () => {
                             )}
                         </div>
 
-                        {/* Lista */}
                         <div className="p-2 flex-1 space-y-2 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700">
                             {month.items.length > 0 ? (
-                                month.items.map((item: ProjectedReceivableItem) => ( // 🧼 Substituído 'item: any' por tipo projetado
+                                month.items.map((item: ProjectedReceivableItem) => (
                                     <div key={item.id} className={`p-3 rounded-lg border flex items-center justify-between group transition-all ${item.status === 'paid' ? 'bg-slate-900/20 border-slate-800/30 opacity-60' : 'bg-slate-950/50 border-slate-800/50 hover:border-slate-700'}`}>
                                         <div className="flex-1 min-w-0 mr-2">
                                             <div className="flex items-center gap-2">

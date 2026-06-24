@@ -3,7 +3,6 @@ import { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import { API_BASE_URL } from '../config/api';
 import { Activity } from 'lucide-react';
 
-// --- CONSTANTES ---
 const CELL_SIZE = 20;
 const GAP_SIZE = 1;
 const HEADER_HEIGHT = 30;
@@ -20,7 +19,6 @@ interface CorrelationData {
     matrix: CorrelationPoint[];
 }
 
-// --- UTILS ---
 const getColorClass = (val: number, isDiagonal: boolean) => {
     if (isDiagonal) return 'bg-slate-800/80 border-slate-700 text-slate-600';
     if (val >= 0.7) return 'bg-emerald-600 text-white font-bold';
@@ -31,8 +29,6 @@ const getColorClass = (val: number, isDiagonal: boolean) => {
     if (val > -0.7) return 'bg-rose-500/80 text-rose-50';
     return 'bg-rose-600 text-white font-bold';
 };
-
-// --- SUB-COMPONENTS ---
 
 const MatrixCell = memo(({ row, col, value, isDiagonal, onEnter, onLeave }: {
     row: string;
@@ -56,6 +52,7 @@ const MatrixCell = memo(({ row, col, value, isDiagonal, onEnter, onLeave }: {
             className={`rounded-[2px] flex items-center justify-center cursor-crosshair transition-transform duration-75 hover:scale-110 hover:z-20 hover:shadow-lg hover:ring-1 ring-white/50 relative ${colorClass}`}
         >
             <span className="text-[7px] font-mono select-none tracking-tighter">
+
                 {isDiagonal ? '1.0' : value.toFixed(1)}
             </span>
         </div>
@@ -77,20 +74,34 @@ const EmptyState = () => (
     </div>
 );
 
-// --- MAIN COMPONENT ---
 const CorrelationMatrix = () => {
     const [data, setData] = useState<CorrelationData | null>(null);
     const [loading, setLoading] = useState(true);
     const [hovered, setHovered] = useState<CorrelationPoint | null>(null);
 
     useEffect(() => {
-        fetch(`${API_BASE_URL}/api/correlation`)
+        // ⚡ BLINDAGEM DE MEMÓRIA: Injetado o AbortController nativo do ecossistema JS
+        const controller = new AbortController();
+
+        fetch(`${API_BASE_URL}/api/correlation`, { signal: controller.signal })
             .then(res => res.json())
             .then(res => {
-                if (res.status === 'Sucesso') setData(res);
+                // Seta estados somente se a requisição não tiver sido abortada pelo unmount
+                if (!controller.signal.aborted && res.status === 'Sucesso') {
+                    setData(res);
+                    setLoading(false);
+                }
             })
-            .catch(err => console.error("Erro Correlation:", err))
-            .finally(() => setLoading(false));
+            .catch(err => {
+                // Ignora o log se for o cancelamento intencional do Next.js
+                if (err.name !== 'AbortError') {
+                    console.error("Erro Correlation:", err);
+                    if (!controller.signal.aborted) setLoading(false);
+                }
+            });
+
+        // Retorno de cleanup: Desmontou a tela, mata a busca de rede em background na hora
+        return () => controller.abort();
     }, []);
 
     const matrixMap = useMemo(() => {
@@ -108,7 +119,6 @@ const CorrelationMatrix = () => {
     }, []);
 
     const handleLeave = useCallback(() => {
-        // Não removemos imediatamente para evitar "flicker", mas como é fixed, ok.
         setHovered(null);
     }, []);
 
@@ -124,7 +134,6 @@ const CorrelationMatrix = () => {
     return (
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden min-h-[500px]">
 
-            {/* Topbar: Apenas Título agora */}
             <div className="flex justify-between items-start mb-0 h-14">
                 <div className="flex items-center gap-3">
                     <div className="bg-purple-500/20 p-2 rounded-lg border border-purple-500/30">
@@ -137,7 +146,6 @@ const CorrelationMatrix = () => {
                 </div>
             </div>
 
-            {/* Matrix Grid */}
             <div className="overflow-auto custom-scrollbar pb-2 pr-2">
                 <div className="inline-block">
                     <div className="flex">
@@ -174,7 +182,6 @@ const CorrelationMatrix = () => {
                                                 {label.substring(0, 6)}
                                             </span>
                                         </div>
-                                        {/* Guia visual */}
                                         <div
                                             className="absolute left-1/2 w-px bg-slate-700/40 group-hover:bg-slate-500 transition-colors -translate-x-1/2"
                                             style={{
@@ -211,31 +218,23 @@ const CorrelationMatrix = () => {
                 </div>
             </div>
 
-            {/* Legenda Estática */}
             <div className="mt-4 flex items-center justify-end gap-4 text-[10px] text-slate-500 font-medium">
                 <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 bg-emerald-500 rounded-sm"></div>Sincronizado</div>
                 <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 bg-slate-800/80 border border-slate-700 rounded-sm"></div>Neutro</div>
                 <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 bg-rose-600 rounded-sm"></div>Hedge</div>
             </div>
 
-            {/* --- TOOLTIP FLUTUANTE (FIXED HUD) --- */}
-            {/* Fica fixo na tela, independente do scroll do componente ou da página */}
+            {/* TOOLTIP FLUTUANTE (FIXED HUD) */}
             {hovered && (
                 <div className="fixed top-24 right-6 z-50 pointer-events-none animate-in fade-in slide-in-from-right-4 duration-300">
                     <div className="flex items-center gap-4 bg-slate-800/95 backdrop-blur-md px-5 py-3 rounded-xl border border-slate-600/50 shadow-2xl pointer-events-auto ring-1 ring-white/10">
-
-                        {/* Valor Grande */}
                         <div className="text-right">
                             <div className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mb-0.5">Correlação</div>
                             <div className={`text-2xl font-bold font-mono leading-none ${hovered.value > 0.3 ? 'text-emerald-400' : hovered.value < -0.3 ? 'text-rose-400' : 'text-slate-200'}`}>
                                 {hovered.value.toFixed(2)}
                             </div>
                         </div>
-
-                        {/* Divisória */}
                         <div className="h-8 w-px bg-slate-600/50"></div>
-
-                        {/* Detalhes dos Ativos */}
                         <div className="flex flex-col justify-center gap-0.5">
                             <div className="flex items-center gap-2 text-xs">
                                 <span className="font-bold text-white bg-slate-700/80 px-1.5 py-0.5 rounded shadow-sm border border-slate-600">{hovered.x}</span>
