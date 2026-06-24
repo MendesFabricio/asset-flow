@@ -8,7 +8,7 @@ import time
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
-from concurrent.futures import ThreadPoolExecutor, as_completed # ⚡ Motor de paralelismo
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 calendar_bp = Blueprint('calendar', __name__)
 
@@ -19,29 +19,31 @@ CALENDAR_CACHE = {
 CACHE_TIMEOUT = 600  # 10 minutos
 
 def get_secure_session():
-    """🛡️ Cria uma sessão HTTP disfarçada de navegador real com política de Timeout"""
+    """🛡️ Cria uma sessão HTTP disfarçada de navegador com pool expandido para threads"""
     session = requests.Session()
-    retries = Retry(total=1, backoff_factor=0.3, status_forcelist=[500, 502, 503, 504])
+    retries = Retry(total=2, backoff_factor=0.3, status_forcelist=[500, 502, 503, 504])
     
     session.headers.update({
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive"
     })
     
-    class TimeoutHTTPAdapter(HTTPAdapter):
-        def send(self, request, **kwargs):
-            kwargs["timeout"] = kwargs.get("timeout", 8) # ⚡ Timeout de 8s por ativo individual
-            return super().send(request, **kwargs)
-            
-    adapter = TimeoutHTTPAdapter(max_retries=retries, pool_connections=20, pool_maxsize=20)
+    # ⚡ Calibração ideal: Pool de 20 slots casa perfeitamente com os 12 workers paralelos
+    adapter = HTTPAdapter(
+        max_retries=retries,
+        pool_connections=20,
+        pool_maxsize=20
+    )
     session.mount("https://", adapter)
     session.mount("http://", adapter)
     return session
 
-def fetch_single_asset_proventos(item):
-    """🛠️ TRABALHADOR PARALELO: Executa de forma isolada em sua própria thread"""
+def fetch_single_asset_proventos(item, secure_session):
+    """🛠️ TRABALHADOR: Reutiliza a sessão única injetada para evitar conflito de Crumbs/401"""
     ticker_raw, quantity, today, tz = item
-    secure_session = get_secure_session()
     local_events = []
     
     try:
@@ -50,6 +52,7 @@ def fetch_single_asset_proventos(item):
         else:
             ticker_yahoo = ticker_raw
         
+        # ⚡ O SEGREDO: O Ticker agora usa a sessão compartilhada que já possui o Cookie válido
         stock = yf.Ticker(ticker_yahoo, session=secure_session)
         
         # 1. Histórico de Dividendos
@@ -97,17 +100,15 @@ def fetch_single_asset_proventos(item):
 def get_calendar():
     now = time.time()
     
-    # Validação rápida de Cache
     if CALENDAR_CACHE["data"] is not None and (now - CALENDAR_CACHE["last_update"]) < CACHE_TIMEOUT:
         return jsonify(CALENDAR_CACHE["data"])
 
-    logging.info("🔍 --- INICIANDO BUSCA ULTRA-RÁPIDA DE PROVENTOS (THREADS ATIVAS) ---")
+    logging.info("🔍 --- INICIANDO BUSCA ULTRA-RÁPIDA DE PROVENTOS (SESSÃO INJETADA) ---")
     
     tz = pytz.timezone("America/Sao_Paulo")
     today = datetime.now(tz).date()
     items_to_process = []
     
-    # ⚡ PASSO 1: Busca rápida no banco e fechamento imediato da sessão
     with Session() as session:
         try:
             positions = session.query(Position).join(Asset).filter(Position.quantity > 0).all()
@@ -115,7 +116,6 @@ def get_calendar():
                 ticker_raw = pos.asset.ticker.strip().upper()
                 if any(x in ticker_raw for x in ["CAIXINHA", "BTC", "ETH"]):
                     continue
-                # Guardamos apenas tipos primitivos (strings/floats) para passar para as threads
                 items_to_process.append((ticker_raw, pos.quantity, today, tz))
         except Exception as e:
             logging.error(f"💥 Erro ao ler posições para o calendário: {e}")
@@ -126,19 +126,26 @@ def get_calendar():
 
     events = []
     
-    # ⚡ PASSO 2: Dispara as requisições HTTP em paralelo usando um Pool de 12 Workers
-    # Em vez de demorar 15 segundos sequenciais, vai processar tudo em menos de 2 segundos!
+    # ⚡ PASSO CRUCIAL: Instancia a sessão segura UMA vez aqui na thread principal do Flask
+    secure_session = get_secure_session()
+    
+    # Prorrogamos um hit leve inicial para a sessão carregar o primeiro par de cookies de forma síncrona
+    try:
+        secure_session.get("https://fc.yahoo.com", timeout=5)
+    except:
+        pass
+
+    # Dispara o pool passando a sessão única compartilhada como argumento fixo
     with ThreadPoolExecutor(max_workers=12) as executor:
-        futures = [executor.submit(fetch_single_asset_proventos, item) for item in items_to_process]
+        futures = [executor.submit(fetch_single_asset_proventos, item, secure_session) for item in items_to_process]
         
         for future in as_completed(futures):
             events.extend(future.result())
 
     events.sort(key=lambda x: x['date'])
     
-    # Salva no cache de memória
     CALENDAR_CACHE["data"] = events
     CALENDAR_CACHE["last_update"] = now
     
-    logging.info(f"🏁 Fim da varredura paralela. {len(events)} eventos consolidados com sucesso.")
+    logging.info(f"🏁 Fim da varredura paralela protegida. {len(events)} eventos consolidados.")
     return jsonify(events)
