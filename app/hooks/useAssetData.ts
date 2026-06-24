@@ -1,5 +1,12 @@
-import useSWR, { mutate } from 'swr';
+import useSWR from 'swr'; // 🧼 Removido o import 'mutate' não utilizado para zerar o aviso
 import { DashboardData } from '../types';
+
+// 🛡️ Interface estrita para mapear os registros do histórico patrimonial
+interface HistoryDataPoint {
+  date: string;
+  Patrimônio: number;
+  Investido: number;
+}
 
 // O fetcher padrão que o SWR vai usar
 const fetcher = async (url: string) => {
@@ -15,7 +22,6 @@ const fetcher = async (url: string) => {
 
 export function useAssetData() {
   // 1. Hook para os dados principais (Dashboard)
-  // refreshInterval: 60000 faz ele atualizar sozinho a cada 1 minuto se a janela estiver aberta
   const {
     data,
     error: errorDashboard,
@@ -31,7 +37,7 @@ export function useAssetData() {
     data: history,
     error: errorHistory,
     isLoading: loadingHistory
-  } = useSWR<any[]>('/api/history', fetcher);
+  } = useSWR<HistoryDataPoint[]>('/api/history', fetcher); // 🛡️ Substituído 'any[]' por tipo seguro
 
   // Função para forçar atualização (ex: botão "Atualizar Agora")
   const refreshAll = async () => {

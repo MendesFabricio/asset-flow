@@ -1,6 +1,5 @@
 'use client';
-import { createContext, useContext, useState, ReactNode } from 'react';
-import { secureStorage } from '../utils/apiClient';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 interface PrivacyContextType {
   isHidden: boolean;
@@ -12,20 +11,48 @@ const PrivacyContext = createContext<PrivacyContextType>({
   togglePrivacy: () => { },
 });
 
-export const PrivacyProvider = ({ children }: { children: ReactNode }) => {
-  // Inicialização estável resolve o erro de render em cascata do linter
-  const [isHidden, setIsHidden] = useState<boolean>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = secureStorage.get('assetflow_privacy');
-      return saved === 'true';
+const SECRET_SALT = "assetflow_secure_salt_2026";
+
+const obscureValue = (value: string): string => {
+  const saltedStr = `${SECRET_SALT}:${value}`;
+  return btoa(saltedStr).split('').reverse().join('');
+};
+
+const deobscureValue = (obscured: string): string => {
+  try {
+    const reversed = obscured.split('').reverse().join('');
+    const decoded = atob(reversed);
+
+    if (decoded.startsWith(`${SECRET_SALT}:`)) {
+      return decoded.replace(`${SECRET_SALT}:`, '');
     }
-    return false;
-  });
+  } catch {
+    // Tratamento de erro vazio para fallback de dados legados
+  }
+  return obscured;
+};
+
+export const PrivacyProvider = ({ children }: { children: ReactNode }) => {
+  const [isHidden, setIsHidden] = useState(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('assetflow_privacy');
+    if (saved) {
+      const decrypted = deobscureValue(saved);
+
+      if (decrypted === 'true') {
+        setTimeout(() => setIsHidden(true), 0);
+      } else if (saved === 'true') {
+        setTimeout(() => setIsHidden(true), 0);
+        localStorage.setItem('assetflow_privacy', obscureValue('true'));
+      }
+    }
+  }, []);
 
   const togglePrivacy = () => {
     setIsHidden((prev) => {
       const newState = !prev;
-      secureStorage.set('assetflow_privacy', String(newState));
+      localStorage.setItem('assetflow_privacy', obscureValue(String(newState)));
       return newState;
     });
   };

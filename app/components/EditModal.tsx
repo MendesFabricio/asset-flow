@@ -12,8 +12,20 @@ interface EditModalProps {
   allAssets?: Asset[];
 }
 
-// 1️⃣ MOVIDO PARA FORA: Isso impede que o input perca o foco ao digitar
-const InputControl = ({ label, value, field, step, precision, color = "blue", onAdjust, onChange }: any) => (
+type EditFormField = 'quantity' | 'average_price' | 'target_percent' | 'manual_dy' | 'manual_lpa' | 'manual_vpa' | 'manual_price';
+
+interface InputControlProps {
+  label: string;
+  value: number;
+  field: EditFormField;
+  step: number;
+  precision: number;
+  color?: string;
+  onAdjust: (field: EditFormField, delta: number, precision: number) => void;
+  onChange: (field: EditFormField, value: number) => void;
+}
+
+const InputControl = ({ label, value, field, step, precision, color = "blue", onAdjust, onChange }: InputControlProps) => (
   <div className="space-y-1.5">
     <label className="text-[10px] uppercase font-bold text-slate-500 tracking-widest ml-1">{label}</label>
     <div className={`flex items-center bg-slate-950 border border-slate-800 rounded-lg overflow-hidden focus-within:ring-1 focus-within:ring-${color}-500/50 transition-all shadow-inner`}>
@@ -90,8 +102,9 @@ export const EditModal = ({ isOpen, onClose, onSave, ativo, allAssets = [] }: Ed
     });
   };
 
-  const handleInputChange = (field: keyof typeof formData, value: number) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  const handleInputChange = (field: EditFormField, value: number) => {
+    const sanitizedValue = Math.max(0, isNaN(value) ? 0 : value);
+    setFormData(prev => ({ ...prev, [field]: sanitizedValue }));
   };
 
   const maxLimit = (() => {

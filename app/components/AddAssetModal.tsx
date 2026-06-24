@@ -33,12 +33,19 @@ export const AddAssetModal = ({ isOpen, onClose, onSuccess }: AddAssetModalProps
   };
 
   const handleSave = async () => {
-    // Validação básica no Frontend antes de chamar a API
-    if (!formData.ticker.trim()) {
+    // 1. Sanitização estrita do Ticker (remove espaços e força caixa alta)
+    const sanitizedTicker = formData.ticker.trim().toUpperCase();
+
+    if (!sanitizedTicker) {
       setError("O Ticker é obrigatório.");
       return;
     }
-    if (formData.quantity <= 0 || formData.average_price <= 0) {
+
+    // 2. Conversão e validação numérica rigorosa contra valores zerados, negativos ou NaN
+    const parsedQuantity = Number(formData.quantity);
+    const parsedAveragePrice = Number(formData.average_price);
+
+    if (isNaN(parsedQuantity) || parsedQuantity <= 0 || isNaN(parsedAveragePrice) || parsedAveragePrice <= 0) {
       setError("Quantidade e Preço Médio devem ser maiores que zero.");
       return;
     }
@@ -47,30 +54,35 @@ export const AddAssetModal = ({ isOpen, onClose, onSuccess }: AddAssetModalProps
     setError(null);
 
     try {
-      // 1. Validação do Ticker no Yahoo Finance via Backend
-      const valData = await apiCall('/api/validate_ticker', {
+      // 3. Validação do Ticker higienizado no Yahoo Finance via Backend
+      const valRes = await fetch('http://localhost:5328/api/validate_ticker', {
         method: 'POST',
-        body: JSON.stringify({ ticker: formData.ticker.trim() })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticker: sanitizedTicker })
       });
+      const valData = await valRes.json();
 
       if (!valData.valid) {
-        setError(`Ticker "${formData.ticker}" não encontrado no Yahoo Finance.`);
+        setError(`Ticker "${sanitizedTicker}" não encontrado no Yahoo Finance.`);
         setValidating(false);
         return;
       }
 
-      // 2. Se válido, envia para criação no Banco de Dados
+      // 4. Envia os dados limpos e tipados para o Banco de Dados
       setLoading(true);
-      const saveData = await apiCall('/api/add_asset', {
+      const saveRes = await fetch('http://localhost:5328/api/add_asset', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ticker: valData.ticker, // Usa o ticker formatado pelo backend
+          ticker: valData.ticker.trim().toUpperCase(), // Garante formatação vinda do backend
           category: formData.type,
-          qtd: Number(formData.quantity),
-          pm: Number(formData.average_price),
+          qtd: parsedQuantity,
+          pm: parsedAveragePrice,
           meta: Number(formData.target_percent)
         }),
       });
+
+      const saveData = await saveRes.json();
 
       if (saveData.status === 'Sucesso') {
         setFormData(initialState);

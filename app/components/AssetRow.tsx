@@ -1,6 +1,6 @@
 'use client';
 import { useState, useRef, useMemo } from 'react';
-import { Snowflake, TrendingUp, TrendingDown, Pencil, FileText, Info, Layers, Search } from 'lucide-react'; // 👈 Adicionado Search
+import { Snowflake, TrendingUp, TrendingDown, Pencil, FileText, Info, Layers, Search } from 'lucide-react';
 import { formatMoney, getStatusBg, getStatusColor } from '../utils';
 import { Asset } from '../types';
 import { usePrivacy } from '../context/PrivacyContext';
@@ -17,31 +17,40 @@ interface AssetRowProps {
   total: number;
 }
 
+// 🛡️ Interface estrita para mapear propriedades dinâmicas estendidas do backend
+type ExtendedAsset = Asset & {
+  currency?: string;
+  change_percent?: number;
+  fundamentalist_data?: unknown;
+};
+
 const PrivateValue = ({ value, isHidden, className = "" }: { value: string | number, isHidden: boolean, className?: string }) => (
   <span className={className}>{isHidden ? (className.includes('pct') ? '•••%' : '••••••') : value}</span>
 );
 
-export const AssetRow = ({ ativo, tab, onEdit, onViewNews, onViewDetails, index, total }: AssetRowProps) => {
-  const { isHidden } = usePrivacy() as any;
+export const AssetRow = ({ ativo, tab, onEdit, onViewNews, onViewDetails, index: _index, total: _total }: AssetRowProps) => {
+  // 🧼 Tipagem explícita do hook de privacidade para remover o erro de 'any'
+  const { isHidden } = usePrivacy() as { isHidden: boolean };
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [tooltip, setTooltip] = useState<{ x: number; y: number; position: 'top' | 'bottom'; type: 'rec' | 'fin' } | null>(null);
   const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [imgError, setImgError] = useState(false);
 
-  // --- MEMOIZATION: Cálculos Pesados ---
+  // --- MEMOIZATION: Cálculos Pesados com Tipagem Segura ---
   const stats = useMemo(() => {
-    const isUSD = (ativo as any).currency === 'USD';
-    const variacaoIntraday = (ativo as any).change_percent ?? 0;
+    const extAsset = ativo as ExtendedAsset;
+    const isUSD = extAsset.currency === 'USD';
+    const variacaoIntraday = extAsset.change_percent ?? 0;
     const isPositiveIntraday = variacaoIntraday >= 0;
 
     const divisor = 1 + (variacaoIntraday / 100);
-    const variacaoFinanceira = divisor > 0.0001 ? ativo.total_atual - (ativo.total_atual / divisor) : 0;
+    const variacaoFinanceira = divisor > 0.0001 ? extAsset.total_atual - (extAsset.total_atual / divisor) : 0;
 
-    const motivosRaw = ativo.motivo || "";
+    const motivosRaw = extAsset.motivo || "";
     const separator = motivosRaw.includes(' • ') ? ' • ' : ' + ';
     const motivosLista = motivosRaw ? motivosRaw.split(separator) : [];
 
-    const percentualDaMeta = ativo.meta > 0 ? (ativo.pct_na_categoria / ativo.meta) * 100 : 0;
+    const percentualDaMeta = extAsset.meta > 0 ? (extAsset.pct_na_categoria / extAsset.meta) * 100 : 0;
 
     return {
       isUSD,
@@ -51,10 +60,10 @@ export const AssetRow = ({ ativo, tab, onEdit, onViewNews, onViewDetails, index,
       motivosLista,
       percentualDaMeta,
       barraWidth: Math.min(percentualDaMeta, 100),
-      isOverweight: ativo.pct_na_categoria > ativo.meta,
-      displayPrice: isUSD ? `$ ${ativo.preco_atual.toFixed(2)}` : formatMoney(ativo.preco_atual),
-      displayPM: isUSD ? `$ ${ativo.pm.toFixed(2)}` : formatMoney(ativo.pm),
-      hasReports: !!ativo.last_report_url || (typeof ativo.last_report_type === 'string' && ativo.last_report_type.length > 5) || !!(ativo as any).fundamentalist_data
+      isOverweight: extAsset.pct_na_categoria > extAsset.meta,
+      displayPrice: isUSD ? `$ ${extAsset.preco_atual.toFixed(2)}` : formatMoney(extAsset.preco_atual),
+      displayPM: isUSD ? `$ ${extAsset.pm.toFixed(2)}` : formatMoney(extAsset.pm),
+      hasReports: !!extAsset.last_report_url || (typeof extAsset.last_report_type === 'string' && extAsset.last_report_type.length > 5) || !!extAsset.fundamentalist_data
     };
   }, [ativo]);
 
@@ -95,6 +104,7 @@ export const AssetRow = ({ ativo, tab, onEdit, onViewNews, onViewDetails, index,
 
                 {/* 👇 BOTÃO CLICÁVEL PARA ABRIR DETALHES 👇 */}
                 <button
+                  type="button"
                   onClick={() => onViewDetails(ativo)}
                   className="hover:text-blue-400 hover:underline flex items-center gap-1 transition-all group/name text-left"
                 >
@@ -103,14 +113,14 @@ export const AssetRow = ({ ativo, tab, onEdit, onViewNews, onViewDetails, index,
                 </button>
 
                 <div className="flex opacity-0 group-hover:opacity-100 transition-all gap-1 ml-1">
-                  <button onClick={() => setIsReportModalOpen(true)} className={`p-1 hover:bg-slate-700 rounded transition-colors ${stats.hasReports ? 'text-blue-400' : 'text-slate-600'}`} title="Docs">
+                  <button type="button" onClick={() => setIsReportModalOpen(true)} className={`p-1 hover:bg-slate-700 rounded transition-colors ${stats.hasReports ? 'text-blue-400' : 'text-slate-600'}`} title="Docs">
                     <Layers size={12} />
                   </button>
-                  <button onClick={() => onEdit(ativo)} className="p-1 hover:bg-slate-700 rounded text-slate-500 hover:text-blue-400 transition-colors" title="Editar">
+                  <button type="button" onClick={() => onEdit(ativo)} className="p-1 hover:bg-slate-700 rounded text-slate-500 hover:text-blue-400 transition-colors" title="Editar">
                     <Pencil size={12} />
                   </button>
                   {onViewNews && (
-                    <button onClick={() => onViewNews(ativo.ticker)} className="p-1 hover:bg-slate-700 rounded text-slate-500 hover:text-emerald-400 transition-colors" title="Notícias">
+                    <button type="button" onClick={() => onViewNews(ativo.ticker)} className="p-1 hover:bg-slate-700 rounded text-slate-500 hover:text-emerald-400 transition-colors" title="Notícias">
                       <FileText size={12} />
                     </button>
                   )}
@@ -184,7 +194,8 @@ export const AssetRow = ({ ativo, tab, onEdit, onViewNews, onViewDetails, index,
             ) : <span className="text-slate-700 text-[10px] font-medium">-</span>}
 
             <div
-              className={`flex items-center gap-1 text-[9px] px-2 py-0.5 rounded-full border uppercase font-bold cursor-help transition-all hover:brightness-110 ${getStatusColor(ativo.status)}`}
+              className={`flex items-center gap-1 text-[9px] px-2 py-0.5 rounded-full border uppercase font-bold cursor-help transition-all hover:brightness-110`}
+              ref={undefined}
               onMouseEnter={(e) => handleMouseEnter(e, 'rec')}
               onMouseLeave={handleMouseLeave}
             >

@@ -4,7 +4,13 @@ import { formatMoney } from '../utils';
 import { Card } from './ui/Card';
 import { LineChart as LineChartIcon, TrendingUp } from 'lucide-react';
 
-export const HistoryChart = ({ data }: { data: any[] }) => {
+interface HistoryChartItem {
+  date: string;
+  Patrimônio: number;
+  Investido: number;
+}
+
+export const HistoryChart = ({ data }: { data: HistoryChartItem[] }) => { // 🌟 Substituído 'any[]' por tipo seguro
   if (!data || data.length === 0) {
     return (
       <div className="bg-[#0f172a] p-8 rounded-xl border border-slate-800 text-center text-slate-500 h-[400px] flex flex-col items-center justify-center gap-4 animate-pulse">

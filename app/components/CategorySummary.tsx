@@ -3,14 +3,40 @@ import { useState } from 'react';
 import { formatMoney } from '../utils';
 import { Asset } from '../types';
 import { usePrivacy } from '../context/PrivacyContext';
-import { PieChart, Pencil, X, Save, Lock, AlertCircle, AlertTriangle, TrendingUp, TrendingDown, Ban, CheckCircle2, DollarSign } from 'lucide-react';
+import { PieChart, Pencil, X, Save, AlertCircle, AlertTriangle, TrendingUp, TrendingDown, Ban, CheckCircle2, DollarSign } from 'lucide-react'; // 🧼 Removido 'Lock' que não era usado
 import { Card } from './ui/Card';
 
-// URL da API
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
 // ==========================================
-// 1. SUB-COMPONENTE: TOOLTIP FINANCEIRO (NOVO)
+// INTERFACES E TIPAGENS ESTRITAS (NOVAS)
+// ==========================================
+interface GroupedAsset {
+  tipo: string;
+  investido: number;
+  atual: number;
+  variacaoPct: number;
+  variacaoValor: number;
+}
+
+interface MetaTooltipData {
+  item: GroupedAsset;
+  meta: number;
+  pctAtual: number;
+  diff: number;
+  visualWidth: number;
+}
+
+interface CategorySummaryProps {
+  ativos: Asset[];
+  categorias?: { name: string; meta: number }[];
+  onUpdate: () => void;
+}
+
+interface EditingCategory { name: string; }
+
+// ==========================================
+// 1. SUB-COMPONENTE: TOOLTIP FINANCEIRO
 // ==========================================
 const FinanceTooltip = ({ x, y, valor, isPositive }: { x: number, y: number, valor: number, isPositive: boolean }) => (
   <div
@@ -34,9 +60,9 @@ const FinanceTooltip = ({ x, y, valor, isPositive }: { x: number, y: number, val
 );
 
 // ==========================================
-// 2. SUB-COMPONENTE: TOOLTIP DE META (ANTIGO REFATORADO)
+// 2. SUB-COMPONENTE: TOOLTIP DE META (PROTEGIDO)
 // ==========================================
-const MetaAnalysisTooltip = ({ x, y, data }: { x: number, y: number, data: any }) => (
+const MetaAnalysisTooltip = ({ x, y, data }: { x: number, y: number, data: MetaTooltipData }) => (
   <div
     className="fixed z-[100] animate-in fade-in zoom-in-95 duration-150 pointer-events-none"
     style={{ top: y - 10, left: x }}
@@ -109,35 +135,18 @@ const MetaAnalysisTooltip = ({ x, y, data }: { x: number, y: number, data: any }
 // ==========================================
 // 3. COMPONENTE PRINCIPAL
 // ==========================================
-
-interface CategorySummaryProps {
-  ativos: Asset[];
-  categorias?: { name: string; meta: number }[];
-  onUpdate: () => void;
-}
-
-interface EditingCategory { name: string; }
-
-interface GroupedAsset {
-  tipo: string;
-  investido: number;
-  atual: number;
-  variacaoPct: number; // 🆕
-  variacaoValor: number; // 🆕
-}
-
 const PrivateValue = ({ value, isHidden, className = "" }: { value: string | number, isHidden: boolean, className?: string }) => (
   <span className={className}>{isHidden ? '••••••' : value}</span>
 );
 
 export const CategorySummary = ({ ativos, categorias = [], onUpdate }: CategorySummaryProps) => {
-  const { isHidden } = usePrivacy();
+  const { isHidden } = usePrivacy() as { isHidden: boolean };
   const [editingCat, setEditingCat] = useState<EditingCategory | null>(null);
   const [newMeta, setNewMeta] = useState(0);
   const [loading, setLoading] = useState(false);
 
-  // States dos Tooltips (Separados)
-  const [hoveredInfo, setHoveredInfo] = useState<{ x: number, y: number, data: any } | null>(null);
+  // 🛡️ Definido o tipo correto nos estados para eliminar erros de 'any'
+  const [hoveredInfo, setHoveredInfo] = useState<{ x: number, y: number, data: MetaTooltipData } | null>(null);
   const [financeTooltip, setFinanceTooltip] = useState<{ x: number, y: number, valor: number, isPositive: boolean } | null>(null);
 
   const getMaxAllowed = (catName: string) => {
@@ -147,7 +156,7 @@ export const CategorySummary = ({ ativos, categorias = [], onUpdate }: CategoryS
 
   if (!ativos || ativos.length === 0) return null;
 
-  // --- LÓGICA DE DADOS (Cálculo de variação incluído) ---
+  // --- LÓGICA DE DADOS ---
   const groups = ativos.reduce((acc: Record<string, GroupedAsset>, asset) => {
     const cat = asset.tipo || 'Outros';
     if (!acc[cat]) acc[cat] = { tipo: cat, investido: 0, atual: 0, variacaoPct: 0, variacaoValor: 0 };
@@ -157,10 +166,8 @@ export const CategorySummary = ({ ativos, categorias = [], onUpdate }: CategoryS
   }, {});
 
   const lista = (Object.values(groups)).map(group => {
-    // 1. Filtra ativos desta categoria
     const assetsInCat = ativos.filter(a => (a.tipo || 'Outros') === group.tipo);
 
-    // 2. Calcula total de "Ontem" (Engenharia reversa)
     let totalOntem = 0;
     assetsInCat.forEach(a => {
       const pct = a.change_percent || 0;
@@ -168,7 +175,6 @@ export const CategorySummary = ({ ativos, categorias = [], onUpdate }: CategoryS
       totalOntem += valOntem;
     });
 
-    // 3. Calcula variação consolidada
     const variacaoValor = group.atual - totalOntem;
     const variacaoPct = totalOntem > 0 ? (variacaoValor / totalOntem) * 100 : 0;
 
@@ -246,7 +252,6 @@ export const CategorySummary = ({ ativos, categorias = [], onUpdate }: CategoryS
                 const diff = pctAtual - meta;
                 const isPositiveVar = item.variacaoPct >= 0;
 
-                // Lógica Visual da Barra
                 let visualWidth = 0;
                 if (meta > 0) { visualWidth = Math.min((pctAtual / meta) * 100, 100); }
                 else if (pctAtual > 0) { visualWidth = 100; }
@@ -261,12 +266,11 @@ export const CategorySummary = ({ ativos, categorias = [], onUpdate }: CategoryS
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-slate-300">{item.tipo}</span>
 
-                        {/* 🆕 BADGE AO LADO DO NOME (ACIONA O TOOLTIP FINANCEIRO) */}
                         {Math.abs(item.variacaoPct) > 0.001 && (
                           <div
                             className={`flex items-center gap-0.5 text-[9px] font-mono font-bold px-1.5 py-0.5 rounded cursor-help transition-all hover:scale-105 ${isPositiveVar
-                                ? 'text-emerald-400 bg-emerald-400/10 border border-emerald-400/20'
-                                : 'text-rose-400 bg-rose-400/10 border border-rose-400/20'
+                              ? 'text-emerald-400 bg-emerald-400/10 border border-emerald-400/20'
+                              : 'text-rose-400 bg-rose-400/10 border border-rose-400/20'
                               }`}
                             onMouseEnter={(e) => {
                               const rect = e.currentTarget.getBoundingClientRect();
@@ -327,7 +331,7 @@ export const CategorySummary = ({ ativos, categorias = [], onUpdate }: CategoryS
                     <td className="px-6 py-3 text-right align-middle">
                       <div className="flex items-center justify-end gap-2 h-full">
                         <span className="text-slate-400 font-bold font-mono text-xs block">{meta.toFixed(0)}%</span>
-                        <button onClick={() => handleEdit(item.tipo, meta)} className="opacity-0 group-hover:opacity-100 p-1.5 rounded hover:bg-slate-800 text-slate-600 hover:text-white transition-all -mr-2">
+                        <button type="button" onClick={() => handleEdit(item.tipo, meta)} className="opacity-0 group-hover:opacity-100 p-1.5 rounded hover:bg-slate-800 text-slate-600 hover:text-white transition-all -mr-2">
                           <Pencil size={12} />
                         </button>
                       </div>
@@ -339,7 +343,6 @@ export const CategorySummary = ({ ativos, categorias = [], onUpdate }: CategoryS
           </table>
         </div>
 
-        {/* Footer */}
         <div className="py-2 px-4 bg-slate-900 border-t border-slate-800 flex justify-between items-center shrink-0">
           <div className="space-y-0.5">
             <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest leading-none">Patrimônio Atual</p>
@@ -360,17 +363,15 @@ export const CategorySummary = ({ ativos, categorias = [], onUpdate }: CategoryS
         </div>
       </Card>
 
-      {/* RENDERIZAÇÃO DOS TOOLTIPS */}
       {financeTooltip && <FinanceTooltip {...financeTooltip} />}
       {hoveredInfo && <MetaAnalysisTooltip {...hoveredInfo} />}
 
-      {/* MODAL DE EDIÇÃO */}
       {editingCat && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <Card className="w-full max-w-sm !bg-slate-900 shadow-2xl p-6 space-y-6 border-slate-700">
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-bold text-white leading-tight">Meta: {editingCat.name}</h3>
-              <button onClick={() => setEditingCat(null)} className="p-1.5 text-slate-500 hover:text-white transition-colors"><X size={20} /></button>
+              <button type="button" onClick={() => setEditingCat(null)} className="p-1.5 text-slate-500 hover:text-white transition-colors"><X size={20} /></button>
             </div>
             <div className="space-y-4">
               <div className="flex justify-between items-end px-1">
@@ -380,8 +381,8 @@ export const CategorySummary = ({ ativos, categorias = [], onUpdate }: CategoryS
               <input type="range" min="0" max={getMaxAllowed(editingCat.name)} step="1" value={newMeta} onChange={(e) => setNewMeta(Number(e.target.value))} className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500 outline-none" />
             </div>
             <div className="flex justify-end gap-3">
-              <button onClick={() => setEditingCat(null)} className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-white transition-colors uppercase tracking-widest">Cancelar</button>
-              <button onClick={handleSave} disabled={loading} className="px-6 py-2 text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white rounded-lg flex items-center gap-2 shadow-lg shadow-blue-900/20 uppercase tracking-widest">
+              <button type="button" onClick={() => setEditingCat(null)} className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-white transition-colors uppercase tracking-widest">Cancelar</button>
+              <button type="button" onClick={handleSave} disabled={loading} className="px-6 py-2 text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white rounded-lg flex items-center gap-2 shadow-lg shadow-blue-900/20 uppercase tracking-widest">
                 {loading ? 'Salvando...' : <><Save size={14} /> Salvar Meta</>}
               </button>
             </div>

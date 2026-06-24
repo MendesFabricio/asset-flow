@@ -13,10 +13,10 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
-  // Bloco de customização de regras para evitar que o build trave por tipagem genérica
+  // Bloco de customização de regras para manter a qualidade estrita do código
   {
     rules: {
-      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-explicit-any": "error", // Bloqueia novos overrides com 'any'
     },
   },
 ]);

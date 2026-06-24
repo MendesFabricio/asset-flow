@@ -5,7 +5,7 @@ import {
   TrendingUp, Wallet, DollarSign, Activity,
   Target, Layers, RefreshCw, PiggyBank, BarChart3, LineChart, ArrowUpRight, PlusCircle,
   Brain, Calendar, Eye, EyeOff, Percent, Grip, Building2, Globe, Landmark, Bitcoin, Calculator,
-  CheckCircle, AlertTriangle, X // ArrowUp e ArrowDown estão no MarketTicker agora
+  CheckCircle, AlertTriangle, X
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePrivacy } from './context/PrivacyContext';
@@ -25,12 +25,12 @@ import { AlertsButton } from './components/AlertsButton';
 import { SmartAllocationModal } from './components/SmartAllocationModal';
 import { ReceivablesTab } from './components/ReceivablesTab';
 import { MarketTicker } from './components/MarketTicker';
-// 👇 1. Importação do Novo Modal
 import { AssetDetailsModal } from './components/AssetDetailsModal';
+import { Asset } from './types'; // 🛡️ Importação da interface global de ativos
 
 export default function Home() {
   const { data, history, loading, refreshing, error, refetch } = useAssetData();
-  const { isHidden, togglePrivacy } = usePrivacy();
+  const { isHidden, togglePrivacy } = usePrivacy() as { isHidden: boolean; togglePrivacy: () => void };
 
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
@@ -40,7 +40,9 @@ export default function Home() {
   };
 
   const [tab, setTab] = useState('Resumo');
-  const [editingAsset, setEditingAsset] = useState<any>(null);
+
+  // 🧼 Tipagem estrita de estados substituindo o antigo 'any'
+  const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newsTicker, setNewsTicker] = useState<string | null>(null);
   const [updatingFundamentals, setUpdatingFundamentals] = useState(false);
@@ -49,8 +51,8 @@ export default function Home() {
   const [isRefetching, setIsRefetching] = useState(false);
   const [isSmartModalOpen, setIsSmartModalOpen] = useState(false);
 
-  // 👇 2. Novo State para controlar qual ativo está sendo detalhado
-  const [selectedDetailsAsset, setSelectedDetailsAsset] = useState<any>(null);
+  // 🧼 Tipagem estrita para o controle do ativo selecionado
+  const [selectedDetailsAsset, setSelectedDetailsAsset] = useState<Asset | null>(null);
 
   const categories = [
     { id: 'Resumo', icon: <Layers size={16} /> },
@@ -76,8 +78,9 @@ export default function Home() {
     ? ((data.resumo.RendaMensal * 12) / data.resumo.TotalInvestido) * 100
     : 0;
 
-  const variacaoDiariaTotal = data?.ativos?.reduce((acc: number, asset: any) => {
-    const variacaoPct = asset.change_percent || 0;
+  // 🛡️ Tipagem estrita no acumulador do reduce para evitar brechas aritméticas
+  const variacaoDiariaTotal = data?.ativos?.reduce((acc: number, asset: Asset) => {
+    const variacaoPct = (asset as Asset & { change_percent?: number }).change_percent || 0;
     const totalAtual = asset.total_atual || 0;
     const divisor = 1 + (variacaoPct / 100);
     const valOntem = divisor > 0.0001 ? totalAtual / divisor : totalAtual;
@@ -89,10 +92,10 @@ export default function Home() {
   const handleSyncReports = async () => {
     setSyncingReports(true);
     try {
-      const result = await apiCall('/api/sync-reports', { method: 'POST', timeout: 180000 });
+      const result = await apiCall<{ status: string; msg: string }>('/api/sync-reports', { method: 'POST', timeout: 180000 });
       if (result.status === "Sucesso") {
         notify(result.msg, 'success');
-        refetch(true);
+        refetch();
       } else {
         notify("Erro: " + result.msg, 'error');
       }
@@ -109,7 +112,7 @@ export default function Home() {
     try {
       await apiCall('/api/update-fundamentals', { method: 'POST', timeout: 180000 });
       notify("Sucesso! Inteligência atualizada.", 'success');
-      refetch(true);
+      refetch();
     } catch (e) { console.error(e); }
     finally { setUpdatingFundamentals(false); }
   };
@@ -118,7 +121,7 @@ export default function Home() {
     setIsRefetching(true);
     try {
       await apiCall('/api/refresh_prices', { method: 'POST' });
-      await refetch(true);
+      await refetch();
       setShowRefreshSuccess(true);
       setTimeout(() => setShowRefreshSuccess(false), 2000);
     } catch (e) {
@@ -130,7 +133,7 @@ export default function Home() {
   };
 
   const handleFixAsset = (assetId: number) => {
-    const assetToEdit = data?.ativos.find((a: any) => a.id === assetId);
+    const assetToEdit = data?.ativos.find((a: Asset) => (a as Asset & { id?: number }).id === assetId);
     if (assetToEdit) setEditingAsset(assetToEdit);
   };
 
@@ -165,6 +168,7 @@ export default function Home() {
               </Link>
 
               <button
+                type="button"
                 onClick={() => setIsSmartModalOpen(true)}
                 className="bg-purple-600 hover:bg-purple-500 text-white px-3 py-2 rounded-lg transition-all flex items-center gap-2 text-xs font-bold border border-purple-500/50 shadow-[0_0_15px_rgba(147,51,234,0.3)] hover:shadow-[0_0_25px_rgba(147,51,234,0.6)] duration-300"
               >
@@ -173,6 +177,7 @@ export default function Home() {
               </button>
 
               <button
+                type="button"
                 onClick={() => setIsAddModalOpen(true)}
                 className="bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded-lg transition-all flex items-center gap-2 text-xs font-bold shadow-[0_0_15px_rgba(37,99,235,0.3)] hover:shadow-[0_0_25px_rgba(37,99,235,0.6)] duration-300"
               >
@@ -183,13 +188,14 @@ export default function Home() {
             <div className="h-6 w-px bg-slate-800 mx-1"></div>
 
             <div className="flex items-center gap-2">
-              <button onClick={togglePrivacy} className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors">
+              <button type="button" onClick={togglePrivacy} className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors">
                 {isHidden ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
 
               <AlertsButton onFixAsset={handleFixAsset} />
 
               <button
+                type="button"
                 onClick={handleSyncReports}
                 disabled={syncingReports}
                 className="bg-slate-800 hover:bg-slate-700 text-slate-300 p-2 rounded-lg border border-slate-700 disabled:opacity-50 group relative"
@@ -204,11 +210,12 @@ export default function Home() {
                 )}
               </button>
 
-              <button onClick={handleUpdateFundamentals} disabled={updatingFundamentals} className="bg-slate-800 hover:bg-slate-700 text-slate-300 p-2 rounded-lg border border-slate-700 disabled:opacity-50">
+              <button type="button" onClick={handleUpdateFundamentals} disabled={updatingFundamentals} className="bg-slate-800 hover:bg-slate-700 text-slate-300 p-2 rounded-lg border border-slate-700 disabled:opacity-50">
                 <Brain size={16} className={updatingFundamentals ? 'animate-pulse text-emerald-400' : ''} />
               </button>
 
               <button
+                type="button"
                 onClick={handleManualRefresh}
                 disabled={refreshing || isRefetching || showRefreshSuccess}
                 className={`p-2 rounded-lg border transition-all duration-300 ${showRefreshSuccess
@@ -229,7 +236,7 @@ export default function Home() {
               <p className="text-lg font-bold text-white leading-tight mt-0.5">
                 {data ? money(data.resumo.Total) : '...'}
               </p>
-              {data?.resumo?.RendaMensal > 0 && (
+              {data?.resumo?.RendaMensal && data.resumo.RendaMensal > 0 && (
                 <div className="text-[10px] text-emerald-500 font-bold mt-1 flex items-center justify-end gap-1 leading-none">
                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" />
                   {money(data.resumo.RendaMensal)}
@@ -242,7 +249,7 @@ export default function Home() {
 
         <div className="max-w-7xl mx-auto px-4 flex gap-4 overflow-x-auto no-scrollbar border-t border-slate-800/30">
           {categories.map((c) => (
-            <button key={c.id} onClick={() => setTab(c.id)} className={`flex items-center gap-2 px-1 py-3 text-xs font-medium transition-all relative border-b-2 whitespace-nowrap ${tab === c.id ? 'border-blue-500 text-white shadow-[0_10px_20px_-10px_rgba(59,130,246,0.5)]' : 'border-transparent text-slate-500 hover:text-slate-300'}`}>
+            <button type="button" key={c.id} onClick={() => setTab(c.id)} className={`flex items-center gap-2 px-1 py-3 text-xs font-medium transition-all relative border-b-2 whitespace-nowrap ${tab === c.id ? 'border-blue-500 text-white shadow-[0_10px_20px_-10px_rgba(59,130,246,0.5)]' : 'border-transparent text-slate-500 hover:text-slate-300'}`}>
               {c.icon}{c.label || c.id}
             </button>
           ))}
@@ -295,7 +302,7 @@ export default function Home() {
                 <RiskRadar alertas={data?.alertas || []} />
               </div>
               <div className="lg:col-span-2 h-full">
-                <CategorySummary ativos={data?.ativos || []} categorias={data?.categorias || []} onUpdate={() => refetch(true)} />
+                <CategorySummary ativos={data?.ativos || []} categorias={data?.categorias || []} onUpdate={() => refetch()} />
               </div>
             </div>
 
@@ -334,7 +341,7 @@ export default function Home() {
                     <th className="p-4 pl-6">Ativo</th>
                     <th className="p-4 text-right">Minha Posição</th>
                     <th className="p-4 text-right hidden sm:table-cell">Preço</th>
-                    <th className="p-4 text-right">Resultado</th>
+                    <th className="p-4 text-right">Resultados</th>
                     <th className="p-4 text-right hidden md:table-cell">Meta</th>
                     <th className="p-4 text-right">Aporte</th>
                     {(tab === 'Ação' || tab === 'FII') && <th className="p-4 text-center hidden lg:table-cell w-24">Indicadores</th>}
@@ -348,7 +355,7 @@ export default function Home() {
                       tab={tab}
                       onEdit={(a) => setEditingAsset(a)}
                       onViewNews={(ticker) => setNewsTicker(ticker)}
-                      onViewDetails={(a) => setSelectedDetailsAsset(a)} // 👈 3. Passando a função para o AssetRow
+                      onViewDetails={(a) => setSelectedDetailsAsset(a)}
                       index={index}
                       total={filteredAssets.length}
                     />
@@ -359,8 +366,8 @@ export default function Home() {
           </div>
         )}
 
-        <EditModal isOpen={!!editingAsset} onClose={() => setEditingAsset(null)} onSave={() => refetch(true)} ativo={editingAsset} allAssets={data?.ativos || []} />
-        <AddAssetModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onSuccess={() => refetch(true)} />
+        <EditModal isOpen={!!editingAsset} onClose={() => setEditingAsset(null)} onSave={() => refetch()} ativo={editingAsset} allAssets={data?.ativos || []} />
+        <AddAssetModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onSuccess={() => refetch()} />
         <AssetNewsPanel ticker={newsTicker} onClose={() => setNewsTicker(null)} />
 
         <SmartAllocationModal
@@ -369,7 +376,6 @@ export default function Home() {
           ativos={data?.ativos || []}
         />
 
-        {/* 👇 4. Inserindo o Modal de Detalhes aqui */}
         <AssetDetailsModal
           isOpen={!!selectedDetailsAsset}
           onClose={() => setSelectedDetailsAsset(null)}
@@ -389,7 +395,7 @@ export default function Home() {
               </span>
               <span className="text-sm font-medium">{toast.msg}</span>
             </div>
-            <button onClick={() => setToast(null)} className="ml-2 hover:bg-white/10 p-1 rounded-full transition-colors">
+            <button type="button" onClick={() => setToast(null)} className="ml-2 hover:bg-white/10 p-1 rounded-full transition-colors">
               <X size={14} />
             </button>
           </div>

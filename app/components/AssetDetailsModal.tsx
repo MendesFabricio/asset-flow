@@ -1,12 +1,13 @@
 'use client';
 import { useEffect, useRef } from 'react';
-import { X, TrendingUp, Activity, DollarSign, BarChart3 } from 'lucide-react';
+import { X, Activity, BarChart3 } from 'lucide-react'; // 🧼 Removidos TrendingUp e DollarSign que não eram usados
 import { formatMoney } from '../utils';
+import { Asset } from '../types'; // 🌟 Importa a interface unificada de ativos
 
 interface AssetDetailsModalProps {
     isOpen: boolean;
     onClose: () => void;
-    asset: any;
+    asset: Asset | null; // 🛡️ Substituído 'any' por tipo estrito e seguro
 }
 
 export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalProps) => {
@@ -76,8 +77,8 @@ export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalP
                             </h2>
                             <div className="flex items-center gap-3 text-sm mt-1">
                                 <span className="text-slate-400">Preço: <strong className="text-white">{formatMoney(asset.preco_atual)}</strong></span>
-                                <span className={`${asset.change_percent >= 0 ? 'text-emerald-400' : 'text-red-400'} font-bold`}>
-                                    {asset.change_percent > 0 ? '+' : ''}{asset.change_percent.toFixed(2)}%
+                                <span className={`${(asset.change_percent ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'} font-bold`}>
+                                    {(asset.change_percent ?? 0) > 0 ? '+' : ''}{(asset.change_percent ?? 0).toFixed(2)}%
                                 </span>
                             </div>
                         </div>
@@ -135,7 +136,7 @@ export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalP
                                     {asset.tipo === 'Ação' && (
                                         <div className="p-3 bg-slate-900 rounded-lg border border-slate-800 text-center col-span-2">
                                             <p className="text-[10px] text-slate-500 uppercase">Margem Graham</p>
-                                            <p className={`text-sm font-bold ${asset.mg_graham > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                            <p className={`text-sm font-bold ${(asset.mg_graham ?? 0) > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                                                 {asset.mg_graham ? asset.mg_graham.toFixed(1) + '%' : '-'}
                                             </p>
                                         </div>

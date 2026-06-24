@@ -27,19 +27,18 @@ export async function apiCall<T>(endpoint: string, options?: RequestInit & { tim
         if (response.status === 204) return {} as T;
 
         return await response.json();
-    } catch (error: any) {
+    } catch (error: unknown) { // 🧼 Substituído 'any' por 'unknown' para tipagem estrita
         clearTimeout(id);
-        if (error.name === 'AbortError') {
+        // 🛡️ Validação segura de instância antes de acessar propriedades dinâmicas do erro
+        if (error instanceof Error && error.name === 'AbortError') {
             throw new Error('A requisição excedeu o tempo limite de resposta (Timeout de 10s).');
         }
         throw error;
     }
 }
 
-// app/utils/apiClient.ts
-
 export const secureStorage = {
-    set: (key: string, value: any): void => {
+    set: (key: string, value: unknown): void => { // 🧼 Substituído 'any' por 'unknown'
         try {
             const stringValue = typeof value === 'string' ? value : JSON.stringify(value);
             const encrypted = btoa(stringValue);
