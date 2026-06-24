@@ -14,7 +14,7 @@ services:
       - ./backups:/app/backups
     environment:
       - FLASK_ENV=development
-      - FLASK_DEBUG=1
+      - FLASK_DEBUG=0
 
     # 🔒 LIMITES
     mem_limit: 2g
