@@ -624,95 +624,126 @@ class PortfolioService:
         finally: Session.remove()
 
     def run_monte_carlo_simulation(self, days=252, simulations=1000):
-        logging.info("🎲 --- INICIANDO PROJEÇÃO DE MONTE CARLO ---")
-        session = Session()
-        try:
-            positions = session.query(Position).all()
-            tickers = []
-            weights = []
-            total_value = 0.0
-            
-            for pos in positions:
-                if not pos.asset: continue
-                # Filtro estratégico: Monte Carlo roda apenas sobre a volatilidade da renda variável
-                if pos.asset.category.name in ['Ação', 'FII', 'ETF', 'Internacional']:
-                    price = 0.0
-                    mdata = pos.asset.market_data[0] if pos.asset.market_data else None
-                    if mdata:
-                        price = float(mdata.price or 0.0)
-                    if price == 0:
-                        price = float(pos.average_price or 0.0)
+        logging.info("🎲 --- INICIANDO PROJEÇÃO DE MONTE CARLO (GBM BLINDADO) ---")
+        
+        with Session() as session:
+            try:
+                positions = session.query(Position).all()
+                tickers = []
+                weights = []
+                total_value = 0.0
+                
+                for pos in positions:
+                    if not pos.asset: continue
+                    if pos.asset.category.name in ['Ação', 'FII', 'ETF', 'Internacional', 'Cripto']:
+                        price = 0.0
+                        mdata = pos.asset.market_data[0] if pos.asset.market_data else None
+                        if mdata:
+                            price = float(mdata.price or 0.0)
+                        if price == 0:
+                            price = float(pos.average_price or 0.0)
 
-                    qty = float(pos.quantity)
-                    val = qty * price
-                    if val > 0:
-                        suffix = ".SA" if pos.asset.category.name != 'Internacional' else ""
-                        clean_ticker = pos.asset.ticker.strip() + suffix
-                        tickers.append(clean_ticker)
-                        weights.append(val)
-                        total_value += val
-            
-            if not tickers or total_value == 0:
-                return {"status": "Erro", "msg": "Carteira vazia ou sem valor de renda variável para projetar."}
+                        qty = float(pos.quantity)
+                        val = qty * price
+                        if val > 0:
+                            ticker_raw = pos.asset.ticker.strip().upper()
+                            if '.' not in ticker_raw and (pos.asset.category.name != 'Internacional' or len(ticker_raw) >= 5):
+                                clean_ticker = f"{ticker_raw}.SA"
+                            else:
+                                clean_ticker = ticker_raw
+                                
+                            tickers.append(clean_ticker)
+                            weights.append(val)
+                            total_value += val
+                
+                if not tickers or total_value == 0:
+                    return {"status": "Erro", "msg": "Carteira vazia ou sem valor de renda variável para projetar."}
 
-            weights = np.array([w / total_value for w in weights])
-            data = yf.download(tickers, period="1y", group_by='ticker', progress=False, auto_adjust=True)
-            close_prices = pd.DataFrame()
+                ticker_map = dict(zip(tickers, weights))
+                
+                # 📥 Busca 1 ano de histórico
+                data = yf.download(tickers, period="1y", group_by='ticker', progress=False, auto_adjust=True)
+                close_prices = pd.DataFrame()
 
-            if len(tickers) == 1:
-                t = tickers[0]
-                if isinstance(data, pd.DataFrame) and 'Close' in data.columns: close_prices[t] = data['Close']
-                else: close_prices[t] = data
-            else:
-                for t in tickers:
-                    try:
-                        if t in data.columns: close_prices[t] = data[t]['Close']
-                        elif 'Close' in data.columns and t in data['Close'].columns: close_prices[t] = data['Close'][t]
-                    except: pass
+                if len(tickers) == 1:
+                    t = tickers[0]
+                    close_prices[t] = data['Close'] if isinstance(data, pd.DataFrame) and 'Close' in data.columns else data
+                else:
+                    for t in tickers:
+                        try:
+                            if t in data.columns: close_prices[t] = data[t]['Close']
+                            elif 'Close' in data.columns and t in data['Close'].columns: close_prices[t] = data['Close'][t]
+                        except: pass
 
-            close_prices = close_prices.dropna()
-            if close_prices.empty: return {"status": "Erro", "msg": "Dados históricos insuficientes para simulação."}
+                # 1. 🛡️ FILTRO DE HISTÓRICO MÍNIMO: Remove colunas de ativos com menos de 60 dias de pregão
+                close_prices = close_prices.dropna(how='all', axis=1)
+                valid_assets = [col for col in close_prices.columns if close_prices[col].count() >= 60]
+                close_prices = close_prices[valid_assets]
 
-            returns = close_prices.pct_change().dropna()
-            mean_returns = returns.mean()
-            cov_matrix = returns.cov()
-            
-            valid_tickers = close_prices.columns.tolist()
-            valid_weights = []
-            temp_total = 0
-            ticker_map = dict(zip(tickers, weights))
-            
-            for t in valid_tickers:
-                w = ticker_map.get(t, 0)
-                valid_weights.append(w)
-                temp_total += w
-            
-            valid_weights = np.array([w/temp_total for w in valid_weights])
-            port_return = np.sum(mean_returns * valid_weights) * days
-            port_volatility = np.sqrt(np.dot(valid_weights.T, np.dot(cov_matrix, valid_weights))) * np.sqrt(days)
+                if close_prices.empty:
+                    return {"status": "Erro", "msg": "Dados históricos insuficientes para simulação."}
 
-            simulation_data = {}
-            last_price = total_value
-            daily_vol = port_volatility / np.sqrt(days)
-            daily_ret = port_return / days
-            
-            for x in range(simulations):
-                random_shocks = np.random.normal(daily_ret, daily_vol, days)
-                price_path = last_price * (1 + random_shocks).cumprod()
-                simulation_data[x] = price_path
+                # 2. 🧼 TRATAMENTO DE LACUNAS: Preenche feriados isolados nos preços de ativos já existentes
+                close_prices = close_prices.ffill()
+                
+                # 3. 📈 RETORNOS LIMPOS: pct_change mantém NaN nos dias anteriores ao nascimento real do ativo
+                returns = close_prices.pct_change()
+                
+                # 4. 🎚️ CIRCUIT BREAKER DE CAUDA: Clipa retornos diários absurdos (erros de split ou anomalias de liquidez)
+                returns = returns.clip(lower=-0.30, upper=0.30)
 
-            simulation_df = pd.DataFrame(simulation_data)
-            results = { 
-                "pior_caso": simulation_df.quantile(0.05, axis=1).tolist(), 
-                "medio": simulation_df.mean(axis=1).tolist(), 
-                "melhor_caso": simulation_df.quantile(0.95, axis=1).tolist() 
-            }
-            
-            return {"status": "Sucesso", "volatilidade_anual": f"{port_volatility*100:.2f}%", "projecao": results}
-        except Exception as e:
-            logging.error(f"❌ Falha crítica no motor de Monte Carlo: {e}")
-            return {"status": "Erro", "msg": str(e)}
-        finally: Session.remove()
+                # Médias ignoram NaNs automaticamente (calculam sobre o tempo de vida real do ativo)
+                mean_returns = returns.mean()
+                
+                # Pairwise Covariance trata os NaNs de forma matematicamente aceitável para o portfólio
+                cov_matrix = returns.cov().fillna(0.0)
+                
+                valid_tickers = returns.columns.tolist()
+                valid_weights = np.array([ticker_map.get(t, 0) for t in valid_tickers])
+                
+                temp_total = valid_weights.sum()
+                if temp_total == 0:
+                    return {"status": "Erro", "msg": "Dados históricos insuficientes."}
+                    
+                valid_weights = valid_weights / temp_total
+                
+                # Parametrização do Modelo Log-Normal
+                port_daily_return = np.sum(mean_returns * valid_weights)
+                port_daily_volatility = np.sqrt(np.dot(valid_weights.T, np.dot(cov_matrix, valid_weights)))
+
+                # 5. 🧮 TRAVA DE SEGURANÇA NA VOLATILIDADE: Impede distorções extremas na UI (teto de 150% a.a.)
+                port_daily_volatility = min(port_daily_volatility, 1.50 / np.sqrt(days))
+
+                # Ajuste de Variance Drag
+                drift = port_daily_return - 0.5 * (port_daily_volatility ** 2)
+                
+                simulation_data = {}
+                last_price = total_value 
+                
+                for x in range(simulations):
+                    random_shocks = np.random.normal(drift, port_daily_volatility, days)
+                    # Caminho exponencial contínuo do GBM (impede valores negativos)
+                    price_path = last_price * np.exp(np.cumsum(random_shocks))
+                    simulation_data[x] = price_path
+
+                simulation_df = pd.DataFrame(simulation_data)
+                
+                # 6. 📊 AJUSTE DE MEDIANA: Em distribuições log-normais distorcidas, a mediana é 
+                # muito mais representativa da realidade do que a média aritmética puxada por outliers
+                results = { 
+                    "pior_caso": simulation_df.quantile(0.05, axis=1).tolist(), 
+                    "medio": simulation_df.median(axis=1).tolist(), 
+                    "melhor_caso": simulation_df.quantile(0.95, axis=1).tolist() 
+                }
+                
+                vol_anualizada = port_daily_volatility * np.sqrt(days)
+                logging.info(f"✅ MONTE CARLO CONCLUÍDO. Volatilidade Real do Portfólio: {vol_anualizada*100:.2f}%")
+                
+                return {"status": "Sucesso", "volatilidade_anual": f"{vol_anualizada*100:.2f}%", "projecao": results}
+                
+            except Exception as e:
+                logging.error(f"❌ Falha crítica no motor de Monte Carlo: {e}", exc_info=True)
+                return {"status": "Erro", "msg": str(e)}
     
     def update_category_meta(self, category_name, new_meta):
         session = Session()
