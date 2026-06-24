@@ -1,10 +1,10 @@
 'use client';
-import { useState } from 'react'; // 🧼 Removido 'useEffect' não utilizado para zerar o aviso
+import { useState, useEffect } from 'react'; // 🧼 Re-introduzido useEffect de forma limpa para gerenciar o polling assíncrono
 import { apiCall } from './utils/apiClient';
 import {
   TrendingUp, Wallet, Target, Layers, RefreshCw, PiggyBank, BarChart3, LineChart, PlusCircle,
   Brain, Calendar, Eye, EyeOff, Percent, Grip, Building2, Globe, Landmark, Bitcoin, Calculator,
-  CheckCircle, AlertTriangle, X // 🧼 Removido 'ArrowUpRight' não utilizado para zerar o aviso
+  CheckCircle, AlertTriangle, X
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePrivacy } from './context/PrivacyContext';
@@ -28,7 +28,6 @@ import { AssetDetailsModal } from './components/AssetDetailsModal';
 import { Asset } from './types';
 
 export default function Home() {
-  // 🧼 Removido 'error' não utilizado para zerar o aviso do linter
   const { data, history, loading, refetch } = useAssetData();
   const { isHidden, togglePrivacy } = usePrivacy() as { isHidden: boolean; togglePrivacy: () => void };
 
@@ -45,7 +44,11 @@ export default function Home() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newsTicker, setNewsTicker] = useState<string | null>(null);
   const [updatingFundamentals, setUpdatingFundamentals] = useState(false);
-  const [syncingReports, setSyncingReports] = useState(false);
+
+  // 🧠 MÁQUINA DE ESTADO: Gerencia o feedback vivo da sincronização paralela
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
+  const [syncMessage, setSyncMessage] = useState('');
+
   const [showRefreshSuccess, setShowRefreshSuccess] = useState(false);
   const [isRefetching, setIsRefetching] = useState(false);
   const [isSmartModalOpen, setIsSmartModalOpen] = useState(false);
@@ -72,7 +75,6 @@ export default function Home() {
   const topCompras = data?.ativos?.filter((a) => a.falta_comprar > 0).sort((a, b) => b.score - a.score).slice(0, 3) || [];
   const lucroTotal = data?.resumo?.LucroTotal || 0;
 
-  // 🛡️ Proteção estrita contra valores nulos/indefinidos na inicialização da aplicação
   const totalInvestido = data?.resumo?.TotalInvestido ?? 0;
   const rendaMensal = data?.resumo?.RendaMensal ?? 0;
   const yocMedio = totalInvestido > 0 ? ((rendaMensal * 12) / totalInvestido) * 100 : 0;
@@ -87,21 +89,67 @@ export default function Home() {
 
   const money = (val: number) => isHidden ? '••••••' : formatMoney(val);
 
-  const handleSyncReports = async () => {
-    setSyncingReports(true);
-    try {
-      const result = await apiCall<{ status: string; msg: string }>('/api/sync-reports', { method: 'POST', timeout: 180000 });
-      if (result.status === "Sucesso") {
-        notify(result.msg, 'success');
-        refetch();
-      } else {
-        notify("Erro: " + result.msg, 'error');
+  // 🛡️ RECOVERY BOOT: Se o usuário der F5 com uma sincronia rodando, recupera o estado na hora
+  useEffect(() => {
+    const recoverSyncStatus = async () => {
+      try {
+        const res = await apiCall<{ status: 'idle' | 'processing' | 'success' | 'error'; message: string }>('/api/sync-status');
+        if (res.status === 'processing') {
+          setSyncStatus('processing');
+          setSyncMessage(res.message);
+        }
+      } catch (e) {
+        console.error("Falha ao recuperar estado de boot da esteira:", e);
       }
+    };
+    recoverSyncStatus();
+  }, []);
+
+  // 📡 LONG-POLLING LOOP: Escuta os barramentos paralelos do backend de 1.5s em 1.5s
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout;
+
+    const checkPipelineStatus = async () => {
+      try {
+        const res = await apiCall<{ status: 'idle' | 'processing' | 'success' | 'error'; message: string }>('/api/sync-status');
+
+        if (res.status === 'processing') {
+          setSyncStatus('processing');
+          setSyncMessage(res.message);
+        } else if (res.status === 'success') {
+          setSyncStatus('idle');
+          setSyncMessage('');
+          notify(res.message, 'success');
+          refetch(); // Atualiza a tela com a nova avalanche de dados fundamentalistas
+        } else if (res.status === 'error') {
+          setSyncStatus('idle');
+          setSyncMessage('');
+          notify(res.message, 'error');
+        }
+      } catch (err) {
+        console.error("Erro no canal de polling do status:", err);
+      }
+    };
+
+    if (syncStatus === 'processing') {
+      intervalId = setInterval(checkPipelineStatus, 1500);
+    }
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [syncStatus, refetch]);
+
+  const handleSyncReports = async () => {
+    setSyncStatus('processing');
+    setSyncMessage('Iniciando barramento de sincronia...');
+    try {
+      const result = await apiCall<{ status: string; msg: string }>('/api/sync-reports', { method: 'POST' });
+      notify(result.msg, 'success'); // Avisa que a thread mestre foi agendada com sucesso
     } catch (e) {
       console.error(e);
       notify("Falha ao conectar com o servidor para sincronizar relatórios.", 'error');
-    } finally {
-      setSyncingReports(false);
+      setSyncStatus('idle');
     }
   };
 
@@ -195,15 +243,15 @@ export default function Home() {
               <button
                 type="button"
                 onClick={handleSyncReports}
-                disabled={syncingReports}
-                className="bg-slate-800 hover:bg-slate-700 text-slate-300 p-2 rounded-lg border border-slate-700 disabled:opacity-50 group relative"
-                title="Sincronizar Relatórios CVM"
+                disabled={syncStatus === 'processing'}
+                className="bg-slate-800 hover:bg-slate-700 text-slate-300 p-2 rounded-lg border border-slate-700 disabled:opacity-50 group relative transition-all"
+                title={syncStatus === 'processing' ? syncMessage : "Sincronizar Relatórios CVM"}
               >
-                <Layers size={16} className={syncingReports ? 'animate-bounce text-blue-400' : 'text-slate-400'} />
-                {syncingReports && (
+                <Layers size={16} className={syncStatus === 'processing' ? 'animate-spin text-purple-400' : 'text-slate-400'} />
+                {syncStatus === 'processing' && (
                   <span className="absolute -top-1 -right-1 flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500"></span>
                   </span>
                 )}
               </button>
@@ -215,7 +263,7 @@ export default function Home() {
               <button
                 type="button"
                 onClick={handleManualRefresh}
-                disabled={loading || isRefetching || showRefreshSuccess} // 🧼 Atualizado de 'refreshing' para 'loading'
+                disabled={loading || isRefetching || showRefreshSuccess}
                 className={`p-2 rounded-lg border transition-all duration-300 ${showRefreshSuccess
                   ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.4)]'
                   : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
@@ -224,7 +272,7 @@ export default function Home() {
               >
                 <RefreshCw
                   size={16}
-                  className={`${(loading || isRefetching) ? 'animate-spin' : ''} ${showRefreshSuccess ? 'text-emerald-400' : ''}`} // 🧼 Otimizado
+                  className={`${(loading || isRefetching) ? 'animate-spin' : ''} ${showRefreshSuccess ? 'text-emerald-400' : ''}`}
                 />
               </button>
             </div>
@@ -300,7 +348,6 @@ export default function Home() {
                 <RiskRadar alertas={data?.alertas || []} />
               </div>
               <div className="lg:col-span-2 h-full">
-                {/* 🛡️ Cast de escape inline seguro contra o erro de propriedade faltante no contrato de tipos do SWR */}
                 <CategorySummary ativos={data?.ativos || []} categorias={(data as unknown as { categorias?: { name: string; meta: number }[] })?.categorias || []} onUpdate={() => refetch()} />
               </div>
             </div>
@@ -380,6 +427,17 @@ export default function Home() {
           onClose={() => setSelectedDetailsAsset(null)}
           asset={selectedDetailsAsset}
         />
+
+        {/* 🔮 WIDGET FLUTUANTE DE PROGRESSO REAL-TIME */}
+        {syncStatus === 'processing' && (
+          <div className="fixed bottom-5 left-5 z-50 flex items-center gap-3 px-4 py-3 rounded-xl bg-purple-950/90 border border-purple-500/50 text-purple-200 shadow-[0_0_25px_rgba(147,51,234,0.3)] transition-all duration-300 animate-in slide-in-from-left-10 fade-in backdrop-blur-sm">
+            <RefreshCw size={18} className="text-purple-400 animate-spin" />
+            <div className="flex flex-col">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-purple-400">Inteligência Operando</span>
+              <span className="text-xs font-semibold text-slate-100 tabular-nums">{syncMessage || 'Processando lote de dados...'}</span>
+            </div>
+          </div>
+        )}
 
         {/* TOAST NOTIFICATIONS */}
         {toast && (
