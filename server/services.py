@@ -934,8 +934,8 @@ class PortfolioService:
         finally:
             Session.remove()
         
-    def update_fundamentals(self):
-        logging.info("📊 JOB: Executando varredura fundamentalista via Yahoo Finance...")
+    def update_fundamentals(self, state_dict=None):
+        print("📊 JOB: Calculando Fundamentos...", flush=True)
         session = Session()
         count = 0
         try:
@@ -943,14 +943,30 @@ class PortfolioService:
                 Category.name.in_(['Ação', 'FII', 'Internacional', 'ETF', 'BDR'])
             ).all()
             
+            total = len(assets)
+            # Inicializa os metadados na máquina de estados
+            if state_dict is not None:
+                state_dict["total"] = total
+                state_dict["progress"] = 0
+                state_dict["message"] = f"Mapeando {total} ativos de renda variável..."
+
             cutoff_date = datetime.now() - timedelta(days=365)
             dolar_rate = self.get_usd_rate()
 
             for asset in assets:
                 try:
-                    is_intl = not asset.ticker.endswith('.SA') and asset.category.name == 'Internacional'
-                    suffix = ".SA" if not asset.ticker.endswith('.SA') and not is_intl else ""
-                    ticker_symbol = f"{asset.ticker}{suffix}"
+                    ticker_raw = asset.ticker.strip().upper()
+                    is_intl = asset.category.name == 'Internacional'
+                    
+                    if '.' not in ticker_raw and (not is_intl or len(ticker_raw) >= 5):
+                        ticker_symbol = f"{ticker_raw}.SA"
+                    else:
+                        ticker_symbol = ticker_raw
+                        
+                    # 📈 ATUALIZAÇÃO EM TEMPO REAL: Alimenta a string visual do widget esmeralda
+                    if state_dict is not None:
+                        state_dict["message"] = f"Analisando {ticker_raw} ({count + 1}/{total})"
+
                     y_asset = yf.Ticker(ticker_symbol)
                     
                     current_price = 0
@@ -960,7 +976,10 @@ class PortfolioService:
                          hist = y_asset.history(period="1d")
                          if not hist.empty: current_price = hist['Close'].iloc[-1]
 
-                    if current_price <= 0: continue
+                    if current_price <= 0: 
+                        count += 1
+                        if state_dict is not None: state_dict["progress"] = count
+                        continue
 
                     divs = y_asset.dividends
                     total_divs_val = 0.0
@@ -976,7 +995,7 @@ class PortfolioService:
                     lpa = info.get('trailingEps') or info.get('forwardEps') or 0
                     vpa = info.get('bookValue') or 0
 
-                    if is_intl:
+                    if is_intl and not ticker_symbol.endswith('.SA'):
                         lpa *= dolar_rate
                         vpa *= dolar_rate
 
@@ -986,17 +1005,22 @@ class PortfolioService:
                         if vpa != 0: pos.manual_vpa = round(vpa, 2)
                         if dy_calculated >= 0: 
                             pos.manual_dy = round(dy_calculated, 4)
-                        count += 1
+                        
+                    count += 1
+                    if state_dict is not None: 
+                        state_dict["progress"] = count
                         
                 except Exception as e:
-                    logging.warning(f"   ⚠️ Falha ao processar fundamentos de {asset.ticker}: {e}")
+                    print(f"   ⚠️ Falha em {asset.ticker}: {e}", flush=True)
+                    count += 1
+                    if state_dict is not None: state_dict["progress"] = count
             
             session.commit()
-            logging.info(f"🏁 Varredura fundamentalista concluída: {count} registros atualizados.")
-            return {"status": "Sucesso", "msg": f"{count} ativos atualizados."}
+            print(f"🏁 Varredura fundamentalista concluída: {count} registros atualizados.", flush=True)
+            return {"status": "Sucesso", "msg": f"Sucesso! {total} ativos reavaliados via Yahoo Finance."}
         except Exception as e:
             session.rollback()
-            logging.error(f"❌ Erro na rotina de fundamentos: {e}")
+            print(f"❌ Erro geral no job de fundamentos: {e}", flush=True)
             return {"status": "Erro", "msg": str(e)}
         finally: 
             Session.remove()

@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react'; // 🧼 Re-introduzido useEffect de forma limpa para gerenciar o polling assíncrono
+import { useState, useEffect } from 'react'; // 🧼 Mantido o useEffect ativo para gerenciar os canais de polling concorrentes
 import { apiCall } from './utils/apiClient';
 import {
   TrendingUp, Wallet, Target, Layers, RefreshCw, PiggyBank, BarChart3, LineChart, PlusCircle,
@@ -43,11 +43,16 @@ export default function Home() {
   const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newsTicker, setNewsTicker] = useState<string | null>(null);
-  const [updatingFundamentals, setUpdatingFundamentals] = useState(false);
 
-  // 🧠 MÁQUINA DE ESTADO: Gerencia o feedback vivo da sincronização paralela
+  // 🧠 MÁQUINA DE ESTADOS: Orquestração de barramentos independentes para CVM e Yahoo Finance
   const [syncStatus, setSyncStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
   const [syncMessage, setSyncMessage] = useState('');
+  const [fundamentalsStatus, setFundamentalsStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
+  const [fundamentalsMessage, setFundamentalsMessage] = useState('');
+
+  // 🧼 COMPATIBILIDADE RECHAFADA: Preserva as flags de loading e pulse nativas do header original
+  const updatingFundamentals = fundamentalsStatus === 'processing';
+  const syncingReports = syncStatus === 'processing';
 
   const [showRefreshSuccess, setShowRefreshSuccess] = useState(false);
   const [isRefetching, setIsRefetching] = useState(false);
@@ -89,23 +94,28 @@ export default function Home() {
 
   const money = (val: number) => isHidden ? '••••••' : formatMoney(val);
 
-  // 🛡️ RECOVERY BOOT: Se o usuário der F5 com uma sincronia rodando, recupera o estado na hora
+  // 🛡️ RECOVERY BOOT CONTÍNUO: Recupera o estado vivo de ambas as esteiras caso sofra F5 acidental
   useEffect(() => {
-    const recoverSyncStatus = async () => {
+    const recoverPipelineStates = async () => {
       try {
-        const res = await apiCall<{ status: 'idle' | 'processing' | 'success' | 'error'; message: string }>('/api/sync-status');
-        if (res.status === 'processing') {
+        const syncRes = await apiCall<{ status: 'idle' | 'processing' | 'success' | 'error'; message: string }>('/api/sync-status');
+        if (syncRes.status === 'processing') {
           setSyncStatus('processing');
-          setSyncMessage(res.message);
+          setSyncMessage(syncRes.message);
+        }
+        const fundRes = await apiCall<{ status: 'idle' | 'processing' | 'success' | 'error'; message: string }>('/api/fundamentals-status');
+        if (fundRes.status === 'processing') {
+          setFundamentalsStatus('processing');
+          setFundamentalsMessage(fundRes.message);
         }
       } catch (e) {
-        console.error("Falha ao recuperar estado de boot da esteira:", e);
+        console.error("Falha ao sincronizar estados residuais de boot:", e);
       }
     };
-    recoverSyncStatus();
+    recoverPipelineStates();
   }, []);
 
-  // 📡 LONG-POLLING LOOP: Escuta os barramentos paralelos do backend de 1.5s em 1.5s
+  // 📡 CANAL DE LONG-POLLING 1: Monitora a Sincronia Assíncrona de Balanços CVM
   useEffect(() => {
     let intervalId: NodeJS.Timeout;
 
@@ -120,14 +130,14 @@ export default function Home() {
           setSyncStatus('idle');
           setSyncMessage('');
           notify(res.message, 'success');
-          refetch(); // Atualiza a tela com a nova avalanche de dados fundamentalistas
+          refetch();
         } else if (res.status === 'error') {
           setSyncStatus('idle');
           setSyncMessage('');
           notify(res.message, 'error');
         }
       } catch (err) {
-        console.error("Erro no canal de polling do status:", err);
+        console.error("Erro no canal de polling CVM:", err);
       }
     };
 
@@ -135,17 +145,48 @@ export default function Home() {
       intervalId = setInterval(checkPipelineStatus, 1500);
     }
 
-    return () => {
-      if (intervalId) clearInterval(intervalId);
-    };
+    return () => { if (intervalId) clearInterval(intervalId); };
   }, [syncStatus, refetch]);
+
+  // 📡 CANAL DE LONG-POLLING 2: Monitora a Esteira de Múltiplos e Valuation do Yahoo Finance
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout;
+
+    const checkFundamentalsStatus = async () => {
+      try {
+        const res = await apiCall<{ status: 'idle' | 'processing' | 'success' | 'error'; message: string }>('/api/fundamentals-status');
+
+        if (res.status === 'processing') {
+          setFundamentalsStatus('processing');
+          setFundamentalsMessage(res.message);
+        } else if (res.status === 'success') {
+          setFundamentalsStatus('idle');
+          setFundamentalsMessage('');
+          notify(res.message, 'success');
+          refetch(); // Atualiza os scores, Graham e DY na tabela principal na hora
+        } else if (res.status === 'error') {
+          setFundamentalsStatus('idle');
+          setFundamentalsMessage('');
+          notify(res.message, 'error');
+        }
+      } catch (err) {
+        console.error("Erro no canal de polling Yahoo Finance:", err);
+      }
+    };
+
+    if (fundamentalsStatus === 'processing') {
+      intervalId = setInterval(checkFundamentalsStatus, 1500);
+    }
+
+    return () => { if (intervalId) clearInterval(intervalId); };
+  }, [fundamentalsStatus, refetch]);
 
   const handleSyncReports = async () => {
     setSyncStatus('processing');
     setSyncMessage('Iniciando barramento de sincronia...');
     try {
       const result = await apiCall<{ status: string; msg: string }>('/api/sync-reports', { method: 'POST' });
-      notify(result.msg, 'success'); // Avisa que a thread mestre foi agendada com sucesso
+      notify(result.msg, 'success');
     } catch (e) {
       console.error(e);
       notify("Falha ao conectar com o servidor para sincronizar relatórios.", 'error');
@@ -154,13 +195,16 @@ export default function Home() {
   };
 
   const handleUpdateFundamentals = async () => {
-    setUpdatingFundamentals(true);
+    setFundamentalsStatus('processing');
+    setFundamentalsMessage('Iniciando esteira de múltiplos...');
     try {
-      await apiCall('/api/update-fundamentals', { method: 'POST', timeout: 180000 });
-      notify("Sucesso! Inteligência atualizada.", 'success');
-      refetch();
-    } catch (e) { console.error(e); }
-    finally { setUpdatingFundamentals(false); }
+      const result = await apiCall<{ status: string; msg: string }>('/api/update-fundamentals', { method: 'POST' });
+      notify(result.msg, 'success');
+    } catch (e) {
+      console.error(e);
+      notify("Falha ao conectar com o servidor de fundamentos.", 'error');
+      setFundamentalsStatus('idle');
+    }
   };
 
   const handleManualRefresh = async () => {
@@ -243,12 +287,12 @@ export default function Home() {
               <button
                 type="button"
                 onClick={handleSyncReports}
-                disabled={syncStatus === 'processing'}
+                disabled={syncingReports}
                 className="bg-slate-800 hover:bg-slate-700 text-slate-300 p-2 rounded-lg border border-slate-700 disabled:opacity-50 group relative transition-all"
-                title={syncStatus === 'processing' ? syncMessage : "Sincronizar Relatórios CVM"}
+                title={syncingReports ? syncMessage : "Sincronizar Relatórios CVM"}
               >
-                <Layers size={16} className={syncStatus === 'processing' ? 'animate-spin text-purple-400' : 'text-slate-400'} />
-                {syncStatus === 'processing' && (
+                <Layers size={16} className={syncingReports ? 'animate-spin text-purple-400' : 'text-slate-400'} />
+                {syncingReports && (
                   <span className="absolute -top-1 -right-1 flex h-2 w-2">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500"></span>
@@ -256,8 +300,20 @@ export default function Home() {
                 )}
               </button>
 
-              <button type="button" onClick={handleUpdateFundamentals} disabled={updatingFundamentals} className="bg-slate-800 hover:bg-slate-700 text-slate-300 p-2 rounded-lg border border-slate-700 disabled:opacity-50">
+              <button
+                type="button"
+                onClick={handleUpdateFundamentals}
+                disabled={updatingFundamentals}
+                className="bg-slate-800 hover:bg-slate-700 text-slate-300 p-2 rounded-lg border border-slate-700 disabled:opacity-50 relative group"
+                title={updatingFundamentals ? fundamentalsMessage : "Atualizar Indicadores Yahoo"}
+              >
                 <Brain size={16} className={updatingFundamentals ? 'animate-pulse text-emerald-400' : ''} />
+                {updatingFundamentals && (
+                  <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  </span>
+                )}
               </button>
 
               <button
@@ -428,13 +484,24 @@ export default function Home() {
           asset={selectedDetailsAsset}
         />
 
-        {/* 🔮 WIDGET FLUTUANTE DE PROGRESSO REAL-TIME */}
-        {syncStatus === 'processing' && (
+        {/* 🔮 WIDGET FLUTUANTE DE PROGRESSO REAL-TIME CVM */}
+        {syncingReports && (
           <div className="fixed bottom-5 left-5 z-50 flex items-center gap-3 px-4 py-3 rounded-xl bg-purple-950/90 border border-purple-500/50 text-purple-200 shadow-[0_0_25px_rgba(147,51,234,0.3)] transition-all duration-300 animate-in slide-in-from-left-10 fade-in backdrop-blur-sm">
             <RefreshCw size={18} className="text-purple-400 animate-spin" />
             <div className="flex flex-col">
               <span className="text-[10px] font-bold uppercase tracking-wider text-purple-400">Inteligência Operando</span>
               <span className="text-xs font-semibold text-slate-100 tabular-nums">{syncMessage || 'Processando lote de dados...'}</span>
+            </div>
+          </div>
+        )}
+
+        {/* 🧠 WIDGET FLUTUANTE DE FUNDAMENTOS REAL-TIME YAHOO (OPÇÃO 2) */}
+        {updatingFundamentals && (
+          <div className={`fixed ${syncingReports ? 'bottom-24' : 'bottom-5'} left-5 z-50 flex items-center gap-3 px-4 py-3 rounded-xl bg-emerald-950/90 border border-emerald-500/50 text-emerald-200 shadow-[0_0_25px_rgba(16,185,129,0.3)] transition-all duration-300 animate-in slide-in-from-left-10 fade-in backdrop-blur-sm`}>
+            <Brain size={18} className="text-emerald-400 animate-pulse" />
+            <div className="flex flex-col">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Valuation & Múltiplos</span>
+              <span className="text-xs font-semibold text-slate-100">{fundamentalsMessage || 'Conectando ao Yahoo Finance...'}</span>
             </div>
           </div>
         )}
