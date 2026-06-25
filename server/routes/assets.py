@@ -188,8 +188,22 @@ def correlation():
 def refresh_prices():
     try:
         logging.info("⚡ Recebido comando de atualização manual via Dashboard.")
-        service.update_prices()       
-        service.take_daily_snapshot() 
+        service.update_prices()
+        service.take_daily_snapshot()
         return jsonify({"status": "Sucesso", "msg": "Preços e Variações atualizados!"})
     except Exception as e:
+        return jsonify({"status": "Erro", "msg": str(e)}), 500
+
+@assets_bp.route('/api/risk-metrics', methods=['GET'])
+def risk_metrics():
+    """
+    Retorna métricas institucionais de risco do portfólio vs. IBOVESPA:
+    Beta, Alpha (Jensen), Sharpe, Sortino, Calmar e Maximum Drawdown.
+    Usa cache de histórico compartilhado com Monte Carlo para evitar rede redundante.
+    """
+    try:
+        result = service.calculate_risk_metrics()
+        return jsonify(result)
+    except Exception as e:
+        logging.error(f"❌ Erro nas métricas de risco: {e}", exc_info=True)
         return jsonify({"status": "Erro", "msg": str(e)}), 500
