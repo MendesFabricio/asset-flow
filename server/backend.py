@@ -20,6 +20,7 @@ from services import PortfolioService
 from utils.cvm_processor import CVMProcessor
 from routes.finance import finance_bp
 from routes.market import market_bp, update_market_cache
+from routes.alerts_price import price_alerts_bp, check_price_alerts
 
 logging.basicConfig(
     level=logging.INFO,
@@ -69,6 +70,7 @@ app.register_blueprint(dividends_bp)
 app.register_blueprint(maintenance_bp)
 app.register_blueprint(finance_bp, url_prefix='/api/finance')
 app.register_blueprint(market_bp, url_prefix='/api/market')
+app.register_blueprint(price_alerts_bp)
 
 service = PortfolioService()
 
@@ -236,6 +238,10 @@ def scheduled_update_indices():
     with app.app_context():
         try:
             update_market_cache()
+            # Verifica alertas de preço a cada 5 minutos (junto com indices)
+            fired = check_price_alerts()
+            if fired:
+                logging.info(f"🔔 {len(fired)} alerta(s) de preço disparado(s) neste ciclo.")
         except Exception as e:
             logging.error(f"❌ Erro no Job de atualização de índices macro: {e}", exc_info=True)
 

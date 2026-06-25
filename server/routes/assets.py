@@ -207,3 +207,48 @@ def risk_metrics():
     except Exception as e:
         logging.error(f"❌ Erro nas métricas de risco: {e}", exc_info=True)
         return jsonify({"status": "Erro", "msg": str(e)}), 500
+
+@assets_bp.route('/api/smart-rebalance', methods=['POST'])
+def smart_rebalance():
+    """
+    Motor de Rebalanceamento Inteligente com Correlação.
+    Recebe aporte_mensal (R$) e retorna sugestões de compra por ativo,
+    ponderadas pelo gap de alocação e penalidade de correlação.
+
+    Body JSON: { "aporte_mensal": 1500.0 }
+    """
+    try:
+        body = request.get_json(silent=True) or {}
+        aporte = float(body.get("aporte_mensal", 0.0))
+        result = service.calculate_smart_rebalance(monthly_contribution=aporte)
+        return jsonify(result)
+    except Exception as e:
+        logging.error(f"❌ Erro no smart-rebalance: {e}", exc_info=True)
+        return jsonify({"status": "Erro", "msg": str(e)}), 500
+
+@assets_bp.route('/api/project-income', methods=['POST'])
+def project_income():
+    """
+    Projeção de Independência Financeira via juros compostos.
+    Retorna timeline anual de patrimônio e renda projetada,
+    marcos de FI (anos para atingir R$3k, R$5k, R$10k/mês etc.)
+
+    Body JSON: {
+      "aporte_mensal": 2000.0,
+      "anos": 20,
+      "retorno_anual_pct": 12.0,
+      "dy_anual_pct": 6.0
+    }
+    """
+    try:
+        body = request.get_json(silent=True) or {}
+        result = service.calculate_income_projection(
+            monthly_contribution=float(body.get("aporte_mensal", 1000.0)),
+            years=int(body.get("anos", 20)),
+            annual_return_pct=float(body.get("retorno_anual_pct", 12.0)),
+            annual_dividend_yield_pct=float(body.get("dy_anual_pct", 6.0)),
+        )
+        return jsonify(result)
+    except Exception as e:
+        logging.error(f"❌ Erro na projeção de income: {e}", exc_info=True)
+        return jsonify({"status": "Erro", "msg": str(e)}), 500
