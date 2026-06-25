@@ -1,9 +1,35 @@
 'use client';
-import { useState, useEffect } from 'react';
-import { X, Calculator, ShoppingCart, Sparkles, AlertTriangle, Target, Info } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { X, Calculator, ShoppingCart, Sparkles, AlertTriangle, Target, Info, Activity, RefreshCw } from 'lucide-react';
 import { Asset } from '../types';
 import { formatMoney } from '../utils';
 import { Card } from './ui/Card';
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5328';
+
+interface ServerSuggestion {
+  ticker: string;
+  category: string;
+  current_pct: number;
+  target_pct: number;
+  gap_value: number;
+  action: 'COMPRAR' | 'MANTER';
+  suggested_value: number;
+  suggested_lots: number | string;
+  lot_size: number;
+  score: number;
+  corr_penalty: number;
+  rationale: string;
+}
+
+interface ServerRebalanceResult {
+  status: string;
+  msg?: string;
+  total_atual: number;
+  aporte_mensal: number;
+  total_apos_aporte: number;
+  sugestoes: ServerSuggestion[];
+}
 
 interface AllocationItem extends Asset {
   qtd_compra: number;
@@ -26,6 +52,12 @@ export const SmartAllocationModal = ({ isOpen, onClose, ativos }: SmartAllocatio
   const [tooltipData, setTooltipData] = useState<{ x: number, y: number, lines: string[] } | null>(null);
   const [windowWidth, setWindowWidth] = useState(1024); // Default seguro
 
+  // Modo de simulação: 'local' (client-side original) | 'server' (com correlação)
+  const [mode, setMode] = useState<'local' | 'server'>('local');
+  const [serverResult, setServerResult] = useState<ServerRebalanceResult | null>(null);
+  const [serverLoading, setServerLoading] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
+
   // Monitora largura da tela para o Tooltip inteligente
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -43,7 +75,31 @@ export const SmartAllocationModal = ({ isOpen, onClose, ativos }: SmartAllocatio
     return Number.isFinite(n) ? n : 0;
   };
 
+  // Simulação server-side com correlação
+  const handleServerSimulate = useCallback(async () => {
+    const amount = parseCurrency(amountStr);
+    if (!amount || amount <= 0) return;
+    setServerLoading(true);
+    setServerError(null);
+    setServerResult(null);
+    try {
+      const res = await fetch(`${API_BASE}/api/smart-rebalance`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ aporte_mensal: amount }),
+      });
+      const data: ServerRebalanceResult = await res.json();
+      if (data.status === 'Sucesso') setServerResult(data);
+      else setServerError(data.msg || 'Erro no servidor.');
+    } catch {
+      setServerError('Falha ao conectar ao servidor.');
+    } finally {
+      setServerLoading(false);
+    }
+  }, [amountStr]);
+
   const handleSimulate = () => {
+    if (mode === 'server') { handleServerSimulate(); return; }
     const amount = parseCurrency(amountStr);
     if (!amount || amount <= 0) return;
 
@@ -212,6 +268,26 @@ export const SmartAllocationModal = ({ isOpen, onClose, ativos }: SmartAllocatio
           </div>
         </div>
 
+        {/* MODE SELECTOR */}
+        <div className="px-6 pt-4 flex gap-2">
+          {([
+            { id: 'local', label: 'Simulador Local', icon: Calculator },
+            { id: 'server', label: 'Com Correlação (IA)', icon: Activity },
+          ] as const).map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              onClick={() => setMode(id)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
+                mode === id
+                  ? 'bg-purple-600/20 border-purple-500/50 text-purple-300'
+                  : 'bg-slate-800/50 border-slate-700 text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              <Icon size={12} />{label}
+            </button>
+          ))}
+        </div>
+
         <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-8 bg-[#0f172a]">
           <div className="flex flex-col items-center gap-6 pt-4">
             <div className="relative w-full max-w-sm group">
@@ -240,7 +316,104 @@ export const SmartAllocationModal = ({ isOpen, onClose, ativos }: SmartAllocatio
             </button>
           </div>
 
-          {allocation.length > 0 && (
+          {/* SERVER-SIDE RESULTS */}
+          {mode === 'server' && serverError && (
+            <div className="bg-red-900/20 border border-red-900/40 rounded-xl p-3 text-sm text-red-400 flex items-center gap-2">
+              <AlertTriangle size={14} /> {serverError}
+            </div>
+          )}
+
+          {mode === 'server' && serverLoading && (
+            <div className="flex items-center justify-center gap-2 py-8 text-slate-500">
+              <RefreshCw size={16} className="animate-spin" />
+              <span className="text-sm">Calculando com dados de correlação...</span>
+            </div>
+          )}
+
+          {mode === 'server' && serverResult && !serverLoading && (
+            <div className="space-y-4 animate-in slide-in-from-bottom-4 duration-500">
+              {/* Resumo do aporte */}
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { label: 'Patrimônio Atual', value: formatMoney(serverResult.total_atual) },
+                  { label: 'Aporte', value: formatMoney(serverResult.aporte_mensal) },
+                  { label: 'Total Pós-Aporte', value: formatMoney(serverResult.total_apos_aporte) },
+                ].map(({ label, value }) => (
+                  <div key={label} className="bg-slate-900/60 border border-slate-800 rounded-xl p-3 text-center">
+                    <p className="text-[9px] text-slate-500 uppercase font-bold mb-1">{label}</p>
+                    <p className="text-sm font-bold text-white font-mono">{value}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Tabela de sugestões */}
+              <div className="flex justify-between items-center border-b border-slate-800 pb-2">
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <Activity size={14} className="text-purple-400" /> Rebalanceamento com Correlação
+                </h3>
+                <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-1 rounded-full border border-slate-700">
+                  {serverResult.sugestoes.filter(s => s.action === 'COMPRAR').length} ordens
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                {serverResult.sugestoes.filter(s => s.action === 'COMPRAR').map(s => (
+                  <div key={s.ticker} className="p-3 bg-slate-800/30 border border-slate-800 rounded-xl hover:border-purple-500/30 transition-all">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <img
+                          src={`https://raw.githubusercontent.com/thefintz/icones-b3/main/icones/${s.ticker}.png`}
+                          className="w-8 h-8 rounded-full bg-slate-800 object-cover"
+                          onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                        />
+                        <div>
+                          <p className="font-bold text-white text-sm">{s.ticker}</p>
+                          <p className="text-[10px] text-slate-500">{s.category}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-bold text-emerald-400 font-mono">{formatMoney(s.suggested_value)}</p>
+                        <p className="text-[10px] text-slate-500">
+                          {s.lot_size > 0 ? `${s.suggested_lots} lote(s)` : `${s.suggested_lots} un.`}
+                        </p>
+                      </div>
+                    </div>
+                    {/* Barra de gap vs meta */}
+                    <div className="mt-2 space-y-1">
+                      <div className="flex justify-between text-[10px] text-slate-500">
+                        <span>Atual {s.current_pct.toFixed(1)}% → Meta {s.target_pct.toFixed(1)}%</span>
+                        {s.corr_penalty > 0 && (
+                          <span className="text-amber-500">Penalidade corr. -{(s.corr_penalty * 100).toFixed(1)}%</span>
+                        )}
+                      </div>
+                      <div className="h-1 bg-slate-800 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"
+                          style={{ width: `${Math.min(100, (s.current_pct / s.target_pct) * 100)}%` }}
+                        />
+                      </div>
+                      <p className="text-[9px] text-slate-600 mt-0.5">{s.rationale}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Ativos acima da meta */}
+              {serverResult.sugestoes.filter(s => s.action === 'MANTER').length > 0 && (
+                <div className="text-[11px] text-slate-600 border-t border-slate-800 pt-2">
+                  <p className="font-bold text-slate-500 mb-1">Acima da meta (manter):</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {serverResult.sugestoes.filter(s => s.action === 'MANTER').map(s => (
+                      <span key={s.ticker} className="bg-slate-800 border border-slate-700 rounded-full px-2 py-0.5 text-slate-400 text-[10px]">{s.ticker}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* LOCAL RESULTS */}
+          {mode === 'local' && allocation.length > 0 && (
             <div className="space-y-4 animate-in slide-in-from-bottom-4 duration-500">
               <div className="flex justify-between items-end px-1 border-b border-slate-800 pb-2">
                 <h3 className="text-sm font-bold text-white flex items-center gap-2">

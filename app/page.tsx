@@ -22,6 +22,8 @@ import MonteCarloChart from './components/MonteCarloChart';
 import CorrelationMatrix from './components/CorrelationMatrix';
 import { AlertsButton } from './components/AlertsButton';
 import { SmartAllocationModal } from './components/SmartAllocationModal';
+import { RiskMetricsPanel } from './components/RiskMetricsPanel';
+import { IncomeProjectionModal } from './components/IncomeProjectionModal';
 import { ReceivablesTab } from './components/ReceivablesTab';
 import { MarketTicker } from './components/MarketTicker';
 import { AssetDetailsModal } from './components/AssetDetailsModal';
@@ -57,6 +59,7 @@ export default function Home() {
   const [showRefreshSuccess, setShowRefreshSuccess] = useState(false);
   const [isRefetching, setIsRefetching] = useState(false);
   const [isSmartModalOpen, setIsSmartModalOpen] = useState(false);
+  const [isIfModalOpen, setIsIfModalOpen] = useState(false);
 
   const [selectedDetailsAsset, setSelectedDetailsAsset] = useState<Asset | null>(null);
 
@@ -259,6 +262,15 @@ export default function Home() {
 
               <button
                 type="button"
+                onClick={() => setIsIfModalOpen(true)}
+                className="bg-emerald-700 hover:bg-emerald-600 text-white px-3 py-2 rounded-lg transition-all flex items-center gap-2 text-xs font-bold border border-emerald-600/50 shadow-[0_0_15px_rgba(16,185,129,0.2)] hover:shadow-[0_0_25px_rgba(16,185,129,0.5)] duration-300"
+              >
+                <TrendingUp size={16} />
+                <span className="hidden sm:inline">Projeção IF</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setIsSmartModalOpen(true)}
                 className="bg-purple-600 hover:bg-purple-500 text-white px-3 py-2 rounded-lg transition-all flex items-center gap-2 text-xs font-bold border border-purple-500/50 shadow-[0_0_15px_rgba(147,51,234,0.3)] hover:shadow-[0_0_25px_rgba(147,51,234,0.6)] duration-300"
               >
@@ -412,6 +424,11 @@ export default function Home() {
             <div className="w-full relative z-0">
               <MonteCarloChart />
             </div>
+
+            {/* ATRIBUIÇÃO DE PERFORMANCE — Beta, Alpha, Sharpe, Sortino, Drawdown */}
+            <div className="w-full">
+              <RiskMetricsPanel />
+            </div>
           </div>
         )}
 
@@ -527,6 +544,12 @@ export default function Home() {
 
         <div className="text-center text-[10px] text-slate-600 mt-12 mb-4">AssetFlow v7.5 (Neon Edition)</div>
       </div>
+
+      {/* 🔧 CORREÇÃO: Os modais globais foram movidos para antes do fechamento do </main> */}
+      {/* MODAIS GLOBAIS */}
+      {isIfModalOpen && (
+        <IncomeProjectionModal onClose={() => setIsIfModalOpen(false)} />
+      )}
     </main>
   );
 }

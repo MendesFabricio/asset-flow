@@ -160,7 +160,7 @@ const CorrelationMatrix = () => {
                                     className="flex items-center justify-end pr-2"
                                 >
                                     <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">
-                                        {label.substring(0, 6)}
+                                        {String(label).substring(0, 6)}
                                     </span>
                                 </div>
                             ))}
@@ -179,7 +179,7 @@ const CorrelationMatrix = () => {
                                     <div key={label} style={{ width: CELL_SIZE }} className="relative h-full group">
                                         <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-32 flex justify-center origin-bottom -rotate-45 pointer-events-none">
                                             <span className="text-[8px] font-bold text-slate-400 uppercase whitespace-nowrap">
-                                                {label.substring(0, 6)}
+                                                {String(label).substring(0, 6)}
                                             </span>
                                         </div>
                                         <div

@@ -2,7 +2,7 @@
 import { API_BASE_URL } from '../config/api';
 
 export async function apiCall<T>(endpoint: string, options?: RequestInit & { timeout?: number }): Promise<T> {
-    const timeout = options?.timeout ?? 10000; // Timeout padrão de 10 segundos
+    const timeout = options?.timeout ?? 30000; // Timeout padrão de 30 segundos
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeout);
 
