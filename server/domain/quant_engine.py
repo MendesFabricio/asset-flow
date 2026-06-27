@@ -193,7 +193,8 @@ def calculate_risk_metrics(session, fetch_prices) -> dict:
         if isinstance(raw.columns, pd.MultiIndex)
         else (raw["Close"] if "Close" in raw.columns else raw)
     )
-    prices = prices.dropna(axis=1, how="all").ffill()
+    # Alinhamento temporal com preenchimento para frente e para trás
+    prices = prices.ffill().bfill()
     prices = prices[[c for c in prices.columns if prices[c].count() >= 30]]
 
     if BENCHMARK not in prices.columns:
@@ -232,6 +233,12 @@ def calculate_risk_metrics(session, fetch_prices) -> dict:
     calmar = ann_p / abs(mdd) if mdd != 0 else 0.0
     dd_chart = [{"date": str(i.date()), "drawdown": round(float(v) * 100, 2)} for i, v in dd_series.items()]
 
+    # Cálculo do Value at Risk (VaR) Histórico a 95%
+    var_95_daily = float(np.percentile(p, 5))
+    var_95_monthly = var_95_daily * np.sqrt(21)
+    var_95_daily_pct = round(abs(var_95_daily) * 100, 2)
+    var_95_monthly_pct = round(abs(var_95_monthly) * 100, 2)
+
     def _beta_txt(x):
         if x > 1.25: return "Agressivo"
         if x > 1.0:  return "Moderado-agressivo"
@@ -261,6 +268,9 @@ def calculate_risk_metrics(session, fetch_prices) -> dict:
         "retorno_benchmark_pct": round(ann_b * 100, 2),
         "volatilidade_anual_pct": round(ann_v * 100, 2),
         "max_drawdown_pct": round(mdd * 100, 2),
+        "var_95_daily_pct": var_95_daily_pct,
+        "var_95_monthly_pct": var_95_monthly_pct,
+        "var_text": f"Com 95% de confiança, a perda máxima esperada para esta carteira em 24h é de {var_95_daily_pct}%.",
         "drawdown_chart": dd_chart,
         "interpretacao": {
             "beta": _beta_txt(beta),
@@ -518,4 +528,268 @@ def calculate_income_projection(
         },
         "marcos_fi": milestones,
         "timeline": timeline,
+    }
+
+
+# ─── Paridade de Risco (Risk Parity Model) ───────────────────────────────────
+
+def calculate_risk_parity(session, fetch_prices) -> dict:
+    """
+    Calcula pesos ideais de Paridade de Risco (Risk Parity) baseando-se na volatilidade histórica
+    e matriz de covariância. Retorna o percentual ideal de alocação de risco.
+    """
+    from database.models import Position
+    logging.info("⚖️ Calculando Paridade de Risco do Portfólio...")
+    
+    positions = session.query(Position).filter(Position.quantity > 0).all()
+    tickers_yf, tickers_clean = [], []
+    for pos in positions:
+        if not pos.asset:
+            continue
+        cat = pos.asset.category.name if pos.asset.category else ""
+        if cat in ["Renda Fixa", "Reserva"]:
+            continue
+        ticker_yf = _to_yf_ticker(pos.asset.ticker, cat)
+        tickers_yf.append(ticker_yf)
+        tickers_clean.append(pos.asset.ticker.upper())
+        
+    if len(tickers_yf) < 2:
+        return {"status": "Erro", "msg": "Mínimo 2 ativos de renda variável necessários."}
+        
+    raw = fetch_prices(list(set(tickers_yf)), period="1y")
+    prices = (
+        raw.xs("Close", axis=1, level=1)
+        if isinstance(raw.columns, pd.MultiIndex)
+        else (raw["Close"] if "Close" in raw.columns else raw)
+    )
+    prices = prices.ffill().bfill()
+    prices = prices[[c for c in prices.columns if prices[c].count() >= 30]]
+    
+    if prices.shape[1] < 2:
+        return {"status": "Erro", "msg": "Dados históricos insuficientes."}
+        
+    log_ret = np.log(prices / prices.shift(1)).dropna()
+    cov = log_ret.cov().fillna(0.0)
+    
+    avail_tickers = log_ret.columns.tolist()
+    n = len(avail_tickers)
+    
+    # Algoritmo de ponto fixo para alocação de contribuição de risco idêntica (Risk Parity)
+    w = np.ones(n) / n
+    for _ in range(50):
+        mrc = cov.dot(w)
+        mrc = np.where(mrc <= 0, 1e-8, mrc)
+        w = 1.0 / mrc
+        w /= w.sum()
+        
+    ticker_clean_map = dict(zip(tickers_yf, tickers_clean))
+    
+    return {
+        "status": "Sucesso",
+        "weights": {ticker_clean_map.get(t, t): round(float(weight) * 100, 2) for t, weight in zip(avail_tickers, w)}
+    }
+
+
+# ─── Otimização de Markowitz ( Sharpe Máximo) ───────────────────────────────
+
+def calculate_markowitz_optimization(session, fetch_prices) -> dict:
+    """
+    Sugerir pesos baseados na maximização do Sharpe Ratio sobre a Fronteira Eficiente.
+    """
+    from database.models import Position
+    logging.info("📈 Calculando Otimização de Markowitz ( Sharpe Máximo)...")
+    
+    positions = session.query(Position).filter(Position.quantity > 0).all()
+    tickers_yf, tickers_clean = [], []
+    for pos in positions:
+        if not pos.asset:
+            continue
+        cat = pos.asset.category.name if pos.asset.category else ""
+        if cat in ["Renda Fixa", "Reserva"]:
+            continue
+        ticker_yf = _to_yf_ticker(pos.asset.ticker, cat)
+        tickers_yf.append(ticker_yf)
+        tickers_clean.append(pos.asset.ticker.upper())
+        
+    if len(tickers_yf) < 2:
+        return {"status": "Erro", "msg": "Mínimo 2 ativos de renda variável."}
+        
+    raw = fetch_prices(list(set(tickers_yf)), period="1y")
+    prices = (
+        raw.xs("Close", axis=1, level=1)
+        if isinstance(raw.columns, pd.MultiIndex)
+        else (raw["Close"] if "Close" in raw.columns else raw)
+    )
+    prices = prices.ffill().bfill()
+    prices = prices[[c for c in prices.columns if prices[c].count() >= 30]]
+    
+    if prices.shape[1] < 2:
+        return {"status": "Erro", "msg": "Dados históricos insuficientes."}
+        
+    log_ret = np.log(prices / prices.shift(1)).dropna()
+    mean_returns = log_ret.mean()
+    cov_matrix = log_ret.cov().fillna(0.0)
+    
+    avail_tickers = log_ret.columns.tolist()
+    N = len(avail_tickers)
+    risk_free = get_risk_free_rate()
+    
+    # Simulações de Monte Carlo para encontrar o portfólio ótimo
+    num_portfolios = 5000
+    results = np.zeros((3, num_portfolios))
+    weights_record = []
+    
+    for i in range(num_portfolios):
+        weights = np.random.random(N)
+        weights /= np.sum(weights)
+        weights_record.append(weights)
+        
+        p_ret = np.sum(mean_returns * weights) * 252
+        p_vol = np.sqrt(np.dot(weights.T, np.dot(cov_matrix * 252, weights)))
+        p_sharpe = (p_ret - risk_free) / p_vol if p_vol > 0 else 0
+        
+        results[0, i] = p_ret
+        results[1, i] = p_vol
+        results[2, i] = p_sharpe
+        
+    max_sharpe_idx = np.argmax(results[2])
+    best_weights = weights_record[max_sharpe_idx]
+    best_ret = results[0, max_sharpe_idx]
+    best_vol = results[1, max_sharpe_idx]
+    best_sharpe = results[2, max_sharpe_idx]
+    
+    ticker_clean_map = dict(zip(tickers_yf, tickers_clean))
+    
+    return {
+        "status": "Sucesso",
+        "retorno_anual_esperado": round(float(best_ret) * 100, 2),
+        "volatilidade_anual_esperada": round(float(best_vol) * 100, 2),
+        "sharpe_maximo": round(float(best_sharpe), 3),
+        "weights": {ticker_clean_map.get(t, t): round(float(weight) * 100, 2) for t, weight in zip(avail_tickers, best_weights)}
+    }
+
+
+# ─── Exposição Setorial / Fator Oculto (Treemap) ─────────────────────────────
+
+def calculate_sector_exposure(session) -> dict:
+    """
+    Mapeia a distribuição setorial da carteira e emite alertas se houver concentração excessiva.
+    """
+    from database.models import Position
+    logging.info("🌳 Calculando exposição setorial (Treemap)...")
+    
+    positions = session.query(Position).filter(Position.quantity > 0).all()
+    sector_map = {}
+    total_portfolio = 0.0
+    
+    for pos in positions:
+        if not pos.asset:
+            continue
+        cat_name = pos.asset.category.name if pos.asset.category else "Outros"
+        mdata = pos.asset.market_data[0] if pos.asset.market_data else None
+        price = float(mdata.price or 0) if mdata else float(pos.average_price or 0)
+        value = float(pos.quantity) * price
+        if value <= 0:
+            continue
+        
+        total_portfolio += value
+        if cat_name not in sector_map:
+            sector_map[cat_name] = {"value": 0.0, "assets": []}
+        sector_map[cat_name]["value"] += value
+        sector_map[cat_name]["assets"].append({
+            "name": pos.asset.ticker.upper(),
+            "value": round(value, 2)
+        })
+        
+    treemap_data = []
+    alerts = []
+    
+    for sector, data in sector_map.items():
+        pct = (data["value"] / total_portfolio) * 100 if total_portfolio > 0 else 0
+        if pct > 40.0 and sector not in ["Renda Fixa", "Reserva"]:
+            alerts.append(f"Alerta de Concentração: {sector} representa {pct:.1f}% da carteira total (limite prudencial de 40.0% excedido).")
+            
+        treemap_data.append({
+            "name": sector,
+            "value": round(data["value"], 2),
+            "percentage": round(pct, 2),
+            "children": data["assets"]
+        })
+        
+    return {
+        "status": "Sucesso",
+        "total_value": round(total_portfolio, 2),
+        "treemap": treemap_data,
+        "alerts": alerts
+    }
+
+
+# ─── Projeção Preditiva de Proventos ─────────────────────────────────────────
+
+def calculate_dividend_forecast(session) -> dict:
+    """
+    Algoritmo preditivo baseado no calendário de datas-com para projetar proventos futuros.
+    """
+    from database.models import Position, Dividend
+    logging.info("📅 Computando projeções preditivas de dividendos...")
+    
+    positions = session.query(Position).filter(Position.quantity > 0).all()
+    if not positions:
+        return {"status": "Sucesso", "forecast": [], "total_projected": 0.0}
+        
+    forecasts = []
+    total_projected = 0.0
+    
+    for pos in positions:
+        if not pos.asset:
+            continue
+        ticker = pos.asset.ticker.upper()
+        qty = float(pos.quantity)
+        
+        divs = session.query(Dividend).filter_by(asset_id=pos.asset_id).all()
+        if not divs:
+            mdata = pos.asset.market_data[0] if pos.asset.market_data else None
+            price = float(mdata.price or 0) if mdata else float(pos.average_price or 0)
+            if price > 0:
+                est_annual = price * 0.05
+                val_monthly = (est_annual / 12) * qty
+                for m in range(1, 13):
+                    forecasts.append({
+                        "ticker": ticker,
+                        "month": m,
+                        "amount": round(val_monthly, 2),
+                        "type": "Estimativa (DY Histórico)"
+                    })
+                    total_projected += val_monthly
+            continue
+            
+        month_vals = {}
+        for d in divs:
+            m = d.date_com.month if d.date_com else 1
+            if m not in month_vals:
+                month_vals[m] = []
+            month_vals[m].append(float(d.value_per_share))
+            
+        for m, vals in month_vals.items():
+            avg_val = sum(vals) / len(vals)
+            projected_amount = avg_val * qty
+            forecasts.append({
+                "ticker": ticker,
+                "month": m,
+                "amount": round(projected_amount, 2),
+                "type": "Projeção Baseada em Histórico"
+            })
+            total_projected += projected_amount
+            
+    monthly_totals = {m: 0.0 for m in range(1, 13)}
+    for f in forecasts:
+        monthly_totals[f["month"]] += f["amount"]
+        
+    monthly_data = [{"month": m, "amount": round(val, 2)} for m, val in monthly_totals.items()]
+    
+    return {
+        "status": "Sucesso",
+        "total_projected": round(total_projected, 2),
+        "monthly_timeline": monthly_data,
+        "details": forecasts
     }

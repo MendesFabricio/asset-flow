@@ -1,12 +1,12 @@
 'use client';
-import { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { Snowflake, TrendingUp, TrendingDown, Pencil, FileText, Info, Layers, Search } from 'lucide-react';
 import { formatMoney, getStatusBg, getStatusColor } from '../utils';
 import { Asset } from '../types';
 import { usePrivacy } from '../context/PrivacyContext';
 import ReportModal from './ReportModal';
 import { AssetTooltip } from './AssetTooltip';
-import Image from 'next/image'; // ⚡ Importação nativa mantida para alta performance
+import Image from 'next/image';
 
 interface AssetRowProps {
   ativo: Asset;
@@ -18,7 +18,6 @@ interface AssetRowProps {
   total: number;
 }
 
-// 🛡️ Interface estrita para mapear propriedades dinâmicas estendidas do backend
 type ExtendedAsset = Asset & {
   currency?: string;
   change_percent?: number;
@@ -31,15 +30,13 @@ const PrivateValue = ({ value, isHidden, className = "" }: { value: string | num
   <span className={className}>{isHidden ? (className.includes('pct') ? '•••%' : '••••••') : value}</span>
 );
 
-export const AssetRow = ({ ativo, tab, onEdit, onViewNews, onViewDetails, index: _index, total: _total }: AssetRowProps) => {
-  // 🧼 Tipagem explícita do hook de privacidade para remover o erro de 'any'
+export const AssetRow = React.memo(({ ativo, tab, onEdit, onViewNews, onViewDetails, index: _index, total: _total }: AssetRowProps) => {
   const { isHidden } = usePrivacy() as { isHidden: boolean };
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [tooltip, setTooltip] = useState<{ x: number; y: number; position: 'top' | 'bottom'; type: 'rec' | 'fin' } | null>(null);
   const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [imgError, setImgError] = useState(false);
 
-  // --- MEMOIZATION: Cálculos Pesados com Tipagem Segura ---
   const stats = useMemo(() => {
     const extAsset = ativo as ExtendedAsset;
     const isUSD = extAsset.currency === 'USD';
@@ -70,6 +67,37 @@ export const AssetRow = ({ ativo, tab, onEdit, onViewNews, onViewDetails, index:
     };
   }, [ativo]);
 
+  const tooltipStyle = useMemo(() => {
+    if (!tooltip) return {};
+    
+    // Calcula largura estimada do tooltip
+    const width = tooltip.type === 'rec' ? 256 : 180;
+    
+    // Evita transbordamento na esquerda
+    let left = tooltip.x - width;
+    if (left < 12) {
+      left = 12;
+    }
+    
+    // Evita transbordamento na direita
+    if (typeof window !== 'undefined' && left + width > window.innerWidth - 12) {
+      left = window.innerWidth - width - 12;
+    }
+
+    const style: React.CSSProperties = {
+      left,
+      width: tooltip.type === 'rec' ? '16rem' : 'auto'
+    };
+
+    if (tooltip.position === 'bottom') {
+      style.top = tooltip.y + 8;
+    } else {
+      style.bottom = (typeof window !== 'undefined' ? window.innerHeight : 900) - tooltip.y + 8;
+    }
+
+    return style;
+  }, [tooltip]);
+
   const showIndicators = tab === 'Ação' || tab === 'FII';
   const lucroPositivo = ativo.lucro_valor >= 0;
   const atingiuMagic = (ativo.magic_number || 0) > 0 && ativo.qtd >= (ativo.magic_number || 0);
@@ -89,8 +117,8 @@ export const AssetRow = ({ ativo, tab, onEdit, onViewNews, onViewDetails, index:
   return (
     <>
       <tr className="hover:bg-slate-800/20 transition-all duration-300 border-b border-slate-800/30 last:border-0 group text-xs sm:text-sm">
-
-        {/* COLUNA 1: IDENTIFICAÇÃO (Agora clicável) */}
+        
+        {/* COLUNA 1: IDENTIFICAÇÃO */}
         <td className="p-4 pl-6">
           <div className="flex items-center gap-3">
             <div className="relative h-9 w-9 shrink-0 rounded-full bg-slate-800 overflow-hidden shadow-sm group-hover:scale-110 transition-transform duration-300">
@@ -98,8 +126,8 @@ export const AssetRow = ({ ativo, tab, onEdit, onViewNews, onViewDetails, index:
                 <Image
                   src={`https://raw.githubusercontent.com/thefintz/icones-b3/main/icones/${ativo.ticker}.png`}
                   alt={ativo.ticker}
-                  width={36}  // ⚡ Dimensão explícita para renderização otimizada
-                  height={36} // ⚡ Dimensão correspondente a h-9 (36px)
+                  width={36}
+                  height={36}
                   className="h-full w-full object-cover"
                   onError={() => setImgError(true)}
                 />
@@ -111,8 +139,6 @@ export const AssetRow = ({ ativo, tab, onEdit, onViewNews, onViewDetails, index:
             </div>
             <div>
               <div className="font-bold text-white text-sm flex items-center gap-2">
-
-                {/* 👇 BOTÃO CLICÁVEL PARA ABRIR DETALHES 👇 */}
                 <button
                   type="button"
                   onClick={() => onViewDetails(ativo)}
@@ -137,7 +163,7 @@ export const AssetRow = ({ ativo, tab, onEdit, onViewNews, onViewDetails, index:
                 </div>
               </div>
               <div className="text-[10px] text-slate-500 uppercase font-medium tracking-wide">
-                {ativo.tipo} • <PrivateValue value={`${ativo.qtd} UN`} isHidden={isHidden} />
+                {ativo.tipo} • <PrivateValue value={`${ativo.qtd} UN`} isHidden={isHidden} className="tabular-nums" />
               </div>
             </div>
           </div>
@@ -146,8 +172,8 @@ export const AssetRow = ({ ativo, tab, onEdit, onViewNews, onViewDetails, index:
         {/* COLUNA 2: VALOR TOTAL */}
         <td className="p-4 text-right">
           <div className="flex flex-col items-end">
-            <PrivateValue value={formatMoney(ativo.total_atual)} isHidden={isHidden} className="text-slate-200 font-bold" />
-            <PrivateValue value={`Investido: ${formatMoney(ativo.total_investido)}`} isHidden={isHidden} className="text-[10px] text-slate-500" />
+            <PrivateValue value={formatMoney(ativo.total_atual)} isHidden={isHidden} className="text-slate-200 font-bold tabular-nums" />
+            <PrivateValue value={`Investido: ${formatMoney(ativo.total_investido)}`} isHidden={isHidden} className="text-[10px] text-slate-500 tabular-nums" />
           </div>
         </td>
 
@@ -157,39 +183,38 @@ export const AssetRow = ({ ativo, tab, onEdit, onViewNews, onViewDetails, index:
             <div className="flex items-center gap-2 justify-end">
               {!isNaN(Number(stats.variacaoIntraday)) && Number(stats.variacaoIntraday) !== 0 && (
                 <div
-                  className={`text-[10px] font-bold flex items-center gap-1 px-1.5 py-0.5 rounded cursor-help transition-all hover:scale-105 ${stats.isPositiveIntraday ? 'text-emerald-400 bg-emerald-400/20' : 'text-rose-400 bg-rose-400/20'
-                    }`}
+                  className={`text-[10px] font-bold flex items-center gap-1 px-1.5 py-0.5 rounded cursor-help transition-all hover:scale-105 tabular-nums ${stats.isPositiveIntraday ? 'text-emerald-400 bg-emerald-400/20' : 'text-rose-400 bg-rose-400/20'}`}
                   onMouseEnter={(e) => handleMouseEnter(e, 'fin')}
                   onMouseLeave={handleMouseLeave}
                 >
                   {stats.isPositiveIntraday ? <TrendingUp size={12} strokeWidth={3} /> : <TrendingDown size={12} strokeWidth={3} />}
-                  <span>{stats.isPositiveIntraday ? '+' : ''}{Number(stats.variacaoIntraday).toFixed(2)}%</span>
+                  <span className="tabular-nums">{stats.isPositiveIntraday ? '+' : ''}{Number(stats.variacaoIntraday).toFixed(2)}%</span>
                 </div>
               )}
-              <PrivateValue value={stats.displayPrice} isHidden={isHidden} className="text-slate-300 font-mono text-sm" />
+              <PrivateValue value={stats.displayPrice} isHidden={isHidden} className="text-slate-300 font-mono text-sm tabular-nums" />
             </div>
-            <PrivateValue value={`PM: ${stats.displayPM}`} isHidden={isHidden} className="text-[10px] text-slate-600" />
+            <PrivateValue value={`PM: ${stats.displayPM}`} isHidden={isHidden} className="text-[10px] text-slate-600 tabular-nums" />
           </div>
         </td>
 
         {/* COLUNA 4: RESULTADO GERAL */}
         <td className="p-4 text-right">
           <div className="flex flex-col items-end">
-            <PrivateValue value={(lucroPositivo ? '+' : '') + formatMoney(ativo.lucro_valor)} isHidden={isHidden} className={`font-bold font-mono ${lucroPositivo ? 'text-emerald-400' : 'text-rose-400'}`} />
+            <PrivateValue value={(lucroPositivo ? '+' : '') + formatMoney(ativo.lucro_valor)} isHidden={isHidden} className={`font-bold font-mono tabular-nums ${lucroPositivo ? 'text-emerald-400' : 'text-rose-400'}`} />
             <div className={`text-[10px] flex items-center gap-1 ${lucroPositivo ? 'text-emerald-500/70' : 'text-rose-500/70'}`}>
-              <PrivateValue value={`${lucroPositivo ? '+' : ''}${ativo.lucro_pct.toFixed(2)}%`} isHidden={isHidden} className="pct" />
+              <PrivateValue value={`${lucroPositivo ? '+' : ''}${ativo.lucro_pct.toFixed(2)}%`} isHidden={isHidden} className="pct tabular-nums" />
               {!isHidden && (lucroPositivo ? <TrendingUp size={10} /> : <TrendingDown size={10} />)}
             </div>
           </div>
         </td>
 
-        {/* COLUNA 5: META (BARRA) */}
+        {/* COLUNA 5: META */}
         <td className="p-4 text-right w-36 hidden md:table-cell">
           <div className="flex justify-between text-[10px] mb-1.5 px-0.5">
-            <span className={`font-bold ${stats.isOverweight ? 'text-yellow-400' : 'text-blue-300'}`}>
+            <span className={`font-bold tabular-nums ${stats.isOverweight ? 'text-yellow-400' : 'text-blue-300'}`}>
               {ativo.pct_na_categoria.toFixed(1)}%
             </span>
-            <span className="text-slate-600">meta {ativo.meta}%</span>
+            <span className="text-slate-600">meta <span className="tabular-nums">{ativo.meta}%</span></span>
           </div>
           <div className="w-full h-1.5 bg-slate-800/80 rounded-full overflow-hidden ring-1 ring-slate-800">
             <div className={`h-full transition-all duration-1000 ease-out ${stats.isOverweight ? 'bg-yellow-500' : 'bg-blue-500'}`} style={{ width: `${stats.barraWidth}%` }}></div>
@@ -200,12 +225,11 @@ export const AssetRow = ({ ativo, tab, onEdit, onViewNews, onViewDetails, index:
         <td className="p-4 text-right">
           <div className="flex flex-col items-end gap-1.5">
             {ativo.falta_comprar > 1 ? (
-              <PrivateValue value={`+${formatMoney(ativo.falta_comprar)}`} isHidden={isHidden} className="text-blue-300 font-bold bg-blue-500/10 px-2 py-1 rounded border border-blue-500/20 text-xs whitespace-nowrap shadow-sm shadow-blue-900/20" />
+              <PrivateValue value={`+${formatMoney(ativo.falta_comprar)}`} isHidden={isHidden} className="text-blue-300 font-bold bg-blue-500/10 px-2 py-1 rounded border border-blue-500/20 text-xs whitespace-nowrap shadow-sm shadow-blue-900/20 tabular-nums" />
             ) : <span className="text-slate-700 text-[10px] font-medium">-</span>}
 
             <div
-              className={`flex items-center gap-1 text-[9px] px-2 py-0.5 rounded-full border uppercase font-bold cursor-help transition-all hover:brightness-110`}
-              ref={undefined}
+              className="flex items-center gap-1 text-[9px] px-2 py-0.5 rounded-full border uppercase font-bold cursor-help transition-all hover:brightness-110"
               onMouseEnter={(e) => handleMouseEnter(e, 'rec')}
               onMouseLeave={handleMouseLeave}
             >
@@ -225,12 +249,7 @@ export const AssetRow = ({ ativo, tab, onEdit, onViewNews, onViewDetails, index:
                   variacaoPct: stats.variacaoIntraday,
                   isUSD: stats.isUSD
                 }}
-                style={{
-                  left: tooltip.x - 256,
-                  top: tooltip.position === 'bottom' ? tooltip.y + 8 : 'auto',
-                  bottom: tooltip.position === 'top' ? (window.innerHeight - tooltip.y) + 8 : 'auto',
-                  width: tooltip.type === 'rec' ? '16rem' : 'auto'
-                }}
+                style={tooltipStyle}
               />
             )}
           </div>
@@ -244,29 +263,30 @@ export const AssetRow = ({ ativo, tab, onEdit, onViewNews, onViewDetails, index:
                 {(ativo.p_vp || 0) > 0 && (
                   <div className="text-xs font-mono flex items-center gap-1.5 bg-slate-800/30 px-2 py-0.5 rounded border border-slate-800">
                     <span className="text-[9px] text-slate-500 uppercase">P/VP</span>
-                    <span className={(ativo.p_vp || 0) < 0.95 ? 'text-emerald-400 font-bold' : (ativo.p_vp || 0) > 1.05 ? 'text-rose-400' : 'text-slate-300'}>{(ativo.p_vp || 0).toFixed(2)}</span>
+                    <span className={`tabular-nums ${(ativo.p_vp || 0) < 0.95 ? 'text-emerald-400 font-bold' : (ativo.p_vp || 0) > 1.05 ? 'text-rose-400' : 'text-slate-300'}`}>{(ativo.p_vp || 0).toFixed(2)}</span>
                   </div>
                 )}
                 {atingiuMagic && (
                   <div className="text-[10px] flex items-center gap-1 justify-end w-full px-1 text-cyan-400 font-bold">
                     <Snowflake size={10} className="animate-pulse" />
-                    <PrivateValue value={`${ativo.qtd}/${ativo.magic_number}`} isHidden={isHidden} />
+                    <PrivateValue value={`${ativo.qtd}/${ativo.magic_number}`} isHidden={isHidden} className="tabular-nums" />
                   </div>
                 )}
               </div>
             ) : tab === 'Ação' && ((ativo.vi_graham || 0) > 0 || (ativo.mg_graham || 0) !== 0) ? (
               <div className="flex flex-col items-center gap-1">
-                <span className={`text-[10px] font-mono px-2 py-1 rounded border ${(ativo.mg_graham || 0) > 20 ? 'text-emerald-400 bg-emerald-400/5 border-emerald-400/20' : (ativo.mg_graham || 0) > 0 ? 'text-emerald-600 bg-emerald-400/5 border-emerald-600/10' : 'text-rose-400 bg-rose-400/5 border-rose-400/20'}`}>
+                <span className={`text-[10px] font-mono px-2 py-1 rounded border tabular-nums ${(ativo.mg_graham || 0) > 20 ? 'text-emerald-400 bg-emerald-400/5 border-emerald-400/20' : (ativo.mg_graham || 0) > 0 ? 'text-emerald-600 bg-emerald-400/5 border-emerald-600/10' : 'text-rose-400 bg-rose-400/5 border-rose-400/20'}`}>
                   {(ativo.mg_graham || 0) > 0 ? '+' : ''}{(ativo.mg_graham || 0).toFixed(0)}%
                 </span>
-                <span className="text-[9px] text-slate-600 font-medium uppercase tracking-tighter">V.I: <PrivateValue value={formatMoney(ativo.vi_graham || 0)} isHidden={isHidden} /></span>
+                <span className="text-[9px] text-slate-600 font-medium uppercase tracking-tighter">V.I: <PrivateValue value={formatMoney(ativo.vi_graham || 0)} isHidden={isHidden} className="tabular-nums" /></span>
               </div>
             ) : <span className="text-slate-800">-</span>}
           </td>
         )}
       </tr>
-
       <ReportModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} ativo={ativo} />
     </>
   );
-};
+});
+
+AssetRow.displayName = 'AssetRow';

@@ -75,13 +75,7 @@ def get_history():
         logging.error(f"❌ Erro ao buscar histórico patrimonial: {e}")
         return jsonify({"status": "Erro", "msg": "Erro interno ao carregar a timeline histórica."}), 500
 
-@dashboard_bp.route('/api/health', methods=['GET'])
-def health():
-    return jsonify({
-        "status": "running", 
-        "db": "sqlite", 
-        "container": os.environ.get('IS_DOCKER', 'false')
-    })
+
 
 @dashboard_bp.route('/api/fundamentals-status', methods=['GET'])
 def get_fundamentals_status():

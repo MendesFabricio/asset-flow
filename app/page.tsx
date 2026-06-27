@@ -1,5 +1,5 @@
 'use client';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { apiCall } from './utils/apiClient';
 import {
@@ -52,7 +52,7 @@ export default function Home() {
   const [isSmartModalOpen, setIsSmartModalOpen] = useState(false);
   const [isIfModalOpen, setIsIfModalOpen] = useState(false);
   const [selectedDetailsAsset, setSelectedDetailsAsset] = useState<Asset | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
+
 
   const syncingReports = syncStatus.status === 'processing';
   const updatingFundamentals = fundamentalsStatus.status === 'processing';
@@ -75,14 +75,7 @@ export default function Home() {
     { id: 'Financeiro', icon: <Wallet size={16} />, label: 'Reembolsos' },
   ];
 
-  // ── Filtragens Otimizadas com useMemo ────────────────────────────────────
-  const filteredAssets = useMemo(() => {
-    return data?.ativos?.filter((a) => {
-      const matchesTab = ['Evolução', 'Correlação', 'Financeiro', 'Resumo'].includes(tab) ? true : a.tipo === tab;
-      const matchesSearch = a.ticker.toLowerCase().includes(searchQuery.toLowerCase().trim());
-      return matchesTab && matchesSearch;
-    }).sort((a, b) => a.ticker.localeCompare(b.ticker)) || [];
-  }, [data?.ativos, tab, searchQuery]);
+
 
   const topCompras = useMemo(() => {
     return data?.ativos?.filter((a) => a.falta_comprar > 0).sort((a, b) => b.score - a.score).slice(0, 3) || [];
@@ -116,29 +109,60 @@ export default function Home() {
 
   const money = (val: number) => isHidden ? '••••••' : formatMoney(val);
 
+  // Monitora alterações nos canais SSE de sincronismo para notificar erros/sucessos ao usuário via Toast
+  useEffect(() => {
+    if (syncStatus.status === 'error') {
+      notify(syncStatus.message || "Erro na sincronização de relatórios CVM.", 'error');
+    }
+  }, [syncStatus.status]);
+
+  useEffect(() => {
+    if (fundamentalsStatus.status === 'error') {
+      notify(fundamentalsStatus.message || "Erro ao atualizar múltiplos do Yahoo.", 'error');
+    }
+  }, [fundamentalsStatus.status]);
+
   const handleSyncReports = async () => {
+    // Força o estado local para processando imediatamente (Optimistic UI)
     mutateSync({ status: 'processing', message: 'Iniciando barramento de sincronia...' }, false);
     try {
       const result = await apiCall<{ status: string; msg: string }>('/api/sync-reports', { method: 'POST' });
       notify(result.msg, 'success');
       mutateSync();
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      notify("Falha ao conectar com o servidor para sincronizar relatórios.", 'error');
-      mutateSync({ status: 'idle', message: '' }, false);
+
+      // ✅ SE FOR CONFLITO (409): Avisa o usuário e revalida para pegar o progresso real ativo
+      if (e.message?.includes('409')) {
+        notify("Uma sincronização já está em andamento em segundo plano. Conectando ao canal...", 'error');
+        mutateSync(); // Força a busca do estado real de processamento do backend
+      } else {
+        // Se for um erro de rede ou queda do backend, aí sim joga para idle
+        notify("Falha ao conectar com o servidor para sincronizar relatórios.", 'error');
+        mutateSync({ status: 'idle', message: '' }, false);
+      }
     }
   };
 
   const handleUpdateFundamentals = async () => {
+    // Força o estado local para processando imediatamente (Optimistic UI)
     mutateFundamentals({ status: 'processing', message: 'Iniciando esteira de múltiplos...' }, false);
     try {
       const result = await apiCall<{ status: string; msg: string }>('/api/update-fundamentals', { method: 'POST' });
       notify(result.msg, 'success');
       mutateFundamentals();
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      notify("Falha ao conectar com o servidor de fundamentos.", 'error');
-      mutateFundamentals({ status: 'idle', message: '' }, false);
+
+      // ✅ SE FOR CONFLITO (409): Avisa o usuário e sincroniza com o lote em andamento
+      if (e.message?.includes('409')) {
+        notify("A esteira de múltiplos do Yahoo já está rodando. Sincronizando com o lote...", 'error');
+        mutateFundamentals(); // Revalida para trazer o status e mensagem corretos do backend
+      } else {
+        // Erro físico de conexão externa
+        notify("Falha ao conectar com o servidor de fundamentos.", 'error');
+        mutateFundamentals({ status: 'idle', message: '' }, false);
+      }
     }
   };
 
@@ -199,42 +223,17 @@ export default function Home() {
               key={c.id}
               onClick={() => {
                 setTab(c.id);
-                setSearchQuery('');
               }}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-full text-xs font-bold transition-all duration-300 border ${
-                tab === c.id
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-full text-xs font-bold transition-all duration-300 border ${tab === c.id
                   ? 'bg-blue-500/10 text-blue-400 border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.12)]'
                   : 'bg-slate-900/30 text-slate-500 border-slate-800/60 hover:text-slate-300 hover:border-slate-700/50'
-              }`}
+                }`}
             >
               {c.icon}
               <span>{c.label || c.id}</span>
             </button>
           ))}
         </div>
-
-        {!['Evolução', 'Correlação', 'Financeiro', 'Resumo'].includes(tab) && (
-          <div className="relative w-full md:w-72 group">
-            <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500 group-focus-within:text-blue-400 transition-colors">
-              <Search size={14} />
-            </span>
-            <input
-              type="text"
-              placeholder={`Filtrar ${tab === 'Cripto' ? 'Criptomoedas' : tab + 's'}...`}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-950/40 border border-slate-800/80 focus:border-blue-500/40 rounded-full pl-9 pr-4 py-2 text-xs font-semibold text-slate-200 placeholder-slate-500 outline-none transition-all focus:ring-2 focus:ring-blue-500/10"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500 hover:text-slate-300 transition-colors"
-              >
-                <X size={14} />
-              </button>
-            )}
-          </div>
-        )}
       </div>
 
       <div className="max-w-7xl mx-auto p-4 md:p-6">
@@ -317,7 +316,7 @@ export default function Home() {
 
         {/* TABELA DE ATIVOS EXTRAÍDA */}
         <AssetsTable
-          assets={filteredAssets}
+          assets={data?.ativos || []}
           tab={tab}
           onEdit={(a) => setEditingAsset(a)}
           onViewNews={(ticker) => setNewsTicker(ticker)}

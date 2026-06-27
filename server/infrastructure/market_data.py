@@ -123,6 +123,7 @@ def update_fundamentals(session, dolar_rate_callback, state_dict=None):
 
         cutoff_date = datetime.now() - timedelta(days=365)
         dolar_rate = dolar_rate_callback()
+        consecutive_failures = 0
 
         for asset in assets:
             try:
@@ -177,11 +178,23 @@ def update_fundamentals(session, dolar_rate_callback, state_dict=None):
                         pos.manual_dy = round(dy_calculated, 4)
                     
                 count += 1
+                consecutive_failures = 0 # Reseta após sucesso real
                 if state_dict is not None:
                     state_dict["progress"] = count
                     
             except Exception as e:
-                logging.warning(f"   ⚠️ Falha em {asset.ticker}: {e}")
+                consecutive_failures += 1
+                err_msg = str(e)
+                logging.warning(f"   ⚠️ Falha em {asset.ticker} (consecutivas: {consecutive_failures}): {err_msg}")
+                
+                # Se for erro 429 ou bloqueio de rate-limit, aborta imediatamente
+                if "429" in err_msg or "too many requests" in err_msg.lower() or "rate limit" in err_msg.lower():
+                    raise Exception("Yahoo Finance instável (Erro 429/Bloqueio). Limite de requisições excedido. Tente novamente mais tarde.")
+                
+                # Se houver 5 falhas consecutivas, aborta a esteira para não ficar travado
+                if consecutive_failures >= 5:
+                    raise Exception("Múltiplas falhas consecutivas ao conectar ao Yahoo Finance. Sincronização interrompida para segurança.")
+                
                 count += 1
                 if state_dict is not None: state_dict["progress"] = count
         

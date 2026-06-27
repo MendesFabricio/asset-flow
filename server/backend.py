@@ -21,6 +21,9 @@ from utils.cvm_processor import CVMProcessor
 from routes.finance import finance_bp
 from routes.market import market_bp, update_market_cache
 from routes.alerts_price import price_alerts_bp, check_price_alerts
+from routes.health import health_bp
+from routes.sync_stream import sync_stream_bp
+from routes.simulation import simulation_bp
 
 logging.basicConfig(
     level=logging.INFO,
@@ -65,6 +68,9 @@ app.register_blueprint(maintenance_bp)
 app.register_blueprint(finance_bp, url_prefix='/api/finance')
 app.register_blueprint(market_bp, url_prefix='/api/market')
 app.register_blueprint(price_alerts_bp)
+app.register_blueprint(health_bp)
+app.register_blueprint(sync_stream_bp)
+app.register_blueprint(simulation_bp)
 
 service = PortfolioService()
 
@@ -171,6 +177,8 @@ def async_sync_worker(flask_app):
     except Exception as e:
         logging.error(f"❌ Erro catastrófico na esteira em background: {str(e)}", exc_info=True)
         _update_sync_state(status="error", message=f"Falha na sincronização: {str(e)}")
+        time.sleep(5)
+        _update_sync_state(status="idle", message="Sistema pronto.")
 
 
 # --- ROTAS DE SINCRONIZAÇÃO E LONG-POLLING ---

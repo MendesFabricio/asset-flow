@@ -659,3 +659,35 @@ class PortfolioService:
             return _market.update_fundamentals(session, self.get_usd_rate, state_dict)
         finally:
             Session.remove()
+
+    def calculate_risk_parity(self) -> dict:
+        """Façade → quant_engine.calculate_risk_parity"""
+        session = Session()
+        try:
+            return _quant.calculate_risk_parity(session, _fetch_price_history_fn)
+        finally:
+            Session.remove()
+
+    def calculate_markowitz_optimization(self) -> dict:
+        """Façade → quant_engine.calculate_markowitz_optimization"""
+        session = Session()
+        try:
+            return _quant.calculate_markowitz_optimization(session, _fetch_price_history_fn)
+        finally:
+            Session.remove()
+
+    def calculate_sector_exposure(self) -> dict:
+        """Façade → quant_engine.calculate_sector_exposure"""
+        session = Session()
+        try:
+            return _quant.calculate_sector_exposure(session)
+        finally:
+            Session.remove()
+
+    def calculate_dividend_forecast(self) -> dict:
+        """Façade → quant_engine.calculate_dividend_forecast"""
+        session = Session()
+        try:
+            return _quant.calculate_dividend_forecast(session)
+        finally:
+            Session.remove()

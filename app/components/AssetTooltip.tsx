@@ -18,7 +18,6 @@ interface AssetTooltipProps {
 export const AssetTooltip = ({ type, data, style }: AssetTooltipProps) => {
     const isPositive = data.variacaoFinanceira >= 0;
 
-    // Formatadores Auxiliares
     const formattedMoney = data.isUSD
         ? `$ ${Math.abs(data.variacaoFinanceira).toFixed(2)}`
         : formatMoney(Math.abs(data.variacaoFinanceira));
@@ -32,11 +31,10 @@ export const AssetTooltip = ({ type, data, style }: AssetTooltipProps) => {
 
     return (
         <div
-            className="fixed z-[9999] p-0 bg-slate-900 border border-slate-700 rounded-lg shadow-2xl text-left pointer-events-none animate-in fade-in zoom-in-95 duration-200"
+            className="absolute z-[9999] p-0 bg-slate-900 border border-slate-700 rounded-lg shadow-2xl text-left pointer-events-none animate-in fade-in zoom-in-95 duration-200"
             style={style}
         >
             {type === 'rec' ? (
-                // === MODO RECOMENDAÇÃO ===
                 <>
                     <div className="bg-slate-800/80 px-3 py-2 border-b border-slate-700 rounded-t-lg flex justify-between items-center backdrop-blur-sm">
                         <span className="text-[10px] font-bold text-slate-200 flex items-center gap-1">📊 Análise de {data.ticker}</span>
@@ -61,7 +59,6 @@ export const AssetTooltip = ({ type, data, style }: AssetTooltipProps) => {
                     </div>
                 </>
             ) : (
-                // === MODO FINANCEIRO ===
                 <div className="relative overflow-hidden bg-slate-900/95 backdrop-blur-xl rounded-lg border border-slate-700/50 shadow-2xl">
                     <div className={`absolute left-0 top-0 bottom-0 w-1 ${isPositive ? 'bg-emerald-500' : 'bg-rose-500'}`} />
                     <div className="pl-4 pr-3 py-2.5 min-w-[140px]">
