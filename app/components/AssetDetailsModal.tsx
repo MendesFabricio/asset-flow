@@ -205,19 +205,19 @@ export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalP
 
                         <div>
                             <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 font-mono">Definir Alerta de Preço</h3>
-                            <form onSubmit={handleCreatePriceAlert} className="space-y-3 bg-slate-900/40 p-4 rounded-lg border border-slate-800">
-                                <div className="flex bg-slate-950 p-1 rounded-lg border border-slate-800">
+                            <form onSubmit={handleCreatePriceAlert} className="space-y-3 bg-slate-900/40 p-4 rounded-lg border border-slate-800/80 shadow-[0_4px_12px_rgba(0,0,0,0.1)]">
+                                <div className="flex bg-slate-950 p-1 rounded-lg border border-slate-800 gap-1">
                                     <button
                                         type="button"
                                         onClick={() => setCondition('ABOVE')}
-                                        className={`flex-1 text-[10px] uppercase tracking-wider py-1.5 font-black rounded-md transition-all ${condition === 'ABOVE' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}
+                                        className={`flex-1 text-[10px] uppercase tracking-wider py-1.5 font-black rounded-md transition-all duration-300 ${condition === 'ABOVE' ? 'bg-emerald-600/90 text-white border border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.25)]' : 'text-slate-500 hover:text-slate-300'}`}
                                     >
                                         Subir Acima ▲
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => setCondition('BELOW')}
-                                        className={`flex-1 text-[10px] uppercase tracking-wider py-1.5 font-black rounded-md transition-all ${condition === 'BELOW' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}
+                                        className={`flex-1 text-[10px] uppercase tracking-wider py-1.5 font-black rounded-md transition-all duration-300 ${condition === 'BELOW' ? 'bg-rose-600/90 text-white border border-rose-500/30 shadow-[0_0_10px_rgba(244,63,94,0.25)]' : 'text-slate-500 hover:text-slate-300'}`}
                                     >
                                         Cair Abaixo ▼
                                     </button>
@@ -232,7 +232,7 @@ export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalP
                                         placeholder="0,00"
                                         value={targetPrice}
                                         onChange={(e) => setTargetPrice(e.target.value)}
-                                        className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-xs text-white font-mono placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                                        className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-xs text-white font-mono placeholder-slate-600 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 transition-all duration-300"
                                         required
                                     />
                                 </div>
@@ -242,13 +242,13 @@ export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalP
                                     placeholder="Nota / Observação"
                                     value={note}
                                     onChange={(e) => setNote(e.target.value)}
-                                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 transition-all duration-300"
                                 />
 
                                 <button
                                     type="submit"
                                     disabled={loadingAlert}
-                                    className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800/50 text-white text-[11px] font-bold uppercase tracking-wider py-2 rounded-lg transition-all"
+                                    className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800/40 text-white text-[11px] font-bold uppercase tracking-wider py-2 rounded-lg transition-all duration-300 hover:scale-[1.01] active:scale-[0.99]"
                                 >
                                     {loadingAlert ? (
                                         <RefreshCw size={12} className="animate-spin" />

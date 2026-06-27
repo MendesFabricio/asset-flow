@@ -13,8 +13,8 @@ from database.models import engine, Asset
 
 SessionLocal = sessionmaker(bind=engine)
 
-OLLAMA_URL = "http://localhost:11434/api/generate"
-MODEL_NAME = "qwen2:1.5b"  # Modelo alvo leve para hardware restrito
+OLLAMA_URL = "http://host.docker.internal:11434/api/generate"
+MODEL_NAME = "qwen2.5:1.5b"  # Modelo alvo leve para hardware restrito
 
 def _run_sentiment_analysis(ticker: str, news_titles: list):
     """

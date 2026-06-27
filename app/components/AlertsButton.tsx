@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Bell, AlertTriangle, CheckCircle, WifiOff, AlertOctagon, Info, Settings, RefreshCw, ChevronRight, FileText, Trash2 } from 'lucide-react';
+import { Bell, AlertTriangle, CheckCircle, WifiOff, AlertOctagon, Info, Settings, RefreshCw, ChevronRight, FileText, Trash2, ArrowLeft } from 'lucide-react';
 import { apiCall } from '../utils/apiClient';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5328";
@@ -260,14 +260,14 @@ export const AlertsButton = ({ onFixAsset }: Props) => {
                     const nextState = !showActiveAlertsManager;
                     setShowActiveAlertsManager(nextState);
                   }}
-                  className={`p-1.5 rounded-lg border transition-all ${
+                  className={`p-1.5 rounded-lg border transition-all duration-300 ${
                     showActiveAlertsManager
-                      ? 'bg-blue-600 border-blue-500 text-white shadow-[0_0_10px_rgba(59,130,246,0.3)]'
+                      ? 'bg-slate-800 border-slate-700 text-slate-300 hover:text-white hover:border-slate-600'
                       : 'bg-slate-800/80 border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
                   }`}
-                  title={showActiveAlertsManager ? "Ver Notificações" : "Gerenciar Alertas Ativos"}
+                  title={showActiveAlertsManager ? "Voltar para Notificações" : "Gerenciar Alertas Ativos"}
                 >
-                  <Settings size={14} />
+                  {showActiveAlertsManager ? <ArrowLeft size={14} /> : <Settings size={14} />}
                 </button>
 
                 {!showActiveAlertsManager && alerts.length > 0 && (
