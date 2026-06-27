@@ -1,6 +1,7 @@
 'use client';
 import { Asset } from '../types';
 import { AssetRow } from './AssetRow';
+import { Search } from 'lucide-react';
 
 interface AssetsTableProps {
   assets: Asset[];
@@ -14,10 +15,10 @@ export function AssetsTable({ assets, tab, onEdit, onViewNews, onViewDetails }: 
   if (['Resumo', 'Evolução', 'Correlação', 'Financeiro'].includes(tab)) return null;
 
   return (
-    <div className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden shadow-xl animate-in slide-in-from-bottom-4 mt-6">
-      <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-slate-700">
+    <div className="bg-slate-900/30 backdrop-blur-md rounded-2xl border border-slate-800/40 overflow-hidden shadow-2xl animate-in slide-in-from-bottom-4 mt-6">
+      <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-slate-800">
         <table className="w-full text-left text-sm">
-          <thead className="bg-slate-950/50 text-slate-500 uppercase text-[10px] font-bold tracking-wider border-b border-slate-800">
+          <thead className="bg-slate-950/20 text-slate-400/70 uppercase text-[10px] font-bold tracking-widest border-b border-slate-800/40">
             <tr>
               <th className="p-4 pl-6">Ativo</th>
               <th className="p-4 text-right">Minha Posição</th>
@@ -28,7 +29,7 @@ export function AssetsTable({ assets, tab, onEdit, onViewNews, onViewDetails }: 
               {(tab === 'Ação' || tab === 'FII') && <th className="p-4 text-center hidden lg:table-cell w-24">Indicadores</th>}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-800/50">
+          <tbody className="divide-y divide-slate-800/30">
             {assets.length > 0 ? (
               assets.map((ativo, index) => (
                 <AssetRow
@@ -44,8 +45,16 @@ export function AssetsTable({ assets, tab, onEdit, onViewNews, onViewDetails }: 
               ))
             ) : (
               <tr>
-                <td colSpan={7} className="p-8 text-center text-slate-500">
-                  Nenhum ativo encontrado.
+                <td colSpan={7} className="p-12 text-center">
+                  <div className="flex flex-col items-center justify-center text-slate-500 gap-2.5 max-w-xs mx-auto">
+                    <div className="p-3 bg-slate-950/50 rounded-full border border-slate-800/60 text-slate-400">
+                      <Search size={20} />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Sem correspondências</p>
+                      <p className="text-[11px] text-slate-600 mt-1 leading-normal">Não encontramos nenhum ativo nesta categoria com o nome pesquisado.</p>
+                    </div>
+                  </div>
                 </td>
               </tr>
             )}

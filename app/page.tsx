@@ -5,7 +5,7 @@ import { apiCall } from './utils/apiClient';
 import {
   TrendingUp, Wallet, Target, Layers, RefreshCw, PiggyBank, BarChart3, LineChart, PlusCircle,
   Brain, Calendar, Eye, EyeOff, Percent, Grip, Building2, Globe, Landmark, Bitcoin,
-  CheckCircle, AlertTriangle, X
+  CheckCircle, AlertTriangle, X, Search
 } from 'lucide-react';
 import { usePrivacy } from './context/PrivacyContext';
 import { formatMoney } from './utils';
@@ -52,6 +52,7 @@ export default function Home() {
   const [isSmartModalOpen, setIsSmartModalOpen] = useState(false);
   const [isIfModalOpen, setIsIfModalOpen] = useState(false);
   const [selectedDetailsAsset, setSelectedDetailsAsset] = useState<Asset | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const syncingReports = syncStatus.status === 'processing';
   const updatingFundamentals = fundamentalsStatus.status === 'processing';
@@ -76,10 +77,12 @@ export default function Home() {
 
   // ── Filtragens Otimizadas com useMemo ────────────────────────────────────
   const filteredAssets = useMemo(() => {
-    return data?.ativos?.filter((a) =>
-      ['Evolução', 'Correlação', 'Financeiro', 'Resumo'].includes(tab) ? true : a.tipo === tab
-    ).sort((a, b) => a.ticker.localeCompare(b.ticker)) || [];
-  }, [data?.ativos, tab]);
+    return data?.ativos?.filter((a) => {
+      const matchesTab = ['Evolução', 'Correlação', 'Financeiro', 'Resumo'].includes(tab) ? true : a.tipo === tab;
+      const matchesSearch = a.ticker.toLowerCase().includes(searchQuery.toLowerCase().trim());
+      return matchesTab && matchesSearch;
+    }).sort((a, b) => a.ticker.localeCompare(b.ticker)) || [];
+  }, [data?.ativos, tab, searchQuery]);
 
   const topCompras = useMemo(() => {
     return data?.ativos?.filter((a) => a.falta_comprar > 0).sort((a, b) => b.score - a.score).slice(0, 3) || [];
@@ -187,23 +190,51 @@ export default function Home() {
         showRefreshSuccess={showRefreshSuccess}
       />
 
-      {/* TABS DE CATEGORIAS */}
-      <div className="max-w-7xl mx-auto px-4 py-4 flex gap-2 overflow-x-auto no-scrollbar">
-        {categories.map((c) => (
-          <button
-            type="button"
-            key={c.id}
-            onClick={() => setTab(c.id)}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-300 border ${
-              tab === c.id
-                ? 'bg-blue-600/10 text-blue-400 border-blue-500/30 shadow-[0_0_12px_rgba(59,130,246,0.15)]'
-                : 'bg-slate-900/40 text-slate-500 border-slate-800/60 hover:text-slate-300 hover:border-slate-700/50'
-            }`}
-          >
-            {c.icon}
-            <span>{c.label || c.id}</span>
-          </button>
-        ))}
+      {/* TABS DE CATEGORIAS E BUSCA */}
+      <div className="max-w-7xl mx-auto px-4 py-2 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div className="flex gap-2 overflow-x-auto no-scrollbar w-full md:w-auto pb-2 md:pb-0">
+          {categories.map((c) => (
+            <button
+              type="button"
+              key={c.id}
+              onClick={() => {
+                setTab(c.id);
+                setSearchQuery('');
+              }}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-full text-xs font-bold transition-all duration-300 border ${
+                tab === c.id
+                  ? 'bg-blue-500/10 text-blue-400 border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.12)]'
+                  : 'bg-slate-900/30 text-slate-500 border-slate-800/60 hover:text-slate-300 hover:border-slate-700/50'
+              }`}
+            >
+              {c.icon}
+              <span>{c.label || c.id}</span>
+            </button>
+          ))}
+        </div>
+
+        {!['Evolução', 'Correlação', 'Financeiro', 'Resumo'].includes(tab) && (
+          <div className="relative w-full md:w-72 group">
+            <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500 group-focus-within:text-blue-400 transition-colors">
+              <Search size={14} />
+            </span>
+            <input
+              type="text"
+              placeholder={`Filtrar ${tab === 'Cripto' ? 'Criptomoedas' : tab + 's'}...`}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-slate-950/40 border border-slate-800/80 focus:border-blue-500/40 rounded-full pl-9 pr-4 py-2 text-xs font-semibold text-slate-200 placeholder-slate-500 outline-none transition-all focus:ring-2 focus:ring-blue-500/10"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500 hover:text-slate-300 transition-colors"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="max-w-7xl mx-auto p-4 md:p-6">

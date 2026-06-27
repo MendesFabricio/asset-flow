@@ -88,7 +88,7 @@ export const AssetRow = ({ ativo, tab, onEdit, onViewNews, onViewDetails, index:
 
   return (
     <>
-      <tr className="hover:bg-slate-800/40 transition-colors border-b border-slate-800/50 last:border-0 group text-xs sm:text-sm">
+      <tr className="hover:bg-slate-800/20 transition-all duration-300 border-b border-slate-800/30 last:border-0 group text-xs sm:text-sm">
 
         {/* COLUNA 1: IDENTIFICAÇÃO (Agora clicável) */}
         <td className="p-4 pl-6">
