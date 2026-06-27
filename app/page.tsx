@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react'; // 🧼 Mantido o useEffect ativo para gerenciar os canais de polling concorrentes
+import dynamic from 'next/dynamic';
 import { apiCall } from './utils/apiClient';
 import {
   TrendingUp, Wallet, Target, Layers, RefreshCw, PiggyBank, BarChart3, LineChart, PlusCircle,
@@ -18,16 +19,18 @@ import { EditModal } from './components/EditModal';
 import { AddAssetModal } from './components/AddAssetModal';
 import AssetNewsPanel from './components/AssetNewsPanel';
 import { useAssetData } from './hooks/useAssetData';
-import MonteCarloChart from './components/MonteCarloChart';
-import CorrelationMatrix from './components/CorrelationMatrix';
 import { AlertsButton } from './components/AlertsButton';
-import { SmartAllocationModal } from './components/SmartAllocationModal';
 import { RiskMetricsPanel } from './components/RiskMetricsPanel';
-import { IncomeProjectionModal } from './components/IncomeProjectionModal';
 import { ReceivablesTab } from './components/ReceivablesTab';
 import { MarketTicker } from './components/MarketTicker';
 import { AssetDetailsModal } from './components/AssetDetailsModal';
 import { Asset } from './types';
+
+// ── Modais e Gráficos Pesados Carregados Dinamicamente ─────────────────────
+const MonteCarloChart = dynamic(() => import('./components/MonteCarloChart'), { ssr: false });
+const CorrelationMatrix = dynamic(() => import('./components/CorrelationMatrix'), { ssr: false });
+const SmartAllocationModal = dynamic(() => import('./components/SmartAllocationModal').then(mod => mod.SmartAllocationModal), { ssr: false });
+const IncomeProjectionModal = dynamic(() => import('./components/IncomeProjectionModal').then(mod => mod.IncomeProjectionModal), { ssr: false });
 
 export default function Home() {
   const { data, history, loading, refetch } = useAssetData();
@@ -145,7 +148,7 @@ export default function Home() {
     };
 
     if (syncStatus === 'processing') {
-      intervalId = setInterval(checkPipelineStatus, 1500);
+      intervalId = setInterval(checkPipelineStatus, 3000);
     }
 
     return () => { if (intervalId) clearInterval(intervalId); };
@@ -178,7 +181,7 @@ export default function Home() {
     };
 
     if (fundamentalsStatus === 'processing') {
-      intervalId = setInterval(checkFundamentalsStatus, 1500);
+      intervalId = setInterval(checkFundamentalsStatus, 3000);
     }
 
     return () => { if (intervalId) clearInterval(intervalId); };

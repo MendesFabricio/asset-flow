@@ -49,6 +49,12 @@ class Asset(Base):
     market_data = relationship("MarketData", back_populates="asset", cascade="all, delete-orphan")
     dividends = relationship("Dividend", back_populates="asset", cascade="all, delete-orphan")
 
+    # ── Inteligência Artificial (Ollama background checks) ───────────────────
+    ai_summary = Column(String, nullable=True)
+    ai_sentiment = Column(String, nullable=True)
+    ai_status = Column(String, default="idle")
+    ai_updated_at = Column(DateTime, nullable=True)
+
 class Position(Base):
     __tablename__ = 'positions'
     id = Column(Integer, primary_key=True)
@@ -189,3 +195,20 @@ Session = _SessionProxy()
 
 def init_db():
     Base.metadata.create_all(engine)
+    # Schema upgrade helper to dynamically add columns to existing sqlite database
+    from sqlalchemy import inspect, text
+    try:
+        inspector = inspect(engine)
+        columns = [col['name'] for col in inspector.get_columns('assets')]
+        with engine.begin() as conn:
+            if 'ai_summary' not in columns:
+                conn.execute(text("ALTER TABLE assets ADD COLUMN ai_summary TEXT"))
+            if 'ai_sentiment' not in columns:
+                conn.execute(text("ALTER TABLE assets ADD COLUMN ai_sentiment TEXT"))
+            if 'ai_status' not in columns:
+                conn.execute(text( "ALTER TABLE assets ADD COLUMN ai_status TEXT DEFAULT 'idle'"))
+            if 'ai_updated_at' not in columns:
+                conn.execute(text("ALTER TABLE assets ADD COLUMN ai_updated_at DATETIME"))
+    except Exception as e:
+        import logging
+        logging.warning(f"⚠️ Erro ao atualizar schema para colunas de IA: {e}")

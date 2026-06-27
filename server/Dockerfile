@@ -23,4 +23,4 @@ ENV PYTHONPATH=/app
 WORKDIR /app/server
 
 EXPOSE 5328
-CMD ["python", "backend.py"]
+CMD ["gunicorn", "--bind", "0.0.0.0:5328", "--workers", "1", "--threads", "4", "--timeout", "120", "backend:app"]

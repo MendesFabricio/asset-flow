@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { X, ExternalLink, Newspaper } from 'lucide-react';
+import { X, ExternalLink, Newspaper, Brain, RefreshCw } from 'lucide-react';
 import { Skeleton } from './ui/Skeleton';
 import { Badge } from './ui/Badge';
 import { apiCall } from '../utils/apiClient';
@@ -12,6 +12,18 @@ interface NewsItem {
   published: string;
 }
 
+interface AiSentiment {
+  summary: string | null;
+  sentiment: string | null;
+  status: 'idle' | 'processing' | 'success' | 'error';
+  updated_at: string | null;
+}
+
+interface NewsResponse {
+  news: NewsItem[];
+  ai_sentiment: AiSentiment;
+}
+
 interface Props {
   ticker: string | null;
   onClose: () => void;
@@ -19,14 +31,16 @@ interface Props {
 
 export default function AssetNewsPanel({ ticker, onClose }: Props) {
   const [news, setNews] = useState<NewsItem[]>([]);
+  const [aiSentiment, setAiSentiment] = useState<AiSentiment | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (ticker) {
       setTimeout(() => setLoading(true), 0);
-      apiCall<NewsItem[]>(`/api/news/${ticker}`)
+      apiCall<NewsResponse>(`/api/news/${ticker}`)
         .then(data => {
-          setNews(data);
+          setNews(data.news || []);
+          setAiSentiment(data.ai_sentiment || null);
           setLoading(false);
         })
         .catch(err => {
@@ -56,6 +70,56 @@ export default function AssetNewsPanel({ ticker, onClose }: Props) {
           <X size={24} />
         </button>
       </div>
+
+      {/* 🤖 PAINEL DE INTELIGÊNCIA ARTIFICIAL */}
+      {aiSentiment && aiSentiment.status !== 'idle' && (
+        <div className="mb-6 p-4 rounded-xl border bg-slate-900/40 border-slate-800 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+              <Brain size={14} className="text-purple-400" />
+              IA Sentiment (Ollama)
+            </span>
+            {aiSentiment.status === 'processing' && (
+              <span className="text-[10px] font-bold text-yellow-500 animate-pulse flex items-center gap-1">
+                <RefreshCw size={10} className="animate-spin" />
+                Processando IA...
+              </span>
+            )}
+            {aiSentiment.status === 'success' && (
+              <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                aiSentiment.sentiment === 'Positivo' ? 'bg-emerald-950/80 text-emerald-400 border border-emerald-500/20' :
+                aiSentiment.sentiment === 'Negativo' ? 'bg-red-950/80 text-red-400 border border-red-500/20' :
+                'bg-slate-800 text-slate-300'
+              }`}>
+                {aiSentiment.sentiment}
+              </span>
+            )}
+            {aiSentiment.status === 'error' && (
+              <span className="text-[10px] font-bold text-red-400">
+                Offline
+              </span>
+            )}
+          </div>
+          
+          <div className="text-xs text-slate-300 leading-relaxed">
+            {aiSentiment.status === 'processing' ? (
+              <div className="space-y-2">
+                <Skeleton className="h-3 w-full bg-slate-800" />
+                <Skeleton className="h-3 w-5/6 bg-slate-800" />
+              </div>
+            ) : aiSentiment.status === 'success' ? (
+              <p className="whitespace-pre-line text-slate-300 font-medium">{aiSentiment.summary}</p>
+            ) : (
+              <p className="text-slate-500 italic">Análise indisponível. Certifique-se de que o Ollama está rodando localmente com o modelo qwen2:1.5b.</p>
+            )}
+          </div>
+          {aiSentiment.status === 'success' && aiSentiment.updated_at && (
+            <span className="text-[9px] text-slate-500 font-medium font-mono">
+              Atualizado em: {new Date(aiSentiment.updated_at).toLocaleString('pt-BR')}
+            </span>
+          )}
+        </div>
+      )}
 
       <div className="space-y-4 flex-1">
         {loading ? (

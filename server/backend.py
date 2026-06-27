@@ -28,6 +28,9 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 
+from database.models import init_db
+init_db()
+
 app = Flask(__name__)
 CORS(app)
 
@@ -283,10 +286,11 @@ def initial_background_update():
         except Exception as e:
             logging.error(f"⚠️ Falha no cache warming analítico: {e}", exc_info=True)
 
-if __name__ == '__main__':
-    boot_thread = threading.Thread(target=initial_background_update)
-    boot_thread.daemon = True
-    boot_thread.start()
+# Inicia a thread de boot independentemente de rodar direto ou sob WSGI/Gunicorn
+boot_thread = threading.Thread(target=initial_background_update)
+boot_thread.daemon = True
+boot_thread.start()
 
+if __name__ == '__main__':
     debug_mode = os.environ.get("FLASK_DEBUG", "0") == "1"
     app.run(host='0.0.0.0', port=5328, debug=debug_mode, use_reloader=False)

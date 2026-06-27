@@ -4,46 +4,84 @@ import feedparser
 import requests
 import logging
 from urllib.parse import quote
+from datetime import datetime, timedelta
+from database.models import Asset
+from services import Session
+from infrastructure.ollama_service import analyze_asset_sentiment_async
 
 news_bp = Blueprint('news', __name__)
 
 @news_bp.route('/api/news/<ticker>', methods=['GET'])
 def get_news(ticker):
+    ticker_clean = ticker.strip().upper().replace(".SA", "")
+    session = Session()
     try:
-        search_query = f"{ticker} mercado financeiro"
+        # 1. Busca o Ativo no banco para vincular a IA
+        asset = session.query(Asset).filter_by(ticker=ticker_clean).first()
+
+        # 2. Busca notícias no Google News RSS
+        search_query = f"{ticker_clean} mercado financeiro"
         encoded_query = quote(search_query)
         rss_url = f"https://news.google.com/rss/search?q={encoded_query}&hl=pt-BR&gl=BR&ceid=BR:pt-419"
         
-        # 🛡️ ENGENHARIA DE REDE: feedparser.parse() nativo não possui controle confiável de timeout.
-        # Baixamos os bytes do XML primeiro isolando a requisição com um teto rígido de 5 segundos.
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
         }
         
-        response = requests.get(rss_url, headers=headers, timeout=5)
-        
-        if response.status_code != 200:
-            logging.warning(f"⚠️ Google News retornou código de resposta inválido {response.status_code} para {ticker}")
-            return jsonify([]), 200
-            
-        # Alimenta o parser diretamente com a string de bytes segura obtida em memória
-        feed = feedparser.parse(response.content)
-        
         news_list = []
-        for entry in feed.entries[:5]:
-            news_list.append({
-                "title": entry.title,
-                "link": entry.link,
-                "published": entry.published,
-                "source": entry.source.title if hasattr(entry, 'source') else "Google News"
-            })
-            
-        return jsonify(news_list), 200
+        try:
+            response = requests.get(rss_url, headers=headers, timeout=5)
+            if response.status_code == 200:
+                feed = feedparser.parse(response.content)
+                for entry in feed.entries[:5]:
+                    news_list.append({
+                        "title": entry.title,
+                        "link": entry.link,
+                        "published": entry.published,
+                        "source": entry.source.title if hasattr(entry, 'source') else "Google News"
+                    })
+        except requests.exceptions.Timeout:
+            logging.error(f"⏳ TIMEOUT: RSS Google News excedeu 5s para o ticker {ticker_clean}.")
+        except Exception as e:
+            logging.error(f"⚠️ Erro ao obter RSS para {ticker_clean}: {e}")
 
-    except requests.exceptions.Timeout:
-        # Se o Google News cair ou der lag, o Flask responde imediatamente uma lista vazia sem travar o app
-        logging.error(f"⏳ TIMEOUT: Resposta do Google News excedeu 5s para o ticker {ticker}. Abortando.")
-        return jsonify([]), 200
+        # 3. Controla estado da IA
+        ai_data = {
+            "summary": None,
+            "sentiment": None,
+            "status": "idle",
+            "updated_at": None
+        }
+
+        if asset:
+            should_trigger = False
+            if asset.ai_status == "idle" or not asset.ai_status:
+                should_trigger = True
+            elif asset.ai_updated_at:
+                age = datetime.now() - asset.ai_updated_at
+                if age > timedelta(days=1):
+                    should_trigger = True
+
+            if should_trigger:
+                titles = [n["title"] for n in news_list]
+                analyze_asset_sentiment_async(asset.ticker, titles)
+                asset.ai_status = "processing"
+                session.commit()
+
+            ai_data = {
+                "summary": asset.ai_summary,
+                "sentiment": asset.ai_sentiment,
+                "status": asset.ai_status or "idle",
+                "updated_at": asset.ai_updated_at.isoformat() if asset.ai_updated_at else None
+            }
+
+        return jsonify({
+            "news": news_list,
+            "ai_sentiment": ai_data
+        }), 200
+
     except Exception as e:
         logging.error(f"❌ Erro operacional no barramento de notícias para {ticker}: {str(e)}")
-        return jsonify([]), 200
+        return jsonify({"news": [], "ai_sentiment": {"status": "idle"}}), 200
+    finally:
+        Session.remove()

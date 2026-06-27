@@ -1,0 +1,9 @@
+node_modules
+.next
+.git
+.claude
+.continue
+server/assetflow.db
+server/assetflow.db-wal
+server/assetflow.db-shm
+backups
