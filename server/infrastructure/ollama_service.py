@@ -53,11 +53,11 @@ def _run_sentiment_analysis(ticker: str, news_titles: list):
             f"Não adicione nenhuma introdução, marcação de markdown (como ```json) ou texto antes/depois do JSON."
         )
 
-        # 3. Dispara a chamada HTTP com timeout estrito para não travar a thread indefinidamente
         payload = {
             "model": MODEL_NAME,
             "prompt": prompt,
-            "stream": False
+            "stream": False,
+            "keep_alive": 0
         }
         
         response = requests.post(OLLAMA_URL, json=payload, timeout=45)
@@ -78,8 +78,31 @@ def _run_sentiment_analysis(ticker: str, news_titles: list):
         # Tenta parsear a resposta
         try:
             parsed = json.loads(response_text)
-            summary = parsed.get("summary", "")
-            sentiment = parsed.get("sentiment", "Neutro")
+            
+            # Tenta chaves em inglês e português
+            summary_val = parsed.get("summary") or parsed.get("resumo_executivo") or parsed.get("resumo")
+            sentiment_val = parsed.get("sentiment") or parsed.get("classificação_sentimento") or parsed.get("sentimento")
+            
+            # Fallback se vier chaves dinâmicas
+            if not summary_val and parsed:
+                summary_val = list(parsed.values())[0]
+            if not sentiment_val and parsed and len(parsed) > 1:
+                sentiment_val = list(parsed.values())[1]
+
+            # Trata casos em que o valor em si é outro dicionário
+            if isinstance(summary_val, dict):
+                summary = summary_val.get("resumo_executivo") or summary_val.get("summary") or list(summary_val.values())[0]
+            else:
+                summary = str(summary_val or "")
+
+            if isinstance(sentiment_val, dict):
+                sentiment = sentiment_val.get("classificação_sentimento") or sentiment_val.get("sentiment") or list(sentiment_val.values())[0]
+            else:
+                sentiment = str(sentiment_val or "Neutro")
+
+            sentiment = sentiment.strip().title()
+            if sentiment not in ["Positivo", "Negativo", "Neutro"]:
+                sentiment = "Neutro"
         except Exception:
             # Fallback se a LLM não cuspir JSON válido
             logging.warning(f"⚠️ [IA] Ollama não retornou JSON válido para {ticker}. Usando parse manual.")
