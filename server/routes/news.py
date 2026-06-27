@@ -62,10 +62,13 @@ def get_news(ticker):
                 if age > timedelta(days=1):
                     should_trigger = True
 
-            if should_trigger:
+            if should_trigger and news_list:
                 titles = [n["title"] for n in news_list]
                 analyze_asset_sentiment_async(asset.ticker, titles)
                 asset.ai_status = "processing"
+                session.commit()
+            elif should_trigger:
+                asset.ai_status = "idle"
                 session.commit()
 
             ai_data = {

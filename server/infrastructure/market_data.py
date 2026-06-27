@@ -49,15 +49,14 @@ def update_prices(session, invalidate_cache_callback):
         for symbol, asset in tickers_map.items():
             try:
                 hist = pd.DataFrame()
-                if len(download_list) == 1:
-                    hist = batch_data
+                if symbol in batch_data.columns:
+                    hist = batch_data[symbol]
                 else:
-                    if symbol in batch_data.columns:
-                        hist = batch_data[symbol]
+                    continue
 
-                hist = hist.dropna(how='all')
+                hist = hist.dropna(subset=['Close'])
 
-                if hist.empty or 'Close' not in hist.columns:
+                if hist.empty:
                     continue
 
                 current_price = float(hist['Close'].iloc[-1])

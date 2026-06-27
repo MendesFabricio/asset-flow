@@ -1,8 +1,10 @@
 'use client';
-import { useEffect, useRef } from 'react';
-import { X, Activity, BarChart3 } from 'lucide-react'; // 🧼 Removidos TrendingUp e DollarSign que não eram usados
+import { useEffect, useRef, useState } from 'react';
+import { X, Activity, BarChart3, Bell, RefreshCw } from 'lucide-react'; // 🧼 Removidos TrendingUp e DollarSign que não eram usados
 import { formatMoney } from '../utils';
 import { Asset } from '../types'; // 🌟 Importa a interface unificada de ativos
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5328";
 
 interface AssetDetailsModalProps {
     isOpen: boolean;
@@ -12,6 +14,62 @@ interface AssetDetailsModalProps {
 
 export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalProps) => {
     const containerRef = useRef<HTMLDivElement>(null);
+    
+    const [targetPrice, setTargetPrice] = useState('');
+    const [condition, setCondition] = useState<'ABOVE' | 'BELOW'>('ABOVE');
+    const [note, setNote] = useState('');
+    const [loadingAlert, setLoadingAlert] = useState(false);
+    const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
+    // Limpa mensagem de status quando o modal é aberto ou fechado
+    useEffect(() => {
+        if (isOpen) {
+            setStatusMsg(null);
+            setTargetPrice('');
+            setNote('');
+            setCondition('ABOVE');
+        }
+    }, [isOpen]);
+
+    const handleCreatePriceAlert = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!asset) return;
+
+        setLoadingAlert(true);
+        setStatusMsg(null);
+
+        try {
+            const res = await fetch(`${API_BASE}/api/price-alerts`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    ticker: asset.ticker,
+                    target_price: parseFloat(targetPrice),
+                    condition: condition,
+                    note: note,
+                }),
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                if (data.status === 'Sucesso') {
+                    setStatusMsg({ type: 'success', text: 'Alerta criado com sucesso!' });
+                    setTargetPrice('');
+                    setNote('');
+                } else {
+                    setStatusMsg({ type: 'error', text: data.message || 'Erro ao criar alerta.' });
+                }
+            } else {
+                setStatusMsg({ type: 'error', text: 'Erro de comunicação com o servidor.' });
+            }
+        } catch (err) {
+            setStatusMsg({ type: 'error', text: 'Erro ao conectar no servidor.' });
+        } finally {
+            setLoadingAlert(false);
+        }
+    };
 
     useEffect(() => {
         if (!isOpen || !asset || !containerRef.current) return;
@@ -144,6 +202,69 @@ export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalP
                                 </div>
                             </div>
                         )}
+
+                        <div>
+                            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 font-mono">Definir Alerta de Preço</h3>
+                            <form onSubmit={handleCreatePriceAlert} className="space-y-3 bg-slate-900/40 p-4 rounded-lg border border-slate-800">
+                                <div className="flex bg-slate-950 p-1 rounded-lg border border-slate-800">
+                                    <button
+                                        type="button"
+                                        onClick={() => setCondition('ABOVE')}
+                                        className={`flex-1 text-[10px] uppercase tracking-wider py-1.5 font-black rounded-md transition-all ${condition === 'ABOVE' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}
+                                    >
+                                        Subir Acima ▲
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setCondition('BELOW')}
+                                        className={`flex-1 text-[10px] uppercase tracking-wider py-1.5 font-black rounded-md transition-all ${condition === 'BELOW' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}
+                                    >
+                                        Cair Abaixo ▼
+                                    </button>
+                                </div>
+
+                                <div className="relative">
+                                    <span className="absolute left-3 top-2.5 text-xs text-slate-500 font-mono">R$</span>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        placeholder="0,00"
+                                        value={targetPrice}
+                                        onChange={(e) => setTargetPrice(e.target.value)}
+                                        className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-xs text-white font-mono placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                                        required
+                                    />
+                                </div>
+
+                                <input
+                                    type="text"
+                                    placeholder="Nota / Observação"
+                                    value={note}
+                                    onChange={(e) => setNote(e.target.value)}
+                                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                                />
+
+                                <button
+                                    type="submit"
+                                    disabled={loadingAlert}
+                                    className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800/50 text-white text-[11px] font-bold uppercase tracking-wider py-2 rounded-lg transition-all"
+                                >
+                                    {loadingAlert ? (
+                                        <RefreshCw size={12} className="animate-spin" />
+                                    ) : (
+                                        <Bell size={12} />
+                                    )}
+                                    Criar Alerta
+                                </button>
+
+                                {statusMsg && (
+                                    <p className={`text-[10px] font-bold text-center mt-2 ${statusMsg.type === 'success' ? 'text-emerald-400' : 'text-red-400'}`}>
+                                        {statusMsg.text}
+                                    </p>
+                                )}
+                            </form>
+                        </div>
 
                         {asset.recomendacao && (
                             <div className={`p-4 rounded-lg border ${asset.recomendacao.includes('COMPRA') ? 'bg-emerald-900/20 border-emerald-500/30' : 'bg-yellow-900/20 border-yellow-500/30'}`}>

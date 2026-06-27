@@ -187,10 +187,10 @@ def check_price_alerts() -> list[dict]:
         )
         for ticker, price in market_rows:
             if price:
-                price_map[ticker.strip().upper()] = float(price)
+                price_map[ticker.strip().upper().replace(".SA", "")] = float(price)
 
         for alert in active_alerts:
-            current_price = price_map.get(alert.ticker.upper())
+            current_price = price_map.get(alert.ticker.upper().replace(".SA", ""))
             if current_price is None:
                 continue  # Ativo não rastreado ainda — aguarda próximo update
 

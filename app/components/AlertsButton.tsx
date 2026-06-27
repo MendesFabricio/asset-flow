@@ -1,7 +1,9 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Bell, AlertTriangle, CheckCircle, WifiOff, AlertOctagon, Info, Settings, RefreshCw, ChevronRight, FileText } from 'lucide-react';
+import { Bell, AlertTriangle, CheckCircle, WifiOff, AlertOctagon, Info, Settings, RefreshCw, ChevronRight, FileText, Trash2 } from 'lucide-react';
 import { apiCall } from '../utils/apiClient';
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5328";
 
 // Interface alinhada com o backend Python
 interface Alert {
@@ -15,6 +17,29 @@ interface Alert {
   action: 'edit' | 'sync' | 'view' | 'refresh' | null;
 }
 
+interface PriceAlertNotification {
+  ticker: string;
+  condition: 'ABOVE' | 'BELOW';
+  target_price: number;
+  current_price: number;
+  note: string;
+  triggered_at: string;
+}
+
+interface ActivePriceAlert {
+  id: number;
+  ticker: string;
+  target_price: number;
+  condition: 'ABOVE' | 'BELOW';
+  note: string;
+  created_at: string;
+}
+
+interface ActivePriceAlertsResponse {
+  status: string;
+  alerts: ActivePriceAlert[];
+}
+
 interface Props {
   onFixAsset: (assetId: number) => void;
 }
@@ -24,16 +49,107 @@ export const AlertsButton = ({ onFixAsset }: Props) => {
   const [isOpen, setIsOpen] = useState(false);
   const [hasError, setHasError] = useState(false);
 
+  const [showActiveAlertsManager, setShowActiveAlertsManager] = useState(false);
+  const [activePriceAlerts, setActivePriceAlerts] = useState<ActivePriceAlert[]>([]);
+  const [loadingActiveAlerts, setLoadingActiveAlerts] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setShowActiveAlertsManager(false);
+    }
+  }, [isOpen]);
+
+  const fetchActivePriceAlerts = async () => {
+    setLoadingActiveAlerts(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/price-alerts`);
+      if (res.ok) {
+        const data = await res.json() as ActivePriceAlertsResponse;
+        if (data.status === 'Sucesso' && Array.isArray(data.alerts)) {
+          setActivePriceAlerts(data.alerts);
+        }
+      }
+    } catch (err) {
+      console.error("Erro ao buscar alertas ativos:", err);
+    } finally {
+      setLoadingActiveAlerts(false);
+    }
+  };
+
+  useEffect(() => {
+    if (showActiveAlertsManager) {
+      fetchActivePriceAlerts();
+    }
+  }, [showActiveAlertsManager]);
+
+  const handleDeletePriceAlert = async (alertId: number) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/price-alerts/${alertId}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.status === 'Sucesso') {
+          setActivePriceAlerts(prev => prev.filter(alert => alert.id !== alertId));
+        }
+      }
+    } catch (err) {
+      console.error("Erro ao deletar alerta ativo:", err);
+    }
+  };
+
   const fetchAlerts = async () => {
     try {
-      const data = await apiCall<Alert[]>('/api/alerts');
+      const [alertsData, priceAlertsRes] = await Promise.all([
+        apiCall<Alert[]>('/api/alerts'),
+        fetch(`${API_BASE}/api/price-alerts/notifications`).then(res => res.json())
+      ]);
 
-      if (Array.isArray(data)) {
-        setAlerts(data);
-        setHasError(false);
-      } else {
-        setAlerts([]);
+      let newAlerts: Alert[] = [];
+      if (Array.isArray(alertsData)) {
+        newAlerts = [...alertsData];
       }
+
+      if (priceAlertsRes && priceAlertsRes.status === 'Sucesso' && Array.isArray(priceAlertsRes.notifications)) {
+        const mappedPriceAlerts: Alert[] = priceAlertsRes.notifications.map((n: PriceAlertNotification, idx: number) => {
+          const severity = n.condition === 'BELOW' ? 4 : 5;
+          const conditionText = n.condition === 'BELOW' ? 'caiu abaixo de' : 'subiu acima de';
+          const noteText = n.note ? ` - Motivo: ${n.note}` : '';
+          
+          return {
+            id: `price-alert-${n.ticker}-${n.triggered_at}-${idx}`,
+            asset_id: 0,
+            ticker: n.ticker,
+            type: 'ALERTA',
+            message: `[${n.ticker}] Alvo atingido: ${conditionText} R$ ${n.target_price.toFixed(2)}${noteText}`,
+            field: 'price',
+            severity: severity,
+            action: null
+          };
+        });
+
+        setAlerts(prev => {
+          // Mantém os alertas de preço anteriores já disparados na sessão
+          const prevPriceAlerts = prev.filter(a => a.id.startsWith('price-alert-'));
+          const combined = [...newAlerts, ...prevPriceAlerts];
+          mappedPriceAlerts.forEach(ma => {
+            if (!combined.some(existing => existing.id === ma.id)) {
+              combined.push(ma);
+            }
+          });
+          return combined;
+        });
+      } else {
+        setAlerts(prev => {
+          const prevPriceAlerts = prev.filter(a => a.id.startsWith('price-alert-'));
+          return [...newAlerts, ...prevPriceAlerts];
+        });
+      }
+
+      if (showActiveAlertsManager) {
+        fetchActivePriceAlerts();
+      }
+      setHasError(false);
     } catch (error) {
       console.error("Falha ao buscar alertas:", error);
       setHasError(true);
@@ -135,18 +251,79 @@ export const AlertsButton = ({ onFixAsset }: Props) => {
 
             <div className="px-4 py-3 border-b border-slate-800/80 flex justify-between items-center bg-slate-950/30">
               <h3 className="font-bold text-slate-100 text-sm tracking-wide flex items-center gap-2">
-                Notificações
-                {alerts.length > 0 && <span className="flex h-1.5 w-1.5 rounded-full bg-blue-500 shadow-[0_0_5px_rgba(59,130,246,0.8)]"></span>}
+                {showActiveAlertsManager ? 'Alertas Ativos' : 'Notificações'}
+                {!showActiveAlertsManager && alerts.length > 0 && <span className="flex h-1.5 w-1.5 rounded-full bg-blue-500 shadow-[0_0_5px_rgba(59,130,246,0.8)]"></span>}
               </h3>
-              {alerts.length > 0 && (
-                <span className="text-[10px] font-medium px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
-                  {alerts.length} {alerts.length === 1 ? 'ativo' : 'ativos'}
-                </span>
-              )}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    const nextState = !showActiveAlertsManager;
+                    setShowActiveAlertsManager(nextState);
+                  }}
+                  className={`p-1.5 rounded-lg border transition-all ${
+                    showActiveAlertsManager
+                      ? 'bg-blue-600 border-blue-500 text-white shadow-[0_0_10px_rgba(59,130,246,0.3)]'
+                      : 'bg-slate-800/80 border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
+                  }`}
+                  title={showActiveAlertsManager ? "Ver Notificações" : "Gerenciar Alertas Ativos"}
+                >
+                  <Settings size={14} />
+                </button>
+
+                {!showActiveAlertsManager && alerts.length > 0 && (
+                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+                    {alerts.length}
+                  </span>
+                )}
+              </div>
             </div>
 
             <div className="max-h-[28rem] overflow-y-auto custom-scrollbar p-2 space-y-2 bg-slate-950/20">
-              {hasError ? (
+              {showActiveAlertsManager ? (
+                loadingActiveAlerts ? (
+                  <div className="text-center py-12 text-slate-500 flex flex-col items-center justify-center gap-3">
+                    <RefreshCw size={24} className="animate-spin text-blue-500" />
+                    <p className="text-xs">Carregando alertas ativos...</p>
+                  </div>
+                ) : activePriceAlerts.length === 0 ? (
+                  <div className="text-center py-12 text-slate-500 flex flex-col items-center justify-center gap-3">
+                    <Bell size={24} className="opacity-40" />
+                    <p className="text-xs">Nenhum alerta de preço ativo.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {activePriceAlerts.map((alert) => (
+                      <div
+                        key={alert.id}
+                        className="flex items-center justify-between p-3 bg-slate-900/60 rounded-xl border border-slate-800/80 hover:border-slate-700 transition-all gap-2"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-slate-100 text-xs tracking-tight">{alert.ticker}</span>
+                            <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded uppercase ${
+                              alert.condition === 'ABOVE' ? 'bg-emerald-950/80 text-emerald-400 border border-emerald-500/20' : 'bg-red-950/80 text-red-400 border border-red-500/20'
+                            }`}>
+                              {alert.condition === 'ABOVE' ? 'Acima ▲' : 'Abaixo ▼'}
+                            </span>
+                            <span className="text-xs font-mono font-bold text-blue-400">R$ {alert.target_price.toFixed(2)}</span>
+                          </div>
+                          {alert.note && (
+                            <p className="text-[10px] text-slate-500 truncate mt-1">{alert.note}</p>
+                          )}
+                        </div>
+
+                        <button
+                          onClick={() => handleDeletePriceAlert(alert.id)}
+                          className="p-1.5 bg-slate-950 hover:bg-red-950/40 text-slate-500 hover:text-red-400 rounded-lg border border-slate-800 hover:border-red-500/20 transition-all shrink-0"
+                          title="Excluir Alerta"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )
+              ) : hasError ? (
                 <div className="text-center py-10 text-slate-500 flex flex-col items-center justify-center gap-3">
                   <div className="p-3 bg-slate-800/50 rounded-full"><WifiOff size={24} className="opacity-40" /></div>
                   <p className="text-xs font-medium">Erro de conexão com o servidor.</p>
@@ -185,17 +362,19 @@ export const AlertsButton = ({ onFixAsset }: Props) => {
                         <p className="text-xs text-slate-400 leading-relaxed pr-2">{alert.message}</p>
                       </div>
 
-                      <button
-                        onClick={() => { onFixAsset(alert.asset_id); setIsOpen(false); }}
-                        className={`shrink-0 self-center p-1.5 rounded-lg transition-all opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 duration-200 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider ${alert.severity >= 4
-                          ? 'text-red-400 hover:bg-red-500/20 hover:text-red-200'
-                          : 'text-blue-400 hover:bg-blue-500/20 hover:text-blue-200'
-                          }`}
-                        title={getActionLabel(alert.action)}
-                      >
-                        <span className="hidden sm:inline">{getActionLabel(alert.action)}</span>
-                        <ChevronRight size={14} />
-                      </button>
+                      {alert.action && (
+                        <button
+                          onClick={() => { onFixAsset(alert.asset_id); setIsOpen(false); }}
+                          className={`shrink-0 self-center p-1.5 rounded-lg transition-all opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 duration-200 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider ${alert.severity >= 4
+                            ? 'text-red-400 hover:bg-red-500/20 hover:text-red-200'
+                            : 'text-blue-400 hover:bg-blue-500/20 hover:text-blue-200'
+                            }`}
+                          title={getActionLabel(alert.action)}
+                        >
+                          <span className="hidden sm:inline">{getActionLabel(alert.action)}</span>
+                          <ChevronRight size={14} />
+                        </button>
+                      )}
                     </div>
                   );
                 })
