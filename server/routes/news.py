@@ -55,7 +55,7 @@ def get_news(ticker):
 
         if asset:
             should_trigger = False
-            if asset.ai_status == "idle" or not asset.ai_status:
+            if asset.ai_status in ["idle", "error"] or not asset.ai_status:
                 should_trigger = True
             elif asset.ai_updated_at:
                 age = datetime.now() - asset.ai_updated_at

@@ -110,7 +110,7 @@ export default function AssetNewsPanel({ ticker, onClose }: Props) {
             ) : aiSentiment.status === 'success' ? (
               <p className="whitespace-pre-line text-slate-300 font-medium">{aiSentiment.summary}</p>
             ) : (
-              <p className="text-slate-500 italic">Análise indisponível. Certifique-se de que o Ollama está rodando localmente com o modelo qwen2:1.5b.</p>
+              <p className="text-slate-500 italic">Análise indisponível. Certifique-se de que o Ollama está rodando localmente com o modelo qwen2.5:1.5b.</p>
             )}
           </div>
           {aiSentiment.status === 'success' && aiSentiment.updated_at && (
