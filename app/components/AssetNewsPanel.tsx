@@ -50,6 +50,29 @@ export default function AssetNewsPanel({ ticker, onClose }: Props) {
     }
   }, [ticker]);
 
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout | null = null;
+
+    if (ticker && aiSentiment?.status === 'processing') {
+      intervalId = setInterval(() => {
+        apiCall<NewsResponse>(`/api/news/${ticker}`)
+          .then(data => {
+            setAiSentiment(data.ai_sentiment || null);
+            if (data.news && data.news.length > 0 && news.length === 0) {
+              setNews(data.news);
+            }
+          })
+          .catch(err => {
+            console.error("Erro no polling de sentimento da IA:", err);
+          });
+      }, 3000);
+    }
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [ticker, aiSentiment?.status, news.length]);
+
   if (!ticker) return null;
 
   return (

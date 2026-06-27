@@ -44,13 +44,19 @@ def _run_sentiment_analysis(ticker: str, news_titles: list):
 
         # 2. Constrói o Prompt
         prompt = (
-            f"Você é um analista financeiro sênior especializado no mercado brasileiro. "
-            f"Analise os seguintes títulos de notícias recentes para o ativo {ticker}:\n"
+            f"Você é um analista financeiro sênior especializado em inteligência de mercado do ativo {ticker} brasileiro.\n"
+            f"Analise EXCLUSIVAMENTE os seguintes títulos de notícias recentes para o ticker {ticker}:\n"
             + "\n".join(f"- {title}" for title in news_titles) + "\n\n"
-            f"Responda EXCLUSIVAMENTE em formato JSON puro, contendo exatamente duas chaves:\n"
-            f"1. 'summary': Um resumo executivo conciso em português (máximo de 2 parágrafos) dos principais temas abordados e impactos para o ativo.\n"
-            f"2. 'sentiment': Uma classificação de sentimento em uma única palavra (entre: 'Positivo', 'Negativo', 'Neutro').\n"
-            f"Não adicione nenhuma introdução, marcação de markdown (como ```json) ou texto antes/depois do JSON."
+            f"Regras estritas de comportamento:\n"
+            f"1. Sua análise e resumo devem focar EXCLUSIVAMENTE no ativo {ticker}.\n"
+            f"2. NUNCA mencione outros ativos ou empresas, mesmo que apareçam nos títulos das notícias. Ignore-os completamente.\n"
+            f"3. NUNCA faça resumos gerais do mercado financeiro ou comente sobre o cenário macro global.\n"
+            f"4. NUNCA misture informações de múltiplos ativos.\n"
+            f"5. Dê respostas precisas, com dados úteis, interpretação de impactos financeiros diretos para o ticker {ticker}, explicações naturais, sem frases prontas ou texto genérico.\n"
+            f"6. Responda EXCLUSIVAMENTE em formato JSON puro, contendo exatamente duas chaves:\n"
+            f"   - 'summary': Um resumo técnico e direto em português focado apenas no ticker {ticker} (máximo de 2 parágrafos).\n"
+            f"   - 'sentiment': Sentimento do ticker {ticker} ('Positivo', 'Negativo' ou 'Neutro').\n"
+            f"Não adicione nenhuma introdução, marcação de markdown (como ```json) ou texto antes ou depois do JSON."
         )
 
         payload = {
