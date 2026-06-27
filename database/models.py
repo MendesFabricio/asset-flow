@@ -166,7 +166,7 @@ class PriceAlert(Base):
 # conexões zumbis que causariam erros silenciosos após idle do banco.
 # ─────────────────────────────────────────────────────────────────────────────
 engine = create_engine(
-    'sqlite:///assetflow.db',
+    'sqlite:////app/database/assetflow.db',
     echo=False,
     connect_args={
         "check_same_thread": False,

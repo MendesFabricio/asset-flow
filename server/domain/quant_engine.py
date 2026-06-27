@@ -10,6 +10,49 @@ import logging
 import numpy as np
 import pandas as pd
 from datetime import datetime
+import time
+import requests
+import threading
+
+_SELIC_CACHE = {
+    "rate": 0.105,
+    "last_updated": 0.0
+}
+_SELIC_CACHE_LOCK = threading.Lock()
+
+def get_risk_free_rate() -> float:
+    """
+    Busca a taxa SELIC atual via API do Banco Central com cache de 24 horas
+    e fallback seguro de 10.5% (0.105).
+    """
+    global _SELIC_CACHE
+    now = time.time()
+    
+    # Cache expira após 24 horas (86400 segundos)
+    if now - _SELIC_CACHE["last_updated"] < 86400:
+        return _SELIC_CACHE["rate"]
+        
+    with _SELIC_CACHE_LOCK:
+        if now - _SELIC_CACHE["last_updated"] < 86400:
+            return _SELIC_CACHE["rate"]
+            
+        try:
+            url = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.1178/dados/ultimos/1?formato=json"
+            response = requests.get(url, timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                if isinstance(data, list) and len(data) > 0:
+                    rate_pct = float(data[0]["valor"])
+                    rate = rate_pct / 100.0
+                    _SELIC_CACHE["rate"] = rate
+                    _SELIC_CACHE["last_updated"] = now
+                    logging.info(f"🏦 Taxa Selic atualizada via Banco Central: {rate_pct:.2f}%")
+                    return rate
+        except Exception as e:
+            logging.warning(f"⚠️ Falha ao buscar taxa Selic do Banco Central: {e}. Usando fallback.")
+            
+        _SELIC_CACHE["last_updated"] = now - 86400 + 3600
+        return _SELIC_CACHE["rate"]
 
 
 # ─── helpers de ticker ───────────────────────────────────────────────────────
@@ -141,7 +184,7 @@ def calculate_risk_metrics(session, fetch_prices) -> dict:
         return {"status": "Erro", "msg": "Sem ativos de renda variável."}
 
     BENCHMARK = "^BVSP"
-    RISK_FREE = 0.105
+    RISK_FREE = get_risk_free_rate()
     rf_daily = RISK_FREE / 252
 
     raw = fetch_prices(list(set(tickers_yf)) + [BENCHMARK], period="1y")

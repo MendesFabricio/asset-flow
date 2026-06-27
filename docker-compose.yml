@@ -10,8 +10,7 @@ services:
       - "5328:5328"
     volumes:
       - ./server:/app/server
-      - ./database:/app/database
-      - ./server/assetflow.db:/app/server/assetflow.db
+      - database_volume:/app/database
       - ./backups:/app/backups
     environment:
       - FLASK_ENV=development
@@ -46,3 +45,6 @@ services:
     cpus: 1.0
     tmpfs:
       - /tmp:size=128m
+
+volumes:
+  database_volume:

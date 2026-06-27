@@ -1,14 +1,17 @@
-import useSWR from 'swr'; // 🧼 Removido o import 'mutate' não utilizado para zerar o aviso
+import useSWR from 'swr';
 import { DashboardData } from '../types';
 
-// 🛡️ Interface estrita para mapear os registros do histórico patrimonial
 interface HistoryDataPoint {
   date: string;
   Patrimônio: number;
   Investido: number;
 }
 
-// O fetcher padrão que o SWR vai usar
+interface SyncStatusResponse {
+  status: 'idle' | 'processing' | 'success' | 'error';
+  message: string;
+}
+
 const fetcher = async (url: string) => {
   const res = await fetch(url);
   if (!res.ok) {
@@ -21,7 +24,6 @@ const fetcher = async (url: string) => {
 };
 
 export function useAssetData() {
-  // 1. Hook para os dados principais (Dashboard)
   const {
     data,
     error: errorDashboard,
@@ -32,18 +34,40 @@ export function useAssetData() {
     revalidateOnFocus: true
   });
 
-  // 2. Hook para o histórico (pode ser carregado separado)
   const {
     data: history,
     error: errorHistory,
     isLoading: loadingHistory
-  } = useSWR<HistoryDataPoint[]>('/api/history', fetcher); // 🛡️ Substituído 'any[]' por tipo seguro
+  } = useSWR<HistoryDataPoint[]>('/api/history', fetcher);
 
-  // Função para forçar atualização (ex: botão "Atualizar Agora")
+  const {
+    data: syncStatus,
+    mutate: mutateSync
+  } = useSWR<SyncStatusResponse>('/api/sync-status', fetcher, {
+    refreshInterval: (data) => (data?.status === 'processing' ? 3000 : 0),
+    revalidateOnFocus: false,
+    onSuccess: (data) => {
+      if (data?.status === 'success') {
+        mutateDashboard();
+      }
+    }
+  });
+
+  const {
+    data: fundamentalsStatus,
+    mutate: mutateFundamentals
+  } = useSWR<SyncStatusResponse>('/api/fundamentals-status', fetcher, {
+    refreshInterval: (data) => (data?.status === 'processing' ? 3000 : 0),
+    revalidateOnFocus: false,
+    onSuccess: (data) => {
+      if (data?.status === 'success') {
+        mutateDashboard();
+      }
+    }
+  });
+
   const refreshAll = async () => {
-    // Primeiro chama a API forçando atualização no backend
     await fetch('/api/index?force=true');
-    // Depois diz pro SWR revalidar os dados locais
     mutateDashboard();
   };
 
@@ -52,6 +76,10 @@ export function useAssetData() {
     history: history || [],
     loading: loadingDashboard || loadingHistory,
     error: errorDashboard ? errorDashboard.message : (errorHistory ? errorHistory.message : null),
-    refetch: refreshAll
+    refetch: refreshAll,
+    syncStatus: syncStatus || { status: 'idle', message: '' },
+    fundamentalsStatus: fundamentalsStatus || { status: 'idle', message: '' },
+    mutateSync,
+    mutateFundamentals
   };
 }

@@ -1,17 +1,15 @@
 'use client';
-import { useState, useEffect } from 'react'; // 🧼 Mantido o useEffect ativo para gerenciar os canais de polling concorrentes
+import { useState, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { apiCall } from './utils/apiClient';
 import {
   TrendingUp, Wallet, Target, Layers, RefreshCw, PiggyBank, BarChart3, LineChart, PlusCircle,
-  Brain, Calendar, Eye, EyeOff, Percent, Grip, Building2, Globe, Landmark, Bitcoin, Calculator,
+  Brain, Calendar, Eye, EyeOff, Percent, Grip, Building2, Globe, Landmark, Bitcoin,
   CheckCircle, AlertTriangle, X
 } from 'lucide-react';
-import Link from 'next/link';
 import { usePrivacy } from './context/PrivacyContext';
 import { formatMoney } from './utils';
 import { StatCard } from './components/StatCard';
-import { AssetRow } from './components/AssetRow';
 import { RiskRadar } from './components/RiskRadar';
 import { HistoryChart } from './components/HistoryChart';
 import { CategorySummary } from './components/CategorySummary';
@@ -19,52 +17,49 @@ import { EditModal } from './components/EditModal';
 import { AddAssetModal } from './components/AddAssetModal';
 import AssetNewsPanel from './components/AssetNewsPanel';
 import { useAssetData } from './hooks/useAssetData';
-import { AlertsButton } from './components/AlertsButton';
 import { RiskMetricsPanel } from './components/RiskMetricsPanel';
 import { ReceivablesTab } from './components/ReceivablesTab';
-import { MarketTicker } from './components/MarketTicker';
 import { AssetDetailsModal } from './components/AssetDetailsModal';
+import { DashboardHeader } from './components/DashboardHeader';
+import { AssetsTable } from './components/AssetsTable';
 import { Asset } from './types';
 
-// ── Modais e Gráficos Pesados Carregados Dinamicamente ─────────────────────
 const MonteCarloChart = dynamic(() => import('./components/MonteCarloChart'), { ssr: false });
 const CorrelationMatrix = dynamic(() => import('./components/CorrelationMatrix'), { ssr: false });
 const SmartAllocationModal = dynamic(() => import('./components/SmartAllocationModal').then(mod => mod.SmartAllocationModal), { ssr: false });
 const IncomeProjectionModal = dynamic(() => import('./components/IncomeProjectionModal').then(mod => mod.IncomeProjectionModal), { ssr: false });
 
 export default function Home() {
-  const { data, history, loading, refetch } = useAssetData();
-  const { isHidden, togglePrivacy } = usePrivacy() as { isHidden: boolean; togglePrivacy: () => void };
+  const {
+    data,
+    history,
+    loading,
+    refetch,
+    syncStatus,
+    fundamentalsStatus,
+    mutateSync,
+    mutateFundamentals
+  } = useAssetData();
 
+  const { isHidden } = usePrivacy() as { isHidden: boolean };
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
+  const [tab, setTab] = useState('Resumo');
+  const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [newsTicker, setNewsTicker] = useState<string | null>(null);
+  const [showRefreshSuccess, setShowRefreshSuccess] = useState(false);
+  const [isRefetching, setIsRefetching] = useState(false);
+  const [isSmartModalOpen, setIsSmartModalOpen] = useState(false);
+  const [isIfModalOpen, setIsIfModalOpen] = useState(false);
+  const [selectedDetailsAsset, setSelectedDetailsAsset] = useState<Asset | null>(null);
+
+  const syncingReports = syncStatus.status === 'processing';
+  const updatingFundamentals = fundamentalsStatus.status === 'processing';
 
   const notify = (msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3000);
   };
-
-  const [tab, setTab] = useState('Resumo');
-
-  const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [newsTicker, setNewsTicker] = useState<string | null>(null);
-
-  // 🧠 MÁQUINA DE ESTADOS: Orquestração de barramentos independentes para CVM e Yahoo Finance
-  const [syncStatus, setSyncStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
-  const [syncMessage, setSyncMessage] = useState('');
-  const [fundamentalsStatus, setFundamentalsStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
-  const [fundamentalsMessage, setFundamentalsMessage] = useState('');
-
-  // 🧼 COMPATIBILIDADE RECHAFADA: Preserva as flags de loading e pulse nativas do header original
-  const updatingFundamentals = fundamentalsStatus === 'processing';
-  const syncingReports = syncStatus === 'processing';
-
-  const [showRefreshSuccess, setShowRefreshSuccess] = useState(false);
-  const [isRefetching, setIsRefetching] = useState(false);
-  const [isSmartModalOpen, setIsSmartModalOpen] = useState(false);
-  const [isIfModalOpen, setIsIfModalOpen] = useState(false);
-
-  const [selectedDetailsAsset, setSelectedDetailsAsset] = useState<Asset | null>(null);
 
   const categories = [
     { id: 'Resumo', icon: <Layers size={16} /> },
@@ -79,137 +74,68 @@ export default function Home() {
     { id: 'Financeiro', icon: <Wallet size={16} />, label: 'Reembolsos' },
   ];
 
-  const filteredAssets = data?.ativos?.filter((a) =>
-    ['Evolução', 'Correlação'].includes(tab) ? true : a.tipo === tab
-  ).sort((a, b) => a.ticker.localeCompare(b.ticker)) || [];
+  // ── Filtragens Otimizadas com useMemo ────────────────────────────────────
+  const filteredAssets = useMemo(() => {
+    return data?.ativos?.filter((a) =>
+      ['Evolução', 'Correlação', 'Financeiro', 'Resumo'].includes(tab) ? true : a.tipo === tab
+    ).sort((a, b) => a.ticker.localeCompare(b.ticker)) || [];
+  }, [data?.ativos, tab]);
 
-  const topCompras = data?.ativos?.filter((a) => a.falta_comprar > 0).sort((a, b) => b.score - a.score).slice(0, 3) || [];
-  const lucroTotal = data?.resumo?.LucroTotal || 0;
+  const topCompras = useMemo(() => {
+    return data?.ativos?.filter((a) => a.falta_comprar > 0).sort((a, b) => b.score - a.score).slice(0, 3) || [];
+  }, [data?.ativos]);
 
-  const totalInvestido = data?.resumo?.TotalInvestido ?? 0;
-  const rendaMensal = data?.resumo?.RendaMensal ?? 0;
-  const yocMedio = totalInvestido > 0 ? ((rendaMensal * 12) / totalInvestido) * 100 : 0;
+  const lucroTotal = useMemo(() => {
+    return data?.resumo?.LucroTotal || 0;
+  }, [data?.resumo?.LucroTotal]);
 
-  const variacaoDiariaTotal = data?.ativos?.reduce((acc: number, asset: Asset) => {
-    const variacaoPct = (asset as Asset & { change_percent?: number }).change_percent || 0;
-    const totalAtual = asset.total_atual || 0;
-    const divisor = 1 + (variacaoPct / 100);
-    const valOntem = divisor > 0.0001 ? totalAtual / divisor : totalAtual;
-    return acc + (totalAtual - valOntem);
-  }, 0) || 0;
+  const totalInvestido = useMemo(() => {
+    return data?.resumo?.TotalInvestido ?? 0;
+  }, [data?.resumo?.TotalInvestido]);
+
+  const rendaMensal = useMemo(() => {
+    return data?.resumo?.RendaMensal ?? 0;
+  }, [data?.resumo?.RendaMensal]);
+
+  const yocMedio = useMemo(() => {
+    return totalInvestido > 0 ? ((rendaMensal * 12) / totalInvestido) * 100 : 0;
+  }, [totalInvestido, rendaMensal]);
+
+  const variacaoDiariaTotal = useMemo(() => {
+    return data?.ativos?.reduce((acc: number, asset: Asset) => {
+      const variacaoPct = (asset as Asset & { change_percent?: number }).change_percent || 0;
+      const totalAtual = asset.total_atual || 0;
+      const divisor = 1 + (variacaoPct / 100);
+      const valOntem = divisor > 0.0001 ? totalAtual / divisor : totalAtual;
+      return acc + (totalAtual - valOntem);
+    }, 0) || 0;
+  }, [data?.ativos]);
 
   const money = (val: number) => isHidden ? '••••••' : formatMoney(val);
 
-  // 🛡️ RECOVERY BOOT CONTÍNUO: Recupera o estado vivo de ambas as esteiras caso sofra F5 acidental
-  useEffect(() => {
-    const recoverPipelineStates = async () => {
-      try {
-        const syncRes = await apiCall<{ status: 'idle' | 'processing' | 'success' | 'error'; message: string }>('/api/sync-status');
-        if (syncRes.status === 'processing') {
-          setSyncStatus('processing');
-          setSyncMessage(syncRes.message);
-        }
-        const fundRes = await apiCall<{ status: 'idle' | 'processing' | 'success' | 'error'; message: string }>('/api/fundamentals-status');
-        if (fundRes.status === 'processing') {
-          setFundamentalsStatus('processing');
-          setFundamentalsMessage(fundRes.message);
-        }
-      } catch (e) {
-        console.error("Falha ao sincronizar estados residuais de boot:", e);
-      }
-    };
-    recoverPipelineStates();
-  }, []);
-
-  // 📡 CANAL DE LONG-POLLING 1: Monitora a Sincronia Assíncrona de Balanços CVM
-  useEffect(() => {
-    let intervalId: NodeJS.Timeout;
-
-    const checkPipelineStatus = async () => {
-      try {
-        const res = await apiCall<{ status: 'idle' | 'processing' | 'success' | 'error'; message: string }>('/api/sync-status');
-
-        if (res.status === 'processing') {
-          setSyncStatus('processing');
-          setSyncMessage(res.message);
-        } else if (res.status === 'success') {
-          setSyncStatus('idle');
-          setSyncMessage('');
-          notify(res.message, 'success');
-          refetch();
-        } else if (res.status === 'error') {
-          setSyncStatus('idle');
-          setSyncMessage('');
-          notify(res.message, 'error');
-        }
-      } catch (err) {
-        console.error("Erro no canal de polling CVM:", err);
-      }
-    };
-
-    if (syncStatus === 'processing') {
-      intervalId = setInterval(checkPipelineStatus, 3000);
-    }
-
-    return () => { if (intervalId) clearInterval(intervalId); };
-  }, [syncStatus, refetch]);
-
-  // 📡 CANAL DE LONG-POLLING 2: Monitora a Esteira de Múltiplos e Valuation do Yahoo Finance
-  useEffect(() => {
-    let intervalId: NodeJS.Timeout;
-
-    const checkFundamentalsStatus = async () => {
-      try {
-        const res = await apiCall<{ status: 'idle' | 'processing' | 'success' | 'error'; message: string }>('/api/fundamentals-status');
-
-        if (res.status === 'processing') {
-          setFundamentalsStatus('processing');
-          setFundamentalsMessage(res.message);
-        } else if (res.status === 'success') {
-          setFundamentalsStatus('idle');
-          setFundamentalsMessage('');
-          notify(res.message, 'success');
-          refetch(); // Atualiza os scores, Graham e DY na tabela principal na hora
-        } else if (res.status === 'error') {
-          setFundamentalsStatus('idle');
-          setFundamentalsMessage('');
-          notify(res.message, 'error');
-        }
-      } catch (err) {
-        console.error("Erro no canal de polling Yahoo Finance:", err);
-      }
-    };
-
-    if (fundamentalsStatus === 'processing') {
-      intervalId = setInterval(checkFundamentalsStatus, 3000);
-    }
-
-    return () => { if (intervalId) clearInterval(intervalId); };
-  }, [fundamentalsStatus, refetch]);
-
   const handleSyncReports = async () => {
-    setSyncStatus('processing');
-    setSyncMessage('Iniciando barramento de sincronia...');
+    mutateSync({ status: 'processing', message: 'Iniciando barramento de sincronia...' }, false);
     try {
       const result = await apiCall<{ status: string; msg: string }>('/api/sync-reports', { method: 'POST' });
       notify(result.msg, 'success');
+      mutateSync();
     } catch (e) {
       console.error(e);
       notify("Falha ao conectar com o servidor para sincronizar relatórios.", 'error');
-      setSyncStatus('idle');
+      mutateSync({ status: 'idle', message: '' }, false);
     }
   };
 
   const handleUpdateFundamentals = async () => {
-    setFundamentalsStatus('processing');
-    setFundamentalsMessage('Iniciando esteira de múltiplos...');
+    mutateFundamentals({ status: 'processing', message: 'Iniciando esteira de múltiplos...' }, false);
     try {
       const result = await apiCall<{ status: string; msg: string }>('/api/update-fundamentals', { method: 'POST' });
       notify(result.msg, 'success');
+      mutateFundamentals();
     } catch (e) {
       console.error(e);
       notify("Falha ao conectar com o servidor de fundamentos.", 'error');
-      setFundamentalsStatus('idle');
+      mutateFundamentals({ status: 'idle', message: '' }, false);
     }
   };
 
@@ -242,142 +168,47 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-[#0b0f19] text-slate-200 font-sans selection:bg-blue-500/30 pb-20 relative">
+      {/* HEADER PRINCIPAL EXTRAÍDO */}
+      <DashboardHeader
+        total={data?.resumo?.Total || 0}
+        rendaMensal={rendaMensal}
+        money={money}
+        syncStatus={syncStatus}
+        fundamentalsStatus={fundamentalsStatus}
+        onSyncReports={handleSyncReports}
+        onUpdateFundamentals={handleUpdateFundamentals}
+        onManualRefresh={handleManualRefresh}
+        onOpenIfModal={() => setIsIfModalOpen(true)}
+        onOpenSmartModal={() => setIsSmartModalOpen(true)}
+        onOpenAddModal={() => setIsAddModalOpen(true)}
+        onFixAsset={handleFixAsset}
+        loading={loading}
+        isRefetching={isRefetching}
+        showRefreshSuccess={showRefreshSuccess}
+      />
 
-      {/* HEADER FIXO */}
-      <div className="sticky top-0 z-30 bg-[#0b0f19]/95 backdrop-blur-md border-b border-slate-800/50">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
-
-          <div className="flex items-center gap-3">
-            <div className="bg-blue-600 p-1.5 rounded-lg shadow-[0_0_15px_rgba(37,99,235,0.5)]">
-              <Wallet className="text-white" size={18} />
-            </div>
-            <h1 className="text-lg font-bold text-white tracking-tight mr-2">AssetFlow <span className="text-blue-500 text-xs font-normal ml-1">Pro</span></h1>
-
-            <MarketTicker />
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <Link href="/agenda" className="bg-slate-800 hover:bg-slate-700 text-white px-3 py-2 rounded-lg transition-all flex items-center gap-2 text-xs font-bold border border-slate-700 group">
-                <Calendar size={16} className="text-blue-400 group-hover:text-blue-300 transition-colors" />
-                <span className="hidden sm:inline">Proventos</span>
-              </Link>
-
-              <button
-                type="button"
-                onClick={() => setIsIfModalOpen(true)}
-                className="bg-emerald-700 hover:bg-emerald-600 text-white px-3 py-2 rounded-lg transition-all flex items-center gap-2 text-xs font-bold border border-emerald-600/50 shadow-[0_0_15px_rgba(16,185,129,0.2)] hover:shadow-[0_0_25px_rgba(16,185,129,0.5)] duration-300"
-              >
-                <TrendingUp size={16} />
-                <span className="hidden sm:inline">Projeção IF</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setIsSmartModalOpen(true)}
-                className="bg-purple-600 hover:bg-purple-500 text-white px-3 py-2 rounded-lg transition-all flex items-center gap-2 text-xs font-bold border border-purple-500/50 shadow-[0_0_15px_rgba(147,51,234,0.3)] hover:shadow-[0_0_25px_rgba(147,51,234,0.6)] duration-300"
-              >
-                <Calculator size={16} />
-                <span className="hidden sm:inline">Simular Aporte</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setIsAddModalOpen(true)}
-                className="bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded-lg transition-all flex items-center gap-2 text-xs font-bold shadow-[0_0_15px_rgba(37,99,235,0.3)] hover:shadow-[0_0_25px_rgba(37,99,235,0.6)] duration-300"
-              >
-                <PlusCircle size={16} /> <span className="hidden sm:inline">Novo Ativo</span>
-              </button>
-            </div>
-
-            <div className="h-6 w-px bg-slate-800 mx-1"></div>
-
-            <div className="flex items-center gap-2">
-              <button type="button" onClick={togglePrivacy} className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors">
-                {isHidden ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
-
-              <AlertsButton onFixAsset={handleFixAsset} />
-
-              <button
-                type="button"
-                onClick={handleSyncReports}
-                disabled={syncingReports}
-                className="bg-slate-800 hover:bg-slate-700 text-slate-300 p-2 rounded-lg border border-slate-700 disabled:opacity-50 group relative transition-all"
-                title={syncingReports ? syncMessage : "Sincronizar Relatórios CVM"}
-              >
-                <Layers size={16} className={syncingReports ? 'animate-spin text-purple-400' : 'text-slate-400'} />
-                {syncingReports && (
-                  <span className="absolute -top-1 -right-1 flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500"></span>
-                  </span>
-                )}
-              </button>
-
-              <button
-                type="button"
-                onClick={handleUpdateFundamentals}
-                disabled={updatingFundamentals}
-                className="bg-slate-800 hover:bg-slate-700 text-slate-300 p-2 rounded-lg border border-slate-700 disabled:opacity-50 relative group"
-                title={updatingFundamentals ? fundamentalsMessage : "Atualizar Indicadores Yahoo"}
-              >
-                <Brain size={16} className={updatingFundamentals ? 'animate-pulse text-emerald-400' : ''} />
-                {updatingFundamentals && (
-                  <span className="absolute -top-1 -right-1 flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                  </span>
-                )}
-              </button>
-
-              <button
-                type="button"
-                onClick={handleManualRefresh}
-                disabled={loading || isRefetching || showRefreshSuccess}
-                className={`p-2 rounded-lg border transition-all duration-300 ${showRefreshSuccess
-                  ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.4)]'
-                  : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
-                  } disabled:opacity-50`}
-                title="Recarregar dados"
-              >
-                <RefreshCw
-                  size={16}
-                  className={`${(loading || isRefetching) ? 'animate-spin' : ''} ${showRefreshSuccess ? 'text-emerald-400' : ''}`}
-                />
-              </button>
-            </div>
-
-            <div className="text-right hidden md:block border-l border-slate-800 pl-4 ml-2 min-w-[140px]">
-              <p className="text-[9px] text-slate-500 uppercase font-bold tracking-wider leading-none">Patrimônio</p>
-              <p className="text-lg font-bold text-white leading-tight mt-0.5">
-                {data ? money(data.resumo.Total) : '...'}
-              </p>
-              {data?.resumo?.RendaMensal && data.resumo.RendaMensal > 0 && (
-                <div className="text-[10px] text-emerald-500 font-bold mt-1 flex items-center justify-end gap-1 leading-none">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" />
-                  {money(data.resumo.RendaMensal)}
-                  <span className="text-[8px] opacity-70 ml-0.5 uppercase tracking-tighter">est.</span>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="max-w-7xl mx-auto px-4 flex gap-4 overflow-x-auto no-scrollbar border-t border-slate-800/30">
-          {categories.map((c) => (
-            <button type="button" key={c.id} onClick={() => setTab(c.id)} className={`flex items-center gap-2 px-1 py-3 text-xs font-medium transition-all relative border-b-2 whitespace-nowrap ${tab === c.id ? 'border-blue-500 text-white shadow-[0_10px_20px_-10px_rgba(59,130,246,0.5)]' : 'border-transparent text-slate-500 hover:text-slate-300'}`}>
-              {c.icon}{c.label || c.id}
-            </button>
-          ))}
-        </div>
+      {/* TABS DE CATEGORIAS */}
+      <div className="max-w-7xl mx-auto px-4 py-4 flex gap-2 overflow-x-auto no-scrollbar">
+        {categories.map((c) => (
+          <button
+            type="button"
+            key={c.id}
+            onClick={() => setTab(c.id)}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-300 border ${
+              tab === c.id
+                ? 'bg-blue-600/10 text-blue-400 border-blue-500/30 shadow-[0_0_12px_rgba(59,130,246,0.15)]'
+                : 'bg-slate-900/40 text-slate-500 border-slate-800/60 hover:text-slate-300 hover:border-slate-700/50'
+            }`}
+          >
+            {c.icon}
+            <span>{c.label || c.id}</span>
+          </button>
+        ))}
       </div>
 
       <div className="max-w-7xl mx-auto p-4 md:p-6">
-
         {tab === 'Resumo' && (
           <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-2">
-
             {/* KPI CARDS */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
               <StatCard
@@ -389,7 +220,7 @@ export default function Home() {
               />
               <StatCard
                 title="Total Investido"
-                value={money(data?.resumo?.TotalInvestido || 0)}
+                value={money(totalInvestido)}
                 subtext="Custo de Aquisição"
                 icon={PiggyBank}
                 colorClass="text-blue-400"
@@ -419,7 +250,7 @@ export default function Home() {
                 <RiskRadar alertas={data?.alertas || []} />
               </div>
               <div className="lg:col-span-2 h-full">
-                <CategorySummary ativos={data?.ativos || []} categorias={(data as unknown as { categorias?: { name: string; meta: number }[] })?.categorias || []} onUpdate={() => refetch()} />
+                <CategorySummary ativos={data?.ativos || []} categorias={(data as any)?.categorias || []} onUpdate={() => refetch()} />
               </div>
             </div>
 
@@ -428,7 +259,7 @@ export default function Home() {
               <MonteCarloChart />
             </div>
 
-            {/* ATRIBUIÇÃO DE PERFORMANCE — Beta, Alpha, Sharpe, Sortino, Drawdown */}
+            {/* ATRIBUIÇÃO DE PERFORMANCE */}
             <div className="w-full">
               <RiskMetricsPanel />
             </div>
@@ -453,40 +284,14 @@ export default function Home() {
           </div>
         )}
 
-        {/* TABELA DE ATIVOS */}
-        {!['Resumo', 'Evolução', 'Correlação', 'Financeiro'].includes(tab) && (
-          <div className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden shadow-xl animate-in slide-in-from-bottom-4 mt-6">
-            <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-slate-700">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-slate-950/50 text-slate-500 uppercase text-[10px] font-bold tracking-wider border-b border-slate-800">
-                  <tr>
-                    <th className="p-4 pl-6">Ativo</th>
-                    <th className="p-4 text-right">Minha Posição</th>
-                    <th className="p-4 text-right hidden sm:table-cell">Preço</th>
-                    <th className="p-4 text-right">Resultados</th>
-                    <th className="p-4 text-right hidden md:table-cell">Meta</th>
-                    <th className="p-4 text-right">Aporte</th>
-                    {(tab === 'Ação' || tab === 'FII') && <th className="p-4 text-center hidden lg:table-cell w-24">Indicadores</th>}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/50">
-                  {filteredAssets.length > 0 ? filteredAssets.map((ativo, index) => (
-                    <AssetRow
-                      key={ativo.ticker}
-                      ativo={ativo}
-                      tab={tab}
-                      onEdit={(a) => setEditingAsset(a)}
-                      onViewNews={(ticker) => setNewsTicker(ticker)}
-                      onViewDetails={(a) => setSelectedDetailsAsset(a)}
-                      index={index}
-                      total={filteredAssets.length}
-                    />
-                  )) : <tr><td colSpan={7} className="p-8 text-center text-slate-500">Nenhum ativo encontrado.</td></tr>}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
+        {/* TABELA DE ATIVOS EXTRAÍDA */}
+        <AssetsTable
+          assets={filteredAssets}
+          tab={tab}
+          onEdit={(a) => setEditingAsset(a)}
+          onViewNews={(ticker) => setNewsTicker(ticker)}
+          onViewDetails={(a) => setSelectedDetailsAsset(a)}
+        />
 
         <EditModal isOpen={!!editingAsset} onClose={() => setEditingAsset(null)} onSave={() => refetch()} ativo={editingAsset} allAssets={data?.ativos || []} />
         <AddAssetModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onSuccess={() => refetch()} />
@@ -504,24 +309,24 @@ export default function Home() {
           asset={selectedDetailsAsset}
         />
 
-        {/* 🔮 WIDGET FLUTUANTE DE PROGRESSO REAL-TIME CVM */}
+        {/* WIDGET FLUTUANTE DE PROGRESSO REAL-TIME CVM */}
         {syncingReports && (
           <div className="fixed bottom-5 left-5 z-50 flex items-center gap-3 px-4 py-3 rounded-xl bg-purple-950/90 border border-purple-500/50 text-purple-200 shadow-[0_0_25px_rgba(147,51,234,0.3)] transition-all duration-300 animate-in slide-in-from-left-10 fade-in backdrop-blur-sm">
             <RefreshCw size={18} className="text-purple-400 animate-spin" />
             <div className="flex flex-col">
               <span className="text-[10px] font-bold uppercase tracking-wider text-purple-400">Inteligência Operando</span>
-              <span className="text-xs font-semibold text-slate-100 tabular-nums">{syncMessage || 'Processando lote de dados...'}</span>
+              <span className="text-xs font-semibold text-slate-100 tabular-nums">{syncStatus.message || 'Processando lote de dados...'}</span>
             </div>
           </div>
         )}
 
-        {/* 🧠 WIDGET FLUTUANTE DE FUNDAMENTOS REAL-TIME YAHOO (OPÇÃO 2) */}
+        {/* WIDGET FLUTUANTE DE FUNDAMENTOS REAL-TIME YAHOO */}
         {updatingFundamentals && (
           <div className={`fixed ${syncingReports ? 'bottom-24' : 'bottom-5'} left-5 z-50 flex items-center gap-3 px-4 py-3 rounded-xl bg-emerald-950/90 border border-emerald-500/50 text-emerald-200 shadow-[0_0_25px_rgba(16,185,129,0.3)] transition-all duration-300 animate-in slide-in-from-left-10 fade-in backdrop-blur-sm`}>
             <Brain size={18} className="text-emerald-400 animate-pulse" />
             <div className="flex flex-col">
               <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Valuation & Múltiplos</span>
-              <span className="text-xs font-semibold text-slate-100">{fundamentalsMessage || 'Conectando ao Yahoo Finance...'}</span>
+              <span className="text-xs font-semibold text-slate-100">{fundamentalsStatus.message || 'Conectando ao Yahoo Finance...'}</span>
             </div>
           </div>
         )}
@@ -548,8 +353,6 @@ export default function Home() {
         <div className="text-center text-[10px] text-slate-600 mt-12 mb-4">AssetFlow v7.5 (Neon Edition)</div>
       </div>
 
-      {/* 🔧 CORREÇÃO: Os modais globais foram movidos para antes do fechamento do </main> */}
-      {/* MODAIS GLOBAIS */}
       {isIfModalOpen && (
         <IncomeProjectionModal onClose={() => setIsIfModalOpen(false)} />
       )}

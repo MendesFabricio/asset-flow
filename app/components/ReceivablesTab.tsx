@@ -43,6 +43,7 @@ export const ReceivablesTab = () => {
     const [val, setVal] = useState('');
     const [parc, setParc] = useState('1');
     const [who, setWho] = useState('');
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
     const fetchItems = async () => {
         // ⚡ OTIMIZAÇÃO DE REDE: Substituído localhost estático pela constante dinâmica
@@ -61,8 +62,8 @@ export const ReceivablesTab = () => {
         return acc + (parcelasRestantes * item.valor_parcela);
     }, 0);
 
-    const openNewModal = () => { setEditingId(null); setDesc(''); setVal(''); setParc('1'); setWho(''); setIsModalOpen(true); };
-    const handleEdit = (item: ReceivableItem) => { setEditingId(item.id); setDesc(item.descricao); setVal(item.valor_total.toString()); setParc(item.total_parcelas.toString()); setWho(item.devedor); setIsModalOpen(true); };
+    const openNewModal = () => { setEditingId(null); setDesc(''); setVal(''); setParc('1'); setWho(''); setShowDeleteConfirm(false); setIsModalOpen(true); };
+    const handleEdit = (item: ReceivableItem) => { setEditingId(item.id); setDesc(item.descricao); setVal(item.valor_total.toString()); setParc(item.total_parcelas.toString()); setWho(item.devedor); setShowDeleteConfirm(false); setIsModalOpen(true); };
 
     const handleSave = async () => {
         if (!desc || !val || !who) return alert("Preencha todos os campos.");
@@ -74,7 +75,7 @@ export const ReceivablesTab = () => {
     };
 
     const handleDelete = async () => {
-        if (!editingId || !confirm("Excluir permanentemente?")) return;
+        if (!editingId) return;
         // ⚡ Rota dinâmica parametrizada
         await fetch(`${API_BASE_URL}/api/finance/receivables/${editingId}`, { method: 'DELETE' });
         setIsModalOpen(false); fetchItems();
@@ -261,7 +262,36 @@ export const ReceivablesTab = () => {
                             <div><label className="text-[11px] text-slate-400 uppercase font-bold pl-1 mb-1 block">Quem deve?</label><input placeholder="Ex: Pai..." className="w-full bg-slate-950 border border-slate-800 p-3 rounded-lg text-white outline-none focus:border-blue-500 transition-colors" value={who} onChange={e => setWho(e.target.value)} /></div>
                         </div>
                         <div className="flex gap-3 pt-2 border-t border-slate-800/50 mt-4">
-                            {editingId && <button type="button" onClick={handleDelete} className="bg-red-500/10 hover:bg-red-500/20 text-red-500 p-3 rounded-lg font-bold border border-red-500/20 transition-colors flex items-center justify-center gap-2"><Trash2 size={18} /> <span className="hidden sm:inline">Excluir</span></button>}
+                            {editingId && (
+                                showDeleteConfirm ? (
+                                    <div className="flex items-center gap-2 bg-rose-950/20 p-2 rounded-lg border border-rose-500/20">
+                                        <span className="text-[10px] font-bold text-rose-500 uppercase tracking-widest animate-pulse">Excluir?</span>
+                                        <button
+                                            type="button"
+                                            onClick={handleDelete}
+                                            className="bg-rose-600 hover:bg-rose-500 text-white px-2.5 py-1.5 rounded text-[10px] font-bold uppercase tracking-widest transition-all"
+                                        >
+                                            Sim
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowDeleteConfirm(false)}
+                                            className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1.5 rounded text-[10px] font-bold uppercase tracking-widest transition-all"
+                                        >
+                                            Não
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowDeleteConfirm(true)}
+                                        className="bg-red-500/10 hover:bg-red-500/20 text-red-500 p-3 rounded-lg font-bold border border-red-500/20 transition-colors flex items-center justify-center gap-2"
+                                    >
+                                        <Trash2 size={18} />
+                                        <span className="hidden sm:inline">Excluir</span>
+                                    </button>
+                                )
+                            )}
                             <button type="button" onClick={handleSave} className="flex-1 bg-blue-600 hover:bg-blue-500 text-white p-3 rounded-lg font-bold shadow-lg shadow-blue-900/20 transition-all flex items-center justify-center gap-2"><CheckCircle size={18} /> {editingId ? 'Salvar' : 'Criar'}</button>
                         </div>
                     </div>

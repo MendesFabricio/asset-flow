@@ -65,6 +65,7 @@ export const EditModal = ({ isOpen, onClose, onSave, ativo, allAssets = [] }: Ed
   });
 
   const [loading, setLoading] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Lógica de mercado
   const isMarketTicker = (ticker: string) => {
@@ -91,6 +92,7 @@ export const EditModal = ({ isOpen, onClose, onSave, ativo, allAssets = [] }: Ed
         manual_vpa: ativo.manual_vpa || 0,
         manual_price: Number(ativo.preco_atual) || 0
       });
+      setShowDeleteConfirm(false);
     }
   }, [ativo, isOpen]);
 
@@ -145,7 +147,7 @@ export const EditModal = ({ isOpen, onClose, onSave, ativo, allAssets = [] }: Ed
   };
 
   const handleDelete = async () => {
-    if (!ativo || !window.confirm(`Excluir ${ativo.ticker}?`)) return;
+    if (!ativo) return;
     setLoading(true);
     try {
       await apiCall('/api/delete_asset', {
@@ -234,10 +236,36 @@ export const EditModal = ({ isOpen, onClose, onSave, ativo, allAssets = [] }: Ed
         </div>
 
         <div className="bg-slate-900/80 p-5 border-t border-slate-800 flex justify-between items-center">
-          <button type="button" onClick={handleDelete} disabled={loading} className="text-rose-500 hover:text-rose-400 p-2.5 hover:bg-rose-500/10 rounded-xl transition-all flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest disabled:opacity-50">
-            <Trash2 size={16} />
-            <span>Excluir</span>
-          </button>
+          {showDeleteConfirm ? (
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold text-rose-500 uppercase tracking-widest animate-pulse">Confirmar?</span>
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={loading}
+                className="bg-rose-600 hover:bg-rose-500 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all"
+              >
+                Sim
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(false)}
+                className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all"
+              >
+                Não
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowDeleteConfirm(true)}
+              disabled={loading}
+              className="text-rose-500 hover:text-rose-400 p-2.5 hover:bg-rose-500/10 rounded-xl transition-all flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest disabled:opacity-50"
+            >
+              <Trash2 size={16} />
+              <span>Excluir</span>
+            </button>
+          )}
           <div className="flex gap-4">
             <button type="button" onClick={onClose} className="px-5 py-2.5 text-[10px] font-bold text-slate-500 hover:text-white uppercase tracking-widest">Cancelar</button>
             <button type="button" onClick={handleSave} disabled={loading} className="px-6 py-2.5 text-[10px] font-bold bg-blue-600 hover:bg-blue-500 text-white rounded-xl flex items-center gap-2 shadow-lg shadow-blue-900/20 uppercase tracking-widest disabled:opacity-50">
