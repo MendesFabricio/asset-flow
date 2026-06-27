@@ -1,3 +1,4 @@
+import React from 'react';
 import { LucideIcon, ArrowUpRight, TrendingUp, TrendingDown } from 'lucide-react';
 import { formatMoney } from '../utils'; // Importar formatMoney
 
@@ -17,7 +18,7 @@ interface StatCardProps {
   dailyResult?: number;
 }
 
-export const StatCard = ({
+export const StatCard = React.memo(({
   title,
   value,
   subtext,
@@ -120,4 +121,6 @@ export const StatCard = ({
       </div>
     </div>
   );
-};
+});
+
+StatCard.displayName = 'StatCard';

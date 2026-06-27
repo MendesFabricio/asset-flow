@@ -28,31 +28,22 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 
-from database.models import init_db
+from database.models import init_db, DatabaseStateProxy, get_sync_state_db
 init_db()
 
 app = Flask(__name__)
 CORS(app)
 
-# 🧠 MÁQUINA DE ESTADO GLOBAL: Controla o progresso real da sincronia em segundo plano
-# 🔒 FIX 1.4: Lock protege leituras compostas (TOCTOU) em ambiente multi-thread
-_sync_lock = threading.Lock()
-SYNC_STATE = {
-    "status": "idle",      # "idle" | "processing" | "success" | "error"
-    "progress": 0,
-    "total": 0,
-    "message": "Sistema pronto."
-}
+# 🧠 MÁQUINA DE ESTADO PERSISTENTE: Controla o progresso real da sincronia em SQLite (stateless)
+SYNC_STATE = DatabaseStateProxy("cvm_sync")
 
 def _update_sync_state(**kwargs):
-    """Atualiza o SYNC_STATE de forma atômica, protegida pelo lock."""
-    with _sync_lock:
-        SYNC_STATE.update(kwargs)
+    """Atualiza o SYNC_STATE de forma persistente."""
+    SYNC_STATE.update(kwargs)
 
 def _get_sync_state() -> dict:
-    """Retorna uma cópia snapshot do SYNC_STATE (thread-safe)."""
-    with _sync_lock:
-        return dict(SYNC_STATE)
+    """Retorna o status atual da sincronia."""
+    return get_sync_state_db("cvm_sync")
 
 @app.errorhandler(Exception)
 def handle_global_exception(e):
@@ -171,10 +162,11 @@ def async_sync_worker(flask_app):
 
         # Aguarda 5 segundos no estado de sucesso para o usuário ver a mensagem e limpa para "idle"
         time.sleep(5)
-        with _sync_lock:
-            if SYNC_STATE["status"] == "success":
-                SYNC_STATE["status"] = "idle"
-                SYNC_STATE["message"] = "Sistema pronto."
+        if SYNC_STATE.get("status") == "success":
+            SYNC_STATE.update({
+                "status": "idle",
+                "message": "Sistema pronto."
+            })
 
     except Exception as e:
         logging.error(f"❌ Erro catastrófico na esteira em background: {str(e)}", exc_info=True)
@@ -191,21 +183,20 @@ def get_sync_status():
 @app.route('/api/sync-reports', methods=['POST'])
 def sync_reports():
     try:
-        # 🛡️ TRAVA CONCORRENTE: Impede o usuário de disparar duas esteiras ao mesmo tempo
-        # 🔒 FIX 1.4: Leitura+comparação protegidas pelo lock (eliminando TOCTOU)
-        with _sync_lock:
-            if SYNC_STATE["status"] == "processing":
-                return jsonify({
-                    "status": "Aviso",
-                    "msg": "Uma sincronização já está em andamento. Aguarde a conclusão."
-                }), 409
-            # Prepara a máquina de estados atomicamente dentro do lock
-            SYNC_STATE.update({
-                "status": "processing",
-                "progress": 0,
-                "total": 0,
-                "message": "Iniciando barramento de sincronização assíncrona..."
-            })
+        # Trava atômica no banco de dados para evitar múltiplas execuções simultâneas
+        if SYNC_STATE.get("status") == "processing":
+            return jsonify({
+                "status": "Aviso",
+                "msg": "Uma sincronização já está em andamento. Aguarde a conclusão."
+            }), 409
+        
+        # Prepara a máquina de estados no banco
+        SYNC_STATE.update({
+            "status": "processing",
+            "progress": 0,
+            "total": 0,
+            "message": "Iniciando barramento de sincronização assíncrona..."
+        })
 
         logging.info("🚀 Gatilho manual disparado. Resetando máquina de estados e iniciando threads...")
 

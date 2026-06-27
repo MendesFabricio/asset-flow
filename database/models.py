@@ -13,7 +13,6 @@ def set_sqlite_pragmas(dbapi_connection, connection_record):
     # Integridade referencial física
     cursor.execute("PRAGMA foreign_keys=ON")
     # WAL Mode: permite múltiplos leitores simultâneos com um escritor ativo.
-    # Elimina a maior fonte de 'database is locked' em ambiente multi-thread.
     cursor.execute("PRAGMA journal_mode=WAL")
     # NORMAL é seguro com WAL e significativamente mais rápido que FULL
     cursor.execute("PRAGMA synchronous=NORMAL")
@@ -140,17 +139,12 @@ class Receivable(Base):
 
 class PriceAlert(Base):
     """
-    Alertas de preço configuráveis pelo usuário.
-
-    condition: 'ABOVE' → dispara quando price >= target_price
-               'BELOW' → dispara quando price <= target_price (stop-loss)
-    is_active:  False após disparo (preserva histórico)
-    triggered_at: timestamp do disparo
+    Alertas de preço configuráveis pelo usuário (3FN).
     """
     __tablename__ = "price_alerts"
 
     id = Column(Integer, primary_key=True, index=True)
-    ticker = Column(String, nullable=False, index=True)
+    asset_id = Column(Integer, ForeignKey('assets.id', ondelete="CASCADE"), nullable=False, index=True)
     target_price = Column(Float, nullable=False)
     condition = Column(String, nullable=False, default="ABOVE")  # "ABOVE" | "BELOW"
     note = Column(String, default="")           # Anotação livre do usuário
@@ -158,26 +152,34 @@ class PriceAlert(Base):
     created_at = Column(DateTime, default=datetime.now)
     triggered_at = Column(DateTime, nullable=True)
 
+    asset = relationship("Asset")
+
+class SyncState(Base):
+    """
+    Tabela persistente de progresso e estado para jobs de background (stateless backend).
+    """
+    __tablename__ = "sync_states"
+
+    key = Column(String, primary_key=True, index=True)  # ex: "cvm_sync", "yahoo_sync"
+    status = Column(String, default="idle")  # "idle" | "processing" | "success" | "error"
+    progress = Column(Integer, default=0)
+    total = Column(Integer, default=0)
+    message = Column(String, default="Sistema pronto.")
+    updated_at = Column(DateTime, default=datetime.now)
+
 # Configuração do Banco
 # ─────────────────────────────────────────────────────────────────────────────
-# check_same_thread=False: obrigatório para uso cross-thread (gerenciado pelo
-# scoped_session em services.py, que garante sessões isoladas por thread).
-# pool_pre_ping=True: valida conexões do pool antes de reutilizar, descartando
-# conexões zumbis que causariam erros silenciosos após idle do banco.
-# ─────────────────────────────────────────────────────────────────────────────
 engine = create_engine(
-    'sqlite:////app/database/assetflow.db',
+    'sqlite:////app/data/assetflow.db',
     echo=False,
     connect_args={
         "check_same_thread": False,
-        "timeout": 30,          # Busy timeout de 30s como fallback adicional ao PRAGMA
+        "timeout": 30,
     },
-    pool_pre_ping=True,         # Descarta conexões mortas antes de reutilizá-las
+    pool_pre_ping=True,
 )
 
 # NOTA: Session canônico (scoped_session thread-safe) vive em services.py.
-# Este re-export existe por compatibilidade com routes que ainda importam de models.
-# Lazy import evita circular dependency (services → models → services).
 def _get_session():
     from services import Session as _Session
     return _Session
@@ -192,23 +194,200 @@ class _SessionProxy:
         return _get_session().remove()
 
 Session = _SessionProxy()
+from sqlalchemy.orm import sessionmaker
+_local_session_factory = sessionmaker(bind=engine)
+
+def update_sync_state_db(key: str, **kwargs):
+    from datetime import datetime
+    session = _local_session_factory()
+    try:
+        state = session.query(SyncState).filter_by(key=key).first()
+        if not state:
+            state = SyncState(key=key)
+            session.add(state)
+        for k, v in kwargs.items():
+            setattr(state, k, v)
+        state.updated_at = datetime.now()
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        import logging
+        logging.error(f"❌ Erro ao atualizar SyncState {key} no banco: {e}")
+    finally:
+        session.close()
+
+def get_sync_state_db(key: str) -> dict:
+    session = _local_session_factory()
+    try:
+        state = session.query(SyncState).filter_by(key=key).first()
+        if not state:
+            return {
+                "status": "idle",
+                "progress": 0,
+                "total": 0,
+                "message": "Sistema pronto."
+            }
+        return {
+            "status": state.status,
+            "progress": state.progress,
+            "total": state.total,
+            "message": state.message
+        }
+    except Exception as e:
+        import logging
+        logging.error(f"❌ Erro ao buscar SyncState {key} no banco: {e}")
+        return {
+            "status": "error",
+            "progress": 0,
+            "total": 0,
+            "message": f"Erro: {e}"
+        }
+    finally:
+        session.close()
+
+class DatabaseStateProxy:
+    def __init__(self, key):
+        self.key = key
+
+    def __setitem__(self, k, v):
+        update_sync_state_db(self.key, **{k: v})
+
+    def update(self, d):
+        update_sync_state_db(self.key, **d)
+
+    def get(self, k, default=None):
+        return get_sync_state_db(self.key).get(k, default)
 
 def init_db():
+    import os
+    import shutil
+    import logging
+    import sqlite3
+    
+    db_path = '/app/data/assetflow.db'
+    init_src = '/app/server/assetflow.db'
+    
+    db_vazia = True
+    if os.path.exists(db_path) and os.path.getsize(db_path) > 100:
+        try:
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='categories'")
+            has_table = cursor.fetchone()
+            if has_table:
+                cursor.execute("SELECT COUNT(*) FROM categories")
+                count = cursor.fetchone()[0]
+                if count > 0:
+                    db_vazia = False
+            conn.close()
+        except Exception:
+            pass
+
+    if db_vazia and os.path.exists(init_src):
+        logging.info("🚚 Banco de dados no volume nomeado vazio ou inexistente. Restaurando do backup populado em /app/server...")
+        try:
+            os.makedirs(os.path.dirname(db_path), exist_ok=True)
+            for ext in ['', '-shm', '-wal']:
+                p = db_path + ext
+                if os.path.exists(p):
+                    os.remove(p)
+            shutil.copyfile(init_src, db_path)
+            for ext in ['-shm', '-wal']:
+                src_ext = init_src + ext
+                dst_ext = db_path + ext
+                if os.path.exists(src_ext):
+                    shutil.copyfile(src_ext, dst_ext)
+            logging.info("✅ Banco de dados restaurado com sucesso no volume!")
+        except Exception as e:
+            logging.error(f"❌ Falha ao copiar banco de dados inicial: {e}")
+
     Base.metadata.create_all(engine)
-    # Schema upgrade helper to dynamically add columns to existing sqlite database
     from sqlalchemy import inspect, text
     try:
         inspector = inspect(engine)
-        columns = [col['name'] for col in inspector.get_columns('assets')]
+        
+        # Migração das colunas de IA na tabela assets
+        columns_assets = [col['name'] for col in inspector.get_columns('assets')]
         with engine.begin() as conn:
-            if 'ai_summary' not in columns:
+            if 'ai_summary' not in columns_assets:
                 conn.execute(text("ALTER TABLE assets ADD COLUMN ai_summary TEXT"))
-            if 'ai_sentiment' not in columns:
+            if 'ai_sentiment' not in columns_assets:
                 conn.execute(text("ALTER TABLE assets ADD COLUMN ai_sentiment TEXT"))
-            if 'ai_status' not in columns:
-                conn.execute(text( "ALTER TABLE assets ADD COLUMN ai_status TEXT DEFAULT 'idle'"))
-            if 'ai_updated_at' not in columns:
+            if 'ai_status' not in columns_assets:
+                conn.execute(text("ALTER TABLE assets ADD COLUMN ai_status TEXT DEFAULT 'idle'"))
+            if 'ai_updated_at' not in columns_assets:
                 conn.execute(text("ALTER TABLE assets ADD COLUMN ai_updated_at DATETIME"))
+                
+        # Migração estrutural da tabela price_alerts de ticker para asset_id (3FN)
+        has_old = inspector.has_table('old_price_alerts')
+        has_new = inspector.has_table('price_alerts')
+        
+        if has_old:
+            logging.info("⚙️ Continuando migração 3FN interrompida anteriormente...")
+            with engine.begin() as conn:
+                conn.execute(text("DROP INDEX IF EXISTS ix_price_alerts_id"))
+                conn.execute(text("DROP INDEX IF EXISTS ix_price_alerts_ticker"))
+            
+            Base.metadata.create_all(engine)
+            
+            with engine.begin() as conn:
+                old_alerts = conn.execute(text("SELECT id, ticker, target_price, condition, note, is_active, created_at, triggered_at FROM old_price_alerts")).fetchall()
+                for r in old_alerts:
+                    oid, ticker, target, cond, note, active, created, triggered = r
+                    row_asset = conn.execute(text("SELECT id FROM assets WHERE ticker = :ticker"), {"ticker": ticker.strip().upper()}).fetchone()
+                    if row_asset:
+                        asset_id = row_asset[0]
+                        exists = conn.execute(text("SELECT 1 FROM price_alerts WHERE id = :id"), {"id": oid}).fetchone()
+                        if not exists:
+                            conn.execute(text("""
+                                INSERT INTO price_alerts (id, asset_id, target_price, condition, note, is_active, created_at, triggered_at)
+                                VALUES (:id, :asset_id, :target_price, :condition, :note, :is_active, :created_at, :triggered_at)
+                            """), {
+                                "id": oid,
+                                "asset_id": asset_id,
+                                "target_price": target,
+                                "condition": cond,
+                                "note": note,
+                                "is_active": active,
+                                "created_at": created,
+                                "triggered_at": triggered
+                            })
+                conn.execute(text("DROP TABLE old_price_alerts"))
+            logging.info("✅ Tabela de alertas de preço recuperada e migrada com sucesso!")
+            
+        elif has_new:
+            columns_alerts = [col['name'] for col in inspector.get_columns('price_alerts')]
+            if 'asset_id' not in columns_alerts:
+                logging.info("⚙️ Detectada tabela de alertas de preço antiga. Iniciando migração 3FN...")
+                
+                with engine.begin() as conn:
+                    conn.execute(text("DROP INDEX IF EXISTS ix_price_alerts_id"))
+                    conn.execute(text("DROP INDEX IF EXISTS ix_price_alerts_ticker"))
+                    conn.execute(text("ALTER TABLE price_alerts RENAME TO old_price_alerts"))
+                
+                Base.metadata.create_all(engine)
+                
+                with engine.begin() as conn:
+                    old_alerts = conn.execute(text("SELECT id, ticker, target_price, condition, note, is_active, created_at, triggered_at FROM old_price_alerts")).fetchall()
+                    for r in old_alerts:
+                        oid, ticker, target, cond, note, active, created, triggered = r
+                        row_asset = conn.execute(text("SELECT id FROM assets WHERE ticker = :ticker"), {"ticker": ticker.strip().upper()}).fetchone()
+                        if row_asset:
+                            asset_id = row_asset[0]
+                            conn.execute(text("""
+                                INSERT INTO price_alerts (id, asset_id, target_price, condition, note, is_active, created_at, triggered_at)
+                                VALUES (:id, :asset_id, :target_price, :condition, :note, :is_active, :created_at, :triggered_at)
+                            """), {
+                                "id": oid,
+                                "asset_id": asset_id,
+                                "target_price": target,
+                                "condition": cond,
+                                "note": note,
+                                "is_active": active,
+                                "created_at": created,
+                                "triggered_at": triggered
+                            })
+                    conn.execute(text("DROP TABLE old_price_alerts"))
+                logging.info("✅ Tabela de alertas de preço migrada com sucesso para 3FN!")
     except Exception as e:
-        import logging
-        logging.warning(f"⚠️ Erro ao atualizar schema para colunas de IA: {e}")
+        logging.warning(f"⚠️ Erro ao atualizar schema do banco: {e}")

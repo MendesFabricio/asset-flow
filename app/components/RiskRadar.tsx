@@ -1,4 +1,5 @@
 'use client';
+import React from 'react';
 import { 
   Siren, 
   Sparkles, 
@@ -10,7 +11,7 @@ import {
 import { Badge } from './ui/Badge';
 import { Card } from './ui/Card';
 
-export const RiskRadar = ({ alertas }: { alertas: string[] }) => {
+export const RiskRadar = React.memo(({ alertas }: { alertas: string[] }) => {
   
   const analyzeAlert = (text: string) => {
     const t = text.toLowerCase();
@@ -85,4 +86,6 @@ export const RiskRadar = ({ alertas }: { alertas: string[] }) => {
       </div>
     </Card>
   );
-};
+});
+
+RiskRadar.displayName = 'RiskRadar';

@@ -64,7 +64,23 @@ def get_news(ticker):
 
             if should_trigger and news_list:
                 titles = [n["title"] for n in news_list]
-                analyze_asset_sentiment_async(asset.ticker, titles)
+                
+                # Coleta dados estruturados da posição para repassar à IA
+                pos_qty = 0.0
+                pos_avg = 0.0
+                pos_target = 0.0
+                if asset.position:
+                    pos_qty = float(asset.position.quantity or 0.0)
+                    pos_avg = float(asset.position.average_price or 0.0)
+                    pos_target = float(asset.position.target_percent or 0.0)
+                
+                position_info = {
+                    "quantity": pos_qty,
+                    "average_price": pos_avg,
+                    "target_percent": pos_target
+                }
+                
+                analyze_asset_sentiment_async(asset.ticker, titles, position_info)
                 asset.ai_status = "processing"
                 session.commit()
             elif should_trigger:

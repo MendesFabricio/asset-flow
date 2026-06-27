@@ -39,7 +39,7 @@ def list_price_alerts():
             "alerts": [
                 {
                     "id": a.id,
-                    "ticker": a.ticker,
+                    "ticker": a.asset.ticker if a.asset else "DESCONHECIDO",
                     "target_price": a.target_price,
                     "condition": a.condition,
                     "note": a.note or "",
@@ -76,8 +76,13 @@ def create_price_alert():
         if condition not in ("ABOVE", "BELOW"):
             return jsonify({"status": "Erro", "msg": "Condition deve ser ABOVE ou BELOW."}), 400
 
+        # Resolve o asset pelo ticker para manter 3FN no banco
+        asset = session.query(Asset).filter_by(ticker=ticker).first()
+        if not asset:
+            return jsonify({"status": "Erro", "msg": f"Ativo {ticker} não cadastrado na carteira."}), 400
+
         alert = PriceAlert(
-            ticker=ticker,
+            asset_id=asset.id,
             target_price=target_price,
             condition=condition,
             note=note,
@@ -137,7 +142,7 @@ def price_alerts_history():
             "history": [
                 {
                     "id": a.id,
-                    "ticker": a.ticker,
+                    "ticker": a.asset.ticker if a.asset else "DESCONHECIDO",
                     "target_price": a.target_price,
                     "condition": a.condition,
                     "note": a.note or "",
@@ -172,8 +177,8 @@ def check_price_alerts() -> list[dict]:
     session = Session()
     triggered = []
     try:
-        # Carrega apenas alertas ativos
-        active_alerts = session.query(PriceAlert).filter_by(is_active=True).all()
+        # Carrega apenas alertas ativos realizando join com Asset
+        active_alerts = session.query(PriceAlert).join(Asset).filter(PriceAlert.is_active == True).all()
         if not active_alerts:
             return []
 
@@ -190,7 +195,10 @@ def check_price_alerts() -> list[dict]:
                 price_map[ticker.strip().upper().replace(".SA", "")] = float(price)
 
         for alert in active_alerts:
-            current_price = price_map.get(alert.ticker.upper().replace(".SA", ""))
+            ticker_name = alert.asset.ticker if alert.asset else None
+            if not ticker_name:
+                continue
+            current_price = price_map.get(ticker_name.upper().replace(".SA", ""))
             if current_price is None:
                 continue  # Ativo não rastreado ainda — aguarda próximo update
 
@@ -204,7 +212,7 @@ def check_price_alerts() -> list[dict]:
                 alert.is_active = False
                 alert.triggered_at = datetime.now()
                 triggered_info = {
-                    "ticker": alert.ticker,
+                    "ticker": ticker_name,
                     "condition": alert.condition,
                     "target_price": alert.target_price,
                     "current_price": current_price,
@@ -214,7 +222,7 @@ def check_price_alerts() -> list[dict]:
                 triggered.append(triggered_info)
                 _triggered_alerts_buffer.append(triggered_info)
                 logging.info(
-                    f"🔔 ALERTA DISPARADO: {alert.ticker} {alert.condition} "
+                    f"🔔 ALERTA DISPARADO: {ticker_name} {alert.condition} "
                     f"R$ {alert.target_price:.2f} (atual: R$ {current_price:.2f}) — {alert.note}"
                 )
 
