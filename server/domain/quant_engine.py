@@ -171,7 +171,15 @@ def run_monte_carlo(session, fetch_prices, days: int = 252, simulations: int = 1
 
     port_ret = float(np.sum(mean_ret * w))
     port_vol = float(np.sqrt(np.dot(w.T, np.dot(cov, w))))
-    port_vol = min(port_vol, 1.50 / np.sqrt(days))
+    
+    # 🛡️ Proteção quantitativa: ignora cap artificial se houver Cripto na carteira
+    has_crypto = any(
+        (pos.asset.category.name if pos.asset.category else "") in ["Cripto", "Criptomoeda"]
+        for pos in positions if pos.asset
+    )
+    if not has_crypto:
+        port_vol = min(port_vol, 1.50 / np.sqrt(days))
+        
     dt = 1.0 / days
     lambda_jump = 0.5    # Média de 0.5 quedas/saltos por ano
     mu_jump = -0.10      # Queda média de 10% no salto

@@ -5,8 +5,7 @@ import { Asset } from '../types';
 import { usePrivacy } from '../context/PrivacyContext';
 import { PieChart, Pencil, X, Save, AlertCircle, AlertTriangle, TrendingUp, TrendingDown, Ban, CheckCircle2, DollarSign } from 'lucide-react'; // 🧼 Removido 'Lock' que não era usado
 import { Card } from './ui/Card';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+import { apiCall } from '../utils/apiClient';
 
 // ==========================================
 // INTERFACES E TIPAGENS ESTRITAS (NOVAS)
@@ -198,12 +197,10 @@ export const CategorySummary = ({ ativos, categorias = [], onUpdate }: CategoryS
     if (!editingCat) return;
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/api/update_category_meta`, {
+      await apiCall('/api/update_category_meta', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ category: editingCat.name, meta: Number(newMeta) }),
       });
-      if (!response.ok) throw new Error('Falha ao atualizar meta');
       setEditingCat(null);
       onUpdate();
     } catch (error) {

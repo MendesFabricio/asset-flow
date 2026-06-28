@@ -2,6 +2,7 @@
 import { Fragment, useState } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { X, Plus, Search, AlertCircle } from 'lucide-react';
+import { apiCall } from '../utils/apiClient';
 // Importação dos componentes do seu novo UI Kit
 import { Card } from './ui/Card';
 import { Badge } from './ui/Badge';
@@ -54,12 +55,10 @@ export const AddAssetModal = ({ isOpen, onClose, onSuccess }: AddAssetModalProps
 
     try {
       // 3. Validação do Ticker higienizado no Yahoo Finance via Backend
-      const valRes = await fetch('http://localhost:5328/api/validate_ticker', {
+      const valData = await apiCall<{ valid: boolean; ticker: string }>('/api/validate_ticker', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ticker: sanitizedTicker })
       });
-      const valData = await valRes.json();
 
       if (!valData.valid) {
         setError(`Ticker "${sanitizedTicker}" não encontrado no Yahoo Finance.`);
@@ -69,9 +68,8 @@ export const AddAssetModal = ({ isOpen, onClose, onSuccess }: AddAssetModalProps
 
       // 4. Envia os dados limpos e tipados para o Banco de Dados
       setLoading(true);
-      const saveRes = await fetch('http://localhost:5328/api/add_asset', {
+      const saveData = await apiCall<{ status: string; msg?: string }>('/api/add_asset', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ticker: valData.ticker.trim().toUpperCase(), // Garante formatação vinda do backend
           category: formData.type,
@@ -80,8 +78,6 @@ export const AddAssetModal = ({ isOpen, onClose, onSuccess }: AddAssetModalProps
           meta: Number(formData.target_percent)
         }),
       });
-
-      const saveData = await saveRes.json();
 
       if (saveData.status === 'Sucesso') {
         setFormData(initialState);
