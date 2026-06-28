@@ -197,41 +197,32 @@ class SyncState(Base):
     message = Column(String, default="Sistema pronto.")
     updated_at = Column(DateTime, default=datetime.now)
 
-# Configuração do Banco
-# ─────────────────────────────────────────────────────────────────────────────
-engine = create_engine(
-    'sqlite:////app/data/assetflow.db',
-    echo=False,
-    connect_args={
-        "check_same_thread": False,
-        "timeout": 30,
-    },
-    pool_pre_ping=True,
-)
+class SystemCache(Base):
+    """
+    Tabela persistente de cache chave-valor (para briefing de IA e caches do sistema).
+    """
+    __tablename__ = "system_caches"
 
-@event.listens_for(engine, "connect")
-def set_sqlite_pragma(dbapi_connection, connection_record):
-    cursor = dbapi_connection.cursor()
-    cursor.execute("PRAGMA journal_mode=WAL")
-    cursor.execute("PRAGMA synchronous=NORMAL")
-    cursor.execute("PRAGMA wal_autocheckpoint=1000")
-    cursor.close()
+    key = Column(String, primary_key=True, index=True)
+    value = Column(String, nullable=False)  # JSON string
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
-# NOTA: Session canônico (scoped_session thread-safe) vive em services.py.
-def _get_session():
-    from services import Session as _Session
-    return _Session
+class TriggeredAlert(Base):
+    """
+    Tabela de alertas disparados recentemente aguardando notificação (polling).
+    """
+    __tablename__ = "triggered_alerts"
 
-class _SessionProxy:
-    """Proxy lazy que delega para o scoped_session real de services.py."""
-    def __call__(self):
-        return _get_session()()
-    def __getattr__(self, name):
-        return getattr(_get_session(), name)
-    def remove(self):
-        return _get_session().remove()
+    id = Column(Integer, primary_key=True, index=True)
+    ticker = Column(String, nullable=False)
+    condition = Column(String, nullable=False)
+    target_price = Column(Numeric(18, 4), nullable=False)
+    current_price = Column(Numeric(18, 4), nullable=False)
+    note = Column(String, default="")
+    triggered_at = Column(DateTime, default=datetime.now)
+    is_notified = Column(Boolean, default=False)
 
-Session = _SessionProxy()
+from database.session import engine, Session
 from sqlalchemy.orm import sessionmaker
 _local_session_factory = sessionmaker(bind=engine)
 

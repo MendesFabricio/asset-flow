@@ -20,7 +20,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from services import Session
-from database.models import PriceAlert, MarketData, Asset
+from database.models import PriceAlert, MarketData, Asset, TriggeredAlert, safe_commit
 
 price_alerts_bp = Blueprint('price_alerts', __name__)
 
@@ -161,8 +161,7 @@ def price_alerts_history():
 # JOB DE VERIFICAÇÃO (chamado pelo APScheduler)
 # ─────────────────────────────────────────────────────────────────────────────
 
-# Buffer de alertas disparados para notificação ao frontend via polling
-_triggered_alerts_buffer: list[dict] = []
+# Alertas de preço persistidos em banco via tabela TriggeredAlert
 
 def check_price_alerts() -> list[dict]:
     """
@@ -220,14 +219,26 @@ def check_price_alerts() -> list[dict]:
                     "triggered_at": alert.triggered_at.isoformat(),
                 }
                 triggered.append(triggered_info)
-                _triggered_alerts_buffer.append(triggered_info)
+                
+                # 💾 Persiste o disparo do alerta na tabela do banco
+                db_alert = TriggeredAlert(
+                    ticker=ticker_name,
+                    condition=alert.condition,
+                    target_price=alert.target_price,
+                    current_price=current_price,
+                    note=alert.note or "",
+                    triggered_at=alert.triggered_at,
+                    is_notified=False
+                )
+                session.add(db_alert)
+                
                 logging.info(
                     f"🔔 ALERTA DISPARADO: {ticker_name} {alert.condition} "
                     f"R$ {alert.target_price:.2f} (atual: R$ {current_price:.2f}) — {alert.note}"
                 )
 
         if triggered:
-            session.commit()
+            safe_commit(session)
             logging.info(f"✅ {len(triggered)} alerta(s) de preço disparado(s).")
 
         return triggered
@@ -243,10 +254,27 @@ def check_price_alerts() -> list[dict]:
 @price_alerts_bp.route('/api/price-alerts/notifications', methods=['GET'])
 def get_alert_notifications():
     """
-    Consome e limpa os alertas disparados recentemente (para polling do frontend).
-    Retorna e limpa o buffer em memória de disparos recentes.
+    Consome e limpa os alertas disparados recentemente no banco de dados (para polling do frontend).
     """
-    global _triggered_alerts_buffer
-    notifications = list(_triggered_alerts_buffer)
-    _triggered_alerts_buffer.clear()
-    return jsonify({"status": "Sucesso", "notifications": notifications})
+    session = Session()
+    try:
+        db_alerts = session.query(TriggeredAlert).filter_by(is_notified=False).all()
+        notifications = []
+        for a in db_alerts:
+            notifications.append({
+                "ticker": a.ticker,
+                "condition": a.condition,
+                "target_price": float(a.target_price),
+                "current_price": float(a.current_price),
+                "note": a.note,
+                "triggered_at": a.triggered_at.isoformat()
+            })
+            a.is_notified = True
+        safe_commit(session)
+        return jsonify({"status": "Sucesso", "notifications": notifications})
+    except Exception as e:
+        session.rollback()
+        logging.error(f"❌ Erro ao buscar notificações de alertas: {e}", exc_info=True)
+        return jsonify({"status": "Erro", "msg": str(e)}), 500
+    finally:
+        Session.remove()

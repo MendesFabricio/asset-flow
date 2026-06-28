@@ -7,6 +7,19 @@ import re
 
 alerts_bp = Blueprint('alerts', __name__)
 
+# ⚡ Micro-otimização: make_alert definido no escopo do módulo para evitar re-alocações na execução do loop
+def make_alert(asset, field, type_alert, msg, severity, action=None):
+    return {
+        "id": f"{asset.id}_{field}_{type_alert}",
+        "asset_id": asset.id,
+        "ticker": asset.ticker,
+        "field": field,
+        "type": type_alert,
+        "message": msg,
+        "severity": severity,
+        "action": action
+    }
+
 @alerts_bp.route('/api/alerts', methods=['GET'])
 def get_alerts():
     alerts = []
@@ -33,34 +46,21 @@ def get_alerts():
 
                 current_price = float(mdata.price) if mdata and mdata.price else 0.0
                 change_percent = float(mdata.change_percent) if mdata and mdata.change_percent else 0.0
-                
-                # Helper para criar ID único e evitar colisão no React
-                def make_alert(field, type_alert, msg, severity, action=None):
-                    return {
-                        "id": f"{asset.id}_{field}_{type_alert}",
-                        "asset_id": asset.id,
-                        "ticker": asset.ticker,
-                        "field": field,
-                        "type": type_alert,
-                        "message": msg,
-                        "severity": severity,
-                        "action": action
-                    }
 
                 # =========================================================
                 # 1. ALERTAS DE CADASTRO E SISTEMA (Configuração)
                 # =========================================================
                 if current_price <= 0:
-                    alerts.append(make_alert("price", "CRÍTICO", "Preço zerado. Verifique conexão/ticker.", 5, "refresh"))
+                    alerts.append(make_alert(asset, "price", "CRÍTICO", "Preço zerado. Verifique conexão/ticker.", 5, "refresh"))
 
                 if category == 'Ação' and (not asset.cvm_code or asset.cvm_code == ""):
-                    alerts.append(make_alert("cvm", "CONFIG", "Falta vincular Código CVM (Sync).", 4, "edit"))
+                    alerts.append(make_alert(asset, "cvm", "CONFIG", "Falta vincular Código CVM (Sync).", 4, "edit"))
 
                 if category in ['Ação', 'FII'] and (not asset.cnpj or len(str(asset.cnpj)) < 14):
-                    alerts.append(make_alert("cnpj", "CONFIG", "Falta cadastrar CNPJ (Sync).", 3, "edit"))
+                    alerts.append(make_alert(asset, "cnpj", "CONFIG", "Falta cadastrar CNPJ (Sync).", 3, "edit"))
 
                 if category in ['Ação', 'FII'] and not pos.last_report_type:
-                    alerts.append(make_alert("report", "CONFIG", "Relatórios não sincronizados.", 3, "sync"))
+                    alerts.append(make_alert(asset, "report", "CONFIG", "Relatórios não sincronizados.", 3, "sync"))
 
                 # =========================================================
                 # ALERTA DE RELATÓRIO RECENTE / DADOS NOVOS 🆕
@@ -76,6 +76,7 @@ def get_alerts():
                             if delta.days <= 15:
                                 msg_prefix = "Novo Fato Relevante" if category == 'FII' else "Novo Balanço"
                                 alerts.append(make_alert(
+                                    asset,
                                     "report_new", 
                                     "NOVIDADE", 
                                     f"📄 {msg_prefix} recente ({report_date_str}). Já analisou?", 
@@ -89,25 +90,25 @@ def get_alerts():
                 # 2. ALERTAS DE RISCO FINANCEIRO (Prejuízo, Trap)
                 # =========================================================
                 if category == 'Ação' and pos.manual_lpa is not None and float(pos.manual_lpa) < 0:
-                    alerts.append(make_alert("lpa", "RISCO", f"Empresa com PREJUÍZO (LPA: {float(pos.manual_lpa):.2f}).", 4, "view"))
+                    alerts.append(make_alert(asset, "lpa", "RISCO", f"Empresa com PREJUÍZO (LPA: {float(pos.manual_lpa):.2f}).", 4, "view"))
 
                 if category in ['Ação', 'FII'] and pos.manual_dy is not None and float(pos.manual_dy) > 0.18:
                     dy_pct = float(pos.manual_dy) * 100
-                    alerts.append(make_alert("dy", "RISCO", f"Dividend Trap? DY muito alto ({dy_pct:.1f}%).", 4, "view"))
+                    alerts.append(make_alert(asset, "dy", "RISCO", f"Dividend Trap? DY muito alto ({dy_pct:.1f}%).", 4, "view"))
 
                 if category == 'FII' and pos.manual_vpa is not None and float(pos.manual_vpa) > 0 and current_price > 0:
                     pvp = current_price / float(pos.manual_vpa)
                     if pvp > 1.25:
-                        alerts.append(make_alert("pvp", "ALERTA", f"FII caro (P/VP {pvp:.2f}). Risco de correção.", 3, "view"))
+                        alerts.append(make_alert(asset, "pvp", "ALERTA", f"FII caro (P/VP {pvp:.2f}). Risco de correção.", 3, "view"))
 
                 # =========================================================
                 # 3. ALERTAS DE MERCADO (Volatilidade)
                 # =========================================================
                 if change_percent < -3.0:
-                    alerts.append(make_alert("change", "OPORTUNIDADE", f"Queda forte ({change_percent:.2f}%).", 2, "view"))
+                    alerts.append(make_alert(asset, "change", "OPORTUNIDADE", f"Queda forte ({change_percent:.2f}%).", 2, "view"))
                 
                 if change_percent > 5.0:
-                    alerts.append(make_alert("change", "ALERTA", f"Alta forte ({change_percent:.2f}%).", 2, "view"))
+                    alerts.append(make_alert(asset, "change", "ALERTA", f"Alta forte ({change_percent:.2f}%).", 2, "view"))
 
                 # =========================================================
                 # ALERTAS DE SPLIT/INPLIT (Desdobramento/Grupamento) 📈📉
@@ -115,22 +116,22 @@ def get_alerts():
                 if category in ['Ação', 'FII']:
                     # Split Alert (Desdobramento)
                     if asset.currency == "BRL" and current_price > 120.0:
-                        alerts.append(make_alert("split", "ALERTA", f"Preço alto (R$ {current_price:.2f}). Candidato a desdobramento (Split).", 3, "view"))
+                        alerts.append(make_alert(asset, "split", "ALERTA", f"Preço alto (R$ {current_price:.2f}). Candidato a desdobramento (Split).", 3, "view"))
                     elif asset.currency == "USD" and current_price > 500.0:
-                        alerts.append(make_alert("split", "ALERTA", f"Preço alto ($ {current_price:.2f}). Candidato a desdobramento (Split).", 3, "view"))
+                        alerts.append(make_alert(asset, "split", "ALERTA", f"Preço alto ($ {current_price:.2f}). Candidato a desdobramento (Split).", 3, "view"))
 
                     # Inplit Alert (Grupamento / Penny Stock)
                     if asset.currency == "BRL" and current_price > 0 and current_price < 1.0:
-                        alerts.append(make_alert("inplit", "CRÍTICO", f"Penny stock (R$ {current_price:.2f}). Risco de grupamento obrigatório (Inplit) pela B3.", 5, "view"))
+                        alerts.append(make_alert(asset, "inplit", "CRÍTICO", f"Penny stock (R$ {current_price:.2f}). Risco de grupamento obrigatório (Inplit) pela B3.", 5, "view"))
 
                 # =========================================================
                 # 4. DADOS (Avisos Suaves)
                 # =========================================================
                 if category in ['Ação', 'FII']:
                     if pos.manual_dy is None:
-                        alerts.append(make_alert("dy", "DADOS", "Falta cadastrar DY.", 1, "edit"))
+                        alerts.append(make_alert(asset, "dy", "DADOS", "Falta cadastrar DY.", 1, "edit"))
                     elif float(pos.manual_dy) == 0:
-                        alerts.append(make_alert("dy", "INFO", "DY zerado. Confirme se é intencional.", 1, "edit"))
+                        alerts.append(make_alert(asset, "dy", "INFO", "DY zerado. Confirme se é intencional.", 1, "edit"))
 
             # Ordena: Críticos > Risco > Config > Novidade > Alerta > Info
             alerts.sort(key=lambda x: x["severity"], reverse=True)

@@ -9,18 +9,12 @@ import requests
 import json
 from flask import Blueprint, jsonify
 from services import PortfolioService
-from database.models import Session, Asset, Position, MarketData
+from database.models import Session, Asset, Position, MarketData, SystemCache, safe_commit
 from domain.quant_engine import get_risk_free_rate, _to_yf_ticker
 from infrastructure.ollama_service import OLLAMA_URL, MODEL_NAME
 
 simulation_bp = Blueprint('simulation', __name__)
 service = PortfolioService()
-
-# Cache local simples de 4 horas para o Morning Brief gerado pela IA (evita sobrecarga no Mini-PC)
-_BRIEF_CACHE = {
-    "data": None,
-    "last_updated": 0.0
-}
 
 @simulation_bp.route('/api/simulation/optimize', methods=['GET'])
 def optimize_portfolio():
@@ -68,15 +62,16 @@ def morning_brief():
     ☕ Rota de Briefing Matinal: Combina dados de fechamento, Selic e portfólio real,
     instruindo o Ollama a emitir um sumário estratégico em JSON via Chain of Thought.
     """
-    global _BRIEF_CACHE
-    now = time.time()
-    
-    # 1. Retorna do cache se estiver válido (expiração de 4 horas)
-    if _BRIEF_CACHE["data"] and (now - _BRIEF_CACHE["last_updated"]) < 14400:
-        return jsonify(_BRIEF_CACHE["data"])
-
     session = Session()
     try:
+        # 1. Retorna do cache se estiver válido (expiração de 4 horas)
+        from datetime import datetime, timedelta
+        cache_record = session.query(SystemCache).filter_by(key="morning_brief").first()
+        if cache_record:
+            age = datetime.now() - cache_record.updated_at
+            if age < timedelta(hours=4):
+                return jsonify(json.loads(cache_record.value))
+
         selic = get_risk_free_rate()
         
         # Coleta as maiores posições da carteira
@@ -146,8 +141,13 @@ def morning_brief():
                 }
                 
                 # Atualiza cache
-                _BRIEF_CACHE["data"] = brief_data
-                _BRIEF_CACHE["last_updated"] = now
+                cache_record = session.query(SystemCache).filter_by(key="morning_brief").first()
+                if not cache_record:
+                    cache_record = SystemCache(key="morning_brief")
+                    session.add(cache_record)
+                cache_record.value = json.dumps(brief_data)
+                cache_record.updated_at = datetime.now()
+                safe_commit(session)
                 return jsonify(brief_data)
             except Exception as parse_err:
                 logging.warning(f"⚠️ [IA] Falha ao parsear JSON do Morning Brief: {parse_err}")

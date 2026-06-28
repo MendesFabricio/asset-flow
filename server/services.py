@@ -14,7 +14,8 @@ from datetime import datetime, date, timedelta
 from sqlalchemy.orm import scoped_session, sessionmaker, joinedload, selectinload
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from database.models import Asset, Position, Category, MarketData, PortfolioSnapshot, engine, safe_commit
+from database.models import Asset, Position, Category, MarketData, PortfolioSnapshot, safe_commit
+from database.session import engine, Session
 
 # ── Cache de preços (race-condition safe) ────────────────────────────────────
 from infrastructure.price_cache import fetch_price_history as _fetch_price_history_fn, invalidate as _invalidate_cache
@@ -24,9 +25,6 @@ import domain.quant_engine as _quant
 
 # ── Integração de mercado e scraping (Yahoo, CVM, B3) ──────────────────────────
 import infrastructure.market_data as _market
-
-session_factory = sessionmaker(bind=engine)
-Session = scoped_session(session_factory)
 
 USD_CACHE = {"rate": 5.80, "last_update": 0}
 
