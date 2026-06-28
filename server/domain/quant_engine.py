@@ -215,7 +215,21 @@ def run_monte_carlo(session, fetch_prices, days: int = 252, simulations: int = 1
 # ─── Risk Metrics ────────────────────────────────────────────────────────────
 
 def calculate_risk_metrics(session, fetch_prices) -> dict:
-    from database.models import Position
+    from database.models import Position, SystemCache, safe_commit
+    import json
+    from datetime import datetime, timedelta
+    
+    # 📐 Retorna cache se estiver válido (expiração de 1 hora)
+    try:
+        cache_record = session.query(SystemCache).filter_by(key="risk_metrics").first()
+        if cache_record:
+            age = datetime.now() - cache_record.updated_at
+            if age < timedelta(hours=1):
+                logging.info("📐 Retornando métricas de risco do Cache...")
+                return json.loads(cache_record.value)
+    except Exception as e:
+        logging.warning(f"⚠️ Erro ao ler cache de métricas de risco: {e}")
+
     logging.info("📐 Calculando métricas de risco...")
     import pandas as pd
 
@@ -322,7 +336,7 @@ def calculate_risk_metrics(session, fetch_prices) -> dict:
         if x > 0.0: return "Aceitável"
         return "Fraco"
 
-    return {
+    result = {
         "status": "Sucesso",
         "benchmark": "IBOVESPA (^BVSP)",
         "periodo": "12 meses",
@@ -351,6 +365,19 @@ def calculate_risk_metrics(session, fetch_prices) -> dict:
             "alpha": f"{'Gerou' if alpha > 0 else 'Destruiu'} {abs(alpha*100):.2f}% vs. IBOV",
         },
     }
+
+    try:
+        cache_record = session.query(SystemCache).filter_by(key="risk_metrics").first()
+        if not cache_record:
+            cache_record = SystemCache(key="risk_metrics")
+            session.add(cache_record)
+        cache_record.value = json.dumps(result)
+        cache_record.updated_at = datetime.now()
+        safe_commit(session)
+    except Exception as e:
+        logging.warning(f"⚠️ Erro ao salvar cache de métricas de risco: {e}")
+
+    return result
 
 
 # ─── Matriz de Correlação ────────────────────────────────────────────────────

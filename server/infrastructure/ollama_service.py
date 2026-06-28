@@ -13,8 +13,10 @@ from database.models import engine, Asset
 
 SessionLocal = sessionmaker(bind=engine)
 
+import os
+
 OLLAMA_URL = "http://ollama:11434/api/generate"
-MODEL_NAME = "qwen2.5:1.5b"  # Modelo leve para hardware restrito
+MODEL_NAME = os.getenv("OLLAMA_MODEL", "qwen2.5:1.5b")  # Modelo leve para hardware restrito
 
 def _run_sentiment_analysis(ticker: str, news_titles: list, position_info: dict):
     """
@@ -46,6 +48,22 @@ def _run_sentiment_analysis(ticker: str, news_titles: list, position_info: dict)
         avg_price = position_info.get("average_price", 0.0)
         target_pct = position_info.get("target_percent", 0.0)
         
+        cvm_context = ""
+        if asset.cvm_code:
+            try:
+                from utils.cvm_processor import CVMProcessor
+                cvm_data = CVMProcessor.get_dashboard_data(asset.cvm_code)
+                if cvm_data:
+                    info = cvm_data.get("ticker_info", {})
+                    cards = cvm_data.get("cards_indicadores", [])
+                    metrics_str = ", ".join([f"{c['titulo']}: {c.get('valor_formatado') or c.get('valor')}" for c in cards])
+                    cvm_context = (
+                        f"Últimos demonstrativos CVM (Data-base: {info.get('data_base')}, Período: {info.get('ultimo_periodo')}):\n"
+                        f"{metrics_str}"
+                    )
+            except Exception as cvm_err:
+                logging.debug(f"Não foi possível obter dados CVM para o prompt do ativo {ticker}: {cvm_err}")
+        
         prompt = (
             f"Você é um analista financeiro sênior especializado em inteligência de mercado do ativo {ticker} brasileiro.\n"
             f"Sua missão é assessorar o investidor avaliando o impacto das notícias frente à sua exposição financeira real no ativo {ticker}:\n"
@@ -53,6 +71,11 @@ def _run_sentiment_analysis(ticker: str, news_titles: list, position_info: dict)
             f"- Quantidade em Carteira: {qty:.2f} cotas/ações\n"
             f"- Preço Médio de Aquisição: R$ {avg_price:.2f}\n"
             f"- Meta de Alocação de Portfólio: {target_pct:.1f}%\n\n"
+        )
+        if cvm_context:
+            prompt += f"=== CONTEXTO ADICIONAL DE EVENTOS CVM ===\n{cvm_context}\n\n"
+
+        prompt += (
             f"Notícias recentes coletadas:\n"
             + "\n".join(f"- {title}" for title in news_titles) + "\n\n"
             f"Regras estritas de comportamento:\n"
@@ -72,8 +95,8 @@ def _run_sentiment_analysis(ticker: str, news_titles: list, position_info: dict)
             "keep_alive": 0
         }
         
-        # Timeout preventivo de 240 segundos para conexões restritas
-        response = requests.post(OLLAMA_URL, json=payload, timeout=240)
+        # Timeout preventivo de 60 segundos para conexões síncronas
+        response = requests.post(OLLAMA_URL, json=payload, timeout=60)
         
         if response.status_code != 200:
             raise Exception(f"Ollama respondeu com status {response.status_code}")
