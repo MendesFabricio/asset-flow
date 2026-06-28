@@ -8,6 +8,7 @@ interface HistoryChartItem {
   date: string;
   PatrimÃ´nio: number;
   Investido: number;
+  IPCA_6?: number;
 }
 
 export const HistoryChart = ({ data }: { data: HistoryChartItem[] }) => { // ðŸŒŸ SubstituÃ­do 'any[]' por tipo seguro
@@ -59,6 +60,10 @@ export const HistoryChart = ({ data }: { data: HistoryChartItem[] }) => { // ðŸŒ
             <div className="w-2 h-2 rounded-full bg-slate-500" />
             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Aportes</span>
           </div>
+          <div className="flex items-center gap-2 px-3 py-1 bg-slate-900/50 rounded-full border border-slate-800">
+            <div className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.8)]" />
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">IPCA+6%</span>
+          </div>
         </div>
       </div>
 
@@ -107,7 +112,7 @@ export const HistoryChart = ({ data }: { data: HistoryChartItem[] }) => { // ðŸŒ
               itemStyle={{ fontSize: '11px', fontWeight: 'bold', paddingTop: '2px' }}
               formatter={(value: any, name: any) => [
                 formatMoney(value),
-                name === 'PatrimÃ´nio' ? 'TOTAL' : 'APORTADO'
+                name === 'PatrimÃ´nio' ? 'TOTAL' : name === 'IPCA_6' ? 'IPCA + 6% EST.' : 'APORTADO'
               ]}
               labelStyle={{ color: '#94a3b8', marginBottom: '8px', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }}
             />
@@ -122,6 +127,19 @@ export const HistoryChart = ({ data }: { data: HistoryChartItem[] }) => { // ðŸŒ
               fill="transparent"
               name="Investido"
               animationDuration={1000}
+              activeDot={false}
+            />
+
+            {/* Linha do IPCA+6% */}
+            <Area
+              type="monotone"
+              dataKey="IPCA_6"
+              stroke="#f59e0b"
+              strokeWidth={2}
+              strokeDasharray="3 3"
+              fill="transparent"
+              name="IPCA_6"
+              animationDuration={1200}
               activeDot={false}
             />
 

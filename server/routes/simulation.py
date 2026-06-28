@@ -171,3 +171,13 @@ def morning_brief():
         return jsonify({"status": "Erro", "msg": str(e)}), 500
     finally:
         Session.remove()
+
+@simulation_bp.route('/api/simulation/correlation', methods=['GET'])
+def sector_correlation():
+    """🧮 Rota de Correlação: Retorna a matriz de correlação de Pearson entre ativos"""
+    try:
+        res = service.calculate_sector_correlation()
+        return jsonify(res)
+    except Exception as e:
+        logging.error(f"❌ Erro ao computar matriz de correlação: {e}", exc_info=True)
+        return jsonify({"status": "Erro", "msg": str(e)}), 500

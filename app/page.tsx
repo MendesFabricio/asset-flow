@@ -5,7 +5,7 @@ import { apiCall } from './utils/apiClient';
 import {
   TrendingUp, Wallet, Target, Layers, RefreshCw, PiggyBank, BarChart3, LineChart, PlusCircle,
   Brain, Calendar, Eye, EyeOff, Percent, Grip, Building2, Globe, Landmark, Bitcoin,
-  CheckCircle, AlertTriangle, X, Search
+  CheckCircle, AlertTriangle, X, Search, BookOpen
 } from 'lucide-react';
 import { usePrivacy } from './context/PrivacyContext';
 import { formatMoney } from './utils';
@@ -28,7 +28,8 @@ import { MorningBriefing } from './components/MorningBriefing';
 import { SkeletonLoading } from './components/SkeletonLoading';
 
 const MonteCarloChart = dynamic(() => import('./components/MonteCarloChart'), { ssr: false });
-const CorrelationMatrix = dynamic(() => import('./components/CorrelationMatrix'), { ssr: false });
+const CorrelationHeatmap = dynamic(() => import('./components/CorrelationHeatmap'), { ssr: false });
+const DecisionsTab = dynamic(() => import('./components/DecisionsTab'), { ssr: false });
 const SmartAllocationModal = dynamic(() => import('./components/SmartAllocationModal').then(mod => mod.SmartAllocationModal), { ssr: false });
 const IncomeProjectionModal = dynamic(() => import('./components/IncomeProjectionModal').then(mod => mod.IncomeProjectionModal), { ssr: false });
 const JarvisChat = dynamic(() => import('./components/JarvisChat'), { ssr: false });
@@ -85,6 +86,7 @@ export default function Home() {
     { id: 'Reserva', icon: <Wallet size={16} />, label: 'Reserva' },
     { id: 'Evolução', icon: <LineChart size={16} /> },
     { id: 'Correlação', icon: <Grip size={16} />, label: "Heatmap" },
+    { id: 'Diário', icon: <BookOpen size={16} />, label: "Diário" },
     { id: 'Financeiro', icon: <Wallet size={16} />, label: 'Reembolsos' },
     { id: 'Jarvis', icon: <Brain size={16} />, label: 'Jarvis AI' },
   ];
@@ -337,7 +339,13 @@ export default function Home() {
 
         {tab === 'Correlação' && (
           <div className="animate-in fade-in w-full">
-            <CorrelationMatrix />
+            <CorrelationHeatmap />
+          </div>
+        )}
+
+        {tab === 'Diário' && (
+          <div className="animate-in fade-in w-full">
+            <DecisionsTab />
           </div>
         )}
 

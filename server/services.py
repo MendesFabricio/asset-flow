@@ -475,12 +475,22 @@ class PortfolioService:
         try:
             snapshots = session.query(PortfolioSnapshot).order_by(PortfolioSnapshot.date).all()
             history = []
+            if not snapshots:
+                return history
+                
+            first_date = snapshots[0].date
             for s in snapshots:
+                days_elapsed = (s.date - first_date).days
+                years_elapsed = days_elapsed / 365.25
+                # IPCA+6% estimado em 10.5% ao ano composto
+                benchmark_val = float(s.total_invested or 0) * (1.105 ** years_elapsed)
+                
                 history.append({
                     "date": s.date.strftime("%d/%m"), 
-                    "Patrimônio": s.total_equity,
-                    "Investido": s.total_invested,
-                    "Lucro": s.profit
+                    "Patrimônio": float(s.total_equity or 0),
+                    "Investido": float(s.total_invested or 0),
+                    "Lucro": float(s.profit or 0),
+                    "IPCA_6": round(benchmark_val, 2)
                 })
             return history
         finally: Session.remove()
@@ -689,5 +699,13 @@ class PortfolioService:
         session = Session()
         try:
             return _quant.calculate_dividend_forecast(session)
+        finally:
+            Session.remove()
+
+    def calculate_sector_correlation(self) -> dict:
+        """Façade → quant_engine.calculate_sector_correlation"""
+        session = Session()
+        try:
+            return _quant.calculate_sector_correlation(session, _fetch_price_history_fn)
         finally:
             Session.remove()

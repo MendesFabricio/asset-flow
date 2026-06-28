@@ -5,8 +5,9 @@ import {
 } from 'recharts';
 import {
   TrendingUp, TrendingDown, ShieldAlert, Target, Zap, Activity,
-  AlertTriangle, BarChart3, Info
+  AlertTriangle, BarChart3, Info, Scale
 } from 'lucide-react';
+import { apiCall } from '../utils/apiClient';
 
 interface RiskMetrics {
   status: string;
@@ -111,6 +112,11 @@ export function RiskMetricsPanel() {
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
+  // Estados quantitativos adicionais
+  const [markowitz, setMarkowitz] = useState<Record<string, number>>({});
+  const [riskParity, setRiskParity] = useState<Record<string, number>>({});
+  const [currentAlloc, setCurrentAlloc] = useState<Record<string, number>>({});
+
   useEffect(() => {
     abortRef.current = new AbortController();
     setLoading(true);
@@ -126,6 +132,30 @@ export function RiskMetricsPanel() {
         if (e.name !== 'AbortError') setError('Falha ao conectar ao servidor.');
       })
       .finally(() => setLoading(false));
+
+    // Busca otimização de Markowitz
+    apiCall<{ status: string; weights: Record<string, number> }>('/api/simulation/optimize')
+      .then(res => {
+        if (res.status === 'Sucesso') setMarkowitz(res.weights);
+      }).catch(() => {});
+
+    // Busca paridade de risco
+    apiCall<{ status: string; weights: Record<string, number> }>('/api/simulation/risk-parity')
+      .then(res => {
+        if (res.status === 'Sucesso') setRiskParity(res.weights);
+      }).catch(() => {});
+
+    // Busca posições ativas para obter alocação atual
+    apiCall<{ ativos: { ticker: string; percent: number }[] }>('/api/assets')
+      .then(res => {
+        if (res && res.ativos) {
+          const mapping: Record<string, number> = {};
+          res.ativos.forEach(a => {
+            mapping[a.ticker.toUpperCase()] = a.percent;
+          });
+          setCurrentAlloc(mapping);
+        }
+      }).catch(() => {});
 
     return () => abortRef.current?.abort();
   }, []);
@@ -321,6 +351,44 @@ export function RiskMetricsPanel() {
             {data.interpretacao.drawdown}
           </p>
         </div>
+
+        {/* Otimização de Portfólio */}
+        {Object.keys(markowitz).length > 0 && (
+          <div className="pt-5 border-t border-slate-800/85">
+            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 mb-3">
+              <Scale size={12} className="text-indigo-400" />
+              Sugestão de Rebalanceamento Quantitativo
+            </h4>
+            <div className="overflow-x-auto w-full">
+              <table className="w-full text-[10px] text-slate-400 uppercase tracking-wider font-semibold text-left">
+                <thead>
+                  <tr className="border-b border-slate-800 pb-2 text-slate-500">
+                    <th className="py-2">Ativo</th>
+                    <th className="py-2 text-right">Alocação Atual</th>
+                    <th className="py-2 text-right text-blue-400">Sharpe Máximo (Markowitz)</th>
+                    <th className="py-2 text-right text-indigo-400">Paridade de Risco (Risk Parity)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/40">
+                  {Object.keys({ ...markowitz, ...riskParity }).map((ticker) => {
+                    const cleanTicker = ticker.toUpperCase();
+                    const current = currentAlloc[cleanTicker] || 0;
+                    const markoVal = markowitz[ticker] || 0;
+                    const parityVal = riskParity[ticker] || 0;
+                    return (
+                      <tr key={ticker} className="hover:bg-slate-900/20">
+                        <td className="py-2 text-white font-mono font-bold">{cleanTicker}</td>
+                        <td className="py-2 text-right font-mono">{current.toFixed(1)}%</td>
+                        <td className="py-2 text-right text-blue-400 font-mono">{markoVal.toFixed(1)}%</td>
+                        <td className="py-2 text-right text-indigo-400 font-mono">{parityVal.toFixed(1)}%</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

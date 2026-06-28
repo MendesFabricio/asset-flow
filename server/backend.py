@@ -25,6 +25,7 @@ from routes.health import health_bp
 from routes.sync_stream import sync_stream_bp
 from routes.simulation import simulation_bp
 from routes.ai import ai_bp
+from routes.decisions import decisions_bp
 
 logging.basicConfig(
     level=logging.INFO,
@@ -83,6 +84,7 @@ app.register_blueprint(health_bp)
 app.register_blueprint(sync_stream_bp)
 app.register_blueprint(simulation_bp)
 app.register_blueprint(ai_bp)
+app.register_blueprint(decisions_bp)
 
 service = PortfolioService()
 

@@ -110,6 +110,20 @@ def get_alerts():
                     alerts.append(make_alert("change", "ALERTA", f"Alta forte ({change_percent:.2f}%).", 2, "view"))
 
                 # =========================================================
+                # ALERTAS DE SPLIT/INPLIT (Desdobramento/Grupamento) 📈📉
+                # =========================================================
+                if category in ['Ação', 'FII']:
+                    # Split Alert (Desdobramento)
+                    if asset.currency == "BRL" and current_price > 120.0:
+                        alerts.append(make_alert("split", "ALERTA", f"Preço alto (R$ {current_price:.2f}). Candidato a desdobramento (Split).", 3, "view"))
+                    elif asset.currency == "USD" and current_price > 500.0:
+                        alerts.append(make_alert("split", "ALERTA", f"Preço alto ($ {current_price:.2f}). Candidato a desdobramento (Split).", 3, "view"))
+
+                    # Inplit Alert (Grupamento / Penny Stock)
+                    if asset.currency == "BRL" and current_price > 0 and current_price < 1.0:
+                        alerts.append(make_alert("inplit", "CRÍTICO", f"Penny stock (R$ {current_price:.2f}). Risco de grupamento obrigatório (Inplit) pela B3.", 5, "view"))
+
+                # =========================================================
                 # 4. DADOS (Avisos Suaves)
                 # =========================================================
                 if category in ['Ação', 'FII']:

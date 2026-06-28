@@ -606,6 +606,7 @@ def calculate_risk_parity(session, fetch_prices) -> dict:
     e matriz de covariância. Retorna o percentual ideal de alocação de risco.
     """
     from database.models import Position
+    import pandas as pd
     logging.info("⚖️ Calculando Paridade de Risco do Portfólio...")
     
     positions = session.query(Position).filter(Position.quantity > 0).all()
@@ -664,6 +665,7 @@ def calculate_markowitz_optimization(session, fetch_prices) -> dict:
     Sugerir pesos baseados na maximização do Sharpe Ratio sobre a Fronteira Eficiente.
     """
     from database.models import Position
+    import pandas as pd
     logging.info("📈 Calculando Otimização de Markowitz ( Sharpe Máximo)...")
     
     positions = session.query(Position).filter(Position.quantity > 0).all()
@@ -851,4 +853,89 @@ def calculate_dividend_forecast(session) -> dict:
         "total_projected": round(total_projected, 2),
         "monthly_timeline": monthly_data,
         "details": forecasts
+    }
+
+def calculate_sector_correlation(session, fetch_prices) -> dict:
+    """
+    Calcula a matriz de correlação de Pearson entre as cotações diárias dos ativos
+    de renda variável da carteira, agrupados por suas respectivas categorias (setores).
+    """
+    from database.models import Position
+    import pandas as pd
+    import numpy as np
+    logging.info("🧮 Calculando Matriz de Correlação Setorial...")
+    
+    positions = session.query(Position).filter(Position.quantity > 0).all()
+    tickers_yf, tickers_clean, categories = [], [], []
+    for pos in positions:
+        if not pos.asset:
+            continue
+        cat = pos.asset.category.name if pos.asset.category else ""
+        if cat in ["Renda Fixa", "Reserva"]:
+            continue
+        ticker_yf = _to_yf_ticker(pos.asset.ticker, cat)
+        tickers_yf.append(ticker_yf)
+        tickers_clean.append(pos.asset.ticker.upper())
+        categories.append(cat)
+        
+    if len(tickers_yf) < 2:
+        return {
+            "status": "Sucesso",
+            "tickers": tickers_clean,
+            "categories": categories,
+            "matrix": [[1.0] * len(tickers_clean) for _ in tickers_clean]
+        }
+        
+    raw = fetch_prices(list(set(tickers_yf)), period="1y")
+    prices = (
+        raw.xs("Close", axis=1, level=1)
+        if isinstance(raw.columns, pd.MultiIndex)
+        else (raw["Close"] if "Close" in raw.columns else raw)
+    )
+    prices = _align_prices_to_b3(prices)
+    prices = prices[[c for c in prices.columns if prices[c].count() >= 30]]
+    
+    if prices.shape[1] < 2:
+        return {
+            "status": "Sucesso",
+            "tickers": tickers_clean,
+            "categories": categories,
+            "matrix": [[1.0] * len(tickers_clean) for _ in tickers_clean]
+        }
+        
+    returns = prices.pct_change().dropna(how="all")
+    corr_matrix = returns.corr().fillna(0.0)
+    
+    # Ordenar por categoria/setor para criar agrupamentos visuais bonitos no heatmap
+    sorted_assets = sorted(zip(tickers_yf, tickers_clean, categories), key=lambda x: x[2])
+    
+    final_tickers = []
+    final_categories = []
+    
+    # Coleta apenas os ativos que sobreviveram aos filtros de dados históricos
+    for yf_tick, clean_tick, cat in sorted_assets:
+        if yf_tick in corr_matrix.columns:
+            final_tickers.append(clean_tick)
+            final_categories.append(cat)
+            
+    n = len(final_tickers)
+    matrix_data = []
+    for t_row in sorted_assets:
+        row_yf = t_row[0]
+        if row_yf not in corr_matrix.columns:
+            continue
+        row_values = []
+        for t_col in sorted_assets:
+            col_yf = t_col[0]
+            if col_yf not in corr_matrix.columns:
+                continue
+            corr_val = float(corr_matrix.loc[row_yf, col_yf])
+            row_values.append(round(corr_val, 4))
+        matrix_data.append(row_values)
+        
+    return {
+        "status": "Sucesso",
+        "tickers": final_tickers,
+        "categories": final_categories,
+        "matrix": matrix_data
     }
