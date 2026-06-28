@@ -8,11 +8,43 @@ para evitar import circular com services.py.
 """
 import logging
 import numpy as np
-import pandas as pd
 from datetime import datetime
 import time
 import requests
 import threading
+import pandas_market_calendars as mcal
+
+def _align_prices_to_b3(prices):
+    import pandas as pd
+    """
+    Alinha o index do DataFrame de preços aos dias úteis oficiais da B3 (calendário BMF),
+    evitando que feriados internacionais ou diferenças de pregão provoquem desvios nas
+    matrizes de covariância/correlação.
+    """
+    if prices.empty:
+        return prices
+    try:
+        # Garante que o index seja DatetimeIndex, remove timezone e normaliza para meia-noite
+        prices.index = pd.to_datetime(prices.index).tz_localize(None).normalize()
+        
+        # Localiza início e fim dos dados
+        start_date = prices.index.min()
+        end_date = prices.index.max()
+        
+        b3_cal = mcal.get_calendar('BMF')
+        valid_days = b3_cal.schedule(start_date=start_date, end_date=end_date)
+        trading_days = mcal.date_range(valid_days, frequency='1D')
+        
+        # Remove timezones e normaliza trading_days para meia-noite
+        trading_days = trading_days.tz_localize(None).normalize()
+        
+        # Reindexa e preenche valores faltantes
+        prices = prices.reindex(trading_days).ffill().bfill()
+    except Exception as e:
+        logging.warning(f"⚠️ Erro ao alinhar calendários de trading da B3: {e}")
+        prices = prices.ffill().bfill()
+    return prices
+
 
 _SELIC_CACHE = {
     "rate": 0.105,
@@ -73,6 +105,7 @@ def _to_yf_ticker(ticker: str, category: str) -> str:
 def run_monte_carlo(session, fetch_prices, days: int = 252, simulations: int = 1000) -> dict:
     from database.models import Position
     logging.info("🎲 Monte Carlo GBM vetorizado...")
+    import pandas as pd
 
     positions = (
         session.query(Position)
@@ -119,7 +152,8 @@ def run_monte_carlo(session, fetch_prices, days: int = 252, simulations: int = 1
 
     close_prices = close_prices.dropna(how="all", axis=1)
     valid = [c for c in close_prices.columns if close_prices[c].count() >= 60]
-    close_prices = close_prices[valid].ffill()
+    close_prices = close_prices[valid]
+    close_prices = _align_prices_to_b3(close_prices)
 
     if close_prices.empty:
         return {"status": "Erro", "msg": "Dados históricos insuficientes."}
@@ -138,10 +172,24 @@ def run_monte_carlo(session, fetch_prices, days: int = 252, simulations: int = 1
     port_ret = float(np.sum(mean_ret * w))
     port_vol = float(np.sqrt(np.dot(w.T, np.dot(cov, w))))
     port_vol = min(port_vol, 1.50 / np.sqrt(days))
-    drift = port_ret - 0.5 * port_vol ** 2
-
-    shocks = np.random.normal(loc=drift, scale=port_vol, size=(simulations, days))
-    paths = total_value * np.exp(np.cumsum(shocks, axis=1))
+    dt = 1.0 / days
+    lambda_jump = 0.5    # Média de 0.5 quedas/saltos por ano
+    mu_jump = -0.10      # Queda média de 10% no salto
+    sigma_jump = 0.15    # Dispersão do salto de 15%
+    
+    kappa = np.exp(mu_jump + 0.5 * sigma_jump ** 2) - 1
+    drift = port_ret - lambda_jump * kappa - 0.5 * port_vol ** 2
+    
+    # Choque normal GBM: loc = drift * dt, scale = port_vol * sqrt(dt)
+    shocks = np.random.normal(loc=drift * dt, scale=port_vol * np.sqrt(dt), size=(simulations, days))
+    
+    # Choques de Salto Merton (Poisson + Normal)
+    poi_lam = lambda_jump * dt
+    jump_counts = np.random.poisson(lam=poi_lam, size=(simulations, days))
+    jump_shocks = jump_counts * mu_jump + np.sqrt(jump_counts) * sigma_jump * np.random.normal(size=(simulations, days))
+    
+    # Caminhos projetados acumulados
+    paths = total_value * np.exp(np.cumsum(shocks + jump_shocks, axis=1))
 
     vol_ann = port_vol * np.sqrt(days)
     logging.info(f"✅ Monte Carlo concluído. Volatilidade anualizada: {vol_ann*100:.2f}%")
@@ -161,6 +209,7 @@ def run_monte_carlo(session, fetch_prices, days: int = 252, simulations: int = 1
 def calculate_risk_metrics(session, fetch_prices) -> dict:
     from database.models import Position
     logging.info("📐 Calculando métricas de risco...")
+    import pandas as pd
 
     positions = session.query(Position).filter(Position.quantity > 0).all()
     tickers_yf, weights_val, total_value = [], [], 0.0
@@ -194,7 +243,7 @@ def calculate_risk_metrics(session, fetch_prices) -> dict:
         else (raw["Close"] if "Close" in raw.columns else raw)
     )
     # Alinhamento temporal com preenchimento para frente e para trás
-    prices = prices.ffill().bfill()
+    prices = _align_prices_to_b3(prices)
     prices = prices[[c for c in prices.columns if prices[c].count() >= 30]]
 
     if BENCHMARK not in prices.columns:
@@ -239,6 +288,18 @@ def calculate_risk_metrics(session, fetch_prices) -> dict:
     var_95_daily_pct = round(abs(var_95_daily) * 100, 2)
     var_95_monthly_pct = round(abs(var_95_monthly) * 100, 2)
 
+    # Conditional Value at Risk (CVaR) a 95%
+    worst_returns = p[p <= var_95_daily]
+    cvar_95_daily = float(worst_returns.mean()) if len(worst_returns) > 0 else var_95_daily
+    cvar_95_monthly = cvar_95_daily * np.sqrt(21)
+    cvar_95_daily_pct = round(abs(cvar_95_daily) * 100, 2)
+    cvar_95_monthly_pct = round(abs(cvar_95_monthly) * 100, 2)
+
+    # Tracking Error
+    excess_returns = p - b
+    tracking_error = float(excess_returns.std() * np.sqrt(252))
+    tracking_error_pct = round(tracking_error * 100, 2)
+
     def _beta_txt(x):
         if x > 1.25: return "Agressivo"
         if x > 1.0:  return "Moderado-agressivo"
@@ -270,6 +331,9 @@ def calculate_risk_metrics(session, fetch_prices) -> dict:
         "max_drawdown_pct": round(mdd * 100, 2),
         "var_95_daily_pct": var_95_daily_pct,
         "var_95_monthly_pct": var_95_monthly_pct,
+        "cvar_95_daily_pct": cvar_95_daily_pct,
+        "cvar_95_monthly_pct": cvar_95_monthly_pct,
+        "tracking_error_pct": tracking_error_pct,
         "var_text": f"Com 95% de confiança, a perda máxima esperada para esta carteira em 24h é de {var_95_daily_pct}%.",
         "drawdown_chart": dd_chart,
         "interpretacao": {
@@ -286,6 +350,7 @@ def calculate_risk_metrics(session, fetch_prices) -> dict:
 def get_correlation_matrix(session, fetch_prices) -> dict:
     from database.models import Position
     logging.info("🧮 Calculando matriz de correlação...")
+    import pandas as pd
 
     positions = session.query(Position).filter(Position.quantity > 0).all()
     tickers_map, download_list = {}, []
@@ -313,6 +378,7 @@ def get_correlation_matrix(session, fetch_prices) -> dict:
         prices = raw[["Close"]] if "Close" in raw.columns else raw
 
     prices = prices.dropna(axis=1, how="all")
+    prices = _align_prices_to_b3(prices)
     prices = prices[[c for c in prices.columns if prices[c].count() >= 30]]
     if prices.shape[1] < 2:
         return {"status": "Erro", "msg": "Dados insuficientes para correlação."}
@@ -343,6 +409,7 @@ def get_correlation_matrix(session, fetch_prices) -> dict:
 def calculate_smart_rebalance(session, fetch_prices, monthly_contribution: float = 0.0) -> dict:
     from database.models import Position
     logging.info(f"⚖️ Smart Rebalance (aporte R$ {monthly_contribution:.2f})...")
+    import pandas as pd
 
     positions = session.query(Position).filter(Position.quantity > 0).all()
     if not positions:
@@ -390,7 +457,7 @@ def calculate_smart_rebalance(session, fetch_prices, monthly_contribution: float
                 if isinstance(raw.columns, pd.MultiIndex)
                 else (raw["Close"] if "Close" in raw.columns else raw)
             )
-            closes = closes.ffill().dropna(how="all", axis=1)
+            closes = _align_prices_to_b3(closes).dropna(how="all", axis=1)
             if closes.shape[1] >= 2:
                 ret = closes.pct_change().dropna()
                 cm = ret.corr()
@@ -562,7 +629,7 @@ def calculate_risk_parity(session, fetch_prices) -> dict:
         if isinstance(raw.columns, pd.MultiIndex)
         else (raw["Close"] if "Close" in raw.columns else raw)
     )
-    prices = prices.ffill().bfill()
+    prices = _align_prices_to_b3(prices)
     prices = prices[[c for c in prices.columns if prices[c].count() >= 30]]
     
     if prices.shape[1] < 2:
@@ -620,7 +687,7 @@ def calculate_markowitz_optimization(session, fetch_prices) -> dict:
         if isinstance(raw.columns, pd.MultiIndex)
         else (raw["Close"] if "Close" in raw.columns else raw)
     )
-    prices = prices.ffill().bfill()
+    prices = _align_prices_to_b3(prices)
     prices = prices[[c for c in prices.columns if prices[c].count() >= 30]]
     
     if prices.shape[1] < 2:
@@ -634,29 +701,21 @@ def calculate_markowitz_optimization(session, fetch_prices) -> dict:
     N = len(avail_tickers)
     risk_free = get_risk_free_rate()
     
-    # Simulações de Monte Carlo para encontrar o portfólio ótimo
+    # Simulações de Monte Carlo vetorizadas para encontrar o portfólio ótimo (sem for loops)
     num_portfolios = 5000
-    results = np.zeros((3, num_portfolios))
-    weights_record = []
+    weights_matrix = np.random.random((num_portfolios, N))
+    weights_matrix = weights_matrix / np.sum(weights_matrix, axis=1, keepdims=True)
     
-    for i in range(num_portfolios):
-        weights = np.random.random(N)
-        weights /= np.sum(weights)
-        weights_record.append(weights)
-        
-        p_ret = np.sum(mean_returns * weights) * 252
-        p_vol = np.sqrt(np.dot(weights.T, np.dot(cov_matrix * 252, weights)))
-        p_sharpe = (p_ret - risk_free) / p_vol if p_vol > 0 else 0
-        
-        results[0, i] = p_ret
-        results[1, i] = p_vol
-        results[2, i] = p_sharpe
-        
-    max_sharpe_idx = np.argmax(results[2])
-    best_weights = weights_record[max_sharpe_idx]
-    best_ret = results[0, max_sharpe_idx]
-    best_vol = results[1, max_sharpe_idx]
-    best_sharpe = results[2, max_sharpe_idx]
+    p_rets = np.dot(weights_matrix, mean_returns) * 252
+    cov_ann = cov_matrix.to_numpy() * 252
+    p_vols = np.sqrt(np.einsum('ij,jk,ik->i', weights_matrix, cov_ann, weights_matrix))
+    p_sharpes = np.where(p_vols > 0, (p_rets - risk_free) / p_vols, 0.0)
+    
+    max_sharpe_idx = np.argmax(p_sharpes)
+    best_weights = weights_matrix[max_sharpe_idx]
+    best_ret = p_rets[max_sharpe_idx]
+    best_vol = p_vols[max_sharpe_idx]
+    best_sharpe = p_sharpes[max_sharpe_idx]
     
     ticker_clean_map = dict(zip(tickers_yf, tickers_clean))
     

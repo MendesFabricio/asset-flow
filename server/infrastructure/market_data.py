@@ -8,11 +8,11 @@ import traceback
 import json
 import time
 from datetime import datetime, timedelta
-import pandas as pd
 import yfinance as yf
 from database.models import Asset, Position, Category, MarketData
 
 def update_prices(session, invalidate_cache_callback):
+    import pandas as pd
     logging.info(" odds 🔄 JOB: Iniciando atualização automática de cotações...")
     try:
         assets = session.query(Asset).filter(Asset.ticker != 'Nubank Caixinha').all()

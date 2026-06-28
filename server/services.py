@@ -4,7 +4,6 @@ import shutil
 import threading
 import yfinance as yf
 import math
-import pandas as pd
 import time
 import numpy as np
 import pytz
@@ -15,7 +14,7 @@ from datetime import datetime, date, timedelta
 from sqlalchemy.orm import scoped_session, sessionmaker, joinedload, selectinload
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from database.models import Asset, Position, Category, MarketData, PortfolioSnapshot, engine
+from database.models import Asset, Position, Category, MarketData, PortfolioSnapshot, engine, safe_commit
 
 # ── Cache de preços (race-condition safe) ────────────────────────────────────
 from infrastructure.price_cache import fetch_price_history as _fetch_price_history_fn, invalidate as _invalidate_cache
@@ -70,6 +69,7 @@ class PortfolioService:
         return USD_CACHE["rate"] 
 
     def _calculate_rsi(self, series, period=14):
+        import pandas as pd
         if len(series) < period + 1: return 50.0
         delta = series.diff()
         gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
@@ -179,8 +179,8 @@ class PortfolioService:
 
                 # Metas de Alocação
                 pct_na_categoria = (item["total_atual"] / total_cat * 100) if total_cat > 0 else 0
-                meta_macro = cat_metas.get(cat_name, 0) / 100
-                meta_micro = (pos.target_percent or 0) / 100
+                meta_macro = float(cat_metas.get(cat_name, 0) or 0) / 100
+                meta_micro = float(pos.target_percent or 0) / 100
                 meta_global_valor = resumo["Total"] * meta_macro * meta_micro
                 falta = meta_global_valor - item["total_atual"]
                 
@@ -190,10 +190,10 @@ class PortfolioService:
                 
                 # Regras de Alertas
                 if cat_name not in ['Renda Fixa', 'Reserva']:
-                    if pos.target_percent and pos.target_percent > 0:
-                        excesso = pct_na_categoria / pos.target_percent
+                    if pos.target_percent and float(pos.target_percent) > 0:
+                        excesso = pct_na_categoria / float(pos.target_percent)
                         if excesso > 2.0:
-                            alertas.append(f"🚨 REBALANCEAR URGENTE: {pos.asset.ticker} ({pct_na_categoria:.1f}% vs meta {pos.target_percent:.1f}%)")
+                            alertas.append(f"🚨 REBALANCEAR URGENTE: {pos.asset.ticker} ({pct_na_categoria:.1f}% vs meta {float(pos.target_percent):.1f}%)")
                         elif excesso > 1.5:
                             alertas.append(f"❗ REBALANCEAR: {pos.asset.ticker} estourou a meta ({pct_na_categoria:.1f}%)")
 
@@ -209,7 +209,7 @@ class PortfolioService:
                     if rsi < 28:
                         alertas.append(f"💎 OPORTUNIDADE TÉCNICA: {pos.asset.ticker} (RSI {rsi:.0f})")
                     elif rsi > 78:
-                        if (pct_na_categoria / (pos.target_percent or 1)) >= 1.2:
+                        if (pct_na_categoria / float(pos.target_percent or 1)) >= 1.2:
                             alertas.append(f"🔥 ESTICADO: {pos.asset.ticker} em região de topo (RSI {rsi:.0f})")
 
                     if min_bruta > 0:
@@ -463,7 +463,7 @@ class PortfolioService:
             else:
                 snap = PortfolioSnapshot(date=today, total_equity=total_equity, total_invested=total_invested, profit=total_equity-total_invested)
                 session.add(snap)
-            session.commit()
+            safe_commit(session)
             self._backup_database()
         except Exception as e: 
             session.rollback()
@@ -516,7 +516,7 @@ class PortfolioService:
                 mdata.date = datetime.now()
                 mdata.min_6m = float(current_price) 
                 
-            session.commit()
+            safe_commit(session)
             logging.info(f"   ✅ Sucesso: {ticker} (Quantity: {pos.quantity}) persistido com sucesso.")
             return {"status": "Sucesso", "msg": "Dados e Preço Atualizados!"}
             
@@ -557,7 +557,7 @@ class PortfolioService:
             )
             session.add(pos)
             
-            session.commit()
+            safe_commit(session)
             return {"status": "Sucesso", "msg": f"Ativo {ticker} criado com sucesso!"}
         except Exception as e:
             session.rollback()
@@ -574,7 +574,7 @@ class PortfolioService:
             session.query(Position).filter_by(asset_id=asset_id).delete()
             session.query(MarketData).filter_by(asset_id=asset_id).delete()
             session.delete(asset)
-            session.commit()
+            safe_commit(session)
             return {"status": "Sucesso", "msg": "Ativo e dados vinculados excluídos!"}
         except Exception as e:
             session.rollback()
@@ -627,7 +627,7 @@ class PortfolioService:
             cat = session.query(Category).filter_by(name=category_name).first()
             if not cat: return {"status": "Erro", "msg": "Categoria não encontrada"}
             cat.target_percent = float(new_meta)
-            session.commit()
+            safe_commit(session)
             return {"status": "Sucesso", "msg": "Meta atualizada!"}
         except Exception as e:
             session.rollback()

@@ -24,6 +24,11 @@ interface RiskMetrics {
   retorno_benchmark_pct: number;
   volatilidade_anual_pct: number;
   max_drawdown_pct: number;
+  var_95_daily_pct: number;
+  var_95_monthly_pct: number;
+  cvar_95_daily_pct: number;
+  cvar_95_monthly_pct: number;
+  tracking_error_pct: number;
   drawdown_chart: { date: string; drawdown: number }[];
   interpretacao: {
     beta: string;
@@ -225,6 +230,37 @@ export function RiskMetricsPanel() {
             color={data.volatilidade_anual_pct > 30 ? 'text-red-400' : data.volatilidade_anual_pct > 20 ? 'text-amber-400' : 'text-emerald-400'}
             tooltip="Desvio-padrão anualizado dos retornos diários do portfólio."
             subtext={`Max Drawdown: ${data.max_drawdown_pct.toFixed(2)}%`}
+          />
+        </div>
+
+        {/* Linha de Risco e Caudas (VaR, CVaR, Tracking Error) */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <MetricCard
+            label="Value at Risk (VaR 95%)"
+            value={data.var_95_monthly_pct.toFixed(2)}
+            unit="%"
+            icon={ShieldAlert}
+            color="text-amber-500"
+            tooltip="VaR Histórico 95% Mensal: A perda máxima esperada para o portfólio no período de 1 mês, com 95% de nível de confiança."
+            subtext={`Diário: ${data.var_95_daily_pct.toFixed(2)}%`}
+          />
+          <MetricCard
+            label="Conditional VaR (CVaR 95%)"
+            value={data.cvar_95_monthly_pct.toFixed(2)}
+            unit="%"
+            icon={Zap}
+            color="text-red-400"
+            tooltip="CVaR (Expected Shortfall): Perda média esperada nos piores 5% dos cenários do período."
+            subtext={`Diário: ${data.cvar_95_daily_pct.toFixed(2)}%`}
+          />
+          <MetricCard
+            label="Tracking Error"
+            value={data.tracking_error_pct.toFixed(2)}
+            unit="%"
+            icon={Activity}
+            color="text-indigo-400"
+            tooltip="Tracking Error anualizado: Desvio-padrão da diferença de retornos entre a carteira e o IBOVESPA. Mede o risco ativo do gestor."
+            subtext="Volatilidade ativa vs. IBOV"
           />
         </div>
 

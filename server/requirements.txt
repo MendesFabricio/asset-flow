@@ -10,3 +10,5 @@ feedparser
 apscheduler
 pytz
 gunicorn
+pandas_market_calendars
+tenacity

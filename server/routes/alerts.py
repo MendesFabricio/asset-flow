@@ -88,15 +88,15 @@ def get_alerts():
                 # =========================================================
                 # 2. ALERTAS DE RISCO FINANCEIRO (Prejuízo, Trap)
                 # =========================================================
-                if category == 'Ação' and pos.manual_lpa and pos.manual_lpa < 0:
-                    alerts.append(make_alert("lpa", "RISCO", f"Empresa com PREJUÍZO (LPA: {pos.manual_lpa}).", 4, "view"))
+                if category == 'Ação' and pos.manual_lpa is not None and float(pos.manual_lpa) < 0:
+                    alerts.append(make_alert("lpa", "RISCO", f"Empresa com PREJUÍZO (LPA: {float(pos.manual_lpa):.2f}).", 4, "view"))
 
-                if category in ['Ação', 'FII'] and pos.manual_dy and pos.manual_dy > 0.18:
-                    dy_pct = pos.manual_dy * 100
+                if category in ['Ação', 'FII'] and pos.manual_dy is not None and float(pos.manual_dy) > 0.18:
+                    dy_pct = float(pos.manual_dy) * 100
                     alerts.append(make_alert("dy", "RISCO", f"Dividend Trap? DY muito alto ({dy_pct:.1f}%).", 4, "view"))
 
-                if category == 'FII' and pos.manual_vpa and pos.manual_vpa > 0 and current_price > 0:
-                    pvp = current_price / pos.manual_vpa
+                if category == 'FII' and pos.manual_vpa is not None and float(pos.manual_vpa) > 0 and current_price > 0:
+                    pvp = current_price / float(pos.manual_vpa)
                     if pvp > 1.25:
                         alerts.append(make_alert("pvp", "ALERTA", f"FII caro (P/VP {pvp:.2f}). Risco de correção.", 3, "view"))
 
@@ -115,7 +115,7 @@ def get_alerts():
                 if category in ['Ação', 'FII']:
                     if pos.manual_dy is None:
                         alerts.append(make_alert("dy", "DADOS", "Falta cadastrar DY.", 1, "edit"))
-                    elif pos.manual_dy == 0:
+                    elif float(pos.manual_dy) == 0:
                         alerts.append(make_alert("dy", "INFO", "DY zerado. Confirme se é intencional.", 1, "edit"))
 
             # Ordena: Críticos > Risco > Config > Novidade > Alerta > Info

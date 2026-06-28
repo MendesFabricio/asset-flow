@@ -41,12 +41,10 @@ def healthcheck():
     status_yf = "online"
     detail_yf = "API de cotações disponível."
     try:
-        # HEAD request leve para testar bloqueios/rate limit
-        res = requests.head("https://query1.finance.yahoo.com/v7/finance/quote/PETR4.SA", timeout=3.0)
-        if res.status_code in [429, 403]:
-            status_yf = "offline"
-            detail_yf = f"IP bloqueado ou limitado (Status: {res.status_code})"
-        elif res.status_code >= 500:
+        # GET request leve para testar conectividade com Yahoo Finance com User-Agent legítimo
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
+        res = requests.get("https://finance.yahoo.com", headers=headers, timeout=3.0)
+        if res.status_code >= 500:
             status_yf = "offline"
             detail_yf = f"Serviço Yahoo Finance instável (Status: {res.status_code})"
     except requests.exceptions.Timeout:
@@ -61,7 +59,7 @@ def healthcheck():
     detail_ollama = "Serviço de IA ativo e respondendo."
     try:
         # Endpoint de tags retorna todos os modelos disponíveis sem processar prompts pesados
-        res = requests.get("http://host.docker.internal:11434/api/tags", timeout=3.0)
+        res = requests.get("http://ollama:11434/api/tags", timeout=3.0)
         if res.status_code == 200:
             models = [m.get("name") for m in res.json().get("models", [])]
             detail_ollama = f"Daemon ativo. Modelos disponíveis: {', '.join(models) if models else 'Nenhum'}"

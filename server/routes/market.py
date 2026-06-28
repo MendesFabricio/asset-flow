@@ -3,7 +3,6 @@ import yfinance as yf
 import time
 import logging
 import requests
-import pandas as pd
 from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
 
@@ -43,6 +42,7 @@ def get_secure_session():
 
 def update_market_cache():
     """Atualiza os dados de mercado em background com proteção de rede e suporte a MultiIndex"""
+    import pandas as pd
     logging.info("🔄 JOB: Atualizando índices de mercado (IBOV/IFIX)...")
     try:
         tickers = ["^BVSP", "XFIX11.SA"] 

@@ -128,8 +128,8 @@ def morning_brief():
             "keep_alive": 0
         }
         
-        # Consulta o Ollama local com timeout de 15 segundos
-        response = requests.post(OLLAMA_URL, json=payload, timeout=15)
+        # Consulta o Ollama local com timeout de 180 segundos
+        response = requests.post(OLLAMA_URL, json=payload, timeout=180)
         
         if response.status_code == 200:
             res_data = response.json()

@@ -1,6 +1,6 @@
 # server/routes/finance.py
 from flask import Blueprint, jsonify, request
-from database.models import Session, Receivable 
+from database.models import Session, Receivable, safe_commit 
 import threading
 import logging
 
@@ -65,7 +65,7 @@ def add_receivable():
                 status='Pendente'
             )
             db.add(new_item)
-            db.commit()
+            safe_commit(db)
             return jsonify({"msg": "Adicionado com sucesso!"}), 201
         except Exception as e:
             logging.error(f"❌ Falha ao persistir novo recebível: {e}", exc_info=True)
@@ -99,7 +99,7 @@ def update_receivable(id):
                 item.valor_parcela = val_total / qtd_parc
                 item.total_parcelas = qtd_parc
                 
-            db.commit()
+            safe_commit(db)
             return jsonify({"msg": "Atualizado!"})
         except (ValueError, TypeError):
             return jsonify({"status": "Erro", "msg": "Valores numéricos inválidos recebidos na mutação"}), 400
@@ -114,7 +114,7 @@ def delete_receivable(id):
             item = db.query(Receivable).filter(Receivable.id == id).first()
             if item:
                 db.delete(item)
-                db.commit()
+                safe_commit(db)
             return jsonify({"msg": "Removido!"})
         except Exception as e:
             logging.error(f"❌ Falha ao expurgar recebível {id}: {e}", exc_info=True)
@@ -138,7 +138,7 @@ def pay_receivable(id):
                     item.status = 'Concluido'
                     item.parcela_atual = item.total_parcelas # Cobre estouros matemáticos
                     
-                db.commit()
+                safe_commit(db)
                 return jsonify({"msg": "Recebido!"})
             except Exception as e:
                 logging.error(f"❌ Falha operacional ao processar liquidação individual {id}: {e}", exc_info=True)
@@ -172,7 +172,7 @@ def pay_batch():
                         item.parcela_atual = item.total_parcelas
                     count += 1
                     
-                db.commit()
+                safe_commit(db)
                 return jsonify({"msg": f"{count} parcelas recebidas!"})
             except Exception as e:
                 logging.error(f"❌ Falha ao processar baixa em lote dos IDs {ids}: {e}", exc_info=True)

@@ -13,7 +13,7 @@ from database.models import engine, Asset
 
 SessionLocal = sessionmaker(bind=engine)
 
-OLLAMA_URL = "http://host.docker.internal:11434/api/generate"
+OLLAMA_URL = "http://ollama:11434/api/generate"
 MODEL_NAME = "qwen2.5:1.5b"  # Modelo leve para hardware restrito
 
 def _run_sentiment_analysis(ticker: str, news_titles: list, position_info: dict):
@@ -72,8 +72,8 @@ def _run_sentiment_analysis(ticker: str, news_titles: list, position_info: dict)
             "keep_alive": 0
         }
         
-        # Timeout preventivo de 45 segundos para conexões restritas
-        response = requests.post(OLLAMA_URL, json=payload, timeout=45)
+        # Timeout preventivo de 240 segundos para conexões restritas
+        response = requests.post(OLLAMA_URL, json=payload, timeout=240)
         
         if response.status_code != 200:
             raise Exception(f"Ollama respondeu com status {response.status_code}")

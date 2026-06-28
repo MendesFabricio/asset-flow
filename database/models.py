@@ -1,7 +1,19 @@
-from sqlalchemy import create_engine, Column, Integer, String, Float, ForeignKey, DateTime, Date, Boolean, event, Index
+from sqlalchemy import create_engine, Column, Integer, String, Float, Numeric, ForeignKey, DateTime, Date, Boolean, event, Index
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker, scoped_session
 from sqlalchemy.engine import Engine
 from datetime import datetime
+from tenacity import retry, stop_after_attempt, wait_fixed, retry_if_exception_type
+from sqlalchemy.exc import OperationalError
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_fixed(1),
+    retry=retry_if_exception_type(OperationalError),
+    reraise=True
+)
+def safe_commit(session):
+    """Commita uma transação no SQLAlchemy com retry automático contra locks do SQLite."""
+    session.commit()
 
 Base = declarative_base()
 
@@ -28,7 +40,7 @@ class Category(Base):
     __tablename__ = 'categories'
     id = Column(Integer, primary_key=True)
     name = Column(String, unique=True, nullable=False)
-    target_percent = Column(Float, default=0.0)
+    target_percent = Column(Numeric(18, 4), default=0.0)
     assets = relationship("Asset", back_populates="category")
 
 class Asset(Base):
@@ -59,12 +71,12 @@ class Position(Base):
     id = Column(Integer, primary_key=True)
     asset_id = Column(Integer, ForeignKey('assets.id', ondelete="CASCADE"), unique=True, nullable=False)
     
-    quantity = Column(Float, default=0.0)
-    average_price = Column(Float, default=0.0)
-    target_percent = Column(Float, default=0.0)
-    manual_lpa = Column(Float, nullable=True)
-    manual_vpa = Column(Float, nullable=True)
-    manual_dy = Column(Float, nullable=True)
+    quantity = Column(Numeric(18, 4), default=0.0)
+    average_price = Column(Numeric(18, 4), default=0.0)
+    target_percent = Column(Numeric(18, 4), default=0.0)
+    manual_lpa = Column(Numeric(18, 4), nullable=True)
+    manual_vpa = Column(Numeric(18, 4), nullable=True)
+    manual_dy = Column(Numeric(18, 4), nullable=True)
 
     last_report_url = Column(String, nullable=True)
     last_report_at = Column(String, nullable=True) 
@@ -80,17 +92,18 @@ class MarketData(Base):
     asset_id = Column(Integer, ForeignKey('assets.id', ondelete="CASCADE"), nullable=False, index=True)
     date = Column(Date, default=datetime.now, index=True)
     
-    price = Column(Float)
-    min_6m = Column(Float)
-    change_percent = Column(Float, default=0.0)
-    rsi_14 = Column(Float, nullable=True)
-    sma_20 = Column(Float, nullable=True)
+    price = Column(Numeric(18, 4))
+    min_6m = Column(Numeric(18, 4))
+    change_percent = Column(Numeric(18, 4), default=0.0)
+    rsi_14 = Column(Numeric(18, 4), nullable=True)
+    sma_20 = Column(Numeric(18, 4), nullable=True)
     
     asset = relationship("Asset", back_populates="market_data")
 
     # 🚀 ÍNDICE COMPOSTO MESTRE: Multiplica a velocidade de geração do gráfico de cotações temporais
     __table_args__ = (
         Index('idx_market_data_asset_date', 'asset_id', 'date'),
+        Index('idx_market_data_asset_date_desc', 'asset_id', 'date'),
     )
 
 class Dividend(Base):
@@ -102,9 +115,9 @@ class Dividend(Base):
     date_com = Column(Date, nullable=False, index=True)
     
     date_payment = Column(Date, nullable=True)
-    value_per_share = Column(Float, nullable=False) 
-    quantity_at_date = Column(Float, nullable=False) 
-    total_value = Column(Float, nullable=False) 
+    value_per_share = Column(Numeric(18, 4), nullable=False) 
+    quantity_at_date = Column(Numeric(18, 4), nullable=False) 
+    total_value = Column(Numeric(18, 4), nullable=False) 
     status = Column(String, default="GARANTIDO") 
     
     asset = relationship("Asset", back_populates="dividends")
@@ -112,6 +125,7 @@ class Dividend(Base):
     # 🚀 ÍNDICE COMPOSTO MESTRE: Acelera a timeline do calendário de proventos/agenda do usuário
     __table_args__ = (
         Index('idx_dividends_asset_date_com', 'asset_id', 'date_com'),
+        Index('idx_dividends_asset_date_com_desc', 'asset_id', 'date_com'),
     )
 
 class PortfolioSnapshot(Base):
@@ -121,9 +135,9 @@ class PortfolioSnapshot(Base):
     # ⚡ ÍNDICE CRÍTICO: Executa a query do gráfico principal de evolução histórica instantaneamente
     date = Column(Date, default=datetime.now, index=True)
     
-    total_equity = Column(Float)      
-    total_invested = Column(Float)    
-    profit = Column(Float)   
+    total_equity = Column(Numeric(18, 4))      
+    total_invested = Column(Numeric(18, 4))    
+    profit = Column(Numeric(18, 4))   
 
 class Receivable(Base):
     __tablename__ = "receivables"
@@ -131,7 +145,7 @@ class Receivable(Base):
     id = Column(Integer, primary_key=True, index=True)
     descricao = Column(String)
     devedor = Column(String)
-    valor_parcela = Column(Float)
+    valor_parcela = Column(Numeric(18, 4))
     parcela_atual = Column(Integer)
     total_parcelas = Column(Integer)
     vencimento_dia = Column(Integer)
@@ -145,7 +159,7 @@ class PriceAlert(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     asset_id = Column(Integer, ForeignKey('assets.id', ondelete="CASCADE"), nullable=False, index=True)
-    target_price = Column(Float, nullable=False)
+    target_price = Column(Numeric(18, 4), nullable=False)
     condition = Column(String, nullable=False, default="ABOVE")  # "ABOVE" | "BELOW"
     note = Column(String, default="")           # Anotação livre do usuário
     is_active = Column(Boolean, default=True)
@@ -179,6 +193,14 @@ engine = create_engine(
     pool_pre_ping=True,
 )
 
+@event.listens_for(engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA journal_mode=WAL")
+    cursor.execute("PRAGMA synchronous=NORMAL")
+    cursor.execute("PRAGMA wal_autocheckpoint=1000")
+    cursor.close()
+
 # NOTA: Session canônico (scoped_session thread-safe) vive em services.py.
 def _get_session():
     from services import Session as _Session
@@ -208,7 +230,7 @@ def update_sync_state_db(key: str, **kwargs):
         for k, v in kwargs.items():
             setattr(state, k, v)
         state.updated_at = datetime.now()
-        session.commit()
+        safe_commit(session)
     except Exception as e:
         session.rollback()
         import logging

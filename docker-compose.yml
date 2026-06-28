@@ -47,5 +47,15 @@ services:
     tmpfs:
       - /tmp:size=128m
 
+  ollama:
+    image: ollama/ollama:latest
+    container_name: assetflow_ollama
+    restart: always
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "11434:11434"
+
 volumes:
   sqlite_data:
+  ollama_data:

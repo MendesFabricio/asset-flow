@@ -23,11 +23,15 @@ import { AssetDetailsModal } from './components/AssetDetailsModal';
 import { DashboardHeader } from './components/DashboardHeader';
 import { AssetsTable } from './components/AssetsTable';
 import { Asset } from './types';
+import { useModalStore } from './store/modalStore';
+import { MorningBriefing } from './components/MorningBriefing';
+import { SkeletonLoading } from './components/SkeletonLoading';
 
 const MonteCarloChart = dynamic(() => import('./components/MonteCarloChart'), { ssr: false });
 const CorrelationMatrix = dynamic(() => import('./components/CorrelationMatrix'), { ssr: false });
 const SmartAllocationModal = dynamic(() => import('./components/SmartAllocationModal').then(mod => mod.SmartAllocationModal), { ssr: false });
 const IncomeProjectionModal = dynamic(() => import('./components/IncomeProjectionModal').then(mod => mod.IncomeProjectionModal), { ssr: false });
+const JarvisChat = dynamic(() => import('./components/JarvisChat'), { ssr: false });
 
 export default function Home() {
   const {
@@ -44,14 +48,23 @@ export default function Home() {
   const { isHidden } = usePrivacy() as { isHidden: boolean };
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
   const [tab, setTab] = useState('Resumo');
-  const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [newsTicker, setNewsTicker] = useState<string | null>(null);
+  const {
+    isAddModalOpen,
+    isSmartModalOpen,
+    isIfModalOpen,
+    editingAsset,
+    selectedDetailsAsset,
+    newsTicker,
+    setAddModalOpen,
+    setSmartModalOpen,
+    setIfModalOpen,
+    setEditingAsset,
+    setSelectedDetailsAsset,
+    setNewsTicker,
+  } = useModalStore();
+
   const [showRefreshSuccess, setShowRefreshSuccess] = useState(false);
   const [isRefetching, setIsRefetching] = useState(false);
-  const [isSmartModalOpen, setIsSmartModalOpen] = useState(false);
-  const [isIfModalOpen, setIsIfModalOpen] = useState(false);
-  const [selectedDetailsAsset, setSelectedDetailsAsset] = useState<Asset | null>(null);
 
 
   const syncingReports = syncStatus.status === 'processing';
@@ -73,6 +86,7 @@ export default function Home() {
     { id: 'Evolução', icon: <LineChart size={16} /> },
     { id: 'Correlação', icon: <Grip size={16} />, label: "Heatmap" },
     { id: 'Financeiro', icon: <Wallet size={16} />, label: 'Reembolsos' },
+    { id: 'Jarvis', icon: <Brain size={16} />, label: 'Jarvis AI' },
   ];
 
 
@@ -186,12 +200,30 @@ export default function Home() {
     if (assetToEdit) setEditingAsset(assetToEdit);
   };
 
-  if (loading) return (
-    <div className="min-h-screen bg-[#0b0f19] flex flex-col items-center justify-center text-slate-500 gap-4">
-      <div className="w-10 h-10 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-      <p className="animate-pulse text-sm">Carregando Inteligência...</p>
-    </div>
-  );
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-[#0b0f19] text-slate-200 font-sans selection:bg-blue-500/30 pb-20 relative">
+        <DashboardHeader
+          total={0}
+          rendaMensal={0}
+          money={(v) => '••••••'}
+          syncStatus={{ status: 'idle', message: '' }}
+          fundamentalsStatus={{ status: 'idle', message: '' }}
+          onSyncReports={handleSyncReports}
+          onUpdateFundamentals={handleUpdateFundamentals}
+          onManualRefresh={handleManualRefresh}
+          onOpenIfModal={() => setIfModalOpen(true)}
+          onOpenSmartModal={() => setSmartModalOpen(true)}
+          onOpenAddModal={() => setAddModalOpen(true)}
+          onFixAsset={handleFixAsset}
+          loading={true}
+          isRefetching={false}
+          showRefreshSuccess={false}
+        />
+        <SkeletonLoading />
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-[#0b0f19] text-slate-200 font-sans selection:bg-blue-500/30 pb-20 relative">
@@ -205,9 +237,9 @@ export default function Home() {
         onSyncReports={handleSyncReports}
         onUpdateFundamentals={handleUpdateFundamentals}
         onManualRefresh={handleManualRefresh}
-        onOpenIfModal={() => setIsIfModalOpen(true)}
-        onOpenSmartModal={() => setIsSmartModalOpen(true)}
-        onOpenAddModal={() => setIsAddModalOpen(true)}
+        onOpenIfModal={() => setIfModalOpen(true)}
+        onOpenSmartModal={() => setSmartModalOpen(true)}
+        onOpenAddModal={() => setAddModalOpen(true)}
         onFixAsset={handleFixAsset}
         loading={loading}
         isRefetching={isRefetching}
@@ -239,6 +271,7 @@ export default function Home() {
       <div className="max-w-7xl mx-auto p-4 md:p-6">
         {tab === 'Resumo' && (
           <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-2">
+            <MorningBriefing />
             {/* KPI CARDS */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <StatCard
@@ -314,6 +347,12 @@ export default function Home() {
           </div>
         )}
 
+        {tab === 'Jarvis' && (
+          <div className="animate-in fade-in w-full">
+            <JarvisChat />
+          </div>
+        )}
+
         {/* TABELA DE ATIVOS EXTRAÍDA */}
         <AssetsTable
           assets={data?.ativos || []}
@@ -324,12 +363,12 @@ export default function Home() {
         />
 
         <EditModal isOpen={!!editingAsset} onClose={() => setEditingAsset(null)} onSave={() => refetch()} ativo={editingAsset} allAssets={data?.ativos || []} />
-        <AddAssetModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onSuccess={() => refetch()} />
+        <AddAssetModal isOpen={isAddModalOpen} onClose={() => setAddModalOpen(false)} onSuccess={() => refetch()} />
         <AssetNewsPanel ticker={newsTicker} onClose={() => setNewsTicker(null)} />
 
         <SmartAllocationModal
           isOpen={isSmartModalOpen}
-          onClose={() => setIsSmartModalOpen(false)}
+          onClose={() => setSmartModalOpen(false)}
           ativos={data?.ativos || []}
         />
 
@@ -384,7 +423,7 @@ export default function Home() {
       </div>
 
       {isIfModalOpen && (
-        <IncomeProjectionModal onClose={() => setIsIfModalOpen(false)} />
+        <IncomeProjectionModal onClose={() => setIfModalOpen(false)} />
       )}
     </main>
   );

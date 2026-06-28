@@ -2,7 +2,7 @@
 import { API_BASE_URL } from '../config/api';
 
 export async function apiCall<T>(endpoint: string, options?: RequestInit & { timeout?: number }): Promise<T> {
-    const timeout = options?.timeout ?? 30000; // Timeout padrão de 30 segundos
+    const timeout = options?.timeout ?? 180000; // Timeout padrão de 180 segundos
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeout);
 
@@ -31,7 +31,7 @@ export async function apiCall<T>(endpoint: string, options?: RequestInit & { tim
         clearTimeout(id);
         // 🛡️ Validação segura de instância antes de acessar propriedades dinâmicas do erro
         if (error instanceof Error && error.name === 'AbortError') {
-            throw new Error('A requisição excedeu o tempo limite de resposta (Timeout de 10s).');
+            throw new Error(`A requisição excedeu o tempo limite de resposta (Timeout de ${timeout / 1000}s).`);
         }
         throw error;
     }

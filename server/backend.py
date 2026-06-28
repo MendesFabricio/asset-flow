@@ -24,6 +24,7 @@ from routes.alerts_price import price_alerts_bp, check_price_alerts
 from routes.health import health_bp
 from routes.sync_stream import sync_stream_bp
 from routes.simulation import simulation_bp
+from routes.ai import ai_bp
 
 logging.basicConfig(
     level=logging.INFO,
@@ -34,7 +35,17 @@ logging.basicConfig(
 from database.models import init_db, DatabaseStateProxy, get_sync_state_db
 init_db()
 
+import decimal
+from flask.json.provider import DefaultJSONProvider
+
+class CustomJSONProvider(DefaultJSONProvider):
+    def default(self, o):
+        if isinstance(o, decimal.Decimal):
+            return float(o)
+        return super().default(o)
+
 app = Flask(__name__)
+app.json = CustomJSONProvider(app)
 CORS(app)
 
 # 🧠 MÁQUINA DE ESTADO PERSISTENTE: Controla o progresso real da sincronia em SQLite (stateless)
@@ -71,6 +82,7 @@ app.register_blueprint(price_alerts_bp)
 app.register_blueprint(health_bp)
 app.register_blueprint(sync_stream_bp)
 app.register_blueprint(simulation_bp)
+app.register_blueprint(ai_bp)
 
 service = PortfolioService()
 
