@@ -61,7 +61,10 @@ def get_data():
         
     try:
         data = service.get_dashboard_data()
-        return jsonify(data)
+        return jsonify({
+            "status": "Sucesso",
+            **data
+        })
     except Exception as e:
         logging.error(f"❌ Erro catastrófico ao compilar dados do dashboard: {e}")
         return jsonify({"status": "Erro", "msg": "Não foi possível carregar os dados do painel."}), 500

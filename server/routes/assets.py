@@ -72,7 +72,7 @@ def add_asset():
     try:
         body = AssetInput(**request.json)
         
-        result = service.add_new_asset(
+        msg = service.add_new_asset(
             body.ticker.upper(), 
             body.category, 
             body.qtd, 
@@ -80,15 +80,16 @@ def add_asset():
             body.meta
         )
         
-        if result["status"] == "Sucesso":
-             try: 
-                 service.update_prices()
-                 service.take_daily_snapshot()
-             except Exception as e: 
-                 logging.warning(f"⚠️ Falha ao computar pós-inclusão de ativo: {e}")
+        try: 
+            service.update_prices()
+            service.take_daily_snapshot()
+        except Exception as e: 
+            logging.warning(f"⚠️ Falha ao computar pós-inclusão de ativo: {e}")
              
-        return jsonify(result)
+        return jsonify({"status": "Sucesso", "msg": msg})
         
+    except ValueError as e:
+        return jsonify({"status": "Erro", "msg": str(e)}), 400
     except ValidationError as e:
         return jsonify({"status": "Erro", "msg": "Dados inválidos", "errors": e.errors()}), 400
     except Exception as e:
@@ -99,7 +100,7 @@ def update_asset():
     try:
         body = UpdateInput(**request.json)
         
-        result = service.update_position(
+        msg = service.update_position(
             ticker=body.ticker, 
             qtd=body.qtd, 
             pm=body.pm, 
@@ -110,10 +111,11 @@ def update_asset():
             current_price=body.current_price
         )
         
-        if result["status"] == "Sucesso":
-             service.take_daily_snapshot() 
+        service.take_daily_snapshot() 
              
-        return jsonify(result)
+        return jsonify({"status": "Sucesso", "msg": msg})
+    except ValueError as e:
+        return jsonify({"status": "Erro", "msg": str(e)}), 400
     except ValidationError as e:
         return jsonify({"status": "Erro", "msg": "Dados inválidos", "detalhe": str(e)}), 400
     except Exception as e:
@@ -124,7 +126,7 @@ def validate_ticker():
     data = request.json or {}
     ticker = data.get('ticker', '').strip()
     if not ticker:
-        return jsonify({"valid": False, "msg": "Ticker vazio"})
+        return jsonify({"valid": False, "msg": "Ticker vazio"}), 400
     
     result = service.validate_ticker_on_yahoo(ticker)
     
@@ -143,10 +145,15 @@ def delete_asset():
     asset_id = data.get('id')
     
     if not asset_id:
-        return jsonify({"status": "Erro", "msg": "ID não informado"})
+        return jsonify({"status": "Erro", "msg": "ID não informado"}), 400
     
-    result = service.delete_asset(asset_id)
-    return jsonify(result)
+    try:
+        msg = service.delete_asset(asset_id)
+        return jsonify({"status": "Sucesso", "msg": msg})
+    except ValueError as e:
+        return jsonify({"status": "Erro", "msg": str(e)}), 404
+    except Exception as e:
+        return jsonify({"status": "Erro", "msg": str(e)}), 500
 
 @assets_bp.route('/api/assets')
 def get_assets():

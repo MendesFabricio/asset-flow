@@ -12,3 +12,4 @@ pytz
 gunicorn
 pandas_market_calendars
 tenacity
+alembic

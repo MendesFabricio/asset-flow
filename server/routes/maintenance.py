@@ -17,8 +17,10 @@ def update_category_meta():
         # ⚡ ISOLAMENTO DE THREAD: Instanciação local para garantir que o estado mutável do serviço
         # não seja compartilhado e corrompido em cliques simultâneos de usuários.
         service = PortfolioService()
-        result = service.update_category_meta(data.get('category'), data.get('meta'))
-        return jsonify(result)
+        msg = service.update_category_meta(data.get('category'), data.get('meta'))
+        return jsonify({"status": "Sucesso", "msg": msg})
+    except ValueError as e:
+        return jsonify({"status": "Erro", "msg": str(e)}), 404
     except Exception as e:
         logging.error(f"❌ Erro ao atualizar metas de alocação das categorias: {e}")
         return jsonify({"status": "Erro", "msg": str(e)}), 500

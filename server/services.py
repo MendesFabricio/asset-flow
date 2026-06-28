@@ -3,6 +3,7 @@ import os
 import shutil
 import threading
 import yfinance as yf
+from decimal import Decimal
 import math
 import time
 import numpy as np
@@ -26,7 +27,7 @@ import domain.quant_engine as _quant
 # ── Integração de mercado e scraping (Yahoo, CVM, B3) ──────────────────────────
 import infrastructure.market_data as _market
 
-USD_CACHE = {"rate": 5.80, "last_update": 0}
+USD_CACHE = {"rate": Decimal('5.80'), "last_update": 0}
 
 class PortfolioService:
     def __init__(self):
@@ -41,10 +42,10 @@ class PortfolioService:
 
     def _extract_value(self, data_point):
         try:
-            if hasattr(data_point, 'iloc'): return float(data_point.iloc[0])
-            if hasattr(data_point, 'item'): return float(data_point.item())
-            return float(data_point)
-        except: return 0.0
+            if hasattr(data_point, 'iloc'): return Decimal(str(data_point.iloc[0]))
+            if hasattr(data_point, 'item'): return Decimal(str(data_point.item()))
+            return Decimal(str(data_point))
+        except: return Decimal('0.0')
 
     def get_usd_rate(self):
         """Retorna a taxa cambial do dólar comercial com cache local estável de 1 hora"""
@@ -57,7 +58,7 @@ class PortfolioService:
             ticker = yf.Ticker("BRL=X")
             data = ticker.history(period="1d")
             if not data.empty: 
-                rate = float(data['Close'].iloc[-1])
+                rate = Decimal(str(data['Close'].iloc[-1]))
                 USD_CACHE["rate"] = rate
                 USD_CACHE["last_update"] = now
                 return rate
@@ -121,9 +122,14 @@ class PortfolioService:
             categories = session.query(Category).all()
             dolar_rate = self.get_usd_rate()
             
-            resumo = {"Total": 0.0, "RendaMensal": 0.0, "TotalInvestido": 0.0, "LucroTotal": 0.0}
-            cat_totals = {c.name: 0.0 for c in categories}
-            cat_metas = {c.name: c.target_percent for c in categories}
+            resumo = {
+                "Total": Decimal('0.0'),
+                "RendaMensal": Decimal('0.0'),
+                "TotalInvestido": Decimal('0.0'),
+                "LucroTotal": Decimal('0.0')
+            }
+            cat_totals = {c.name: Decimal('0.0') for c in categories}
+            cat_metas = {c.name: Decimal(str(c.target_percent or 0)) for c in categories}
             ativos_proc = []
 
             for pos in positions:
@@ -132,20 +138,24 @@ class PortfolioService:
 
                 mdata = asset.market_data[0] if asset.market_data else None
                 try:
-                    qtd = float(pos.quantity or 0)
-                    pm = float(pos.average_price or 0)
+                    qtd = Decimal(str(pos.quantity or 0))
+                    pm = Decimal(str(pos.average_price or 0))
                     if mdata and mdata.price is not None and mdata.price > 0:
-                        preco = float(mdata.price)
-                        min_6m = float(mdata.min_6m or 0)
-                        change_percent = float(mdata.change_percent or 0)
+                        preco = Decimal(str(mdata.price))
+                        min_6m = Decimal(str(mdata.min_6m or 0))
+                        change_percent = Decimal(str(mdata.change_percent or 0))
                     else:
-                        preco = 0.0
-                        min_6m = 0.0
-                        change_percent = 0.0
+                        preco = Decimal('0.0')
+                        min_6m = Decimal('0.0')
+                        change_percent = Decimal('0.0')
                 except: 
-                    qtd=0; pm=0; preco=0; min_6m=0; change_percent=0
+                    qtd = Decimal('0.0')
+                    pm = Decimal('0.0')
+                    preco = Decimal('0.0')
+                    min_6m = Decimal('0.0')
+                    change_percent = Decimal('0.0')
 
-                fator = dolar_rate if asset.currency == 'USD' else 1.0
+                fator = dolar_rate if asset.currency == 'USD' else Decimal('1.0')
                 total_atual = qtd * preco * fator
                 total_investido = qtd * pm * fator
                 
@@ -155,7 +165,7 @@ class PortfolioService:
                     cat_totals[asset.category.name] += total_atual
                 
                 metrics = self._calculate_metrics(pos, preco, min_6m)
-                resumo["RendaMensal"] += metrics.get("renda_mensal_est", 0)
+                resumo["RendaMensal"] += Decimal(str(metrics.get("renda_mensal_est", 0)))
                 
                 ativos_proc.append({
                     "obj": pos, "total_atual": total_atual, "total_investido": total_investido,
@@ -176,9 +186,9 @@ class PortfolioService:
                 preco_atual = item["preco_atual"]
 
                 # Metas de Alocação
-                pct_na_categoria = (item["total_atual"] / total_cat * 100) if total_cat > 0 else 0
-                meta_macro = float(cat_metas.get(cat_name, 0) or 0) / 100
-                meta_micro = float(pos.target_percent or 0) / 100
+                pct_na_categoria = (item["total_atual"] / total_cat * Decimal('100.0')) if total_cat > 0 else Decimal('0.0')
+                meta_macro = Decimal(str(cat_metas.get(cat_name, 0) or 0)) / Decimal('100.0')
+                meta_micro = Decimal(str(pos.target_percent or 0)) / Decimal('100.0')
                 meta_global_valor = resumo["Total"] * meta_macro * meta_micro
                 falta = meta_global_valor - item["total_atual"]
                 
@@ -188,34 +198,34 @@ class PortfolioService:
                 
                 # Regras de Alertas
                 if cat_name not in ['Renda Fixa', 'Reserva']:
-                    if pos.target_percent and float(pos.target_percent) > 0:
-                        excesso = pct_na_categoria / float(pos.target_percent)
-                        if excesso > 2.0:
-                            alertas.append(f"🚨 REBALANCEAR URGENTE: {pos.asset.ticker} ({pct_na_categoria:.1f}% vs meta {float(pos.target_percent):.1f}%)")
-                        elif excesso > 1.5:
-                            alertas.append(f"❗ REBALANCEAR: {pos.asset.ticker} estourou a meta ({pct_na_categoria:.1f}%)")
+                    if pos.target_percent and Decimal(str(pos.target_percent)) > 0:
+                        excesso = pct_na_categoria / Decimal(str(pos.target_percent))
+                        if excesso > Decimal('2.0'):
+                            alertas.append(f"🚨 REBALANCEAR URGENTE: {pos.asset.ticker} ({float(pct_na_categoria):.1f}% vs meta {float(pos.target_percent):.1f}%)")
+                        elif excesso > Decimal('1.5'):
+                            alertas.append(f"❗ REBALANCEAR: {pos.asset.ticker} estourou a meta ({float(pct_na_categoria):.1f}%)")
 
                     if cat_name == "Ação":
-                        mg = item["metrics"].get("mg_graham", 0)
-                        if mg >= 50:
-                            alertas.append(f"🧠 FUNDAMENTO: {pos.asset.ticker} com margem de segurança alta (+{mg:.0f}%)")
+                        mg = item["metrics"].get("mg_graham", Decimal('0.0'))
+                        if mg >= Decimal('50.0'):
+                            alertas.append(f"🧠 FUNDAMENTO: {pos.asset.ticker} com margem de segurança alta (+{float(mg):.0f}%)")
                     elif cat_name == "FII":
-                        pvp = item["metrics"].get("p_vp", 1)
-                        if 0 < pvp <= 0.85:
-                            alertas.append(f"🧠 FUNDAMENTO: {pos.asset.ticker} muito abaixo do VP ({pvp:.2f})")
+                        pvp = item["metrics"].get("p_vp", Decimal('1.0'))
+                        if Decimal('0.0') < pvp <= Decimal('0.85'):
+                            alertas.append(f"🧠 FUNDAMENTO: {pos.asset.ticker} muito abaixo do VP ({float(pvp):.2f})")
 
                     if rsi < 28:
                         alertas.append(f"💎 OPORTUNIDADE TÉCNICA: {pos.asset.ticker} (RSI {rsi:.0f})")
                     elif rsi > 78:
-                        if (pct_na_categoria / float(pos.target_percent or 1)) >= 1.2:
+                        if (pct_na_categoria / Decimal(str(pos.target_percent or 1))) >= Decimal('1.2'):
                             alertas.append(f"🔥 ESTICADO: {pos.asset.ticker} em região de topo (RSI {rsi:.0f})")
 
-                    if min_bruta > 0:
+                    if min_bruta > Decimal('0.0'):
                         moeda = "R$" if pos.asset.currency == 'BRL' else "$"
-                        if preco_atual <= min_bruta * 1.01:
-                            alertas.append(f"⚓ FUNDO: {pos.asset.ticker} na mínima de 6 meses (Ref: {moeda} {min_bruta:.2f})")
-                        elif preco_atual <= min_bruta * 1.03:
-                            alertas.append(f"🔻 PERTO DO FUNDO: {pos.asset.ticker} (Mínima: {moeda} {min_bruta:.2f})")
+                        if preco_atual <= min_bruta * Decimal('1.01'):
+                            alertas.append(f"⚓ FUNDO: {pos.asset.ticker} na mínima de 6 meses (Ref: {moeda} {float(min_bruta):.2f})")
+                        elif preco_atual <= min_bruta * Decimal('1.03'):
+                            alertas.append(f"🔻 PERTO DO FUNDO: {pos.asset.ticker} (Mínima: {moeda} {float(min_bruta):.2f})")
 
                 fundamentalist_info = None
                 if cat_name == 'Ação' and pos.asset.cvm_code and pos.last_report_type:
@@ -260,7 +270,6 @@ class PortfolioService:
             cats_info = [{"name": c.name, "meta": c.target_percent} for c in categories]
             
             return { 
-                "status": "Sucesso", 
                 "dolar": dolar_rate, 
                 "resumo": resumo, 
                 "grafico": lista_grafico, 
@@ -270,31 +279,39 @@ class PortfolioService:
             }
         except Exception as e:
             logging.error(f"❌ Erro Crítico na montagem do Dashboard: {traceback.format_exc()}")
-            return {"status": "Erro", "msg": str(e)}
+            raise e
         finally:
             # 🔒 CORREÇÃO CRÍTICA: finally garante fechamento determinístico da sessão
             # mesmo após o 'return' na linha acima (o código anterior era unreachable).
             Session.remove()
 
     def _calculate_metrics(self, pos, preco, min_6m):
-        m = {"vi_graham": 0, "mg_graham": 0, "magic_number": 0, "renda_mensal_est": 0, "p_vp": 0}
+        m = {
+            "vi_graham": Decimal('0.0'),
+            "mg_graham": Decimal('0.0'),
+            "magic_number": 0,
+            "renda_mensal_est": Decimal('0.0'),
+            "p_vp": Decimal('0.0')
+        }
         try:
             dy = self._extract_value(pos.manual_dy) 
             lpa = self._extract_value(pos.manual_lpa)
             vpa = self._extract_value(pos.manual_vpa)
             qtd = self._extract_value(pos.quantity)
             
-            if dy > 0 and preco > 0:
-                m["renda_mensal_est"] = (preco * dy * qtd) / 12
-                m["magic_number"] = math.ceil(12 / dy)
+            if dy > Decimal('0.0') and preco > Decimal('0.0'):
+                m["renda_mensal_est"] = (preco * dy * qtd) / Decimal('12.0')
+                m["magic_number"] = int(math.ceil(float(Decimal('12.0') / dy)))
             
-            if vpa > 0 and preco > 0:
+            if vpa > Decimal('0.0') and preco > Decimal('0.0'):
                 m["p_vp"] = preco / vpa
 
-            if pos.asset.category.name == "Ação" and lpa > 0 and vpa > 0:
-                m["vi_graham"] = math.sqrt(22.5 * lpa * vpa)
-                if preco > 0: m["mg_graham"] = ((m["vi_graham"] - preco) / preco) * 100
-        except: pass
+            if pos.asset.category.name == "Ação" and lpa > Decimal('0.0') and vpa > Decimal('0.0'):
+                m["vi_graham"] = Decimal(str(math.sqrt(float(Decimal('22.5') * lpa * vpa))))
+                if preco > Decimal('0.0'):
+                    m["mg_graham"] = ((m["vi_graham"] - preco) / preco) * Decimal('100.0')
+        except:
+            pass
         return m
     
     def _apply_strategy(self, pos, metrics, falta, preco, min_6m):
@@ -303,13 +320,13 @@ class PortfolioService:
         cat_name = pos.asset.category.name
 
         if cat_name == "Reserva":
-            if falta > 0:
+            if falta > Decimal('0.0'):
                 return "🚨 REPOR RESERVA", "COMPRA_FORTE", 100, "⚠️ Nível abaixo do ideal", 50
             else:
                 return "✅ RESERVA OK", "NEUTRO", 50, "🛡️ Reserva completa", 50
 
         if cat_name == "Renda Fixa":
-            if falta > 0:
+            if falta > Decimal('0.0'):
                 score = 85 
                 motivos.append("💰 Aporte Mensal / Rebalanceamento")
                 status = "COMPRAR"
@@ -322,7 +339,7 @@ class PortfolioService:
             return rec_text, status, score, " • ".join(motivos), 50
 
         # Renda Variável Geral
-        if falta > 0: 
+        if falta > Decimal('0.0'): 
             score += 30 
             motivos.append("⚖️ Abaixo da Meta (+30)")
         else: 
@@ -332,7 +349,7 @@ class PortfolioService:
         rsi = 50
         mdata = pos.asset.market_data[0] if pos.asset.market_data else None
         if mdata:
-            rsi = mdata.rsi_14 or 50
+            rsi = float(mdata.rsi_14 or 50)
         
         if cat_name == "Cripto":
             motivos.append("⚡ Ativo de Volatilidade Alta")
@@ -353,52 +370,52 @@ class PortfolioService:
                 score -= 30
                 motivos.append(f"⚠️ Esticado (RSI {rsi:.0f})")
 
-        if min_6m > 0:
-            if preco <= min_6m * 1.02: 
+        if min_6m > Decimal('0.0'):
+            if preco <= min_6m * Decimal('1.02'): 
                 score += 15
                 motivos.append("⚓ Suporte: Mínima Semestral")
-            elif preco <= min_6m * 1.05:
+            elif preco <= min_6m * Decimal('1.05'):
                 score += 5
                 motivos.append("📉 Próximo das Mínimas")
 
         if cat_name == "Ação":
-            mg = metrics.get("mg_graham", 0)
-            if mg > 50:
+            mg = metrics.get("mg_graham", Decimal('0.0'))
+            if mg > Decimal('50.0'):
                 score += 30
-                motivos.append(f"💎 Graham: Margem Segura (+{mg:.0f}%)")
-            elif mg > 20:
+                motivos.append(f"💎 Graham: Margem Segura (+{float(mg):.0f}%)")
+            elif mg > Decimal('20.0'):
                 score += 15
-                motivos.append(f"💰 Graham: Desconto (+{mg:.0f}%)")
-            elif mg < -20:
+                motivos.append(f"💰 Graham: Desconto (+{float(mg):.0f}%)")
+            elif mg < Decimal('-20.0'):
                 score -= 20
                 motivos.append(f"💸 Preço acima do Justo")
 
         elif cat_name == "Internacional":
-            mg = metrics.get("mg_graham", 0)
-            if mg != 0: 
-                if mg > 20: score += 15; motivos.append("💰 Valuation Atrativo")
-                elif mg < -20: score -= 15; motivos.append("💸 Valuation Esticado")
+            mg = metrics.get("mg_graham", Decimal('0.0'))
+            if mg != Decimal('0.0'): 
+                if mg > Decimal('20.0'): score += 15; motivos.append("💰 Valuation Atrativo")
+                elif mg < Decimal('-20.0'): score -= 15; motivos.append("💸 Valuation Esticado")
             else:
                 score += 10 
                 motivos.append("🌎 Alocação Global")
 
         elif cat_name == "FII":
-            pvp = metrics.get("p_vp", 1)
-            if pvp < 0.60:
+            pvp = metrics.get("p_vp", Decimal('1.0'))
+            if pvp < Decimal('0.60'):
                 score -= 20 
-                motivos.append(f"🚨 P/VP de Risco? ({pvp:.2f})")
-            elif pvp <= 0.90:
+                motivos.append(f"🚨 P/VP de Risco? ({float(pvp):.2f})")
+            elif pvp <= Decimal('0.90'):
                 score += 30
-                motivos.append(f"🏢 P/VP: Desconto ({pvp:.2f})")
-            elif pvp < 1.02:
+                motivos.append(f"🏢 P/VP: Desconto ({float(pvp):.2f})")
+            elif pvp < Decimal('1.02'):
                 score += 10
-                motivos.append(f"✅ P/VP Justo ({pvp:.2f})")
-            elif pvp > 1.15:
+                motivos.append(f"✅ P/VP Justo ({float(pvp):.2f})")
+            elif pvp > Decimal('1.15'):
                 score -= 30
-                motivos.append(f"⚠️ P/VP Caro ({pvp:.2f})")
+                motivos.append(f"⚠️ P/VP Caro ({float(pvp):.2f})")
 
             mn = metrics.get("magic_number", 0)
-            if mn > 0 and pos.quantity >= mn:
+            if mn > 0 and pos.quantity >= Decimal(str(mn)):
                 score += 5
                 motivos.append("❄️ Magic Number Atingido")
 
@@ -437,7 +454,7 @@ class PortfolioService:
         session = Session()
         try:
             positions = session.query(Position).all()
-            total_equity = 0; total_invested = 0
+            total_equity = Decimal('0.0'); total_invested = Decimal('0.0')
             dolar_rate = self.get_usd_rate()
             for pos in positions:
                 asset = pos.asset
@@ -445,11 +462,14 @@ class PortfolioService:
                 
                 mdata = asset.market_data[0] if asset.market_data else None
                 try:
-                    price = float(mdata.price) if (mdata and mdata.price) else float(pos.average_price or 0)
-                    qtd = float(pos.quantity or 0)
-                    pm = float(pos.average_price or 0)
-                except: price=0; qtd=0; pm=0
-                fator = dolar_rate if asset.currency == 'USD' else 1.0
+                    price = Decimal(str(mdata.price)) if (mdata and mdata.price) else Decimal(str(pos.average_price or 0))
+                    qtd = Decimal(str(pos.quantity or 0))
+                    pm = Decimal(str(pos.average_price or 0))
+                except: 
+                    price = Decimal('0.0')
+                    qtd = Decimal('0.0')
+                    pm = Decimal('0.0')
+                fator = dolar_rate if asset.currency == 'USD' else Decimal('1.0')
                 total_equity += (qtd * price * fator)
                 total_invested += (qtd * pm * fator)
             
@@ -481,14 +501,14 @@ class PortfolioService:
                 days_elapsed = (s.date - first_date).days
                 years_elapsed = days_elapsed / 365.25
                 # IPCA+6% estimado em 10.5% ao ano composto
-                benchmark_val = float(s.total_invested or 0) * (1.105 ** years_elapsed)
+                benchmark_val = Decimal(str(s.total_invested or 0)) * Decimal(str(1.105 ** years_elapsed))
                 
                 history.append({
                     "date": s.date.strftime("%d/%m"), 
                     "Patrimônio": float(s.total_equity or 0),
                     "Investido": float(s.total_invested or 0),
                     "Lucro": float(s.profit or 0),
-                    "IPCA_6": round(benchmark_val, 2)
+                    "IPCA_6": float(round(benchmark_val, 2))
                 })
             return history
         finally: Session.remove()
@@ -499,20 +519,20 @@ class PortfolioService:
         try:
             asset = session.query(Asset).filter_by(ticker=ticker).first()
             if not asset: 
-                return {"status": "Erro", "msg": f"Ativo {ticker} não encontrado"}
+                raise ValueError(f"Ativo {ticker} não encontrado")
             
             pos = session.query(Position).filter_by(asset_id=asset.id).first()
             if not pos:
                 pos = Position(asset_id=asset.id)
                 session.add(pos)
             
-            pos.quantity = float(qtd) 
-            pos.average_price = float(pm)
-            pos.target_percent = float(meta)
+            pos.quantity = Decimal(str(qtd)) 
+            pos.average_price = Decimal(str(pm))
+            pos.target_percent = Decimal(str(meta))
             
-            pos.manual_dy = float(dy)
-            pos.manual_lpa = float(lpa)
-            pos.manual_vpa = float(vpa)
+            pos.manual_dy = Decimal(str(dy or 0))
+            pos.manual_lpa = Decimal(str(lpa or 0))
+            pos.manual_vpa = Decimal(str(vpa or 0))
             
             if current_price is not None and str(current_price).strip() != "":
                 mdata = session.query(MarketData).filter_by(asset_id=asset.id).first()
@@ -520,18 +540,18 @@ class PortfolioService:
                     mdata = MarketData(asset_id=asset.id)
                     session.add(mdata)
                 
-                mdata.price = float(current_price)
+                mdata.price = Decimal(str(current_price))
                 mdata.date = datetime.now()
-                mdata.min_6m = float(current_price) 
+                mdata.min_6m = Decimal(str(current_price)) 
                 
             safe_commit(session)
             logging.info(f"   ✅ Sucesso: {ticker} (Quantity: {pos.quantity}) persistido com sucesso.")
-            return {"status": "Sucesso", "msg": "Dados e Preço Atualizados!"}
+            return "Dados e Preço Atualizados!"
             
         except Exception as e:
             session.rollback()
             logging.error(f"❌ Falha ao atualizar posição de {ticker}: {e}")
-            return {"status": "Erro", "msg": str(e)}
+            raise
         finally:
             Session.remove()
         
@@ -548,7 +568,8 @@ class PortfolioService:
         session = Session()
         try:
             exists = session.query(Asset).filter_by(ticker=ticker).first()
-            if exists: return {"status": "Erro", "msg": "Ativo já existe!"}
+            if exists: 
+                raise ValueError("Ativo já existe!")
             
             category = session.query(Category).filter_by(name=category_name).first()
             if not category: category = session.query(Category).first()
@@ -559,35 +580,37 @@ class PortfolioService:
             
             pos = Position(
                 asset_id=new_asset.id, 
-                quantity=float(qtd), 
-                average_price=float(pm),
-                target_percent=float(meta) 
+                quantity=Decimal(str(qtd)), 
+                average_price=Decimal(str(pm)),
+                target_percent=Decimal(str(meta)) 
             )
             session.add(pos)
             
             safe_commit(session)
-            return {"status": "Sucesso", "msg": f"Ativo {ticker} criado com sucesso!"}
+            return f"Ativo {ticker} criado com sucesso!"
         except Exception as e:
             session.rollback()
             logging.error(f"❌ Falha ao injetar novo ativo no ecossistema: {e}")
-            return {"status": "Erro", "msg": str(e)}
+            raise
         finally: 
             Session.remove()
     def delete_asset(self, asset_id):
         session = Session()
         try:
             asset = session.query(Asset).filter_by(id=asset_id).first()
-            if not asset: return {"status": "Erro", "msg": "Ativo não encontrado"}
+            if not asset: 
+                raise ValueError("Ativo não encontrado")
             
             session.query(Position).filter_by(asset_id=asset_id).delete()
             session.query(MarketData).filter_by(asset_id=asset_id).delete()
             session.delete(asset)
             safe_commit(session)
-            return {"status": "Sucesso", "msg": "Ativo e dados vinculados excluídos!"}
+            return "Ativo e dados vinculados excluídos!"
         except Exception as e:
             session.rollback()
-            return {"status": "Erro", "msg": str(e)}
-        finally: Session.remove()
+            raise
+        finally: 
+            Session.remove()
 
     def run_monte_carlo_simulation(self, days: int = 252, simulations: int = 1000) -> dict:
         """Façade → quant_engine.run_monte_carlo"""
@@ -633,14 +656,16 @@ class PortfolioService:
         session = Session()
         try:
             cat = session.query(Category).filter_by(name=category_name).first()
-            if not cat: return {"status": "Erro", "msg": "Categoria não encontrada"}
-            cat.target_percent = float(new_meta)
+            if not cat: 
+                raise ValueError("Categoria não encontrada")
+            cat.target_percent = Decimal(str(new_meta))
             safe_commit(session)
-            return {"status": "Sucesso", "msg": "Meta atualizada!"}
+            return "Meta atualizada!"
         except Exception as e:
             session.rollback()
-            return {"status": "Erro", "msg": str(e)}
-        finally: Session.remove()
+            raise
+        finally: 
+            Session.remove()
 
     def validate_ticker_on_yahoo(self, ticker):
         return _market.validate_ticker_on_yahoo(ticker)
