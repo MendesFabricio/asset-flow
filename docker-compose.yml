@@ -16,6 +16,7 @@ services:
     environment:
       - FLASK_ENV=development
       - FLASK_DEBUG=0
+      - OLLAMA_MODEL=llama3.2:3b
 
     # 🔒 LIMITES
     mem_limit: 2g

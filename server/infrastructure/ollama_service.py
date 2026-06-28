@@ -16,7 +16,7 @@ SessionLocal = sessionmaker(bind=engine)
 import os
 
 OLLAMA_URL = "http://ollama:11434/api/generate"
-MODEL_NAME = os.getenv("OLLAMA_MODEL", "qwen2.5:1.5b")  # Modelo leve para hardware restrito
+MODEL_NAME = os.getenv("OLLAMA_MODEL", "llama3.2:3b")  # Modelo leve para hardware restrito
 
 def _run_sentiment_analysis(ticker: str, news_titles: list, position_info: dict):
     """
