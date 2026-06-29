@@ -65,52 +65,94 @@ def morning_brief():
     session = Session()
     try:
         # 1. Retorna do cache se estiver válido (expiração de 4 horas)
+        from flask import request
+        force_reanalyze = request.args.get("force", "false").lower() == "true"
+        
         from datetime import datetime, timedelta
         cache_record = session.query(SystemCache).filter_by(key="morning_brief").first()
-        if cache_record:
+        if cache_record and not force_reanalyze:
             age = datetime.now() - cache_record.updated_at
             if age < timedelta(hours=4):
                 return jsonify(json.loads(cache_record.value))
 
         selic = get_risk_free_rate()
+        dolar_rate = service.get_usd_rate()
         
-        # Coleta as maiores posições da carteira
+        # Coleta todas as posições ativas da carteira
         positions = (
             session.query(Position)
             .filter(Position.quantity > 0)
             .all()
         )
         
-        holdings = []
-        dolar_rate = service.get_usd_rate()
+        total_portfolio_val = 0.0
+        holdings_details = []
         
         for pos in positions:
             if not pos.asset:
                 continue
             mdata = pos.asset.market_data[0] if pos.asset.market_data else None
-            price = float(mdata.price or 0) if mdata else float(pos.average_price or 0)
-            fator = dolar_rate if pos.asset.currency == 'USD' else 1.0
-            val = float(pos.quantity) * price * fator
+            price = float(mdata.price or pos.average_price or 0.0) if mdata else float(pos.average_price or 0.0)
+            fator = float(dolar_rate or 1.0) if pos.asset.currency == 'USD' else 1.0
+            qty = float(pos.quantity or 0.0)
+            val = qty * price * fator
+            
             if val > 0:
-                holdings.append((pos.asset.ticker.upper(), val))
+                total_portfolio_val += val
                 
-        # Ordena pelas maiores posições
-        holdings.sort(key=lambda x: x[1], reverse=True)
-        top_holdings = holdings[:3]
-        holdings_text = "\n".join([f"- {ticker}: R$ {value:.2f}" for ticker, value in top_holdings])
+                # Cálculo de Lucro/Prejuízo frente ao Preço Médio
+                avg_price = float(pos.average_price or 0.0)
+                profit_loss_pct = 0.0
+                if avg_price > 0:
+                    profit_loss_pct = ((price - avg_price) / avg_price) * 100
+                
+                status_text = ""
+                if profit_loss_pct > 0.01:
+                    status_text = f"{profit_loss_pct:.1f}% de LUCRO"
+                elif profit_loss_pct < -0.01:
+                    status_text = f"{abs(profit_loss_pct):.1f}% de PREJUÍZO"
+                else:
+                    status_text = "0.0% de variação (no ponto de equilíbrio)"
+                
+                holdings_details.append({
+                    "ticker": pos.asset.ticker.upper(),
+                    "category": pos.asset.category.name if pos.asset.category else "Outros",
+                    "value": val,
+                    "target_pct": float(pos.target_percent or 0.0),
+                    "status_text": status_text
+                })
+                
+        # Ordena as posições do portfólio pelo valor total em ordem decrescente
+        holdings_details.sort(key=lambda x: x["value"], reverse=True)
+        top_holdings = holdings_details[:3]
         
-        # Constrói o Prompt econômico contextualizado
+        holdings_text_lines = []
+        for h in top_holdings:
+            weight_pct = 0.0
+            if total_portfolio_val > 0:
+                weight_pct = (h["value"] / total_portfolio_val) * 100
+                
+            holdings_text_lines.append(
+                f"- {h['ticker']} (Categoria: {h['category']}, Peso Atual: {weight_pct:.1f}% da carteira, "
+                f"Meta: {h['target_pct']:.1f}%, Status: Posição atual com {h['status_text']} frente ao preço médio de aquisição)."
+            )
+            
+        holdings_text = "\n".join(holdings_text_lines)
+        
+        # Constrói o Prompt econômico contextualizado com Engenharia Financeira robusta
         prompt = (
             f"Você é um economista-chefe e gestor de portfólio senior.\n"
-            f"Elabore um briefing de mercado matinal de 1 parágrafo focado no risco destas 3 maiores posições da carteira do investidor:\n"
+            f"Elabore um briefing de mercado matinal de 1 parágrafo em português focado no risco destas 3 maiores posições da carteira do investidor:\n"
             f"{holdings_text or 'Nenhuma posição ativa no momento.'}\n\n"
             f"Cenário macroeconômico atual:\n"
             f"- Taxa Básica de Juros (Selic): {selic * 100:.2f}%\n"
             f"- Cotação do Dólar (USD/BRL): R$ {dolar_rate:.2f}\n\n"
-            f"Regras estritas:\n"
-            f"1. Foque a análise de alocação de risco exclusivamente no contexto destas posições.\n"
-            f"2. NUNCA mencione conselhos macro generalistas.\n"
-            f"3. Responda estritamente em formato JSON contendo as chaves exatas:\n"
+            f"Instruções estritas de comportamento de Engenharia Financeira:\n"
+            f"1. Você receberá o Ticker, a Categoria exata e a saúde financeira de cada ativo. Baseie-se estritamente nestes metadados estruturados. Nunca invente o perfil ou o setor de atuação de um ticker se ele contradisser a categoria informada.\n"
+            f"2. Pondere o impacto direto da taxa Selic atual de {selic * 100:.2f}% nas classes informadas (ex: Selic elevada beneficia posições de crédito privado e FIIs de recebíveis indexados ao CDI, mas gera vento contra em valuations de ações de crescimento e FIIs de tijolo).\n"
+            f"3. Foque a análise de alocação de risco exclusivamente no contexto destas posições.\n"
+            f"4. NUNCA mencione conselhos macro generalistas.\n"
+            f"5. Responda estritamente em formato JSON contendo as chaves exatas:\n"
             f"   - 'rationale': Cadeia de raciocínio lógico (Chain of Thought) em português sobre o risco da carteira.\n"
             f"   - 'brief_text': Resumo executivo matinal de 1 parágrafo em português focado e direto para exibição.\n"
         )
@@ -164,7 +206,7 @@ def morning_brief():
     except requests.exceptions.Timeout:
         return jsonify({
             "status": "Aviso",
-            "brief_text": "O Ollama demorou muito para responder (timeout de 15s). A IA pode estar sobrecarregada ou fria."
+            "brief_text": "O Ollama demorou muito para responder (timeout de 60s). A IA pode estar sobrecarregada ou fria."
         })
     except Exception as e:
         logging.error(f"❌ [BRIEF] Falha geral no Morning Brief: {e}", exc_info=True)

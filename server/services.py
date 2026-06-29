@@ -89,15 +89,20 @@ class PortfolioService:
             Session.remove()
 
 
-    def _prioridade_alerta(self, txt):
+    def _prioridade_alerta(self, item):
+        txt = item["titulo"] if isinstance(item, dict) else str(item)
         if "🚨" in txt: return 0  
-        if "🧠" in txt: return 1  
-        if "💎" in txt: return 2  
-        if "⚓" in txt: return 3  
-        if "🔻" in txt: return 4  
-        if "❗" in txt: return 5  
-        if "🔥" in txt: return 6  
-        return 7
+        if "🔥" in txt: return 1  
+        if "⚠️" in txt: return 2  
+        if "⚡" in txt: return 3  
+        if "🏆" in txt: return 4  
+        if "🧠" in txt: return 5  
+        if "💎" in txt: return 6  
+        if "🛡️" in txt: return 7  
+        if "⚓" in txt: return 8  
+        if "🔻" in txt: return 9  
+        if "❗" in txt: return 10 
+        return 11
 
     def record_confirmed_dividends(self):
         logging.info("📅 [SERVICE] Verificação de rotina de proventos concluída.")
@@ -196,36 +201,68 @@ class PortfolioService:
                     pos, item["metrics"], falta, item["preco_atual"], item["min_6m"]
                 )
                 
-                # Regras de Alertas
+                # Regras de Alertas estruturados com Ações Recomendadas
                 if cat_name not in ['Renda Fixa', 'Reserva']:
                     if pos.target_percent and Decimal(str(pos.target_percent)) > 0:
                         excesso = pct_na_categoria / Decimal(str(pos.target_percent))
                         if excesso > Decimal('2.0'):
-                            alertas.append(f"🚨 REBALANCEAR URGENTE: {pos.asset.ticker} ({float(pct_na_categoria):.1f}% vs meta {float(pos.target_percent):.1f}%)")
+                            alertas.append({
+                                "titulo": f"🚨 REBALANCEAR URGENTE: {pos.asset.ticker}",
+                                "significado": f"{pos.asset.ticker} estourou o limite máximo de segurança da carteira ({float(pct_na_categoria):.1f}% vs meta {float(pos.target_percent):.1f}%).",
+                                "acao": "Suspenda novas compras deste ativo. Como a exposição ultrapassou o dobro da meta, considere vender o excesso para efetuar um rebalanceamento ativo."
+                            })
                         elif excesso > Decimal('1.5'):
-                            alertas.append(f"❗ REBALANCEAR: {pos.asset.ticker} estourou a meta ({float(pct_na_categoria):.1f}%)")
+                            alertas.append({
+                                "titulo": f"❗ REBALANCEAR: {pos.asset.ticker}",
+                                "significado": f"O peso de {pos.asset.ticker} está acima da meta ideal ({float(pct_na_categoria):.1f}% vs meta {float(pos.target_percent):.1f}%).",
+                                "acao": "Não realize vendas para evitar custos. Apenas direcione os novos aportes da carteira para outros ativos subalocados até diluir essa posição."
+                            })
 
                     if cat_name == "Ação":
                         mg = item["metrics"].get("mg_graham", Decimal('0.0'))
                         if mg >= Decimal('50.0'):
-                            alertas.append(f"🧠 FUNDAMENTO: {pos.asset.ticker} com margem de segurança alta (+{float(mg):.0f}%)")
+                            alertas.append({
+                                "titulo": f"🧠 FUNDAMENTO: {pos.asset.ticker}",
+                                "significado": f"Preço de mercado está com desconto expressivo de {float(mg):.0f}% em relação ao Valor Justo Graham.",
+                                "acao": "Excelente oportunidade para receber novos aportes no simulador inteligente."
+                            })
                     elif cat_name == "FII":
                         pvp = item["metrics"].get("p_vp", Decimal('1.0'))
                         if Decimal('0.0') < pvp <= Decimal('0.85'):
-                            alertas.append(f"🧠 FUNDAMENTO: {pos.asset.ticker} muito abaixo do VP ({float(pvp):.2f})")
+                            alertas.append({
+                                "titulo": f"🧠 FUNDAMENTO: {pos.asset.ticker}",
+                                "significado": f"O FII está sendo negociado com desconto patrimonial atrativo (P/VP: {float(pvp):.2f}).",
+                                "acao": "Forte candidato para novos aportes visando ganho de capital e yields maiores."
+                            })
 
                     if rsi < 28:
-                        alertas.append(f"💎 OPORTUNIDADE TÉCNICA: {pos.asset.ticker} (RSI {rsi:.0f})")
+                        alertas.append({
+                            "titulo": f"💎 OPORTUNIDADE TÉCNICA: {pos.asset.ticker}",
+                            "significado": f"O ativo está em região de forte sobrevenda no gráfico diário (RSI {rsi:.0f}).",
+                            "acao": "Aportar no ativo. Historicamente, sobrevendas agudas indicam probabilidade de repique de preços."
+                        })
                     elif rsi > 78:
                         if (pct_na_categoria / Decimal(str(pos.target_percent or 1))) >= Decimal('1.2'):
-                            alertas.append(f"🔥 ESTICADO: {pos.asset.ticker} em região de topo (RSI {rsi:.0f})")
+                            alertas.append({
+                                "titulo": f"🔥 ESTICADO: {pos.asset.ticker}",
+                                "significado": f"O ativo está muito esticado no gráfico diário (RSI {rsi:.0f}) e acima da meta.",
+                                "acao": "Evite comprar mais unidades agora. Direcione o aporte deste mês para ativos com desconto técnico."
+                            })
 
                     if min_bruta > Decimal('0.0'):
                         moeda = "R$" if pos.asset.currency == 'BRL' else "$"
                         if preco_atual <= min_bruta * Decimal('1.01'):
-                            alertas.append(f"⚓ FUNDO: {pos.asset.ticker} na mínima de 6 meses (Ref: {moeda} {float(min_bruta):.2f})")
+                            alertas.append({
+                                "titulo": f"⚓ FUNDO: {pos.asset.ticker}",
+                                "significado": f"Preço atual encostou na mínima dos últimos 6 meses ({moeda} {float(min_bruta):.2f}).",
+                                "acao": "Se os fundamentos permanecem intactos, aproveite o suporte de preço para reforçar a posição."
+                            })
                         elif preco_atual <= min_bruta * Decimal('1.03'):
-                            alertas.append(f"🔻 PERTO DO FUNDO: {pos.asset.ticker} (Mínima: {moeda} {float(min_bruta):.2f})")
+                            alertas.append({
+                                "titulo": f"🔻 PERTO DO FUNDO: {pos.asset.ticker}",
+                                "significado": f"Preço de mercado está a menos de 3% de distância do suporte de 6 meses.",
+                                "acao": "Ponto de entrada atrativo para novos aportes."
+                            })
 
                 fundamentalist_info = None
                 if cat_name == 'Ação' and pos.asset.cvm_code and pos.last_report_type:
@@ -262,6 +299,81 @@ class PortfolioService:
                     "fundamentalist_data": fundamentalist_info,
                     **item["metrics"]
                 })
+
+            # --- INTEGRAÇÃO DE RISCOS E MÉTRICAS QUANTITATIVAS NO RADAR ---
+            # 1. Alertas de Correlação EWMA Elevada
+            try:
+                corr_data = self.get_correlation_matrix()
+                if corr_data.get("status") == "Sucesso":
+                    pairs_reported = set()
+                    for cell in corr_data.get("matrix", []):
+                        tx, ty, val = cell["x"], cell["y"], cell["value"]
+                        if tx != ty and val >= 0.82:
+                            pair_key = tuple(sorted([tx, ty]))
+                            if pair_key not in pairs_reported:
+                                pairs_reported.add(pair_key)
+                                alertas.append({
+                                    "titulo": f"⚠️ CORRELAÇÃO CRÍTICA: {tx} e {ty}",
+                                    "significado": f"Esses dois ativos possuem forte acoplamento de preço (EWMA: {val:.2f}), reduzindo a diversificação do portfólio.",
+                                    "acao": "Evite comprar ambos no mesmo mês. Foque novos aportes em outros setores para aumentar a diversificação real."
+                                })
+            except Exception as e:
+                logging.warning(f"⚠️ Falha ao computar alertas de correlação no Dashboard: {e}")
+
+            # 2. Alertas de Métricas de Risco do Portfólio (VaR, Sharpe, Beta, MDD)
+            try:
+                risk_data = self.calculate_risk_metrics()
+                if risk_data.get("status") == "Sucesso":
+                    beta = risk_data.get("beta", 1.0)
+                    sharpe = risk_data.get("sharpe_12m", 0.0)
+                    var_monthly = risk_data.get("var_95_monthly_pct", 0.0)
+                    mdd = risk_data.get("max_drawdown_pct", 0.0)
+
+                    # Alerta de Agressividade (Beta)
+                    if beta > 1.35:
+                        alertas.append({
+                            "titulo": "⚡ SISTEMÁTICO: Carteira Agressiva",
+                            "significado": f"O portfólio possui Beta sistemático de {beta:.2f}, oscilando com maior intensidade que o IBOVESPA.",
+                            "acao": "Nenhuma ação de venda é necessária. Para equilibrar a volatilidade, considere direcionar novos aportes para Renda Fixa ou ativos defensivos."
+                        })
+                    elif beta < 0.65:
+                        alertas.append({
+                            "titulo": "🛡️ SISTEMÁTICO: Carteira Defensiva",
+                            "significado": f"O portfólio possui Beta de {beta:.2f}, apresentando baixa sensibilidade ao comportamento do IBOVESPA.",
+                            "acao": "Estrutura conservadora adequada para proteção. Caso queira acompanhar a alta do mercado, avalie aportar em ativos de Renda Variável com maior Beta."
+                        })
+
+                    # Alerta de Eficiência (Sharpe)
+                    if sharpe > 1.8:
+                        alertas.append({
+                            "titulo": "🏆 DESEMPENHO: Relação Retorno/Risco Notável",
+                            "significado": f"O portfólio está gerando excelente retorno em relação ao risco corrido (Sharpe 12m: {sharpe:.2f}).",
+                            "acao": "Mantenha a estratégia de aportes atual. A alocação está muito eficiente."
+                        })
+                    elif sharpe < 0.0:
+                        alertas.append({
+                            "titulo": "📉 DESEMPENHO: Sharpe Abaixo da Selic",
+                            "significado": f"O retorno da carteira de renda variável foi inferior à taxa livre de risco nos últimos 12 meses.",
+                            "acao": "Não venda ativos em pânico. Aproveite para focar seus novos aportes em ativos com margem de segurança (Desconto Graham)."
+                        })
+
+                    # Alerta de Risco de Cauda (VaR)
+                    if var_monthly > 12.0:
+                        alertas.append({
+                            "titulo": "🔥 RISCO DE CAUDA: VaR Mensal Elevado",
+                            "significado": f"Perda máxima esperada para o portfólio em cenários de estresse de até {var_monthly:.1f}% ao mês (95% confiança).",
+                            "acao": "Aumente a alocação em Renda Fixa ou Reserva de Oportunidade nos próximos aportes mensais para atenuar o VaR."
+                        })
+
+                    # Alerta de Drawdown Histórico
+                    if mdd < -25.0:
+                        alertas.append({
+                            "titulo": "⚠️ MÁXIMA QUEDA: Drawdown Acentuado",
+                            "significado": f"O portfólio registrou recuo máximo pico-a-vale histórico de {mdd:.1f}%.",
+                            "acao": "Esse é o risco inerente à renda variável. Mantenha os aportes regulares no simulador para fazer preço médio atrativo."
+                        })
+            except Exception as e:
+                logging.warning(f"⚠️ Falha ao computar alertas de risco quantitativos no Dashboard: {e}")
 
             final_list.sort(key=lambda x: x["score"], reverse=True)
             alertas.sort(key=self._prioridade_alerta)

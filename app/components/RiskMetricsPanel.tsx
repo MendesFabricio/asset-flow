@@ -39,7 +39,7 @@ interface RiskMetrics {
   };
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5328';
+
 
 /** Cartão de métrica individual com tooltip inline */
 function MetricCard({
@@ -122,8 +122,7 @@ export function RiskMetricsPanel() {
     setLoading(true);
     setError(null);
 
-    fetch(`${API_BASE}/api/risk-metrics`, { signal: abortRef.current.signal })
-      .then(r => r.json())
+    apiCall<RiskMetrics>('/api/risk-metrics', { signal: abortRef.current.signal })
       .then((d: RiskMetrics) => {
         if (d.status === 'Sucesso') setData(d);
         else setError(d.msg || 'Erro ao carregar métricas.');

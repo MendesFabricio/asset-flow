@@ -3,8 +3,6 @@ import { useState, useEffect } from 'react';
 import { Bell, AlertTriangle, CheckCircle, WifiOff, AlertOctagon, Info, Settings, RefreshCw, ChevronRight, FileText, Trash2, ArrowLeft } from 'lucide-react';
 import { apiCall } from '../utils/apiClient';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5328";
-
 // Interface alinhada com o backend Python
 interface Alert {
   id: string;
@@ -62,12 +60,9 @@ export const AlertsButton = ({ onFixAsset }: Props) => {
   const fetchActivePriceAlerts = async () => {
     setLoadingActiveAlerts(true);
     try {
-      const res = await fetch(`${API_BASE}/api/price-alerts`);
-      if (res.ok) {
-        const data = await res.json() as ActivePriceAlertsResponse;
-        if (data.status === 'Sucesso' && Array.isArray(data.alerts)) {
-          setActivePriceAlerts(data.alerts);
-        }
+      const data = await apiCall<ActivePriceAlertsResponse>('/api/price-alerts');
+      if (data.status === 'Sucesso' && Array.isArray(data.alerts)) {
+        setActivePriceAlerts(data.alerts);
       }
     } catch (err) {
       console.error("Erro ao buscar alertas ativos:", err);
@@ -84,14 +79,11 @@ export const AlertsButton = ({ onFixAsset }: Props) => {
 
   const handleDeletePriceAlert = async (alertId: number) => {
     try {
-      const res = await fetch(`${API_BASE}/api/price-alerts/${alertId}`, {
+      const data = await apiCall<{ status: string }>('/api/price-alerts/' + alertId, {
         method: 'DELETE',
       });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.status === 'Sucesso') {
-          setActivePriceAlerts(prev => prev.filter(alert => alert.id !== alertId));
-        }
+      if (data.status === 'Sucesso') {
+        setActivePriceAlerts(prev => prev.filter(alert => alert.id !== alertId));
       }
     } catch (err) {
       console.error("Erro ao deletar alerta ativo:", err);
@@ -102,7 +94,7 @@ export const AlertsButton = ({ onFixAsset }: Props) => {
     try {
       const [alertsData, priceAlertsRes] = await Promise.all([
         apiCall<Alert[]>('/api/alerts'),
-        fetch(`${API_BASE}/api/price-alerts/notifications`).then(res => res.json())
+        apiCall<{ status: string; notifications: PriceAlertNotification[] }>('/api/price-alerts/notifications')
       ]);
 
       let newAlerts: Alert[] = [];

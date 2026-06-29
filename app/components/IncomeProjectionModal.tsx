@@ -9,8 +9,7 @@ import {
   Landmark, BarChart3, RefreshCw
 } from 'lucide-react';
 import { formatMoney } from '../utils';
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5328';
+import { apiCall } from '../utils/apiClient';
 
 interface Params {
   aporte_mensal: number;
@@ -88,12 +87,10 @@ export function IncomeProjectionModal({ onClose }: Props) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/project-income`, {
+      const data = await apiCall<ProjectionResult>('/api/project-income', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(params),
       });
-      const data: ProjectionResult = await res.json();
       if (data.status === 'Sucesso') setResult(data);
       else setError(data.msg || 'Erro na projeção.');
     } catch {

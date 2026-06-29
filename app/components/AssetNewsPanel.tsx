@@ -4,6 +4,7 @@ import { X, ExternalLink, Newspaper, Brain, RefreshCw } from 'lucide-react';
 import { Skeleton } from './ui/Skeleton';
 import { Badge } from './ui/Badge';
 import { apiCall } from '../utils/apiClient';
+import { Markdown } from './ui/Markdown';
 
 interface NewsItem {
   title: string;
@@ -33,6 +34,18 @@ export default function AssetNewsPanel({ ticker, onClose }: Props) {
   const [news, setNews] = useState<NewsItem[]>([]);
   const [aiSentiment, setAiSentiment] = useState<AiSentiment | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const handleReanalyze = () => {
+    if (!ticker) return;
+    setAiSentiment(prev => prev ? { ...prev, status: 'processing' } : { status: 'processing', summary: '', sentiment: 'Neutro', updated_at: null });
+    apiCall<NewsResponse>(`/api/news/${ticker}?force=true`)
+      .then(data => {
+        setAiSentiment(data.ai_sentiment || null);
+      })
+      .catch(err => {
+        console.error("Erro ao solicitar reanálise:", err);
+      });
+  };
 
   useEffect(() => {
     if (ticker) {
@@ -95,33 +108,45 @@ export default function AssetNewsPanel({ ticker, onClose }: Props) {
       </div>
 
       {/* 🤖 PAINEL DE INTELIGÊNCIA ARTIFICIAL */}
-      {aiSentiment && aiSentiment.status !== 'idle' && (
+      {aiSentiment && (
         <div className="mb-6 p-4 rounded-xl border bg-slate-900/40 border-slate-800 flex flex-col gap-3">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5 font-mono">
               <Brain size={14} className="text-purple-400" />
               IA Sentiment (Ollama)
             </span>
-            {aiSentiment.status === 'processing' && (
-              <span className="text-[10px] font-bold text-yellow-500 animate-pulse flex items-center gap-1">
-                <RefreshCw size={10} className="animate-spin" />
-                Processando IA...
-              </span>
-            )}
-            {aiSentiment.status === 'success' && (
-              <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
-                aiSentiment.sentiment === 'Positivo' ? 'bg-emerald-950/80 text-emerald-400 border border-emerald-500/20' :
-                aiSentiment.sentiment === 'Negativo' ? 'bg-red-950/80 text-red-400 border border-red-500/20' :
-                'bg-slate-800 text-slate-300'
-              }`}>
-                {aiSentiment.sentiment}
-              </span>
-            )}
-            {aiSentiment.status === 'error' && (
-              <span className="text-[10px] font-bold text-red-400">
-                Offline
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              {aiSentiment.status === 'processing' ? (
+                <span className="text-[10px] font-bold text-yellow-500 animate-pulse flex items-center gap-1">
+                  <RefreshCw size={10} className="animate-spin" />
+                  Processando...
+                </span>
+              ) : aiSentiment.status === 'success' ? (
+                <button
+                  onClick={handleReanalyze}
+                  disabled={loading}
+                  className="p-1 text-slate-400 hover:text-white hover:bg-slate-800 rounded transition-all flex items-center gap-1 text-[9px] font-bold uppercase border border-slate-800/80 px-1.5 py-0.5"
+                  title="Reanalisar sentimento com a IA"
+                >
+                  <RefreshCw size={10} />
+                  Reanalisar
+                </button>
+              ) : null}
+              {aiSentiment.status === 'success' && (
+                <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                  aiSentiment.sentiment === 'Positivo' ? 'bg-emerald-950/80 text-emerald-400 border border-emerald-500/20' :
+                  aiSentiment.sentiment === 'Negativo' ? 'bg-red-950/80 text-red-400 border border-red-500/20' :
+                  'bg-slate-800 text-slate-300'
+                }`}>
+                  {aiSentiment.sentiment}
+                </span>
+              )}
+              {aiSentiment.status === 'error' && (
+                <span className="text-[10px] font-bold text-red-400">
+                  Offline
+                </span>
+              )}
+            </div>
           </div>
           
           <div className="text-xs text-slate-300 leading-relaxed">
@@ -131,7 +156,18 @@ export default function AssetNewsPanel({ ticker, onClose }: Props) {
                 <Skeleton className="h-3 w-5/6 bg-slate-800" />
               </div>
             ) : aiSentiment.status === 'success' ? (
-              <p className="whitespace-pre-line text-slate-300 font-medium">{aiSentiment.summary}</p>
+              <Markdown text={aiSentiment.summary || ''} />
+            ) : aiSentiment.status === 'idle' ? (
+              <div className="flex flex-col gap-2 py-2 items-center justify-center text-center">
+                <p className="text-slate-400 font-medium italic">Nenhuma análise disponível para este ativo.</p>
+                <button
+                  onClick={handleReanalyze}
+                  className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white font-bold text-[10px] uppercase tracking-wider rounded-lg transition-all flex items-center gap-1.5 border border-purple-500 shadow-md"
+                >
+                  <Brain size={12} />
+                  Analisar com IA
+                </button>
+              </div>
             ) : (
               <p className="text-slate-500 italic">Análise indisponível. Certifique-se de que o Ollama está rodando localmente com o modelo llama3.2:3b.</p>
             )}

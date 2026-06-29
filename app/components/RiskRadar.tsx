@@ -11,20 +11,35 @@ import {
 import { Badge } from './ui/Badge';
 import { Card } from './ui/Card';
 
-export const RiskRadar = React.memo(({ alertas }: { alertas: string[] }) => {
+export interface Alerta {
+  titulo: string;
+  significado: string;
+  acao: string;
+}
+
+export const RiskRadar = React.memo(({ alertas }: { alertas: (string | Alerta)[] }) => {
   
   const analyzeAlert = (text: string) => {
     const t = text.toLowerCase();
-    if (t.includes('oportunidade') || t.includes('graham') || t.includes('desconto')) {
-      return { icon: Sparkles, color: 'text-emerald-400', bg: 'bg-emerald-500/5', border: 'border-emerald-500/20', label: 'Oportunidade' };
+    if (t.includes('oportunidade') || t.includes('graham') || t.includes('desconto') || t.includes('desempenho')) {
+      return { icon: Sparkles, color: 'text-emerald-400', bg: 'bg-emerald-500/5', border: 'border-emerald-500/20', label: 'Desempenho / Op.' };
     }
     if (t.includes('rebalancear') || t.includes('meta')) {
       return { icon: Scale, color: 'text-amber-400', bg: 'bg-amber-500/5', border: 'border-amber-500/20', label: 'Ajuste' };
     }
+    if (t.includes('correlação') || t.includes('correlacao')) {
+      return { icon: Activity, color: 'text-purple-400', bg: 'bg-purple-500/5', border: 'border-purple-500/20', label: 'Correlação EWMA' };
+    }
+    if (t.includes('var') || t.includes('risco de cauda') || t.includes('queda') || t.includes('recuo')) {
+      return { icon: Siren, color: 'text-rose-400', bg: 'bg-rose-500/5', border: 'border-rose-500/20', label: 'Risco / VaR' };
+    }
+    if (t.includes('sistemático') || t.includes('sistematico') || t.includes('beta')) {
+      return { icon: ShieldCheck, color: 'text-indigo-400', bg: 'bg-indigo-500/5', border: 'border-indigo-500/20', label: 'Métrica Quant' };
+    }
     if (t.includes('esticado') || t.includes('rsi alto') || t.includes('alerta')) {
       return { icon: Siren, color: 'text-rose-400', bg: 'bg-rose-500/5', border: 'border-rose-500/20', label: 'Risco Elevado' };
     }
-    if (t.includes('mínima') || t.includes('fundo')) {
+    if (t.includes('mínima') || t.includes('fundo') || t.includes('suporte')) {
       return { icon: Anchor, color: 'text-cyan-400', bg: 'bg-cyan-500/5', border: 'border-cyan-500/20', label: 'Suporte' };
     }
     return { icon: Activity, color: 'text-slate-400', bg: 'bg-slate-500/5', border: 'border-slate-500/20', label: 'Movimentação' };
@@ -54,22 +69,45 @@ export const RiskRadar = React.memo(({ alertas }: { alertas: string[] }) => {
           </div>
         ) : (
           alertas.map((alerta, index) => {
-            const style = analyzeAlert(alerta);
+            const isObj = typeof alerta === 'object' && alerta !== null;
+            const titulo = isObj ? (alerta as Alerta).titulo : (alerta as string);
+            const significado = isObj ? (alerta as Alerta).significado : '';
+            const acao = isObj ? (alerta as Alerta).acao : '';
+            
+            const style = analyzeAlert(titulo);
             const Icon = style.icon;
             return (
-              <div key={index} className={`relative p-3 rounded-xl border ${style.bg} ${style.border} group transition-all duration-300 hover:bg-slate-800/20`}>
+              <div key={index} className={`relative p-3.5 rounded-xl border ${style.bg} ${style.border} group transition-all duration-300 hover:bg-slate-800/20`}>
                 <div className="flex items-start gap-3">
                   <div className={`p-2 rounded-lg bg-slate-950 border border-slate-800 shrink-0 ${style.color}`}>
                     <Icon size={16} />
                   </div>
 
-                  <div className="flex flex-col gap-1">
-                    <span className={`text-[8px] font-bold uppercase tracking-widest ${style.color}`}>
-                      {style.label}
-                    </span>
-                    <p className="text-[11px] text-slate-300 leading-relaxed font-bold">
-                      {alerta.replace(/⚠️|💎|📈|📉|⚖️/g, '').trim()}
-                    </p>
+                  <div className="flex-1 space-y-2">
+                    <div className="space-y-0.5">
+                      <span className={`text-[8px] font-bold uppercase tracking-widest ${style.color}`}>
+                        {style.label}
+                      </span>
+                      <p className="text-[11px] text-slate-200 leading-relaxed font-bold">
+                        {titulo.replace(/⚠️|💎|📈|📉|⚖️|🚨|❗|🏆|🛡️|⚡|🔥/g, '').trim()}
+                      </p>
+                      {significado && (
+                        <p className="text-[10px] text-slate-400 leading-normal font-medium mt-0.5">
+                          {significado}
+                        </p>
+                      )}
+                    </div>
+
+                    {acao && (
+                      <div className="p-2 bg-slate-950/40 border border-slate-800/60 rounded-lg flex gap-1.5 items-start">
+                        <span className="text-[8px] font-bold text-emerald-400 bg-emerald-950/20 border border-emerald-900/30 px-1 py-0.5 rounded uppercase shrink-0 mt-0.5">
+                          Conduta
+                        </span>
+                        <p className="text-[9px] text-slate-300 leading-snug font-semibold">
+                          {acao}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -81,7 +119,7 @@ export const RiskRadar = React.memo(({ alertas }: { alertas: string[] }) => {
       {/* Footer Fixo - Simétrico ao CategorySummary */}
       <div className="p-5 bg-slate-900 border-t border-slate-800 text-center shrink-0">
         <p className="text-[9px] text-slate-600 font-bold uppercase tracking-[0.2em]">
-            Análise baseada em Preço e RSI
+            Preço • RSI • VaR • Correlação EWMA • Risco
         </p>
       </div>
     </Card>

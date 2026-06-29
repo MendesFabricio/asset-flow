@@ -13,6 +13,8 @@ news_bp = Blueprint('news', __name__)
 
 @news_bp.route('/api/news/<ticker>', methods=['GET'])
 def get_news(ticker):
+    from flask import request
+    force_reanalyze = request.args.get("force", "false").lower() == "true"
     ticker_clean = ticker.strip().upper().replace(".SA", "")
     session = Session()
     try:
@@ -55,11 +57,35 @@ def get_news(ticker):
 
         if asset:
             should_trigger = False
-            if asset.ai_status in ["idle", "error"] or not asset.ai_status:
+            # 1. Se o usuário forçou a reanálise, sempre dispara
+            if force_reanalyze:
                 should_trigger = True
-            elif asset.ai_updated_at:
-                age = datetime.now() - asset.ai_updated_at
-                if age > timedelta(days=1):
+            # 2. Se nunca foi executado (status idle ou None)
+            elif asset.ai_status == "idle" or not asset.ai_status:
+                should_trigger = True
+            # 3. Se deu erro na última execução, espera pelo menos 15 minutos antes de tentar novamente automaticamente
+            elif asset.ai_status == "error":
+                if asset.ai_updated_at:
+                    age = datetime.now() - asset.ai_updated_at
+                    if age > timedelta(minutes=15):
+                        should_trigger = True
+                else:
+                    should_trigger = True
+            # 4. Se estiver travado em "processing" há mais de 5 minutos, considera timeout e tenta novamente
+            elif asset.ai_status == "processing":
+                if asset.ai_updated_at:
+                    age = datetime.now() - asset.ai_updated_at
+                    if age > timedelta(minutes=5):
+                        should_trigger = True
+                else:
+                    should_trigger = True
+            # 5. Se foi um sucesso, respeita o cache padrão de 1 dia
+            elif asset.ai_status == "success":
+                if asset.ai_updated_at:
+                    age = datetime.now() - asset.ai_updated_at
+                    if age > timedelta(days=1):
+                        should_trigger = True
+                else:
                     should_trigger = True
 
             if should_trigger and news_list:
@@ -82,9 +108,11 @@ def get_news(ticker):
                 
                 analyze_asset_sentiment_async(asset.ticker, titles, position_info)
                 asset.ai_status = "processing"
+                asset.ai_updated_at = datetime.now()  # Registra o início do processamento como referência de timeout
                 session.commit()
             elif should_trigger:
                 asset.ai_status = "idle"
+                asset.ai_updated_at = datetime.now()
                 session.commit()
 
             ai_data = {

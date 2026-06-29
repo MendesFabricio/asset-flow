@@ -132,62 +132,64 @@ def chat():
             {"role": "user", "content": message}
         ]
         
-        # Loop de execução do agente (máximo 5 iterações para evitar loops infinitos)
-        for i in range(5):
-            payload = {
-                "model": MODEL_NAME,
-                "messages": messages,
-                "tools": tools,
-                "stream": False,
-                "keep_alive": 0
-            }
-            
-            logging.info(f"🤖 [Jarvis Agent] Enviando requisição para o Ollama (Iteração {i+1})...")
-            response = requests.post(OLLAMA_CHAT_URL, json=payload, timeout=120)
-            if response.status_code != 200:
-                raise Exception(f"Ollama respondeu com status {response.status_code}")
-                
-            res_data = response.json()
-            assistant_message = res_data.get("message", {})
-            tool_calls = assistant_message.get("tool_calls", [])
-            
-            if not tool_calls:
-                break
-                
-            # Adiciona a mensagem do assistente contendo as chamadas de ferramentas planejadas
-            messages.append(assistant_message)
-            
-            # Resolve cada chamada de ferramenta
-            for tool_call in tool_calls:
-                func_name = tool_call.get("function", {}).get("name")
-                args = tool_call.get("function", {}).get("arguments", {})
-                
-                logging.info(f"🔧 [Jarvis Agent] Executando ferramenta local: '{func_name}' com args: {args}")
-                
-                if func_name == "query_portfolio_metrics":
-                    result = execute_query_portfolio_metrics(session)
-                elif func_name == "get_asset_fundamental_data":
-                    ticker = args.get("ticker", "")
-                    result = execute_get_asset_fundamental_data(session, ticker)
-                else:
-                    result = {"status": "Erro", "error": f"Ferramenta '{func_name}' não suportada."}
-                    
-                messages.append({
-                    "role": "tool",
-                    "name": func_name,
-                    "content": json.dumps(result)
-                })
-                
-        # Resposta final por streaming
-        final_payload = {
-            "model": MODEL_NAME,
-            "messages": messages,
-            "stream": True,
-            "keep_alive": 0
-        }
-        
         def generate_stream():
             try:
+                # Loop de execução do agente (máximo 5 iterações para evitar loops infinitos)
+                for i in range(5):
+                    payload = {
+                        "model": MODEL_NAME,
+                        "messages": messages,
+                        "tools": tools,
+                        "stream": False,
+                        "keep_alive": 0
+                    }
+                    
+                    logging.info(f"🤖 [Jarvis Agent] Enviando requisição para o Ollama (Iteração {i+1})...")
+                    response = requests.post(OLLAMA_CHAT_URL, json=payload, timeout=120)
+                    if response.status_code != 200:
+                        raise Exception(f"Ollama respondeu com status {response.status_code}")
+                        
+                    res_data = response.json()
+                    assistant_message = res_data.get("message", {})
+                    tool_calls = assistant_message.get("tool_calls", [])
+                    
+                    if not tool_calls:
+                        break
+                        
+                    # Adiciona a mensagem do assistente contendo as chamadas de ferramentas planejadas
+                    messages.append(assistant_message)
+                    
+                    # Resolve cada chamada de ferramenta
+                    for tool_call in tool_calls:
+                        func_name = tool_call.get("function", {}).get("name")
+                        args = tool_call.get("function", {}).get("arguments", {})
+                        
+                        logging.info(f"🔧 [Jarvis Agent] Executando ferramenta local: '{func_name}' com args: {args}")
+                        
+                        if func_name == "query_portfolio_metrics":
+                            yield "💡 *Ação: Consultando ativos da carteira e recalculando indicadores de risco...*\n\n"
+                            result = execute_query_portfolio_metrics(session)
+                        elif func_name == "get_asset_fundamental_data":
+                            ticker = args.get("ticker", "")
+                            yield f"💡 *Ação: Buscando e analisando demonstrativos financeiros da CVM para {ticker}...*\n\n"
+                            result = execute_get_asset_fundamental_data(session, ticker)
+                        else:
+                            result = {"status": "Erro", "error": f"Ferramenta '{func_name}' não suportada."}
+                            
+                        messages.append({
+                            "role": "tool",
+                            "name": func_name,
+                            "content": json.dumps(result)
+                        })
+                
+                # Resposta final por streaming
+                final_payload = {
+                    "model": MODEL_NAME,
+                    "messages": messages,
+                    "stream": True,
+                    "keep_alive": 0
+                }
+                
                 response = requests.post(OLLAMA_CHAT_URL, json=final_payload, stream=True, timeout=240)
                 if response.status_code != 200:
                     yield "Erro na geração final por streaming."
@@ -201,11 +203,14 @@ def chat():
             except Exception as stream_err:
                 logging.error(f"Erro no stream do agente: {stream_err}")
                 yield f"\n[Erro de conexão com o Ollama: {stream_err}]"
+            finally:
+                session.close()
 
         return Response(stream_with_context(generate_stream()), mimetype='text/plain')
         
     except Exception as e:
         logging.error(f"❌ Falha crítica no Agente Jarvis: {e}", exc_info=True)
+        session.close()
         return Response(f"Erro interno no Jarvis: {str(e)}", mimetype='text/plain', status=500)
     finally:
         session.close()

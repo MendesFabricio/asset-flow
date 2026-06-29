@@ -3,8 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { X, Activity, BarChart3, Bell, RefreshCw } from 'lucide-react'; // 🧼 Removidos TrendingUp e DollarSign que não eram usados
 import { formatMoney } from '../utils';
 import { Asset } from '../types'; // 🌟 Importa a interface unificada de ativos
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5328";
+import { apiCall } from '../utils/apiClient';
 
 interface AssetDetailsModalProps {
     isOpen: boolean;
@@ -39,11 +38,8 @@ export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalP
         setStatusMsg(null);
 
         try {
-            const res = await fetch(`${API_BASE}/api/price-alerts`, {
+            const data = await apiCall<{ status: string; message?: string }>('/api/price-alerts', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
                 body: JSON.stringify({
                     ticker: asset.ticker,
                     target_price: parseFloat(targetPrice),
@@ -52,17 +48,12 @@ export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalP
                 }),
             });
 
-            if (res.ok) {
-                const data = await res.json();
-                if (data.status === 'Sucesso') {
-                    setStatusMsg({ type: 'success', text: 'Alerta criado com sucesso!' });
-                    setTargetPrice('');
-                    setNote('');
-                } else {
-                    setStatusMsg({ type: 'error', text: data.message || 'Erro ao criar alerta.' });
-                }
+            if (data.status === 'Sucesso') {
+                setStatusMsg({ type: 'success', text: 'Alerta criado com sucesso!' });
+                setTargetPrice('');
+                setNote('');
             } else {
-                setStatusMsg({ type: 'error', text: 'Erro de comunicação com o servidor.' });
+                setStatusMsg({ type: 'error', text: data.message || 'Erro ao criar alerta.' });
             }
         } catch (err) {
             setStatusMsg({ type: 'error', text: 'Erro ao conectar no servidor.' });

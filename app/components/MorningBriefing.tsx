@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Coffee, ChevronDown, ChevronUp, Brain, RefreshCw, AlertCircle } from 'lucide-react';
 import { apiCall } from '../utils/apiClient';
+import { Markdown } from './ui/Markdown';
 
 interface BriefData {
   status: string;
@@ -18,11 +19,12 @@ export function MorningBriefing() {
   const [error, setError] = useState<string | null>(null);
   const [showCoT, setShowCoT] = useState(false);
 
-  const fetchBrief = async () => {
+  const fetchBrief = async (force = false) => {
     setLoading(true);
     setError(null);
     try {
-      const result = await apiCall<BriefData>('/api/market/brief', { timeout: 180000 });
+      const endpoint = force ? '/api/market/brief?force=true' : '/api/market/brief';
+      const result = await apiCall<BriefData>(endpoint, { timeout: 180000 });
       if (result.status === 'Sucesso') {
         setData(result);
       } else {
@@ -67,7 +69,7 @@ export function MorningBriefing() {
           <span className="text-xs font-medium">{error || 'Briefing temporariamente indisponível.'}</span>
         </div>
         <button
-          onClick={fetchBrief}
+          onClick={() => fetchBrief(false)}
           className="text-slate-400 hover:text-white transition-colors p-1 hover:bg-slate-800/50 rounded-lg"
         >
           <RefreshCw size={14} />
@@ -97,17 +99,18 @@ export function MorningBriefing() {
             Dólar: <span className="font-mono text-emerald-400">{data.dolar_rate}</span>
           </span>
           <button
-            onClick={fetchBrief}
-            title="Atualizar Briefing"
-            className="text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 p-1 rounded-lg transition-all"
+            onClick={() => fetchBrief(true)}
+            title="Reanalisar com IA (forçar recálculo)"
+            className="text-slate-500 hover:text-indigo-400 hover:bg-slate-800/50 p-1.5 rounded-lg transition-all flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider border border-slate-850"
           >
-            <RefreshCw size={13} />
+            <RefreshCw size={11} className={loading ? "animate-spin" : ""} />
+            <span>Reanalisar</span>
           </button>
         </div>
       </div>
 
       <div className="text-xs text-slate-300 leading-relaxed font-normal">
-        {data.brief_text}
+        <Markdown text={data.brief_text} />
       </div>
 
       {data.rationale && (
@@ -122,8 +125,8 @@ export function MorningBriefing() {
           </button>
           
           {showCoT && (
-            <div className="mt-2.5 p-3 rounded-xl bg-slate-950/60 border border-slate-850 text-[11px] text-slate-400 leading-relaxed font-mono whitespace-pre-line animate-in fade-in slide-in-from-top-1">
-              {data.rationale}
+            <div className="mt-2.5 p-3 rounded-xl bg-slate-950/60 border border-slate-850 text-[11px] text-slate-400 leading-relaxed animate-in fade-in slide-in-from-top-1">
+              <Markdown text={data.rationale} />
             </div>
           )}
         </div>

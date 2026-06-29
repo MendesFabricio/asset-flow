@@ -3,6 +3,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send, Brain, Sparkles, User, RefreshCw, ArrowRight } from 'lucide-react';
 import { apiCall } from '../utils/apiClient';
+import { Markdown } from './ui/Markdown';
+import { API_BASE_URL } from '../config/api';
 
 interface Message {
   id: string;
@@ -52,8 +54,7 @@ export default function JarvisChat() {
     setMessages((prev) => [...prev, initialJarvisMsg]);
 
     try {
-      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5328';
-      const response = await fetch(`${API_BASE}/api/ai/chat`, {
+      const response = await fetch(`${API_BASE_URL}/api/ai/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -98,52 +99,7 @@ export default function JarvisChat() {
     }
   };
 
-  // Renderizador simplificado de markdown para negrito, listas e parágrafos
-  const renderMessageText = (text: string) => {
-    const lines = text.split('\n');
-    return lines.map((line, lineIdx) => {
-      // Formata negrito **texto**
-      let formatted = line;
-      const boldRegex = /\*\*(.*?)\*\*/g;
-      const parts = [];
-      let lastIndex = 0;
-      let match;
 
-      while ((match = boldRegex.exec(line)) !== null) {
-        // Adiciona texto normal anterior
-        if (match.index > lastIndex) {
-          parts.push(line.substring(lastIndex, match.index));
-        }
-        // Adiciona negrito
-        parts.push(
-          <strong key={match.index} className="text-white font-extrabold">
-            {match[1]}
-          </strong>
-        );
-        lastIndex = boldRegex.lastIndex;
-      }
-      if (lastIndex < line.length) {
-        parts.push(line.substring(lastIndex));
-      }
-
-      const isListItem = line.trim().startsWith('-');
-      const renderedLine = parts.length > 0 ? parts : formatted;
-
-      if (isListItem) {
-        return (
-          <li key={lineIdx} className="ml-4 list-disc text-slate-300 pl-1 my-0.5">
-            {typeof renderedLine === 'string' ? renderedLine.replace(/^-\s*/, '') : renderedLine}
-          </li>
-        );
-      }
-
-      return (
-        <p key={lineIdx} className={lineIdx > 0 ? 'mt-2' : ''}>
-          {renderedLine}
-        </p>
-      );
-    });
-  };
 
   return (
     <div className="max-w-4xl mx-auto bg-slate-950/40 border border-slate-900 rounded-2xl overflow-hidden shadow-2xl flex flex-col h-[650px] backdrop-blur-md">
@@ -196,7 +152,7 @@ export default function JarvisChat() {
                   : 'bg-indigo-950/20 text-slate-300 border border-indigo-500/10 shadow-[inset_0_1px_2px_rgba(99,102,241,0.03)] rounded-tl-none'
               }`}
             >
-              {renderMessageText(msg.text)}
+              <Markdown text={msg.text} />
             </div>
           </div>
         ))}

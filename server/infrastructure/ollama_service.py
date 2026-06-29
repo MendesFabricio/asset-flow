@@ -70,6 +70,7 @@ def _run_sentiment_analysis(ticker: str, news_titles: list, position_info: dict)
 
         # 1. Atualiza status para processing
         asset.ai_status = "processing"
+        asset.ai_updated_at = datetime.now()
         session.commit()
 
         if not news_titles:
@@ -144,9 +145,20 @@ def _run_sentiment_analysis(ticker: str, news_titles: list, position_info: dict)
         # Parse direto do JSON forçado nativamente pelo Ollama
         try:
             parsed = json.loads(response_text)
-            rationale_val = parsed.get("rationale", "")
-            summary_val = parsed.get("summary", "")
+            rationale_raw = parsed.get("rationale", "")
+            summary_raw = parsed.get("summary", "")
             sentiment_val = parsed.get("sentiment", "Neutro")
+
+            # Trata respostas do LLM caso retornem em formato de listas/vetores JSON
+            if isinstance(rationale_raw, list):
+                rationale_val = "\n".join(f"- {str(item).strip()}" for item in rationale_raw if item)
+            else:
+                rationale_val = str(rationale_raw).strip()
+
+            if isinstance(summary_raw, list):
+                summary_val = "\n".join(str(item).strip() for item in summary_raw if item)
+            else:
+                summary_val = str(summary_raw).strip()
             
             # Formata a resposta concatenando rationale e o resumo de forma limpa para exibição
             summary = f"**Análise de Risco (CoT):**\n{rationale_val}\n\n**Resumo Executivo:**\n{summary_val}"

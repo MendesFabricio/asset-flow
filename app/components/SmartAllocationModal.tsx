@@ -4,8 +4,7 @@ import { X, Calculator, ShoppingCart, Sparkles, AlertTriangle, Target, Info, Act
 import { Asset } from '../types';
 import { formatMoney } from '../utils';
 import { Card } from './ui/Card';
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5328';
+import { apiCall } from '../utils/apiClient';
 
 interface ServerSuggestion {
   ticker: string;
@@ -83,12 +82,10 @@ export const SmartAllocationModal = ({ isOpen, onClose, ativos }: SmartAllocatio
     setServerError(null);
     setServerResult(null);
     try {
-      const res = await fetch(`${API_BASE}/api/smart-rebalance`, {
+      const data = await apiCall<ServerRebalanceResult>('/api/smart-rebalance', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ aporte_mensal: amount }),
       });
-      const data: ServerRebalanceResult = await res.json();
       if (data.status === 'Sucesso') setServerResult(data);
       else setServerError(data.msg || 'Erro no servidor.');
     } catch {
