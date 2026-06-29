@@ -24,6 +24,29 @@ services:
     tmpfs:
       - /tmp:size=128m
 
+  # --- WORKER (Python / APScheduler) ---
+  worker:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    container_name: assetflow_worker
+    restart: always
+    volumes:
+      - ./server:/app/server
+      - sqlite_data:/app/data
+      - ./backups:/app/backups
+      - ./database:/app/database_init
+    environment:
+      - PYTHONPATH=/app
+      - OLLAMA_MODEL=llama3.2:3b
+    command: python worker.py
+    depends_on:
+      - backend
+
+    # 🔒 LIMITES
+    mem_limit: 1.5g
+    cpus: 0.8
+
   # --- FRONTEND (Next.js) ---
   frontend:
     build: .

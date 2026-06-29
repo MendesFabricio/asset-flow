@@ -33,6 +33,8 @@ def _align_prices_to_b3(prices):
         
         b3_cal = mcal.get_calendar('BMF')
         valid_days = b3_cal.schedule(start_date=start_date, end_date=end_date)
+        if valid_days.empty:
+            return prices.ffill().bfill()
         trading_days = mcal.date_range(valid_days, frequency='1D')
         
         # Remove timezones e normaliza trading_days para meia-noite
@@ -172,13 +174,17 @@ def run_monte_carlo(session, fetch_prices, days: int = 252, simulations: int = 1
     port_ret = float(np.sum(mean_ret * w))
     port_vol = float(np.sqrt(np.dot(w.T, np.dot(cov, w))))
     
+    # Anualiza retorno e volatilidade para o cálculo correto dos parâmetros GBM
+    port_ret_ann = port_ret * 252
+    port_vol_ann = port_vol * np.sqrt(252)
+    
     # 🛡️ Proteção quantitativa: ignora cap artificial se houver Cripto na carteira
     has_crypto = any(
         (pos.asset.category.name if pos.asset.category else "") in ["Cripto", "Criptomoeda"]
         for pos in positions if pos.asset
     )
     if not has_crypto:
-        port_vol = min(port_vol, 1.50 / np.sqrt(days))
+        port_vol_ann = min(port_vol_ann, 1.50)
         
     dt = 1.0 / days
     lambda_jump = 0.5    # Média de 0.5 quedas/saltos por ano
@@ -186,10 +192,11 @@ def run_monte_carlo(session, fetch_prices, days: int = 252, simulations: int = 1
     sigma_jump = 0.15    # Dispersão do salto de 15%
     
     kappa = np.exp(mu_jump + 0.5 * sigma_jump ** 2) - 1
-    drift = port_ret - lambda_jump * kappa - 0.5 * port_vol ** 2
+    # Cálculo do drift anualizado do modelo de Merton
+    drift_ann = port_ret_ann - lambda_jump * kappa - 0.5 * port_vol_ann ** 2
     
-    # Choque normal GBM: loc = drift * dt, scale = port_vol * sqrt(dt)
-    shocks = np.random.normal(loc=drift * dt, scale=port_vol * np.sqrt(dt), size=(simulations, days))
+    # Choque normal GBM: loc = drift_ann * dt, scale = port_vol_ann * np.sqrt(dt)
+    shocks = np.random.normal(loc=drift_ann * dt, scale=port_vol_ann * np.sqrt(dt), size=(simulations, days))
     
     # Choques de Salto Merton (Poisson + Normal)
     poi_lam = lambda_jump * dt
@@ -199,11 +206,10 @@ def run_monte_carlo(session, fetch_prices, days: int = 252, simulations: int = 1
     # Caminhos projetados acumulados
     paths = total_value * np.exp(np.cumsum(shocks + jump_shocks, axis=1))
 
-    vol_ann = port_vol * np.sqrt(days)
-    logging.info(f"✅ Monte Carlo concluído. Volatilidade anualizada: {vol_ann*100:.2f}%")
+    logging.info(f"✅ Monte Carlo concluído. Volatilidade anualizada: {port_vol_ann*100:.2f}%")
     return {
         "status": "Sucesso",
-        "volatilidade_anual": f"{vol_ann*100:.2f}%",
+        "volatilidade_anual": f"{port_vol_ann*100:.2f}%",
         "projecao": {
             "pior_caso":   np.quantile(paths, 0.05, axis=0).tolist(),
             "medio":       np.median(paths, axis=0).tolist(),
@@ -281,45 +287,93 @@ def calculate_risk_metrics(session, fetch_prices) -> dict:
     w = av / av.sum()
     port = log_ret[avail].dot(w)
 
-    aligned = pd.concat([port, bench], axis=1).dropna()
+    aligned = pd.concat([port, bench], axis=1)
     aligned.columns = ["portfolio", "benchmark"]
+    aligned = aligned.ffill().bfill().dropna()
     p, b = aligned["portfolio"], aligned["benchmark"]
     n = len(p)
     if n < 30:
         return {"status": "Erro", "msg": f"Apenas {n} pregões comuns."}
 
-    cov_m = np.cov(p, b)
-    beta = float(cov_m[0, 1] / cov_m[1, 1]) if cov_m[1, 1] != 0 else 1.0
-    ann_p = float(p.mean() * 252)
-    ann_b = float(b.mean() * 252)
-    ann_v = float(p.std() * np.sqrt(252))
+    # Parâmetros EWMA (lambda = 0.94, alpha = 0.06)
+    decay_factor = 0.94
+    alpha_ewma = 1.0 - decay_factor
+
+    # Médias dos retornos EWMA (anualizadas)
+    ewma_mean = aligned.ewm(alpha=alpha_ewma).mean().iloc[-1]
+    ann_p = float(ewma_mean["portfolio"] * 252)
+    ann_b = float(ewma_mean["benchmark"] * 252)
+
+    # Covariância e variância EWMA
+    ewma_cov = aligned.ewm(alpha=alpha_ewma).cov().xs(aligned.index[-1])
+    cov_portfolio_bench = float(ewma_cov.loc["portfolio", "benchmark"])
+    var_bench = float(ewma_cov.loc["benchmark", "benchmark"])
+    var_portfolio = float(ewma_cov.loc["portfolio", "portfolio"])
+
+    # Beta dinâmico EWMA
+    beta = cov_portfolio_bench / var_bench if var_bench > 0 else 1.0
+
+    # Volatilidade EWMA anualizada
+    ann_v = float(np.sqrt(var_portfolio) * np.sqrt(252))
+
+    # Alpha EWMA
     alpha = ann_p - (RISK_FREE + beta * (ann_b - RISK_FREE))
+
+    # Sharpe EWMA
     sharpe = (ann_p - RISK_FREE) / ann_v if ann_v > 0 else 0.0
+
+    # Sortino EWMA (volatilidade de downside EWMA)
     dn = p[p < rf_daily]
-    dv = float(dn.std() * np.sqrt(252)) if len(dn) > 5 else ann_v
+    if len(dn) > 5:
+        dn_var = dn.ewm(alpha=alpha_ewma).var().iloc[-1]
+        if np.isnan(dn_var) or np.isinf(dn_var) or dn_var <= 0:
+            dv = ann_v
+        else:
+            dv = float(np.sqrt(dn_var) * np.sqrt(252))
+    else:
+        dv = ann_v
     sortino = (ann_p - RISK_FREE) / dv if dv > 0 else 0.0
+
     cum = (1 + p).cumprod()
     dd_series = (cum - cum.cummax()) / cum.cummax()
     mdd = float(dd_series.min())
     calmar = ann_p / abs(mdd) if mdd != 0 else 0.0
     dd_chart = [{"date": str(i.date()), "drawdown": round(float(v) * 100, 2)} for i, v in dd_series.items()]
 
-    # Cálculo do Value at Risk (VaR) Histórico a 95%
-    var_95_daily = float(np.percentile(p, 5))
+    # Value at Risk (VaR) Paramétrico de Cornish-Fisher a 95%
+    z = -1.6448536269514722
+    S = float(p.skew())
+    K = float(p.kurt())  # excess kurtosis
+    if np.isnan(S) or np.isinf(S):
+        S = 0.0
+    if np.isnan(K) or np.isinf(K):
+        K = 0.0
+
+    # Expansão de Cornish-Fisher para quantil ajustado
+    Z_cf = z + (S / 6.0) * (z**2 - 1.0) + (K / 24.0) * (z**3 - 3.0*z) - (S**2 / 36.0) * (2.0*z**3 - 5.0*z)
+
+    # VaR diário parametrizado pelo EWMA
+    mu_ewma = float(ewma_mean["portfolio"])
+    sigma_ewma = float(np.sqrt(var_portfolio))
+    var_95_daily = mu_ewma + Z_cf * sigma_ewma
+
+    # VaR mensal escalado
     var_95_monthly = var_95_daily * np.sqrt(21)
+    
     var_95_daily_pct = round(abs(var_95_daily) * 100, 2)
     var_95_monthly_pct = round(abs(var_95_monthly) * 100, 2)
 
-    # Conditional Value at Risk (CVaR) a 95%
+    # Conditional Value at Risk (CVaR) baseado no VaR de Cornish-Fisher
     worst_returns = p[p <= var_95_daily]
     cvar_95_daily = float(worst_returns.mean()) if len(worst_returns) > 0 else var_95_daily
     cvar_95_monthly = cvar_95_daily * np.sqrt(21)
     cvar_95_daily_pct = round(abs(cvar_95_daily) * 100, 2)
     cvar_95_monthly_pct = round(abs(cvar_95_monthly) * 100, 2)
 
-    # Tracking Error
+    # Tracking Error EWMA
     excess_returns = p - b
-    tracking_error = float(excess_returns.std() * np.sqrt(252))
+    tracking_error_var = excess_returns.ewm(alpha=alpha_ewma).var().iloc[-1]
+    tracking_error = float(np.sqrt(tracking_error_var) * np.sqrt(252))
     tracking_error_pct = round(tracking_error * 100, 2)
 
     def _beta_txt(x):
@@ -422,7 +476,12 @@ def get_correlation_matrix(session, fetch_prices) -> dict:
     if ret.shape[0] < 30:
         return {"status": "Erro", "msg": f"Apenas {ret.shape[0]} pregões comuns."}
 
-    corr = ret.corr()
+    # Correlação EWMA (lambda = 0.94, alpha = 0.06)
+    decay_factor = 0.94
+    alpha_ewma = 1.0 - decay_factor
+    ewma_corr_df = ret.ewm(alpha=alpha_ewma).corr()
+    corr = ewma_corr_df.xs(ret.index[-1]).fillna(0.0)
+
     labels = [tickers_map.get(t, t) for t in corr.columns]
     matrix = []
     for i, ri in enumerate(corr.index):
@@ -453,15 +512,15 @@ def calculate_smart_rebalance(session, fetch_prices, monthly_contribution: float
     portfolio_total = 0.0
     assets_data = []
     for pos in positions:
-        if not pos.asset or not pos.asset.market_data:
+        if not pos.asset:
             continue
-        mdata = pos.asset.market_data[0]
-        price = float(mdata.price or pos.average_price or 0)
+        mdata = pos.asset.market_data[0] if pos.asset.market_data else None
+        price = float(mdata.price or pos.average_price or 0) if mdata else float(pos.average_price or 0)
         if price <= 0:
             continue
         val = float(pos.quantity) * price
         cat = pos.asset.category
-        target_pct = float(cat.target_percent or 0) / 100.0 if cat else 0.0
+        target_pct = float(pos.target_percent or 0) / 100.0
         portfolio_total += val
         assets_data.append({
             "ticker": pos.asset.ticker.upper(),
@@ -495,7 +554,11 @@ def calculate_smart_rebalance(session, fetch_prices, monthly_contribution: float
             closes = _align_prices_to_b3(closes).dropna(how="all", axis=1)
             if closes.shape[1] >= 2:
                 ret = closes.pct_change().dropna()
-                cm = ret.corr()
+                # Correlação EWMA (lambda = 0.94, alpha = 0.06)
+                decay_factor = 0.94
+                alpha_ewma = 1.0 - decay_factor
+                ewma_corr_df = ret.ewm(alpha=alpha_ewma).corr()
+                cm = ewma_corr_df.xs(ret.index[-1]).fillna(0.0)
                 w_map = {t: a["current_value"] / portfolio_total for a, t in zip(eq, tickers_yf)}
                 for a, tyf in zip(eq, tickers_yf):
                     if tyf not in cm.columns:
@@ -520,7 +583,12 @@ def calculate_smart_rebalance(session, fetch_prices, monthly_contribution: float
             continue
         final_score = max(0.0, a["gap_score"] - corr_penalty.get(a["ticker"], 0.0))
         cat = a["category"]
-        lot_size = 100 if cat == "Ação" else (0 if cat == "Cripto" else 1)
+        if cat == "Reserva":
+            lot_size = 0
+        elif cat == "Ação":
+            lot_size = 100
+        else:
+            lot_size = 1
         suggestions.append({
             "ticker": a["ticker"], "category": cat,
             "current_pct": round(a["current_pct"] * 100, 2),
@@ -552,13 +620,19 @@ def calculate_smart_rebalance(session, fetch_prices, monthly_contribution: float
             s["suggested_value"] = round(val_sug, 2)
             s["rationale"] = f"{qty:.6f} un. × R$ {price:.2f}"
 
-    suggestions.sort(key=lambda x: x.get("score", 0), reverse=True)
+    # Filtra as sugestões para omitir aquelas cujo valor sugerido de compra é igual a zero (ou MANTER)
+    active_suggestions = []
+    for s in suggestions:
+        if s.get("action") == "COMPRAR" and s.get("suggested_value", 0.0) > 0:
+            active_suggestions.append(s)
+
+    active_suggestions.sort(key=lambda x: x.get("score", 0), reverse=True)
     return {
         "status": "Sucesso",
         "total_atual": round(portfolio_total, 2),
         "aporte_mensal": round(monthly_contribution, 2),
         "total_apos_aporte": round(total_after, 2),
-        "sugestoes": suggestions,
+        "sugestoes": active_suggestions,
     }
 
 
@@ -578,10 +652,10 @@ def calculate_income_projection(
     current_portfolio = 0.0
     current_income = 0.0
     for pos in positions:
-        if not pos.asset or not pos.asset.market_data:
+        if not pos.asset:
             continue
-        mdata = pos.asset.market_data[0]
-        price = float(mdata.price or pos.average_price or 0)
+        mdata = pos.asset.market_data[0] if pos.asset.market_data else None
+        price = float(mdata.price or pos.average_price or 0) if mdata else float(pos.average_price or 0)
         val = float(pos.quantity) * price
         current_portfolio += val
         if pos.manual_dy and pos.manual_dy > 0:
@@ -672,7 +746,11 @@ def calculate_risk_parity(session, fetch_prices) -> dict:
         return {"status": "Erro", "msg": "Dados históricos insuficientes."}
         
     log_ret = np.log(prices / prices.shift(1)).dropna()
-    cov = log_ret.cov().fillna(0.0)
+    # Covariância EWMA (lambda = 0.94, alpha = 0.06)
+    decay_factor = 0.94
+    alpha_ewma = 1.0 - decay_factor
+    ewma_cov_df = log_ret.ewm(alpha=alpha_ewma).cov()
+    cov = ewma_cov_df.xs(log_ret.index[-1]).fillna(0.0)
     
     avail_tickers = log_ret.columns.tolist()
     n = len(avail_tickers)
@@ -731,8 +809,13 @@ def calculate_markowitz_optimization(session, fetch_prices) -> dict:
         return {"status": "Erro", "msg": "Dados históricos insuficientes."}
         
     log_ret = np.log(prices / prices.shift(1)).dropna()
-    mean_returns = log_ret.mean()
-    cov_matrix = log_ret.cov().fillna(0.0)
+    # Parâmetros EWMA (lambda = 0.94, alpha = 0.06)
+    decay_factor = 0.94
+    alpha_ewma = 1.0 - decay_factor
+    
+    mean_returns = log_ret.ewm(alpha=alpha_ewma).mean().iloc[-1]
+    ewma_cov_df = log_ret.ewm(alpha=alpha_ewma).cov()
+    cov_matrix = ewma_cov_df.xs(log_ret.index[-1]).fillna(0.0)
     
     avail_tickers = log_ret.columns.tolist()
     N = len(avail_tickers)
@@ -939,7 +1022,11 @@ def calculate_sector_correlation(session, fetch_prices) -> dict:
         }
         
     returns = prices.pct_change().dropna(how="all")
-    corr_matrix = returns.corr().fillna(0.0)
+    # Correlação EWMA (lambda = 0.94, alpha = 0.06)
+    decay_factor = 0.94
+    alpha_ewma = 1.0 - decay_factor
+    ewma_corr_df = returns.ewm(alpha=alpha_ewma).corr()
+    corr_matrix = ewma_corr_df.xs(returns.index[-1]).fillna(0.0)
     
     # Ordenar por categoria/setor para criar agrupamentos visuais bonitos no heatmap
     sorted_assets = sorted(zip(tickers_yf, tickers_clean, categories), key=lambda x: x[2])

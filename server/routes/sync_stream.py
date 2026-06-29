@@ -21,7 +21,9 @@ def sync_stream():
         logging.info("🔌 [SSE] Novo cliente conectado ao canal de streaming de progresso.")
         last_payload = {}
         
-        # Enviamos o primeiro payload imediatamente para sincronizar o estado inicial
+        # Import explícito para limpeza da sessão scoped
+        from database.session import Session
+        
         try:
             while True:
                 cvm_sync = get_sync_state_db("cvm_sync")
@@ -39,9 +41,11 @@ def sync_stream():
                 
                 time.sleep(1.0)
         except GeneratorExit:
-            logging.info("🔌 [SSE] Conexão SSE encerrada pelo cliente.")
+            logging.info("🔌 [SSE] Conexão SSE encerrada de forma graciosa pelo cliente. Efetuando cleanup do banco.")
+            Session.remove()
         except Exception as e:
-            logging.error(f"❌ [SSE] Erro na transmissão do stream de progresso: {e}")
+            logging.error(f"❌ [SSE] Erro na transmissão do stream de progresso: {e}. Efetuando cleanup do banco.")
+            Session.remove()
 
     # Retorna o fluxo contínuo com headers específicos para SSE e desativa buffers adicionais do Nginx/Proxy
     headers = {

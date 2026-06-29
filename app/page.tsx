@@ -5,21 +5,12 @@ import { apiCall } from './utils/apiClient';
 import {
   TrendingUp, Wallet, Target, Layers, RefreshCw, PiggyBank, BarChart3, LineChart, PlusCircle,
   Brain, Calendar, Eye, EyeOff, Percent, Grip, Building2, Globe, Landmark, Bitcoin,
-  CheckCircle, AlertTriangle, X, Search, BookOpen
+  CheckCircle, AlertTriangle, X, Search
 } from 'lucide-react';
 import { usePrivacy } from './context/PrivacyContext';
 import { formatMoney } from './utils';
 import { StatCard } from './components/StatCard';
-import { RiskRadar } from './components/RiskRadar';
-import { HistoryChart } from './components/HistoryChart';
-import { CategorySummary } from './components/CategorySummary';
-import { EditModal } from './components/EditModal';
-import { AddAssetModal } from './components/AddAssetModal';
-import AssetNewsPanel from './components/AssetNewsPanel';
 import { useAssetData } from './hooks/useAssetData';
-import { RiskMetricsPanel } from './components/RiskMetricsPanel';
-import { ReceivablesTab } from './components/ReceivablesTab';
-import { AssetDetailsModal } from './components/AssetDetailsModal';
 import { DashboardHeader } from './components/DashboardHeader';
 import { AssetsTable } from './components/AssetsTable';
 import { Asset } from './types';
@@ -27,12 +18,22 @@ import { useModalStore } from './store/modalStore';
 import { MorningBriefing } from './components/MorningBriefing';
 import { SkeletonLoading } from './components/SkeletonLoading';
 
-const MonteCarloChart = dynamic(() => import('./components/MonteCarloChart'), { ssr: false });
-const CorrelationHeatmap = dynamic(() => import('./components/CorrelationHeatmap'), { ssr: false });
-const DecisionsTab = dynamic(() => import('./components/DecisionsTab'), { ssr: false });
-const SmartAllocationModal = dynamic(() => import('./components/SmartAllocationModal').then(mod => mod.SmartAllocationModal), { ssr: false });
-const IncomeProjectionModal = dynamic(() => import('./components/IncomeProjectionModal').then(mod => mod.IncomeProjectionModal), { ssr: false });
-const JarvisChat = dynamic(() => import('./components/JarvisChat'), { ssr: false });
+const RiskRadar = dynamic(() => import('./components/RiskRadar').then(mod => mod.RiskRadar), { ssr: false, loading: () => <SkeletonLoading /> });
+const HistoryChart = dynamic(() => import('./components/HistoryChart').then(mod => mod.HistoryChart), { ssr: false, loading: () => <SkeletonLoading /> });
+const CategorySummary = dynamic(() => import('./components/CategorySummary').then(mod => mod.CategorySummary), { ssr: false, loading: () => <SkeletonLoading /> });
+const EditModal = dynamic(() => import('./components/EditModal').then(mod => mod.EditModal), { ssr: false, loading: () => <SkeletonLoading /> });
+const AddAssetModal = dynamic(() => import('./components/AddAssetModal').then(mod => mod.AddAssetModal), { ssr: false, loading: () => <SkeletonLoading /> });
+const AssetNewsPanel = dynamic(() => import('./components/AssetNewsPanel'), { ssr: false, loading: () => <SkeletonLoading /> });
+const RiskMetricsPanel = dynamic(() => import('./components/RiskMetricsPanel').then(mod => mod.RiskMetricsPanel), { ssr: false, loading: () => <SkeletonLoading /> });
+const ReceivablesTab = dynamic(() => import('./components/ReceivablesTab').then(mod => mod.ReceivablesTab), { ssr: false, loading: () => <SkeletonLoading /> });
+const AssetDetailsModal = dynamic(() => import('./components/AssetDetailsModal').then(mod => mod.AssetDetailsModal), { ssr: false, loading: () => <SkeletonLoading /> });
+
+const MonteCarloChart = dynamic(() => import('./components/MonteCarloChart'), { ssr: false, loading: () => <SkeletonLoading /> });
+const CorrelationHeatmap = dynamic(() => import('./components/CorrelationHeatmap'), { ssr: false, loading: () => <SkeletonLoading /> });
+
+const SmartAllocationModal = dynamic(() => import('./components/SmartAllocationModal').then(mod => mod.SmartAllocationModal), { ssr: false, loading: () => <SkeletonLoading /> });
+const IncomeProjectionModal = dynamic(() => import('./components/IncomeProjectionModal').then(mod => mod.IncomeProjectionModal), { ssr: false, loading: () => <SkeletonLoading /> });
+const JarvisChat = dynamic(() => import('./components/JarvisChat'), { ssr: false, loading: () => <SkeletonLoading /> });
 
 export default function Home() {
   const {
@@ -86,7 +87,7 @@ export default function Home() {
     { id: 'Reserva', icon: <Wallet size={16} />, label: 'Reserva' },
     { id: 'Evolução', icon: <LineChart size={16} /> },
     { id: 'Correlação', icon: <Grip size={16} />, label: "Heatmap" },
-    { id: 'Diário', icon: <BookOpen size={16} />, label: "Diário" },
+
     { id: 'Financeiro', icon: <Wallet size={16} />, label: 'Reembolsos' },
     { id: 'Jarvis', icon: <Brain size={16} />, label: 'Jarvis AI' },
   ];
@@ -343,11 +344,7 @@ export default function Home() {
           </div>
         )}
 
-        {tab === 'Diário' && (
-          <div className="animate-in fade-in w-full">
-            <DecisionsTab />
-          </div>
-        )}
+
 
         {tab === 'Financeiro' && (
           <div className="animate-in fade-in w-full">

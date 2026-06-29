@@ -5,7 +5,7 @@ import time
 import logging
 from flask import Flask, jsonify
 from flask_cors import CORS
-from apscheduler.schedulers.background import BackgroundScheduler
+# O scheduler automático foi removido e isolado no worker.py
 from concurrent.futures import ThreadPoolExecutor, as_completed  # ⚡ Motor de paralelismo para background
 
 # Importação de Blueprints
@@ -25,7 +25,7 @@ from routes.health import health_bp
 from routes.sync_stream import sync_stream_bp
 from routes.simulation import simulation_bp
 from routes.ai import ai_bp
-from routes.decisions import decisions_bp
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -84,7 +84,7 @@ app.register_blueprint(health_bp)
 app.register_blueprint(sync_stream_bp)
 app.register_blueprint(simulation_bp)
 app.register_blueprint(ai_bp)
-app.register_blueprint(decisions_bp)
+
 
 service = PortfolioService()
 
@@ -239,70 +239,9 @@ def sync_reports():
         return jsonify({"status": "Erro", "msg": str(e)}), 500
 
 
-# --- JOBS DE AGENDAMENTO ORQUESTRADO ---
+# --- AGENDAMENTOS E TAREFAS DE BOOT DE BACKGROUND REMOVIDOS ---
+# Todas as tarefas agendadas e aquecimento de cache foram migrados para o worker.py
 
-def scheduled_update_prices():
-    with app.app_context():
-        try:
-            logging.info("🕒 JOB 10m: Atualizando preços dos ativos e salvando snapshot...")
-            service.update_prices()
-            service.take_daily_snapshot()
-        except Exception as e:
-            logging.error(f"❌ Erro no Job de atualização de cotações da carteira: {e}", exc_info=True)
-
-def scheduled_update_indices():
-    with app.app_context():
-        try:
-            update_market_cache()
-            # Verifica alertas de preço a cada 5 minutos (junto com indices)
-            fired = check_price_alerts()
-            if fired:
-                logging.info(f"🔔 {len(fired)} alerta(s) de preço disparado(s) neste ciclo.")
-        except Exception as e:
-            logging.error(f"❌ Erro no Job de atualização de índices macro: {e}", exc_info=True)
-
-def scheduled_dividends_check():
-    with app.app_context():
-        try:
-            logging.info("📅 JOB DIÁRIO: Verificando Dividendos...")
-            if hasattr(service, 'record_confirmed_dividends'):
-                service.record_confirmed_dividends()
-        except Exception as e:
-            logging.error(f"❌ Erro no Job automático de rastreamento de dividendos: {e}", exc_info=True)
-
-scheduler = BackgroundScheduler()
-scheduler.add_job(func=scheduled_update_indices, trigger="interval", minutes=5, max_instances=1, misfire_grace_time=30)
-scheduler.add_job(func=scheduled_update_prices, trigger="interval", minutes=10, max_instances=1, misfire_grace_time=60)
-scheduler.add_job(func=scheduled_dividends_check, trigger="cron", hour=8, minute=0, max_instances=1, misfire_grace_time=3600)
-
-if not scheduler.running:
-    scheduler.start()
-
-def initial_background_update():
-    time.sleep(5)
-    logging.info("🚀 Boot: Rodando atualizações iniciais em thread paralela...")
-    with app.app_context():
-        try:
-            update_market_cache()
-        except Exception as e:
-            logging.error(f"⚠️ Falha ao esquentar cache de índices macro no boot: {e}", exc_info=True)
-        try:
-            scheduled_update_prices()
-        except Exception as e:
-            logging.error(f"⚠️ Falha ao processar cotações automáticas no boot: {e}", exc_info=True)
-        # 🔥 Cache Warming: Pre-aquece Monte Carlo e Matriz de Correlação
-        try:
-            logging.info("🔥 Boot: Pre-warming Monte Carlo e Matriz de Correlação...")
-            service.run_monte_carlo_simulation()
-            service.get_correlation_matrix()
-            logging.info("✅ Cache warming concluído. Dashboard pronto!")
-        except Exception as e:
-            logging.error(f"⚠️ Falha no cache warming analítico: {e}", exc_info=True)
-
-# Inicia a thread de boot independentemente de rodar direto ou sob WSGI/Gunicorn
-boot_thread = threading.Thread(target=initial_background_update)
-boot_thread.daemon = True
-boot_thread.start()
 
 if __name__ == '__main__':
     debug_mode = os.environ.get("FLASK_DEBUG", "0") == "1"

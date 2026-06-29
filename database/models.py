@@ -168,21 +168,7 @@ class PriceAlert(Base):
 
     asset = relationship("Asset")
 
-class InvestorDecision(Base):
-    """
-    Diário de Decisões do Investidor para governança pessoal de teses.
-    """
-    __tablename__ = "investor_decisions"
 
-    id = Column(Integer, primary_key=True, index=True)
-    asset_id = Column(Integer, ForeignKey('assets.id', ondelete="CASCADE"), nullable=False, index=True)
-    date = Column(DateTime, default=datetime.now, index=True)
-    decision_type = Column(String, nullable=False, default="ESTUDO")  # "COMPRA" | "VENDA" | "MANTER" | "ESTUDO"
-    title = Column(String, nullable=False)
-    content = Column(String, nullable=False)  # Markdown
-    target_price = Column(Numeric(18, 4), nullable=True)
-
-    asset = relationship("Asset")
 
 class SyncState(Base):
     """

@@ -46,28 +46,54 @@ export default function JarvisChat() {
     setInput('');
     setLoading(true);
 
+    // Adiciona uma mensagem vazia temporária para o Jarvis que será preenchida progressivamente
+    const jarvisMsgId = (Date.now() + 1).toString();
+    const initialJarvisMsg: Message = { id: jarvisMsgId, sender: 'jarvis', text: '' };
+    setMessages((prev) => [...prev, initialJarvisMsg]);
+
     try {
-      const response = await apiCall<{ status: string; response: string }>('/api/ai/chat', {
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5328';
+      const response = await fetch(`${API_BASE}/api/ai/chat`, {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({ message: text }),
-        timeout: 240000,
       });
 
-      const reply: Message = {
-        id: (Date.now() + 1).toString(),
-        sender: 'jarvis',
-        text: response.response || 'Desculpe, não consegui obter uma resposta.',
-      };
-      setMessages((prev) => [...prev, reply]);
+      if (!response.ok) {
+        throw new Error('Erro na requisição de IA.');
+      }
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let accumulatedText = '';
+
+      setLoading(false); // Remove o indicador de carregamento, pois o streaming começou
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value, { stream: true });
+          accumulatedText += chunk;
+          
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === jarvisMsgId ? { ...msg, text: accumulatedText } : msg
+            )
+          );
+        }
+      }
     } catch (e) {
       console.error(e);
-      const errorReply: Message = {
-        id: (Date.now() + 1).toString(),
-        sender: 'jarvis',
-        text: '❌ Ocorreu um erro ao conectar-se à inteligência local. Verifique se o serviço Ollama está ativo.',
-      };
-      setMessages((prev) => [...prev, errorReply]);
-    } finally {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === jarvisMsgId
+            ? { ...msg, text: '❌ Ocorreu um erro ao conectar-se à inteligência local. Verifique se o serviço Ollama está ativo.' }
+            : msg
+        )
+      );
       setLoading(false);
     }
   };

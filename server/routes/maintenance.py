@@ -44,3 +44,47 @@ def cleanup_trash():
             session.rollback()
             logging.error(f"❌ Erro crítico durante a execução da faxina de posições órfãs: {e}")
             return jsonify({"status": "Erro", "msg": str(e)}), 500
+
+@maintenance_bp.route('/api/maintenance/backup', methods=['POST', 'GET'])
+def backup_database():
+    import os
+    # Obter token de autorização
+    auth_header = request.headers.get("Authorization")
+    token = None
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+    else:
+        token = request.headers.get("X-Backup-Token") or request.args.get("token")
+
+    expected_token = os.environ.get("BACKUP_TOKEN") or os.environ.get("BASIC_AUTH_PASSWORD") or "assetflow_backup_secret_2026"
+    
+    if not token or token != expected_token:
+        logging.warning("⚠️ TENTATIVA DE BACKUP REJEITADA: Token inválido ou ausente.")
+        return jsonify({"status": "Erro", "msg": "Não autorizado. Token de backup inválido ou ausente."}), 401
+
+    try:
+        from database.session import engine
+        from sqlalchemy import text
+
+        backup_path = '/app/data/backup_assetflow.db'
+        
+        # Garante a existência do diretório
+        os.makedirs(os.path.dirname(backup_path), exist_ok=True)
+        
+        # O comando SQLite VACUUM INTO exige que o arquivo destino NÃO exista
+        if os.path.exists(backup_path):
+            os.remove(backup_path)
+            
+        with engine.connect() as conn:
+            # Executa o backup quente atômico
+            conn.execute(text(f"VACUUM INTO '{backup_path}'"))
+            
+        logging.info(f"💾 BACKUP QUENTE: Snapshot WAL gerado com sucesso em: {backup_path}")
+        return jsonify({
+            "status": "Sucesso", 
+            "msg": "Backup quente executado com sucesso.", 
+            "path": backup_path
+        })
+    except Exception as e:
+        logging.error(f"❌ BACKUP FALHOU: Erro crítico ao criar snapshot: {e}", exc_info=True)
+        return jsonify({"status": "Erro", "msg": str(e)}), 500

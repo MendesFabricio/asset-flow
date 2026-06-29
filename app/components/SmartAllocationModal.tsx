@@ -245,7 +245,9 @@ export const SmartAllocationModal = ({ isOpen, onClose, ativos }: SmartAllocatio
   if (!isOpen) return null;
 
   const valorInput = parseCurrency(amountStr);
-  const totalAlocado = allocation.reduce((acc, item) => acc + item.custo_total, 0);
+  const totalAlocado = mode === 'local'
+    ? allocation.reduce((acc, item) => acc + item.custo_total, 0)
+    : (serverResult ? serverResult.sugestoes.reduce((acc, s) => acc + s.suggested_value, 0) : 0);
   const sobra = valorInput - totalAlocado;
   const highSobra = sobra > (valorInput * 0.05) && sobra > 100;
 
@@ -481,7 +483,7 @@ export const SmartAllocationModal = ({ isOpen, onClose, ativos }: SmartAllocatio
           )}
         </div>
 
-        {allocation.length > 0 && (
+        {((mode === 'local' && allocation.length > 0) || (mode === 'server' && serverResult && !serverLoading)) && (
           <div className="flex flex-col border-t border-slate-800">
             {highSobra && (
               <div className="bg-amber-900/20 px-4 py-2 flex items-start gap-2 border-b border-amber-900/30">
@@ -489,7 +491,11 @@ export const SmartAllocationModal = ({ isOpen, onClose, ativos }: SmartAllocatio
                 <div>
                   <p className="text-[10px] font-bold text-amber-400 uppercase">Proteção de Capital</p>
                   <p className="text-[10px] text-amber-200/70 leading-tight">
-                    <b>{formatMoney(sobra)}</b> preservados. Motivos: Teto global de rebalanceamento atingido ou falta de ativos qualificados para expansão.
+                    <b>{formatMoney(sobra)}</b> preservados. Motivos: {
+                      mode === 'local' 
+                        ? 'Teto global de rebalanceamento atingido ou falta de ativos qualificados para expansão.' 
+                        : 'Efeito de arredondamento de lotes/unidades (compras apenas em unidades inteiras, com exceção da aba Reserva).'
+                    }
                   </p>
                 </div>
               </div>

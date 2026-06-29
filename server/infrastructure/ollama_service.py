@@ -16,7 +16,44 @@ SessionLocal = sessionmaker(bind=engine)
 import os
 
 OLLAMA_URL = "http://ollama:11434/api/generate"
+OLLAMA_CHAT_URL = "http://ollama:11434/api/chat"
 MODEL_NAME = os.getenv("OLLAMA_MODEL", "llama3.2:3b")  # Modelo leve para hardware restrito
+
+def get_ollama_tools() -> list:
+    """
+    Retorna as definições das ferramentas compatíveis com a API de ferramentas do Ollama (JSON Schema oficial).
+    """
+    return [
+        {
+            "type": "function",
+            "function": {
+                "name": "query_portfolio_metrics",
+                "description": "Devolve as métricas de alocação de carteira, saldo total, devedores/recebíveis, posições ativas, além de todas as métricas quantitativas de risco calculadas pelo sistema (VaR, Sharpe, Beta, Max Drawdown).",
+                "parameters": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "get_asset_fundamental_data",
+                "description": "Devolve o bloco de demonstrativos da CVM e múltiplos fundamentalistas exatos indexados ao ticker corporativo fornecido.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "ticker": {
+                            "type": "string",
+                            "description": "O ticker da ação ou FII a ser consultado (ex: WEGE3, PETR4, MXRF11)."
+                        }
+                    },
+                    "required": ["ticker"]
+                }
+            }
+        }
+    ]
 
 def _run_sentiment_analysis(ticker: str, news_titles: list, position_info: dict):
     """

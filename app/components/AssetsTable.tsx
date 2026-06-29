@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useTransition } from 'react';
 import { Asset } from '../types';
 import { AssetRow } from './AssetRow';
 import { Search } from 'lucide-react';
@@ -15,7 +15,8 @@ interface AssetsTableProps {
 
 export function AssetsTable({ assets, tab, onEdit, onViewNews, onViewDetails }: AssetsTableProps) {
   const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isPending, startTransition] = useTransition();
 
   // Cancela tab se for resumo ou telas de simulação
   const isExcludedTab = ['Resumo', 'Evolução', 'Correlação', 'Financeiro'].includes(tab);
@@ -23,16 +24,17 @@ export function AssetsTable({ assets, tab, onEdit, onViewNews, onViewDetails }: 
   // Reseta busca ao trocar de categoria
   useEffect(() => {
     setSearch('');
-    setDebouncedSearch('');
+    setSearchQuery('');
   }, [tab]);
 
-  // Efeito de Debounce (300ms) para evitar re-renderizações desnecessárias do DOM
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedSearch(search);
-    }, 300);
-    return () => clearTimeout(handler);
-  }, [search]);
+  // Função para digitação prioritária e filtragem em background
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setSearch(val);
+    startTransition(() => {
+      setSearchQuery(val);
+    });
+  };
 
   // Filtro performático usando useMemo com suporte a ticker ou tipo do ativo
   const filteredAssets = useMemo(() => {
@@ -41,7 +43,7 @@ export function AssetsTable({ assets, tab, onEdit, onViewNews, onViewDetails }: 
     // Filtra primeiro pela tab corrente
     const tabAssets = assets.filter((a) => a.tipo === tab);
 
-    const query = debouncedSearch.toLowerCase().trim();
+    const query = searchQuery.toLowerCase().trim();
     if (!query) {
       return tabAssets.sort((a, b) => a.ticker.localeCompare(b.ticker));
     }
@@ -53,7 +55,7 @@ export function AssetsTable({ assets, tab, onEdit, onViewNews, onViewDetails }: 
           (a.tipo && a.tipo.toLowerCase().includes(query))
       )
       .sort((a, b) => a.ticker.localeCompare(b.ticker));
-  }, [assets, tab, debouncedSearch]);
+  }, [assets, tab, searchQuery]);
 
   const parentRef = useRef<HTMLDivElement>(null);
 
@@ -89,9 +91,14 @@ export function AssetsTable({ assets, tab, onEdit, onViewNews, onViewDetails }: 
             type="text"
             placeholder="Pesquisar por ticker ou setor..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-1.5 rounded-lg bg-slate-950/50 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500/70 focus:ring-1 focus:ring-blue-500/30 transition-all shadow-[inset_0_1px_2px_rgba(0,0,0,0.4)]"
+            onChange={handleSearchChange}
+            className="w-full pl-9 pr-10 py-1.5 rounded-lg bg-slate-950/50 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500/70 focus:ring-1 focus:ring-blue-500/30 transition-all shadow-[inset_0_1px_2px_rgba(0,0,0,0.4)]"
           />
+          {isPending && (
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[9px] font-bold text-blue-400 uppercase tracking-widest animate-pulse pointer-events-none">
+              Filtrando...
+            </span>
+          )}
         </div>
       </div>
 
