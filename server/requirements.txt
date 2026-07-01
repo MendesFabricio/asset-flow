@@ -13,3 +13,5 @@ gunicorn
 pandas_market_calendars
 tenacity
 alembic
+requests
+lxml
