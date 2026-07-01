@@ -1,15 +1,16 @@
-# Pasta Utils
+# 🛠️ Utilitários Gerais (`utils/`)
 
-Esta pasta contém funções e utilitários reutilizáveis que auxiliam em diferentes partes do projeto.
+Esta pasta contém utilitários comuns do projeto, centralizando funções auxiliares e regras de modelagem.
 
-### Estrutura
-- `functions/`: Funções gerais
-- `helpers/`: Ajudantes específicos para tarefas
+---
 
-### Objetivo
-Centralizar funcionalidades comuns para promoção de código limpo e reaproveitamento.
+## 📂 Organização
 
-### Notas importantes
-- Mantenha as funções bem documentadas
-- Faça testes unitários regularmente
-- Evite dependências específicas
+* **`README.md`:** Guia geral de utilitários.
+
+---
+
+## 💡 Diretrizes
+
+* **Reusabilidade:** Centralizar funções de formatação numérica e validação comuns que possam ser compartilhadas em futuros scripts auxiliares.
+* **Isolamento de Negócio:** Evite injetar regras de negócio complexas ou conexões a bancos de dados nesta pasta. Para isso, utilize as classes de serviços do `server/services.py` ou os modelos em `database/models.py`.

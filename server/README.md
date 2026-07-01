@@ -1,19 +1,27 @@
-# Pasta Server
+# ⚙️ Python Backend (`server/`)
 
-Esta pasta contém toda a lógica do backend da aplicação.
+Esta pasta armazena o servidor de dados do **AssetFlow Pro**, rodando em **Python 3.11** com **Flask** sob o servidor de produção **Gunicorn**.
 
-### Estrutura
-- `routes/`: Rotas principais da API
-- `utils/`: Utilitários e funções auxiliares
-- `crawlers/`: Processadores de dados externos
-- `data/`: Armazenamento local de dados processados
-- `backend.py`: Inicialização do servidor
-- `requirements.txt`: Dependências do projeto
+---
 
-### Objetivo
-Prover uma API robusta e escalável para suportar a interface do usuário.
+## 📂 Estrutura de Diretórios
 
-### Notas importantes
-- Rotas devem ser documentadas em Swagger
-- Crawlers precisam ter tratamento de erros
-- Processadores de dados devem incluir logs
+* **`routes/`:** Mapeamento de endpoints organizados em Flask Blueprints:
+  * **`ai.py`:** Rota do chat Jarvis executando a máquina de estado do agente via Function Calling estruturado com Ollama.
+  * **`news.py`:** Sentimento de mercado com IA local, gerenciando timeouts de check e tempos de cooldown de erros.
+  * **`simulation.py`:** Endpoints do simulador de alocação inteligente e da API de **Morning Briefing** enriquecida.
+  * **`health.py`:** Coleta telemetria física do SQLite, Yahoo Finance e daemon Ollama.
+* **`domain/`:** Motor de algoritmos matemáticos isolados (`quant_engine.py`) calculando Monte Carlo GBM Merton Jumps, EWMA de volatilidade e VaR/CVaR Cornish-Fisher.
+* **`infrastructure/`:** Controladores de baixo nível para requisições de IA (`ollama_service.py`), gerenciador de cacheamento de cotações em disco (`price_cache.py`) e conexão fundamentalista Yahoo.
+* **`crawlers/`:** Automações de scrapers de fatos relevantes e proventos da CVM.
+* **`alembic/`:** Configurações de migrações estruturais do banco de dados SQLAlchemy.
+* **`backend.py`:** Ponto de entrada (Bootstrap) do Flask da API do sistema.
+* **`worker.py`:** Ponto de entrada do agendador automático em segundo plano (`APScheduler`).
+
+---
+
+## 🔒 Boas Práticas no Backend
+
+1. **Gestão de Sessões do Banco:** Sempre feche ou desaloque sessões do banco de dados explicitamente dentro de blocos `finally` (`Session.remove()`) para evitar vazamentos de conexões em concorrência no pool.
+2. **Defesa contra Locks do SQLite:** Use sempre `safe_commit(session)` (importado de `database.models`) para commitar transações de escrita. Ele possui retry automático contra o erro `database is locked`.
+3. **Robustez no Ollama:** O tempo limite máximo do Ollama deve ser de 60 segundos nos payloads internos do backend.
