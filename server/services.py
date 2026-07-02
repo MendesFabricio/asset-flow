@@ -892,3 +892,43 @@ class PortfolioService:
             return _quant.calculate_sector_correlation(session, _fetch_price_history_fn)
         finally:
             Session.remove()
+
+    def calculate_kelly_criterion(self) -> dict:
+        """Façade → quant_engine.calculate_kelly_criterion"""
+        session = Session()
+        try:
+            return _quant.calculate_kelly_criterion(session, _fetch_price_history_fn)
+        finally:
+            Session.remove()
+
+    def calculate_alpha_attribution(self) -> dict:
+        """Façade → quant_engine.calculate_alpha_attribution"""
+        session = Session()
+        try:
+            return _quant.calculate_alpha_attribution(session, _fetch_price_history_fn)
+        finally:
+            Session.remove()
+
+    def calculate_rolling_sharpe(self) -> dict:
+        """Façade → quant_engine.calculate_rolling_sharpe"""
+        session = Session()
+        try:
+            return _quant.calculate_rolling_sharpe(session, _fetch_price_history_fn)
+        finally:
+            Session.remove()
+
+    def calculate_momentum_ranking(self) -> dict:
+        """Façade → quant_engine.calculate_momentum_ranking"""
+        session = Session()
+        try:
+            return _quant.calculate_momentum_ranking(session, _fetch_price_history_fn)
+        finally:
+            Session.remove()
+
+    def calculate_efficient_frontier_points(self) -> dict:
+        """Façade → quant_engine.calculate_efficient_frontier_points"""
+        session = Session()
+        try:
+            return _quant.calculate_efficient_frontier_points(session, _fetch_price_history_fn)
+        finally:
+            Session.remove()

@@ -84,3 +84,113 @@ export interface FundamentalistData {
     lucro: number;
   }>;
 }
+
+// 📊 Novas Interfaces Analíticas Avançadas (Sprint 9)
+
+export interface KellyItem {
+  ticker: string;
+  win_rate: number;
+  win_loss_ratio: number;
+  kelly_full: number;
+  kelly_half_limit: number;
+  kelly_quarter_limit: number;
+}
+
+export interface KellyData {
+  status: string;
+  data: KellyItem[];
+}
+
+export interface AlphaAttributionItem {
+  ticker: string;
+  weight_pct: number;
+  asset_alpha_pct: number;
+  weighted_alpha_pct: number;
+  beta: number;
+  pct_contribution: number;
+}
+
+export interface AlphaAttributionData {
+  status: string;
+  portfolio_alpha_pct: number;
+  portfolio_beta: number;
+  portfolio_return_pct: number;
+  data: AlphaAttributionItem[];
+}
+
+export interface RebalanceBandItem {
+  ticker: string;
+  weight_pct: number;
+  target_pct: number;
+  deviation_pct: number;
+  status: 'EXCEDENTE' | 'SUBALOCADO' | 'NORMAL';
+  action_note: string;
+}
+
+export interface RebalanceBandsData {
+  status: string;
+  data: RebalanceBandItem[];
+}
+
+export interface DCASimulationHistoryItem {
+  date: string;
+  lump_sum_val: number;
+  dca_val: number;
+  dca_invested: number;
+}
+
+export interface DCASimulationData {
+  status: string;
+  ticker: string;
+  lump_sum: {
+    invested: number;
+    final_value: number;
+    profit: number;
+    return_pct: number;
+  };
+  dca: {
+    invested: number;
+    final_value: number;
+    profit: number;
+    return_pct: number;
+  };
+  history: DCASimulationHistoryItem[];
+}
+
+export interface FrontierPoint {
+  retorno: number;
+  volatilidade: number;
+  sharpe: number;
+  weights: { [ticker: string]: number };
+}
+
+export interface CloudPoint {
+  retorno: number;
+  volatilidade: number;
+  sharpe: number;
+}
+
+export interface EfficientFrontierData {
+  status: string;
+  frontier: FrontierPoint[];
+  cloud: CloudPoint[];
+  max_sharpe: FrontierPoint;
+  min_vol: FrontierPoint;
+}
+
+export interface SharpeRollingData {
+  status: string;
+  dates: string[];
+  series: { [tickerOrPortfolio: string]: number[] };
+}
+
+export interface MomentumItem {
+  rank: number;
+  ticker: string;
+  momentum_score_pct: number;
+}
+
+export interface MomentumRankingData {
+  status: string;
+  data: MomentumItem[];
+}

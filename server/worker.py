@@ -62,6 +62,8 @@ def scheduled_quant_warm():
         service.run_monte_carlo_simulation()
         service.get_correlation_matrix()
         service.calculate_risk_metrics()
+        service.calculate_efficient_frontier_points()
+        
         
         # Pré-aquecimento do Morning Briefing via chamada de API interna
         try:

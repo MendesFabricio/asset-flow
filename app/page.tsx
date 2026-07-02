@@ -34,6 +34,8 @@ const CorrelationHeatmap = dynamic(() => import('./components/CorrelationHeatmap
 const SmartAllocationModal = dynamic(() => import('./components/SmartAllocationModal').then(mod => mod.SmartAllocationModal), { ssr: false, loading: () => <SkeletonLoading /> });
 const IncomeProjectionModal = dynamic(() => import('./components/IncomeProjectionModal').then(mod => mod.IncomeProjectionModal), { ssr: false, loading: () => <SkeletonLoading /> });
 const JarvisChat = dynamic(() => import('./components/JarvisChat').then(mod => mod.JarvisChat), { ssr: false, loading: () => <SkeletonLoading /> });
+const QuantDashboard = dynamic(() => import('./components/QuantDashboard').then(mod => mod.QuantDashboard), { ssr: false, loading: () => <SkeletonLoading /> });
+
 
 export default function Home() {
   const {
@@ -87,9 +89,11 @@ export default function Home() {
     { id: 'Reserva', icon: <Wallet size={16} />, label: 'Reserva' },
     { id: 'Evolução', icon: <LineChart size={16} /> },
     { id: 'Correlação', icon: <Grip size={16} />, label: "Heatmap" },
+    { id: 'Quantitativo', icon: <BarChart3 size={16} />, label: 'Análise Quant' },
 
     { id: 'Financeiro', icon: <Wallet size={16} />, label: 'Reembolsos' },
     { id: 'Jarvis', icon: <Brain size={16} />, label: 'Jarvis AI' },
+
   ];
 
 
@@ -343,7 +347,11 @@ export default function Home() {
           </div>
         )}
 
-
+        {tab === 'Quantitativo' && (
+          <div className="animate-in fade-in w-full">
+            <QuantDashboard />
+          </div>
+        )}
 
         {tab === 'Financeiro' && (
           <div className="animate-in fade-in w-full">
@@ -356,6 +364,7 @@ export default function Home() {
             <JarvisChat />
           </div>
         )}
+
 
         {/* TABELA DE ATIVOS EXTRAÍDA */}
         <AssetsTable

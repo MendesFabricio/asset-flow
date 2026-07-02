@@ -19,7 +19,7 @@ export function AssetsTable({ assets, tab, onEdit, onViewNews, onViewDetails }: 
   const [isPending, startTransition] = useTransition();
 
   // Cancela tab se for resumo ou telas de simulação
-  const isExcludedTab = ['Resumo', 'Evolução', 'Correlação', 'Financeiro'].includes(tab);
+  const isExcludedTab = ['Resumo', 'Evolução', 'Correlação', 'Financeiro', 'Quantitativo'].includes(tab);
 
   // Reseta busca ao trocar de categoria
   useEffect(() => {
