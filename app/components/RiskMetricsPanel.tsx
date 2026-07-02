@@ -8,6 +8,7 @@ import {
   AlertTriangle, BarChart3, Info, Scale
 } from 'lucide-react';
 import { apiCall } from '../utils/apiClient';
+import { formatMoney } from '../utils';
 
 interface RiskMetrics {
   status: string;
@@ -31,6 +32,14 @@ interface RiskMetrics {
   cvar_95_monthly_pct: number;
   tracking_error_pct: number;
   drawdown_chart: { date: string; drawdown: number }[];
+  sectors_alloc?: { sector: string; value: number; percent: number }[];
+  leverage_ratio?: number;
+  leveraged_assets?: { ticker: string; leverage: number; value: number }[];
+  usd_exposure_pct?: number;
+  usd_hedge_suggestion?: string;
+  upside_capture_pct?: number;
+  downside_capture_pct?: number;
+  fii_credit_map?: { ticker: string; rating: string; duration: number; indexers: Record<string, number> }[];
   interpretacao: {
     beta: string;
     sharpe: string;
@@ -349,6 +358,152 @@ export function RiskMetricsPanel() {
           <p className="text-[10px] text-slate-600 text-center mt-1">
             {data.interpretacao.drawdown}
           </p>
+        </div>
+
+        {/* 🛡️ GESTÃO DE RISCO AVANÇADA (Sprint 12) */}
+        <div className="pt-5 border-t border-slate-800/85 grid grid-cols-1 lg:grid-cols-2 gap-5">
+          
+          {/* 1. Concentração Setorial Real */}
+          {data.sectors_alloc && data.sectors_alloc.length > 0 && (
+            <div className="bg-slate-950/30 p-4 rounded-xl border border-slate-800/50">
+              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                <Scale size={12} className="text-indigo-400" />
+                Concentração Setorial Real
+              </h4>
+              <div className="space-y-2.5">
+                {data.sectors_alloc.map((s, idx) => (
+                  <div key={idx} className="space-y-1">
+                    <div className="flex justify-between items-center text-[10px] font-bold">
+                      <span className="text-slate-300">{s.sector}</span>
+                      <span className="text-slate-400 font-mono">{s.percent}% <span className="text-[8px] text-slate-600">({formatMoney(s.value)})</span></span>
+                    </div>
+                    <div className="w-full h-1.5 bg-slate-900 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-indigo-500 rounded-full" 
+                        style={{ width: `${s.percent}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 2. Cobertura Cambial & Alavancagem */}
+          <div className="flex flex-col gap-4">
+            
+            {/* Cambial */}
+            {data.usd_exposure_pct !== undefined && (
+              <div className="bg-slate-950/30 p-4 rounded-xl border border-slate-800/50 flex flex-col gap-1.5">
+                <div className="flex justify-between items-center">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                    <Zap size={12} className="text-amber-400" />
+                    Hedge Ratio Cambial
+                  </h4>
+                  <span className="text-[10px] font-black font-mono text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                    {data.usd_exposure_pct}% USD
+                  </span>
+                </div>
+                <p className="text-[10px] text-slate-400 leading-relaxed">
+                  {data.usd_hedge_suggestion}
+                </p>
+              </div>
+            )}
+
+            {/* Alavancagem */}
+            {data.leverage_ratio !== undefined && (
+              <div className="bg-slate-950/30 p-4 rounded-xl border border-slate-800/50 flex flex-col gap-1.5">
+                <div className="flex justify-between items-center">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                    <Scale size={12} className="text-red-400" />
+                    Alavancagem Implícita
+                  </h4>
+                  <span className="text-[10px] font-black font-mono text-red-400 bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20">
+                    {data.leverage_ratio}x Exposição
+                  </span>
+                </div>
+                {data.leveraged_assets && data.leveraged_assets.length > 0 ? (
+                  <div className="space-y-1">
+                    <p className="text-[9px] text-slate-500">Ativos Alavancados Detectados:</p>
+                    {data.leveraged_assets.map((a, i) => (
+                      <div key={i} className="flex justify-between items-center text-[10px] font-mono">
+                        <span className="text-slate-300">{a.ticker} (x{a.leverage})</span>
+                        <span className="text-slate-400">{formatMoney(a.value)}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-slate-500 leading-relaxed">
+                    Nenhum ETF ou derivativo alavancado detectado. Risco de alavancagem neutro.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Linha 2 de Risco Avançado */}
+        <div className="pt-5 border-t border-slate-800/85 grid grid-cols-1 lg:grid-cols-2 gap-5">
+          
+          {/* 3. Upside/Downside Capture Ratios */}
+          {data.upside_capture_pct !== undefined && (
+            <div className="bg-slate-950/30 p-4 rounded-xl border border-slate-800/50">
+              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                <Activity size={12} className="text-emerald-400" />
+                Capture Ratio vs IBOV
+              </h4>
+              <div className="grid grid-cols-2 gap-3 text-center">
+                <div className="bg-slate-900/40 p-3 rounded-lg border border-slate-850">
+                  <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wide">Upside Capture</span>
+                  <div className="text-xl font-bold font-mono text-emerald-400 mt-1">
+                    {data.upside_capture_pct}%
+                  </div>
+                  <p className="text-[8px] text-slate-500 mt-1 leading-normal">Fração capturada em meses de alta do IBOV</p>
+                </div>
+                <div className="bg-slate-900/40 p-3 rounded-lg border border-slate-850">
+                  <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wide">Downside Capture</span>
+                  <div className="text-xl font-bold font-mono text-red-400 mt-1">
+                    {data.downside_capture_pct}%
+                  </div>
+                  <p className="text-[8px] text-slate-500 mt-1 leading-normal">Fração capturada em meses de queda do IBOV</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 4. Risco de Crédito de FIIs de Recebíveis */}
+          {data.fii_credit_map && data.fii_credit_map.length > 0 && (
+            <div className="bg-slate-950/30 p-4 rounded-xl border border-slate-800/50">
+              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                <ShieldAlert size={12} className="text-indigo-400" />
+                Mapa de Risco de Crédito (Recebíveis FII)
+              </h4>
+              <div className="overflow-x-auto w-full">
+                <table className="w-full text-[9px] text-slate-400 uppercase tracking-wider font-semibold text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-900 pb-1 text-slate-500">
+                      <th className="py-1">FII</th>
+                      <th className="py-1">Rating Médio</th>
+                      <th className="py-1 text-right">Duration</th>
+                      <th className="py-1 text-right">Indexadores (CRIs)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-900">
+                    {data.fii_credit_map.map((f, i) => (
+                      <tr key={i} className="hover:bg-slate-900/20">
+                        <td className="py-1.5 text-white font-mono font-bold">{f.ticker}</td>
+                        <td className="py-1.5 text-indigo-400">{f.rating}</td>
+                        <td className="py-1.5 text-right font-mono">{f.duration} anos</td>
+                        <td className="py-1.5 text-right font-mono text-[8px] text-slate-500">
+                          {Object.entries(f.indexers).map(([k, v]) => `${k}:${v}%`).join(" | ")}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Otimização de Portfólio */}

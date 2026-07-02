@@ -390,6 +390,165 @@ def calculate_risk_metrics(session, fetch_prices) -> dict:
         if x > 0.0: return "Aceitável"
         return "Fraco"
 
+    # ─── 🛡️ GESTÃO DE RISCO AVANÇADA (Sprint 12) ───
+    
+    # 1. Concentração Setorial Real (Cruzada independente de categorias)
+    sectors_alloc = {}
+    total_assets_value = 0.0
+    
+    for pos in positions:
+        if not pos.asset:
+            continue
+        cat = pos.asset.category.name if pos.asset.category else ""
+        price = float(pos.asset.market_data[0].price or 0) if pos.asset.market_data else float(pos.average_price or 0)
+        val = float(pos.quantity) * price
+        if val <= 0:
+            continue
+            
+        total_assets_value += val
+        ticker = pos.asset.ticker.upper().strip()
+        
+        sector = "Outros"
+        if cat in ["Renda Fixa", "Reserva"]:
+            sector = "Reserva & Renda Fixa"
+        elif cat == "Cripto" or any(x in ticker for x in ["BTC", "ETH", "SOL"]):
+            sector = "Tecnologia & Cripto"
+        else:
+            if any(x in ticker for x in ["ITUB", "BBDC", "BBAS", "SANB", "ITSA", "BPAC", "BBPO", "BBRC", "KNCR", "HGCR", "MXRF"]):
+                sector = "Financeiro"
+            elif any(x in ticker for x in ["EGIE", "EQTL", "CPLE", "TAEE", "TRPL", "ENGI", "CPFE", "ELET", "CMIG", "ALUP"]):
+                sector = "Utilidades / Energia"
+            elif any(x in ticker for x in ["PETR", "PRIO", "RECV", "ENAT", "RRRP", "CSAN", "VALE", "CSNA", "USIM", "GGBR"]):
+                sector = "Commodities & Materiais"
+            elif any(x in ticker for x in ["AAPL", "MSFT", "GOOG", "META", "AMZN", "NVDA", "TSLA", "TOTS", "WEGE"]):
+                sector = "Tecnologia & Inovação"
+            elif any(x in ticker for x in ["HGBS", "VISC", "HGLG", "BTLG", "XPLG", "HGRE", "BRCO", "KNIP", "CPTS"]):
+                sector = "Imobiliário"
+            elif any(x in ticker for x in ["LREN", "MGLU", "SMTO", "SLCE", "BEEF", "JBSS", "MRFG", "ABEV"]):
+                sector = "Consumo & Agronegócio"
+            else:
+                if cat == "FII":
+                    sector = "Imobiliário"
+                else:
+                    sector = "Outros / Diversificados"
+                    
+        sectors_alloc[sector] = sectors_alloc.get(sector, 0.0) + val
+
+    sectors_list = []
+    if total_assets_value > 0:
+        for sec, s_val in sectors_alloc.items():
+            sectors_list.append({
+                "sector": sec,
+                "value": round(s_val, 2),
+                "percent": round((s_val / total_assets_value) * 100, 2)
+            })
+        sectors_list.sort(key=lambda x: x["percent"], reverse=True)
+
+    # 2. Alavancagem Implícita (ETFs / Índices)
+    leveraged_assets = []
+    leverage_factors = {
+        "UPRO": 3.0, "TQQQ": 3.0, "SSO": 2.0, "QLD": 2.0, "BOVA11": 1.0, "IVVB11": 1.0
+    }
+    total_leverage_value = 0.0
+    
+    for pos in positions:
+        if not pos.asset:
+            continue
+        cat = pos.asset.category.name if pos.asset.category else ""
+        price = float(pos.asset.market_data[0].price or 0) if pos.asset.market_data else float(pos.average_price or 0)
+        val = float(pos.quantity) * price
+        if val <= 0:
+            continue
+            
+        ticker = pos.asset.ticker.upper().strip()
+        factor = 1.0
+        for key, fac in leverage_factors.items():
+            if key in ticker:
+                factor = fac
+                break
+                
+        total_leverage_value += val * factor
+        if factor > 1.0:
+            leveraged_assets.append({
+                "ticker": pos.asset.ticker,
+                "leverage": factor,
+                "value": round(val, 2)
+            })
+            
+    weighted_leverage = round(total_leverage_value / total_assets_value, 2) if total_assets_value > 0 else 1.0
+
+    # 3. Hedge Ratio Cambial (Exposição líquida em USD)
+    usd_value = 0.0
+    for pos in positions:
+        if not pos.asset:
+            continue
+        cat = pos.asset.category.name if pos.asset.category else ""
+        price = float(pos.asset.market_data[0].price or 0) if pos.asset.market_data else float(pos.average_price or 0)
+        val = float(pos.quantity) * price
+        if val <= 0:
+            continue
+            
+        ticker = pos.asset.ticker.upper().strip()
+        if pos.asset.currency == "USD" or cat in ["Internacional", "Cripto"] or any(x in ticker for x in ["IVVB11", "EUR", "USD", "BTC", "ETH"]):
+            usd_value += val
+            
+    usd_percent = round((usd_value / total_assets_value) * 100, 2) if total_assets_value > 0 else 0.0
+    
+    if usd_percent > 30.0:
+        suggested_hedge = f"Exposição cambial alta ({usd_percent}%). Sugere-se comprar opções de Put de IVVB11 ou contratos futuros de dólar (WDO) na proporção de {round(usd_percent * 0.4, 1)}% do total."
+    elif usd_percent > 10.0:
+        suggested_hedge = f"Exposição cambial saudável ({usd_percent}%). Atua como diversificação e hedge inflacionário passivo."
+    else:
+        suggested_hedge = "Exposição cambial baixa. Não é recomendável hedge cambial estruturado no momento."
+
+    # 4. Upside/Downside Capture Ratio vs IBOV
+    aligned_copy = aligned.copy()
+    aligned_copy.index = pd.to_datetime(aligned_copy.index)
+    monthly = aligned_copy.resample('ME').sum().apply(np.exp) - 1.0
+    
+    m_p = monthly["portfolio"]
+    m_b = monthly["benchmark"]
+    
+    up_mask = m_b > 0
+    down_mask = m_b < 0
+    
+    upside_capture = 100.0
+    downside_capture = 100.0
+    
+    if up_mask.any():
+        mean_p_up = m_p[up_mask].mean()
+        mean_b_up = m_b[up_mask].mean()
+        if mean_b_up != 0:
+            upside_capture = round((mean_p_up / mean_b_up) * 100, 1)
+            
+    if down_mask.any():
+        mean_p_down = m_p[down_mask].mean()
+        mean_b_down = m_b[down_mask].mean()
+        if mean_b_down != 0:
+            downside_capture = round((mean_p_down / mean_b_down) * 100, 1)
+
+    # 5. Mapa de Risco de Crédito de FIIs (ratings, indexadores, duration)
+    fii_credit_map = []
+    fii_risk_db = {
+        "KNCR11": {"rating": "AAA (High)", "duration_years": 2.2, "indexers": {"CDI": 95, "IPCA": 5}},
+        "KNIP11": {"rating": "AA+ (High-Medium)", "duration_years": 4.8, "indexers": {"IPCA": 98, "CDI": 2}},
+        "CPTS11": {"rating": "AA (Medium)", "duration_years": 5.5, "indexers": {"IPCA": 90, "CDI": 10}},
+        "MXRF11": {"rating": "A+ (Medium-Low)", "duration_years": 3.9, "indexers": {"IPCA": 55, "CDI": 45}},
+        "HGCR11": {"rating": "AA (Medium)", "duration_years": 3.2, "indexers": {"CDI": 60, "IPCA": 40}}
+    }
+    
+    for pos in positions:
+        if not pos.asset or pos.asset.category.name != "FII":
+            continue
+        ticker = pos.asset.ticker.upper().strip()
+        if ticker in fii_risk_db:
+            fii_credit_map.append({
+                "ticker": ticker,
+                "rating": fii_risk_db[ticker]["rating"],
+                "duration": fii_risk_db[ticker]["duration_years"],
+                "indexers": fii_risk_db[ticker]["indexers"]
+            })
+
     result = {
         "status": "Sucesso",
         "benchmark": "IBOVESPA (^BVSP)",
@@ -412,6 +571,14 @@ def calculate_risk_metrics(session, fetch_prices) -> dict:
         "tracking_error_pct": tracking_error_pct,
         "var_text": f"Com 95% de confiança, a perda máxima esperada para esta carteira em 24h é de {var_95_daily_pct}%.",
         "drawdown_chart": dd_chart,
+        "sectors_alloc": sectors_list,
+        "leverage_ratio": weighted_leverage,
+        "leveraged_assets": leveraged_assets,
+        "usd_exposure_pct": usd_percent,
+        "usd_hedge_suggestion": suggested_hedge,
+        "upside_capture_pct": upside_capture,
+        "downside_capture_pct": downside_capture,
+        "fii_credit_map": fii_credit_map,
         "interpretacao": {
             "beta": _beta_txt(beta),
             "sharpe": _sharpe_txt(sharpe),

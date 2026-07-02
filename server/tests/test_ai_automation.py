@@ -120,7 +120,66 @@ class TestAIAutomationAndSentiment(unittest.TestCase):
         score = min(100, int(num_quarters * 8.33))
         self.assertEqual(score, 33)  # 4 * 8.33 = 33.32 -> 33
         self.assertEqual(num_quarters, 4)
-        print("✅ test_dividend_consistency_score_math passed!")
+    def test_advanced_risk_metrics_structure(self):
+        print("Running test_advanced_risk_metrics_structure...")
+        import numpy as np
+        import pandas as pd
+        from datetime import datetime
+        from domain.quant_engine import calculate_risk_metrics
+        
+        session_mock = MagicMock()
+        # Mock do Cache de Risco expirado ou ausente
+        session_mock.query.return_value.filter_by.return_value.first.return_value = None
+        
+        # Simula posições com FIIs e ETFs para teste
+        pos1 = MagicMock()
+        pos1.asset.ticker = "KNCR11"
+        pos1.asset.category.name = "FII"
+        pos1.quantity = 10
+        pos1.average_price = 100.0
+        pos1.asset.market_data = [MagicMock(price=100.0)]
+        
+        pos2 = MagicMock()
+        pos2.asset.ticker = "TQQQ"
+        pos2.asset.category.name = "Internacional"
+        pos2.quantity = 5
+        pos2.average_price = 50.0
+        pos2.asset.currency = "USD"
+        pos2.asset.market_data = [MagicMock(price=50.0)]
+        
+        session_mock.query.return_value.filter.return_value.all.return_value = [pos1, pos2]
+        
+        # Mock do fetch_prices retornando dados históricos de preços
+        mock_prices = pd.DataFrame(
+            np.random.normal(0, 0.01, size=(60, 3)),
+            columns=["KNCR11.SA", "TQQQ", "^BVSP"],
+            index=pd.date_range("2025-01-01", periods=60)
+        ).cumsum()  # simula preços acumulados
+        
+        # Transforma colunas em MultiIndex Close para emular retorno do Yahoo Finance
+        mock_prices.columns = pd.MultiIndex.from_product([[c for c in mock_prices.columns], ["Close"]])
+        
+        fetch_mock = MagicMock(return_value=mock_prices)
+        
+        with patch('domain.quant_engine.get_risk_free_rate', return_value=0.105):
+            res = calculate_risk_metrics(session_mock, fetch_mock)
+            
+            self.assertEqual(res["status"], "Sucesso")
+            self.assertIn("sectors_alloc", res)
+            self.assertIn("leverage_ratio", res)
+            self.assertIn("usd_exposure_pct", res)
+            self.assertIn("upside_capture_pct", res)
+            self.assertIn("downside_capture_pct", res)
+            self.assertIn("fii_credit_map", res)
+            
+            # Checa se o TQQQ ativou alavancagem
+            self.assertTrue(res["leverage_ratio"] > 1.0)
+            
+            # Checa se KNCR11 está no credit map de FIIs
+            self.assertTrue(any(f["ticker"] == "KNCR11" for f in res["fii_credit_map"]))
+            
+        print("✅ test_advanced_risk_metrics_structure passed!")
+
 
 if __name__ == '__main__':
     print("🚀 Iniciando execução de testes de IA e Automação...")

@@ -6,34 +6,42 @@ Este documento reúne o status de telemetria, bugs resolvidos/conhecidos, backlo
 
 ## 🐛 Bugs Conhecidos & Mitigações
 
-### 1. Latência no Aquecimento Inicial da IA (Ollama Cold Start)
-* **Descrição:** Se o container do Ollama for reiniciado ou ficar inativo por muito tempo, a primeira chamada de IA (no chat Jarvis ou no Morning Briefing) sofre latência de carregamento do arquivo do modelo (`llama3.2:3b`) na RAM/VRAM.
-* **Mitigação:** Expandimos os timeouts de requisições críticas de IA de 15s para **60s** e implementamos feedbacks de progresso visual em tempo real no Jarvis Chat (`💡 *Ação: Consultando ativos...*`) para melhorar a experiência do usuário.
+1 - Sugestao de rebalanceamento quantitavivo está tudo zerado a parte de alocaçao atual
 
-### 2. Bloqueio Temporário do Yahoo Finance (Rate Limiting)
-* **Descrição:** Chamadas sequenciais em massa para o Yahoo Finance podem gerar bloqueios temporários de IP (Status 429 ou 403).
-* **Mitigação:** Implementamos uma camada robusta de cacheamento de preços em arquivos temporários (`infrastructure/price_cache.py`) com validade curta de 10 minutos, além do uso de User-Agents simulando navegadores legítimos nos crawlers.
+2 - quando peço para atualizar indicadores Yahoo ou sincronizar CVM e da alguem erro por ter algo na esteira de atualizaçao ou outra coisa ele fica rodando infinitamente junto com os avisos na tela e nao tem como fazer mais nada
 
-### 3. Concorrência Concorrente no SQLite
-* **Descrição:** Tentativas de gravações simultâneas pelo Worker e pelo Backend podem causar exceções de banco travado (`database is locked`).
-* **Mitigação:** Ativamos o modo **WAL (Write-Ahead Logging)** com pragma de timeout de 30s (`PRAGMA busy_timeout=30000`) e criamos o decorador `@retry` de transação automática via `tenacity` em `safe_commit`.
+3 - a parte que fica o nome do assetflow, horario da bolsa, proventos, ferramentas, novo ativo, etc está muito poluida, precisa ajustar
+
+4 - a parte que clico em resumo, açao, fii, internacional, etc. está com muitas funçoes ficando poluida precisa ajustar
+
+5 - na consolidaçao fica a reserva de emergencia e sem ativo se foi pra cima ou pra baixo, como é uma reserva de emergencia a variaçao diaria é algo proximo da selic (é um cdb), precisaria de um visual melhor.
+
+6 - na nova funçao dentro de pronventos eu tenho o yield e consistencia, porem está entrando as coisas de reserva de emergencia, como sao cdbs nao existe yield. tambem o FY forward nao parece seguir o valor real de muitas açaoes, talvez precise revisar.
+
+7 - alguns ativos nao estao buscando o cnpj automaticamente, precisa revisar.
+
+8 - AURE3 esta com alerta de DY zerado. se um ativo nao tiver DY mesmo não é possivel tirar esse alerta, precisamos pensar em uma maneira melhor para tratar isso.
+
+9 - relatorio de sapr4 nao esta sendo sincronizado mesmo com cnpj, precisamos descobrir o motivo.
+
+10 - a central de relatorios patrimoniais esta gerando o relatorio bugado, precisa ajustar.
+
+11 - DCA vs LUMP SUM aparece com erro de comunicaçao com a API do simulador quando coloca qualquer coisa, quando deveria ser um aviso de ticker incorreto ou alguma outra coisa. tambem o nome inicial que aparece é CAIXINHA NUBANK.
+
+12 - existe um fundo gigantesco no drawdown historico nos dias 14/01/2026 até 16/01/2026. isso está correto?
+
+13 - nos desvios de peso e banda de tolerancia, os ativos nao estao levando em consideraçao a porcentagem dentro do grupo deles, precisa revisar e itens que entram em reserva não existe uma meta para cadastrar por ser uma reserva. todo lugar que tiver algo que influencia nisso tem que pensar uma maneira melhor para tratar (ex em consolidaçao acontece a mesma coisa)
+
+
+
 
 ---
 
 ## 🚀 Melhorias Futuras (Backlog)
 
-### FASE 1: Inteligência Artificial & Automação (Q3 2026)
-* **Novas Ferramentas para o Jarvis:** Criar ferramenta de execução de simulações de aporte diretamente via comandos do chat (ex: *"Jarvis, simule uma compra de R$ 5.000,00 nos melhores ativos"*).
-* **Agendamento de Notícias de Impacto:** Envio automático de alertas no Telegram/E-mail quando a IA identificar sentimentos `"fortemente baixistas"` em fatos relevantes da CVM dos ativos da carteira.
+1 - existe algum lugar melhor para pegar as imagens dos ativos? a fonte que usamos esta desatualizada e faltando imagens.
 
-### FASE 2: Modelagem Quantitativa Avançada (Q4 2026)
-* **Stress Testing Macroeconômico:** Painel interativo para simular o comportamento da carteira frente a choques econômicos fictícios (ex: inflação a 10%, Selic a 18%, ou queda de 25% no Ibovespa).
-* **Otimização de Portfólio de Markowitz:** Gerador de fronteira eficiente para recalcular pesos ótimos visando a maior relação Sharpe possível dentro do portfólio de renda variável.
 
-### FASE 3: Experiência Multi-Portfólio (Q1 2027)
-* **Suporte Multi-Carteiras:** Permitir que o investidor crie sub-carteiras distintas (ex: carteira de dividendos, carteira internacional, caixa de reserva) dentro da mesma conta de usuário.
-
----
 
 ## 📅 Histórico de Releases Recentes
 
