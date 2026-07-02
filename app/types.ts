@@ -43,6 +43,11 @@ export interface Asset {
   magic_number?: number;
   renda_mensal_est?: number;
   p_vp?: number;
+  
+  // RI Reports
+  last_report_url?: string;
+  last_report_at?: string;
+  last_report_type?: string;
 }
 
 export interface DashboardData {

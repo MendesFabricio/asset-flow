@@ -194,6 +194,18 @@ class SystemCache(Base):
     value = Column(String, nullable=False)  # JSON string
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
+class AIChatHistory(Base):
+    """
+    Tabela para persistir histórico de conversas do Jarvis AI.
+    """
+    __tablename__ = "ai_chat_histories"
+
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(String, index=True, nullable=False)
+    role = Column(String, nullable=False)  # "user" | "assistant"
+    content = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.now)
+
 class TriggeredAlert(Base):
     """
     Tabela de alertas disparados recentemente aguardando notificação (polling).

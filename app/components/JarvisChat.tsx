@@ -13,6 +13,7 @@ interface Message {
 }
 
 export function JarvisChat() {
+  const [sessionId, setSessionId] = useState('session_1');
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'welcome',
@@ -23,6 +24,12 @@ export function JarvisChat() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const sessionsList = [
+    { id: 'session_1', label: 'Tópico Principal' },
+    { id: 'session_2', label: 'Risco & Otimização' },
+    { id: 'session_3', label: 'Dúvidas Gerais' }
+  ];
 
   const suggestions = [
     'Qual meu patrimônio total hoje?',
@@ -35,9 +42,59 @@ export function JarvisChat() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const fetchHistory = () => {
+    setLoading(true);
+    apiCall<any>(`/api/ai/history?session_id=${sessionId}`)
+      .then((res) => {
+        if (res.status === 'Sucesso' && res.data) {
+          const historyMsgs = res.data.map((msg: any, idx: number) => ({
+            id: `db_${idx}_${msg.created_at}`,
+            sender: msg.role === 'user' ? 'user' : 'jarvis',
+            text: msg.content
+          }));
+          if (historyMsgs.length > 0) {
+            setMessages(historyMsgs);
+          } else {
+            setMessages([
+              {
+                id: 'welcome',
+                sender: 'jarvis',
+                text: 'Olá! Sou o **Jarvis**, seu Assistente Quantitativo Pessoal. Tenho acesso completo em tempo real aos dados da sua carteira de investimentos, fluxo de caixa e atribuição de risco. \n\nComo posso ajudar você a otimizar sua alocação hoje?',
+              },
+            ]);
+          }
+        }
+      })
+      .catch((err) => console.error(err))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchHistory();
+  }, [sessionId]);
+
   useEffect(() => {
     scrollToBottom();
   }, [messages, loading]);
+
+  const handleClearHistory = () => {
+    apiCall<any>(`/api/ai/history/clear`, {
+      method: 'POST',
+      body: JSON.stringify({ session_id: sessionId })
+    })
+      .then((res) => {
+        if (res.status === 'Sucesso') {
+          setMessages([
+            {
+              id: 'welcome',
+              sender: 'jarvis',
+              text: 'Olá! Sou o **Jarvis**, seu Assistente Quantitativo Pessoal. Tenho acesso completo em tempo real aos dados da sua carteira de investimentos, fluxo de caixa e atribuição de risco. \n\nComo posso ajudar você a otimizar sua alocação hoje?',
+            },
+          ]);
+        }
+      })
+      .catch((err) => console.error(err));
+  };
 
   const handleSend = async (text: string) => {
     if (!text.trim() || loading) return;
@@ -48,17 +105,9 @@ export function JarvisChat() {
     setInput('');
     setLoading(true);
 
-    // Adiciona uma mensagem vazia temporária para o Jarvis que será preenchida progressivamente
     const jarvisMsgId = (Date.now() + 1).toString();
     const initialJarvisMsg: Message = { id: jarvisMsgId, sender: 'jarvis', text: '' };
     setMessages((prev) => [...prev, initialJarvisMsg]);
-
-    const history = messages
-      .filter(m => m.id !== 'welcome')
-      .map(m => ({
-        role: m.sender === 'user' ? 'user' : 'assistant',
-        content: m.text
-      }));
 
     try {
       const response = await fetch(`${API_BASE_URL}/api/ai/chat`, {
@@ -66,7 +115,7 @@ export function JarvisChat() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ message: text, history }),
+        body: JSON.stringify({ message: text, session_id: sessionId }),
       });
 
       if (!response.ok) {
@@ -77,7 +126,7 @@ export function JarvisChat() {
       const decoder = new TextDecoder('utf-8');
       let accumulatedText = '';
 
-      setLoading(false); // Remove o indicador de carregamento, pois o streaming começou
+      setLoading(false);
 
       if (reader) {
         while (true) {
@@ -124,13 +173,27 @@ export function JarvisChat() {
             <p className="text-[10px] text-slate-500">Inteligência quantitativa consciente de portfólio</p>
           </div>
         </div>
-        <button
-          onClick={() => setMessages((prev) => [prev[0]])}
-          title="Limpar Conversa"
-          className="text-slate-500 hover:text-slate-300 hover:bg-slate-900/50 p-1.5 rounded-lg transition-all"
-        >
-          <RefreshCw size={14} />
-        </button>
+        <div className="flex items-center gap-3">
+          <select
+            value={sessionId}
+            onChange={(e) => setSessionId(e.target.value)}
+            disabled={loading}
+            className="bg-slate-900 border border-slate-800 rounded-lg text-[10px] font-bold text-slate-300 px-2 py-1 uppercase tracking-wider focus:outline-none focus:border-indigo-500/70"
+          >
+            {sessionsList.map((s) => (
+              <option key={s.id} value={s.id} className="bg-slate-950 text-slate-300">
+                {s.label}
+              </option>
+            ))}
+          </select>
+          <button
+            onClick={handleClearHistory}
+            title="Limpar Conversa"
+            className="text-slate-500 hover:text-slate-300 hover:bg-slate-900/50 p-1.5 rounded-lg transition-all"
+          >
+            <RefreshCw size={14} />
+          </button>
+        </div>
       </div>
 
       {/* Message Thread */}

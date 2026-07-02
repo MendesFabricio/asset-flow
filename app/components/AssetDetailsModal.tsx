@@ -1,14 +1,14 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
-import { X, Activity, BarChart3, Bell, RefreshCw } from 'lucide-react'; // 🧼 Removidos TrendingUp e DollarSign que não eram usados
+import { X, Activity, BarChart3, Bell, RefreshCw, Volume2, VolumeX, Sparkles, FileSpreadsheet } from 'lucide-react';
 import { formatMoney } from '../utils';
-import { Asset } from '../types'; // 🌟 Importa a interface unificada de ativos
+import { Asset } from '../types';
 import { apiCall } from '../utils/apiClient';
 
 interface AssetDetailsModalProps {
     isOpen: boolean;
     onClose: () => void;
-    asset: Asset | null; // 🛡️ Substituído 'any' por tipo estrito e seguro
+    asset: Asset | null;
 }
 
 export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalProps) => {
@@ -20,9 +20,27 @@ export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalP
     const [loadingAlert, setLoadingAlert] = useState(false);
     const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
-    // Limpa mensagem de status quando o modal é aberto ou fechado
+    // Score Explainer States
+    const [explanationText, setExplanationText] = useState('');
+    const [explaining, setExplaining] = useState(false);
+    const [speaking, setSpeaking] = useState(false);
+
+    // RI KPIs States
+    const [kpiData, setKpiData] = useState<any | null>(null);
+    const [loadingKpi, setLoadingKpi] = useState(false);
+    const [kpiError, setKpiError] = useState<string | null>(null);
+
+    // Limpa estados de IA e áudio ao fechar
     useEffect(() => {
-        if (isOpen) {
+        if (!isOpen) {
+            if (typeof window !== 'undefined' && window.speechSynthesis) {
+                window.speechSynthesis.cancel();
+            }
+            setSpeaking(false);
+            setExplanationText('');
+            setKpiData(null);
+            setKpiError(null);
+        } else {
             setStatusMsg(null);
             setTargetPrice('');
             setNote('');
@@ -60,6 +78,67 @@ export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalP
         } finally {
             setLoadingAlert(false);
         }
+    };
+
+    const handleExplainScore = () => {
+        if (!asset) return;
+        setExplaining(true);
+        setExplanationText('');
+        apiCall<any>(`/api/ai/explain-score/${asset.ticker}`)
+            .then((res) => {
+                if (res.status === 'Sucesso' && res.explanation) {
+                    setExplanationText(res.explanation);
+                } else {
+                    setExplanationText(res.msg || 'Erro ao obter explicação do score.');
+                }
+            })
+            .catch((err) => {
+                console.error(err);
+                setExplanationText('Falha de conexão com o servidor.');
+            })
+            .finally(() => setExplaining(false));
+    };
+
+    const handleSpeakExplanation = () => {
+        if (typeof window === 'undefined' || !window.speechSynthesis) return;
+        
+        if (speaking) {
+            window.speechSynthesis.cancel();
+            setSpeaking(false);
+            return;
+        }
+        
+        if (!explanationText) return;
+        
+        const utterance = new SpeechSynthesisUtterance(explanationText);
+        utterance.lang = 'pt-BR';
+        utterance.onend = () => setSpeaking(false);
+        utterance.onerror = () => setSpeaking(false);
+        
+        setSpeaking(true);
+        window.speechSynthesis.speak(utterance);
+    };
+
+    const handleAnalyzeRI = () => {
+        if (!asset) return;
+        setLoadingKpi(true);
+        setKpiError(null);
+        apiCall<any>(`/api/ai/analyze-pdf`, {
+            method: 'POST',
+            body: JSON.stringify({ ticker: asset.ticker })
+        })
+            .then((res) => {
+                if (res.status === 'Sucesso') {
+                    setKpiData(res.kpis);
+                } else {
+                    setKpiError(res.msg || 'Erro ao analisar PDF.');
+                }
+            })
+            .catch((err) => {
+                console.error(err);
+                setKpiError('Falha ao comunicar com o servidor.');
+            })
+            .finally(() => setLoadingKpi(false));
     };
 
     useEffect(() => {
@@ -258,10 +337,171 @@ export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalP
                         </div>
 
                         {asset.recomendacao && (
-                            <div className={`p-4 rounded-lg border ${asset.recomendacao.includes('COMPRA') ? 'bg-emerald-900/20 border-emerald-500/30' : 'bg-yellow-900/20 border-yellow-500/30'}`}>
-                                <h3 className="text-xs font-bold uppercase tracking-wider mb-1 opacity-70">Recomendação IA</h3>
-                                <p className="font-bold text-sm mb-1">{asset.recomendacao}</p>
-                                <p className="text-xs opacity-70 leading-relaxed">{asset.motivo}</p>
+                            <div className={`p-4 rounded-lg border flex flex-col gap-2.5 ${asset.recomendacao.includes('COMPRA') ? 'bg-emerald-950/40 border-emerald-500/20 text-emerald-300' : 'bg-slate-900/60 border-slate-800 text-slate-300'}`}>
+                                <div>
+                                    <h3 className="text-xs font-bold uppercase tracking-wider mb-1 opacity-70 flex items-center gap-1.5">
+                                        <Sparkles size={12} className="text-indigo-400" />
+                                        Recomendação IA
+                                    </h3>
+                                    <p className="font-bold text-sm mb-1">{asset.recomendacao}</p>
+                                    <p className="text-xs opacity-75 leading-relaxed">{asset.motivo}</p>
+                                </div>
+                                
+                                {/* Score Explainer Button & Text */}
+                                <div className="border-t border-slate-800/40 pt-2.5">
+                                    {explanationText ? (
+                                        <div className="space-y-2">
+                                            <p className="text-[11px] leading-relaxed text-slate-300 bg-slate-950/40 p-2.5 rounded border border-slate-900">
+                                                {explanationText}
+                                            </p>
+                                            <button
+                                                type="button"
+                                                onClick={handleSpeakExplanation}
+                                                className="w-full flex items-center justify-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 text-[10px] font-bold uppercase tracking-wider py-1.5 rounded transition"
+                                            >
+                                                {speaking ? (
+                                                    <>
+                                                        <VolumeX size={12} /> Parar Racional
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Volume2 size={12} /> Ouvir Explicação
+                                                    </>
+                                                )}
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            disabled={explaining}
+                                            onClick={handleExplainScore}
+                                            className="w-full flex items-center justify-center gap-1.5 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 text-[10px] font-bold uppercase tracking-wider py-1.5 rounded transition border border-indigo-500/10"
+                                        >
+                                            {explaining ? (
+                                                <>
+                                                    <RefreshCw size={10} className="animate-spin" /> Gerando Racional...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Sparkles size={11} /> Explicar Score do Ativo
+                                                </>
+                                            )}
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* RI KPIs Parser Block */}
+                        {asset.last_report_url && (
+                            <div className="p-4 rounded-lg bg-slate-900/40 border border-slate-800/80 flex flex-col gap-2.5">
+                                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                                    <FileSpreadsheet size={12} className="text-emerald-500" />
+                                    KPIs de Relatório de RI (IA)
+                                </h3>
+
+                                {kpiData ? (
+                                    <div className="space-y-3">
+                                        <div className="overflow-x-auto w-full border border-slate-900 rounded">
+                                            <table className="w-full text-[11px] text-left border-collapse bg-slate-950/20">
+                                                <tbody className="divide-y divide-slate-900 text-slate-400">
+                                                    {asset.tipo === 'FII' ? (
+                                                        <>
+                                                            <tr className="hover:bg-slate-900/10">
+                                                                <td className="p-2 text-slate-500">Rendimento Distr.:</td>
+                                                                <td className="p-2 font-bold text-slate-300">
+                                                                    {typeof kpiData.rendimento_distribuido === 'number' 
+                                                                        ? formatMoney(kpiData.rendimento_distribuido) 
+                                                                        : kpiData.rendimento_distribuido || '-'}
+                                                                </td>
+                                                            </tr>
+                                                            <tr className="hover:bg-slate-900/10">
+                                                                <td className="p-2 text-slate-500">VP da Cota:</td>
+                                                                <td className="p-2 font-bold text-slate-300">
+                                                                    {typeof kpiData.valor_patrimonial === 'number' 
+                                                                        ? formatMoney(kpiData.valor_patrimonial) 
+                                                                        : kpiData.valor_patrimonial || '-'}
+                                                                </td>
+                                                            </tr>
+                                                            <tr className="hover:bg-slate-900/10">
+                                                                <td className="p-2 text-slate-500">Vacância Física:</td>
+                                                                <td className="p-2 font-bold text-slate-300">
+                                                                    {kpiData.vacancia_fisica_pct != null ? `${kpiData.vacancia_fisica_pct}%` : '-'}
+                                                                </td>
+                                                            </tr>
+                                                            <tr className="hover:bg-slate-900/10">
+                                                                <td className="p-2 text-slate-500">Vacância Financeira:</td>
+                                                                <td className="p-2 font-bold text-slate-300">
+                                                                    {kpiData.vacancia_financeira_pct != null ? `${kpiData.vacancia_financeira_pct}%` : '-'}
+                                                                </td>
+                                                            </tr>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <tr className="hover:bg-slate-900/10">
+                                                                <td className="p-2 text-slate-500">Receita Líquida:</td>
+                                                                <td className="p-2 font-bold text-slate-300">
+                                                                    {typeof kpiData.receita_liquida === 'number' 
+                                                                        ? formatMoney(kpiData.receita_liquida) 
+                                                                        : kpiData.receita_liquida || '-'}
+                                                                </td>
+                                                            </tr>
+                                                            <tr className="hover:bg-slate-900/10">
+                                                                <td className="p-2 text-slate-500">EBITDA:</td>
+                                                                <td className="p-2 font-bold text-slate-300">
+                                                                    {typeof kpiData.ebitda === 'number' 
+                                                                        ? formatMoney(kpiData.ebitda) 
+                                                                        : kpiData.ebitda || '-'}
+                                                                </td>
+                                                            </tr>
+                                                            <tr className="hover:bg-slate-900/10">
+                                                                <td className="p-2 text-slate-500">Lucro Líquido:</td>
+                                                                <td className="p-2 font-bold text-slate-300">
+                                                                    {typeof kpiData.lucro_liquido === 'number' 
+                                                                        ? formatMoney(kpiData.lucro_liquido) 
+                                                                        : kpiData.lucro_liquido || '-'}
+                                                                </td>
+                                                            </tr>
+                                                            <tr className="hover:bg-slate-900/10">
+                                                                <td className="p-2 text-slate-500">Dívida Líquida:</td>
+                                                                <td className="p-2 font-bold text-slate-300">
+                                                                    {typeof kpiData.divida_liquida === 'number' 
+                                                                        ? formatMoney(kpiData.divida_liquida) 
+                                                                        : kpiData.divida_liquida || '-'}
+                                                                </td>
+                                                            </tr>
+                                                        </>
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        {kpiData.observacao_geral && (
+                                            <p className="text-[10px] leading-relaxed text-slate-400 bg-slate-950/40 p-2 rounded">
+                                                <strong>IA:</strong> {kpiData.observacao_geral}
+                                            </p>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className="space-y-2">
+                                        <button
+                                            type="button"
+                                            disabled={loadingKpi}
+                                            onClick={handleAnalyzeRI}
+                                            className="w-full flex items-center justify-center gap-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 text-[10px] font-bold uppercase tracking-wider py-1.5 rounded transition border border-emerald-500/10"
+                                        >
+                                            {loadingKpi ? (
+                                                <>
+                                                    <RefreshCw size={10} className="animate-spin" /> Extraindo KPIs...
+                                                </>
+                                            ) : (
+                                                'Extrair KPIs de RI por IA'
+                                            )}
+                                        </button>
+                                        {kpiError && (
+                                            <p className="text-[9px] text-red-400 text-center font-bold">{kpiError}</p>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         )}
 

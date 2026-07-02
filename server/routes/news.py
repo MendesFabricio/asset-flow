@@ -132,3 +132,97 @@ def get_news(ticker):
         return jsonify({"news": [], "ai_sentiment": {"status": "idle"}}), 200
     finally:
         Session.remove()
+
+
+@news_bp.route('/api/news/daily-summary', methods=['GET'])
+def get_daily_sector_summary():
+    from flask import request
+    force_reanalyze = request.args.get("force", "false").lower() == "true"
+    session = Session()
+    try:
+        from database.models import SystemCache, safe_commit
+        import json
+        
+        # 1. Tenta recuperar do cache (expiração de 12 horas)
+        cache_record = session.query(SystemCache).filter_by(key="sector_news_summary").first()
+        if cache_record and not force_reanalyze:
+            age = datetime.now() - cache_record.updated_at
+            if age < timedelta(hours=12):
+                return jsonify(json.loads(cache_record.value))
+                
+        # 2. Busca e compila notícias
+        sectors = {
+            "Ações": "https://news.google.com/rss/search?q=acoes+b3+bolsa+de+valores+ibovespa&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+            "FIIs": "https://news.google.com/rss/search?q=fundos+imobiliarios+fii+ifix&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+            "Cripto": "https://news.google.com/rss/search?q=criptomoedas+bitcoin+cripto+ethereum&hl=pt-BR&gl=BR&ceid=BR:pt-419"
+        }
+        
+        summaries = {}
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+        }
+        
+        from infrastructure.ollama_service import OLLAMA_CHAT_URL, MODEL_NAME
+        
+        for sector, url in sectors.items():
+            titles = []
+            try:
+                response = requests.get(url, headers=headers, timeout=5)
+                if response.status_code == 200:
+                    feed = feedparser.parse(response.content)
+                    for entry in feed.entries[:6]:
+                        titles.append(entry.title)
+            except Exception as feed_err:
+                logging.warning(f"Erro ao buscar RSS para setor {sector}: {feed_err}")
+                
+            if not titles:
+                summaries[sector] = "Sem notícias relevantes encontradas nas últimas horas."
+                continue
+                
+            # Chama o Ollama para consolidar o sumário
+            prompt = (
+                f"Você é o assistente financeiro Jarvis.\n"
+                f"Consolide os seguintes títulos de notícias recentes sobre o setor '{sector}' em um resumo de 2 ou 3 tópicos curtos e objetivos (máximo 60 palavras no total).\n"
+                f"Foque apenas no impacto financeiro relevante. Responda em português, usando bullet points simples (-).\n\n"
+                f"Títulos:\n" + "\n".join([f"- {t}" for t in titles])
+            )
+            
+            payload = {
+                "model": MODEL_NAME,
+                "messages": [
+                    {"role": "system", "content": "Você é o analista financeiro Jarvis. Retorne apenas o resumo em português."},
+                    {"role": "user", "content": prompt}
+                ],
+                "stream": False,
+                "keep_alive": "5m"
+            }
+            
+            try:
+                ai_res = requests.post(OLLAMA_CHAT_URL, json=payload, timeout=60)
+                if ai_res.status_code == 200:
+                    summaries[sector] = ai_res.json().get("message", {}).get("content", "").strip()
+                else:
+                    summaries[sector] = "Erro ao consolidar resumo do setor via IA."
+            except Exception as ai_err:
+                logging.warning(f"Erro ao gerar resumo de {sector} no Ollama: {ai_err}")
+                summaries[sector] = "OLLAMA indisponível no momento."
+                
+        # 3. Salva no cache
+        result_data = {
+            "status": "Sucesso",
+            "summaries": summaries,
+            "updated_at": datetime.now().isoformat()
+        }
+        
+        if not cache_record:
+            cache_record = SystemCache(key="sector_news_summary")
+            session.add(cache_record)
+        cache_record.value = json.dumps(result_data)
+        safe_commit(session)
+        
+        return jsonify(result_data)
+    except Exception as e:
+        logging.error(f"Erro geral no resumo setorial diário: {e}", exc_info=True)
+        return jsonify({"status": "Erro", "msg": str(e)}), 500
+    finally:
+        Session.remove()

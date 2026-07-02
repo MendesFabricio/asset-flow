@@ -63,25 +63,27 @@ def scheduled_quant_warm():
         service.get_correlation_matrix()
         service.calculate_risk_metrics()
         service.calculate_efficient_frontier_points()
-        
-        
-        # Pré-aquecimento do Morning Briefing via chamada de API interna
-        try:
-            logging.info("🔥 JOB 30m: Pré-aquecendo Morning Briefing...")
-            url = "http://backend:5328/api/market/brief?force=true"
-            res = requests.get(url, timeout=120)
-            if res.status_code == 200:
-                logging.info("✅ Morning Briefing pré-aquecido com sucesso!")
-            else:
-                url_local = "http://localhost:5328/api/market/brief?force=true"
-                res_local = requests.get(url_local, timeout=120)
-                if res_local.status_code == 200:
-                    logging.info("✅ Morning Briefing pré-aquecido com sucesso (local)!")
-        except Exception as inner_err:
-            logging.debug(f"Aviso: Não foi possível acessar a rota do Morning Briefing para pre-warm: {inner_err}")
-            
     except Exception as e:
         logging.error(f"❌ Erro ao pré-aquecer métricas analíticas: {e}", exc_info=True)
+
+def scheduled_morning_brief_generation():
+    try:
+        logging.info("☕ JOB 07:00: Iniciando geração proativa do Morning Briefing...")
+        url = "http://backend:5328/api/market/brief?force=true"
+        try:
+            res = requests.get(url, timeout=240)
+            if res.status_code == 200:
+                logging.info("✅ Morning Briefing proativo gerado e cacheado com sucesso!")
+            else:
+                logging.warning(f"⚠️ Resposta inesperada do backend na geração do Briefing (Status {res.status_code})")
+        except Exception as conn_err:
+            logging.warning(f"Tentando rota local alternativa: {conn_err}")
+            url_local = "http://localhost:5328/api/market/brief?force=true"
+            res_local = requests.get(url_local, timeout=240)
+            if res_local.status_code == 200:
+                logging.info("✅ Morning Briefing proativo gerado (local)!")
+    except Exception as e:
+        logging.error(f"❌ Erro crítico ao gerar Morning Briefing de madrugada: {e}", exc_info=True)
 
 if __name__ == '__main__':
     logging.info("🚀 Iniciando Worker de Agendamento do AssetFlow Pro...")
@@ -91,8 +93,13 @@ if __name__ == '__main__':
         logging.info("🔥 Boot: Rodando atualizações iniciais e esquentando cache...")
         update_market_cache()
         scheduled_update_prices()
-        # 🔥 Cache Warming analítico inicial
         scheduled_quant_warm()
+        # Gera o briefing inicial no boot se o cache estiver vazio
+        url_boot = "http://backend:5328/api/market/brief"
+        try:
+            requests.get(url_boot, timeout=5)
+        except Exception:
+            pass
         logging.info("✅ Cache warming concluído. Worker pronto para receber agendamentos!")
     except Exception as e:
         logging.error(f"⚠️ Falha no boot/warming do worker: {e}", exc_info=True)
@@ -101,6 +108,7 @@ if __name__ == '__main__':
     scheduler.add_job(func=scheduled_update_indices, trigger="interval", minutes=5, max_instances=1, misfire_grace_time=30)
     scheduler.add_job(func=scheduled_update_prices, trigger="interval", minutes=10, max_instances=1, misfire_grace_time=60)
     scheduler.add_job(func=scheduled_quant_warm, trigger="interval", minutes=30, max_instances=1, misfire_grace_time=300)
+    scheduler.add_job(func=scheduled_morning_brief_generation, trigger="cron", hour=7, minute=0, max_instances=1, misfire_grace_time=3600)
     scheduler.add_job(func=scheduled_dividends_check, trigger="cron", hour=8, minute=0, max_instances=1, misfire_grace_time=3600)
 
     try:

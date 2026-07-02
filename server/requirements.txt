@@ -15,3 +15,5 @@ tenacity
 alembic
 requests
 lxml
+pymupdf
+reportlab

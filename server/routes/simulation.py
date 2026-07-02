@@ -114,9 +114,7 @@ def morning_brief():
         from datetime import datetime, timedelta
         cache_record = session.query(SystemCache).filter_by(key="morning_brief").first()
         if cache_record and not force_reanalyze:
-            age = datetime.now() - cache_record.updated_at
-            if age < timedelta(hours=4):
-                return jsonify(json.loads(cache_record.value))
+            return jsonify(json.loads(cache_record.value))
 
         selic = get_risk_free_rate()
         dolar_rate = service.get_usd_rate()

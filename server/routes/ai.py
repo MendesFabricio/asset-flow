@@ -120,26 +120,40 @@ def execute_get_asset_fundamental_data(session, ticker: str):
 def chat():
     body = request.get_json(silent=True) or {}
     message = body.get("message", "").strip()
-    history = body.get("history", [])
+    session_id = body.get("session_id", "default_session").strip()
     
     if not message:
         return Response("Por favor, envie uma mensagem válida.", mimetype='text/plain', status=400)
         
     try:
+        from database.models import AIChatHistory
+        session = Session()
+        
+        # 1. Salva a pergunta do usuário no banco
+        user_msg_db = AIChatHistory(session_id=session_id, role="user", content=message)
+        session.add(user_msg_db)
+        session.commit()
+        
+        # 2. Resgata histórico persistido desta sessão no SQLite
+        db_history = session.query(AIChatHistory).filter_by(session_id=session_id).order_by(AIChatHistory.created_at.asc()).all()
+        
+        Session.remove()  # Libera para a thread de streaming
+        
         tools = get_ollama_tools()
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT}
         ]
-        for item in history:
-            role = item.get("role")
-            content = item.get("content")
-            if role in ["user", "assistant"] and content:
-                messages.append({"role": role, "content": content})
+        
+        # Injeta o histórico persistido (excluindo a última mensagem do usuário que adicionaremos depois)
+        for msg in db_history[:-1]:
+            messages.append({"role": msg.role, "content": msg.content})
+            
+        # Adiciona a mensagem atual do usuário
         messages.append({"role": "user", "content": message})
         
         def generate_stream():
             yield "💡 *Jarvis: Analisando sua pergunta...*\n\n"
-            session = Session()
+            stream_session = Session()
             try:
                 # Loop de execução do agente (máximo 5 iterações para evitar loops infinitos)
                 for i in range(5):
@@ -163,10 +177,8 @@ def chat():
                     if not tool_calls:
                         break
                         
-                    # Adiciona a mensagem do assistente contendo as chamadas de ferramentas planejadas
                     messages.append(assistant_message)
                     
-                    # Resolve cada chamada de ferramenta
                     for tool_call in tool_calls:
                         func_name = tool_call.get("function", {}).get("name")
                         args = tool_call.get("function", {}).get("arguments", {})
@@ -175,11 +187,11 @@ def chat():
                         
                         if func_name == "query_portfolio_metrics":
                             yield "💡 *Ação: Consultando ativos da carteira e recalculando indicadores de risco...*\n\n"
-                            result = execute_query_portfolio_metrics(session)
+                            result = execute_query_portfolio_metrics(stream_session)
                         elif func_name == "get_asset_fundamental_data":
                             ticker = args.get("ticker", "")
                             yield f"💡 *Ação: Buscando e analisando demonstrativos financeiros da CVM para {ticker}...*\n\n"
-                            result = execute_get_asset_fundamental_data(session, ticker)
+                            result = execute_get_asset_fundamental_data(stream_session, ticker)
                         else:
                             result = {"status": "Erro", "error": f"Ferramenta '{func_name}' não suportada."}
                             
@@ -201,12 +213,23 @@ def chat():
                 if response.status_code != 200:
                     yield "Erro na geração final por streaming."
                     return
+                    
+                full_response = ""
                 for line in response.iter_lines():
                     if line:
                         chunk = json.loads(line.decode('utf-8'))
                         content = chunk.get("message", {}).get("content", "")
                         if content:
+                            full_response += content
                             yield content
+                            
+                # 3. Salva a resposta do assistente no banco
+                if full_response.strip():
+                    from database.models import AIChatHistory
+                    assistant_msg_db = AIChatHistory(session_id=session_id, role="assistant", content=full_response)
+                    stream_session.add(assistant_msg_db)
+                    stream_session.commit()
+                    
             except Exception as stream_err:
                 logging.error(f"Erro no stream do agente: {stream_err}")
                 yield f"\n[Erro de conexão com o Ollama: {stream_err}]"
@@ -218,3 +241,103 @@ def chat():
     except Exception as e:
         logging.error(f"❌ Falha crítica no Agente Jarvis: {e}", exc_info=True)
         return Response(f"Erro interno no Jarvis: {str(e)}", mimetype='text/plain', status=500)
+
+
+@ai_bp.route('/api/ai/history', methods=['GET'])
+def get_ai_history():
+    session_id = request.args.get('session_id', 'default_session').strip()
+    session = Session()
+    try:
+        from database.models import AIChatHistory
+        history_records = session.query(AIChatHistory).filter_by(session_id=session_id).order_by(AIChatHistory.created_at.asc()).all()
+        data = [{"role": msg.role, "content": msg.content, "created_at": msg.created_at.isoformat()} for msg in history_records]
+        return jsonify({"status": "Sucesso", "data": data})
+    except Exception as e:
+        return jsonify({"status": "Erro", "msg": str(e)}), 500
+    finally:
+        Session.remove()
+
+
+@ai_bp.route('/api/ai/history/clear', methods=['POST'])
+def clear_ai_history():
+    body = request.get_json(silent=True) or {}
+    session_id = body.get('session_id', 'default_session').strip()
+    session = Session()
+    try:
+        from database.models import AIChatHistory, safe_commit
+        session.query(AIChatHistory).filter_by(session_id=session_id).delete()
+        safe_commit(session)
+        return jsonify({"status": "Sucesso", "msg": f"Histórico da sessão '{session_id}' limpo."})
+    except Exception as e:
+        session.rollback()
+        return jsonify({"status": "Erro", "msg": str(e)}), 500
+    finally:
+        Session.remove()
+
+
+@ai_bp.route('/api/ai/explain-score/<ticker>', methods=['GET'])
+def explain_score(ticker):
+    ticker = ticker.strip().upper()
+    session = Session()
+    try:
+        asset = session.query(Asset).filter_by(ticker=ticker).first()
+        if not asset:
+            return jsonify({"status": "Erro", "msg": f"Ativo '{ticker}' não encontrado."}), 404
+        
+        from services import PortfolioService
+        service = PortfolioService()
+        
+        price = 0.0
+        if asset.market_data:
+            price = float(asset.market_data[0].price or 0.0)
+            
+        dash_data = service.get_dashboard_data()
+        asset_data = next((a for a in dash_data.get("ativos", []) if a["ticker"].upper() == ticker), None)
+        
+        if not asset_data:
+            return jsonify({"status": "Erro", "msg": "Ativo sem posição ou métricas ativas."}), 400
+            
+        score = asset_data.get("score", 50)
+        recomendacao = asset_data.get("recomendacao", "MANTER")
+        motivo = asset_data.get("motivo", "")
+        
+        prompt = (
+            f"Você é o Jarvis. Explique de forma muito concisa, amigável e direta "
+            f"(em no máximo 2 parágrafos curtos) o racional por trás do score de recomendação do ativo {ticker}.\n\n"
+            f"DADOS DO ATIVO:\n"
+            f"- Nome: {asset.name}\n"
+            f"- Categoria: {asset.category.name if asset.category else 'Outros'}\n"
+            f"- Score: {score}/100\n"
+            f"- Recomendação: {recomendacao}\n"
+            f"- Fatores analisados: {motivo}\n"
+            f"- Preço Atual: R$ {price:.2f}\n"
+        )
+        
+        payload = {
+            "model": MODEL_NAME,
+            "messages": [
+                {"role": "system", "content": "Você é o assistente virtual Jarvis do AssetFlow. Diga apenas a explicação em português."},
+                {"role": "user", "content": prompt}
+            ],
+            "stream": False,
+            "keep_alive": "5m"
+        }
+        
+        response = requests.post(OLLAMA_CHAT_URL, json=payload, timeout=120)
+        if response.status_code == 200:
+            explanation = response.json().get("message", {}).get("content", "").strip()
+        else:
+            explanation = f"O score do ativo {ticker} é {score} ({recomendacao}) devido aos seguintes fatores: {motivo}."
+            
+        return jsonify({
+            "status": "Sucesso",
+            "ticker": ticker,
+            "score": score,
+            "recomendacao": recomendacao,
+            "explanation": explanation
+        })
+    except Exception as e:
+        logging.error(f"Erro ao explicar score de {ticker}: {e}", exc_info=True)
+        return jsonify({"status": "Erro", "msg": str(e)}), 500
+    finally:
+        Session.remove()

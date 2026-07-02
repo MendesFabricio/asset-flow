@@ -31,7 +31,10 @@ import {
   Sliders,
   Play,
   RotateCcw,
-  Sparkles
+  Sparkles,
+  FileText,
+  Download,
+  Compass
 } from 'lucide-react';
 import {
   KellyData,
@@ -45,7 +48,7 @@ import {
 } from '../types';
 
 export function QuantDashboard() {
-  const [activeTab, setActiveTab] = useState<'frontier' | 'rebalance' | 'ranking' | 'sharpe' | 'dca'>('frontier');
+  const [activeTab, setActiveTab] = useState<'frontier' | 'rebalance' | 'ranking' | 'sharpe' | 'dca' | 'reports'>('frontier');
   
   // Data States
   const [frontierData, setFrontierData] = useState<EfficientFrontierData | null>(null);
@@ -54,6 +57,43 @@ export function QuantDashboard() {
   const [kellyData, setKellyData] = useState<KellyData | null>(null);
   const [momentumData, setMomentumData] = useState<MomentumRankingData | null>(null);
   const [sharpeData, setSharpeData] = useState<SharpeRollingData | null>(null);
+  
+  // Reports & Sentiment States
+  const [fearGreedData, setFearGreedData] = useState<any | null>(null);
+  const [reportsList, setReportsList] = useState<any[]>([]);
+  const [loadingReports, setLoadingReports] = useState(false);
+  const [generatingReport, setGeneratingReport] = useState(false);
+
+  const fetchReportsAndFG = () => {
+    setLoadingReports(true);
+    Promise.all([
+      apiCall<any>('/api/quant/fear-greed'),
+      apiCall<any>('/api/quant/reports')
+    ])
+      .then(([fg, rep]) => {
+        if (fg.status === 'Sucesso') setFearGreedData(fg.data);
+        if (rep.status === 'Sucesso') setReportsList(rep.reports || []);
+      })
+      .catch((err) => console.error(err))
+      .finally(() => setLoadingReports(false));
+  };
+
+  const handleGenerateReport = () => {
+    setGeneratingReport(true);
+    apiCall<any>('/api/quant/generate-report', { method: 'POST' })
+      .then((res) => {
+        if (res.status === 'Sucesso') {
+          fetchReportsAndFG();
+        } else {
+          alert(res.msg || 'Falha ao gerar relatório.');
+        }
+      })
+      .catch((err) => {
+        console.error(err);
+        alert('Erro ao se conectar ao backend.');
+      })
+      .finally(() => setGeneratingReport(false));
+  };
   
   // DCA Simulator States
   const [dcaTicker, setDcaTicker] = useState('PETR4');
@@ -173,6 +213,12 @@ export function QuantDashboard() {
     }
   }, [dcaTicker]);
 
+  useEffect(() => {
+    if (activeTab === 'reports') {
+      fetchReportsAndFG();
+    }
+  }, [activeTab]);
+
   if (loading) {
     return (
       <div className="flex flex-col gap-6 w-full animate-pulse p-6">
@@ -278,6 +324,16 @@ export function QuantDashboard() {
             }`}
           >
             DCA vs Lump Sum
+          </button>
+          <button
+            onClick={() => setActiveTab('reports')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition ${
+              activeTab === 'reports'
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            Relatórios & Sentimento
           </button>
         </div>
       </div>
@@ -692,7 +748,7 @@ export function QuantDashboard() {
                     <tr key={item.ticker} className="hover:bg-slate-900/20 transition">
                       <td className="py-3 pl-2 text-slate-400">
                         {item.rank === 1 ? (
-                          <Badge variant="emerald" className="px-1 text-[9px] font-bold">1º LUGAR</Badge>
+                          <Badge label="1º LUGAR" variant="emerald" />
                         ) : (
                           `#${item.rank}`
                         )}
@@ -999,6 +1055,203 @@ export function QuantDashboard() {
               <div className="flex flex-col items-center justify-center p-12 text-slate-500 h-full border border-slate-900 border-dashed rounded-xl">
                 <TrendingUp size={36} className="mb-2" />
                 <span className="text-xs">Selecione os parâmetros e rode a simulação.</span>
+              </div>
+            )}
+          </Card>
+        </div>
+      )}
+
+      {/* ──────────────────────────────────────────────────────── */}
+      {/* 📁 TAB 6: RELATÓRIOS & SENTIMENTO (FEAR & GREED LOCAL + PDF) */}
+      {/* ──────────────────────────────────────────────────────── */}
+      {activeTab === 'reports' && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          {/* FEAR & GREED CARD */}
+          <Card className="flex flex-col gap-6 !bg-slate-950 !border-slate-900 p-6">
+            <div className="flex items-center gap-2 border-b border-slate-900 pb-3">
+              <Compass className="text-emerald-400" size={18} />
+              <h3 className="font-bold text-slate-200 text-sm uppercase tracking-wider">
+                Fear & Greed Index Local
+              </h3>
+            </div>
+            
+            {loadingReports ? (
+              <div className="flex justify-center items-center h-48 animate-pulse text-slate-500 text-xs">
+                Carregando sentimento...
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-4 text-center">
+                {/* SVG Gauge */}
+                <div className="relative w-36 h-20">
+                  <svg className="w-full h-full" viewBox="0 0 120 70">
+                    {/* Background Arc */}
+                    <path
+                      d="M 10 60 A 50 50 0 0 1 110 60"
+                      fill="none"
+                      stroke="#1e293b"
+                      strokeWidth="8"
+                      strokeLinecap="round"
+                    />
+                    {/* Active Gauge Arc */}
+                    <path
+                      d="M 10 60 A 50 50 0 0 1 110 60"
+                      fill="none"
+                      stroke={
+                        (fearGreedData?.score || 50) < 25
+                          ? '#ef4444' // Red
+                          : (fearGreedData?.score || 50) < 45
+                          ? '#f97316' // Orange
+                          : (fearGreedData?.score || 50) <= 55
+                          ? '#eab308' // Yellow
+                          : (fearGreedData?.score || 50) <= 75
+                          ? '#84cc16' // Lime
+                          : '#22c55e' // Green
+                      }
+                      strokeWidth="8"
+                      strokeLinecap="round"
+                      strokeDasharray="157.08"
+                      strokeDashoffset={157.08 - (157.08 * (fearGreedData?.score || 50)) / 100}
+                      className="transition-all duration-1000 ease-out"
+                    />
+                  </svg>
+                  {/* Score Text Overlay */}
+                  <div className="absolute inset-x-0 bottom-0 flex flex-col items-center justify-end h-full">
+                    <span className="text-2xl font-black text-slate-100 tracking-tight leading-none">
+                      {fearGreedData?.score || 50}
+                    </span>
+                    <span className={`text-[10px] font-bold uppercase tracking-wider mt-1 px-1.5 py-0.5 rounded ${
+                      (fearGreedData?.score || 50) < 25
+                        ? 'bg-red-500/10 text-red-400'
+                        : (fearGreedData?.score || 50) < 45
+                        ? 'bg-orange-500/10 text-orange-400'
+                        : (fearGreedData?.score || 50) <= 55
+                        ? 'bg-yellow-500/10 text-yellow-400'
+                        : (fearGreedData?.score || 50) <= 75
+                        ? 'bg-lime-500/10 text-lime-400'
+                        : 'bg-emerald-500/10 text-emerald-400'
+                    }`}>
+                      {fearGreedData?.label || 'Neutro'}
+                    </span>
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-slate-500 max-w-[200px] leading-relaxed mt-2">
+                  Índice proprietário derivado do RSI médio, do percentual acima da média 20d e da volatilidade dos seus próprios ativos.
+                </p>
+
+                {/* Sub-metrics */}
+                <div className="w-full flex flex-col gap-2 mt-4 text-xs text-left border-t border-slate-900 pt-4">
+                  <div className="flex justify-between items-center py-1">
+                    <span className="text-slate-500">RSI Médio Ponderado:</span>
+                    <span className="font-bold text-slate-300">{fearGreedData?.avg_rsi || 50}/100</span>
+                  </div>
+                  <div className="flex justify-between items-center py-1">
+                    <span className="text-slate-500">Acima da Média 20d:</span>
+                    <span className="font-bold text-slate-300">{fearGreedData?.above_sma_pct || 0}% dos ativos</span>
+                  </div>
+                  <div className="flex justify-between items-center py-1">
+                    <span className="text-slate-500">Força de Drawdown/Retorno:</span>
+                    <span className="font-bold text-slate-300">{fearGreedData?.drawdown_score || 50}/100</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </Card>
+
+          {/* REPORTS MANAGER CARD */}
+          <Card className="lg:col-span-2 flex flex-col gap-4 !bg-slate-950 !border-slate-900 p-6 min-h-[400px]">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-900 pb-3">
+              <div className="flex items-center gap-2">
+                <FileText className="text-blue-400" size={18} />
+                <h3 className="font-bold text-slate-200 text-sm uppercase tracking-wider">
+                  Central de Relatórios Patrimoniais (PDF)
+                </h3>
+              </div>
+              <button
+                disabled={generatingReport || loadingReports}
+                onClick={handleGenerateReport}
+                className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold uppercase tracking-wider transition disabled:opacity-40 flex items-center gap-2"
+              >
+                {generatingReport ? (
+                  <>
+                    <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Gerando...
+                  </>
+                ) : (
+                  'Gerar Relatório Atual'
+                )}
+              </button>
+            </div>
+
+            {loadingReports ? (
+              <div className="flex justify-center items-center h-48 animate-pulse text-slate-500 text-xs">
+                Carregando relatórios salvos...
+              </div>
+            ) : reportsList.length === 0 ? (
+              <div className="flex flex-col items-center justify-center p-12 text-slate-500 h-full border border-slate-900 border-dashed rounded-xl">
+                <FileText size={36} className="mb-2 text-slate-700" />
+                <span className="text-xs">Nenhum relatório gerado ainda.</span>
+              </div>
+            ) : (
+              <div className="overflow-x-auto w-full">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-900 text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                      <th className="pb-3 pl-2">Relatório</th>
+                      <th className="pb-3">Data de Criação</th>
+                      <th className="pb-3 text-right">Tamanho</th>
+                      <th className="pb-3 text-right pr-2">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-900/60 text-xs">
+                    {reportsList.map((rep) => {
+                      const cleanDate = rep.created_at
+                        ? new Date(rep.created_at).toLocaleString('pt-BR', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })
+                        : 'N/A';
+                      
+                      const sizeKb = rep.size_bytes ? (rep.size_bytes / 1024).toFixed(1) : '0.0';
+                      const repLabel = rep.filename
+                        ? rep.filename
+                            .replace("relatorio_patrimonial_", "Relatório ")
+                            .replace(".pdf", "")
+                        : "Relatório Patrimonial";
+                      
+                      return (
+                        <tr key={rep.filename} className="hover:bg-slate-900/20 transition">
+                          <td className="py-3 pl-2 font-bold text-slate-300 flex items-center gap-2">
+                            <FileText size={14} className="text-slate-500" />
+                            {repLabel}
+                          </td>
+                          <td className="py-3 text-slate-400">{cleanDate}</td>
+                          <td className="py-3 text-right text-slate-400">{sizeKb} KB</td>
+                          <td className="py-3 text-right pr-2">
+                            <button
+                              onClick={() =>
+                                window.open(
+                                  `/api/quant/download-report?filename=${encodeURIComponent(
+                                    rep.filename
+                                  )}`,
+                                  '_blank'
+                                )
+                              }
+                              className="px-2 py-1 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 rounded text-[10px] font-bold uppercase tracking-wider transition flex items-center gap-1.5 ml-auto"
+                            >
+                              <Download size={10} />
+                              Baixar
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             )}
           </Card>

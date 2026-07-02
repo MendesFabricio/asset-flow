@@ -227,3 +227,201 @@ def get_momentum_ranking():
     except Exception as e:
         logging.error(f"❌ Erro ao calcular Ranking de Momentum: {e}", exc_info=True)
         return jsonify({"status": "Erro", "msg": str(e)}), 500
+
+
+def calculate_local_fear_greed(session):
+    from database.models import Position, Asset, Category, MarketData
+    from sqlalchemy.orm import joinedload
+    
+    positions = session.query(Position).options(
+        joinedload(Position.asset).joinedload(Asset.category),
+        joinedload(Position.asset).selectinload(Asset.market_data)
+    ).filter(Position.quantity > 0).all()
+    
+    variable_assets = []
+    total_var_value = 0.0
+    for p in positions:
+        if p.asset and p.asset.category and p.asset.category.name in ["Ação", "FII", "Cripto"]:
+            mdata = p.asset.market_data[0] if p.asset.market_data else None
+            price = float(mdata.price or p.average_price or 0.0) if mdata else float(p.average_price or 0.0)
+            val = float(p.quantity) * price
+            variable_assets.append((p.asset, val, mdata, price))
+            total_var_value += val
+            
+    if not variable_assets:
+        return {"score": 50, "label": "Neutro", "avg_rsi": 50, "above_sma_pct": 50, "drawdown_score": 50}
+        
+    weighted_rsi = 0.0
+    above_sma_count = 0
+    total_weight = 0.0
+    
+    for asset, val, mdata, price in variable_assets:
+        weight = val / total_var_value if total_var_value > 0 else 0.0
+        rsi = float(mdata.rsi_14 or 50.0) if mdata else 50.0
+        weighted_rsi += rsi * weight
+        
+        sma = float(mdata.sma_20 or price) if mdata and mdata.sma_20 else price
+        if price >= sma:
+            above_sma_count += 1
+            
+    above_sma_pct = (above_sma_count / len(variable_assets)) * 100 if variable_assets else 50.0
+    
+    avg_change = 0.0
+    for asset, val, mdata, price in variable_assets:
+        change = abs(float(mdata.change_percent or 0.0)) if mdata else 0.0
+        avg_change += change
+    avg_change = avg_change / len(variable_assets) if variable_assets else 0.0
+    
+    weighted_change = 0.0
+    for asset, val, mdata, price in variable_assets:
+        change = float(mdata.change_percent or 0.0) if mdata else 0.0
+        weighted_change += change * (val / total_var_value) if total_var_value > 0 else 0.0
+        
+    drawdown_score = 50.0 + (weighted_change * 3) - (avg_change * 1.5)
+    drawdown_score = max(0.0, min(100.0, drawdown_score))
+    
+    final_score = 0.4 * weighted_rsi + 0.3 * above_sma_pct + 0.3 * drawdown_score
+    final_score = max(0.0, min(100.0, final_score))
+    
+    if final_score < 25:
+        label = "Medo Extremo"
+    elif final_score < 45:
+        label = "Medo"
+    elif final_score <= 55:
+        label = "Neutro"
+    elif final_score <= 75:
+        label = "Ganância"
+    else:
+        label = "Ganância Extrema"
+        
+    return {
+        "score": round(final_score, 1),
+        "label": label,
+        "avg_rsi": round(weighted_rsi, 1),
+        "above_sma_pct": round(above_sma_pct, 1),
+        "drawdown_score": round(drawdown_score, 1)
+    }
+
+
+@quant_bp.route('/api/quant/fear-greed', methods=['GET'])
+def get_fear_greed():
+    session = Session()
+    try:
+        res = calculate_local_fear_greed(session)
+        return jsonify({"status": "Sucesso", "data": res})
+    except Exception as e:
+        logging.error(f"Erro ao calcular Fear & Greed Local: {e}", exc_info=True)
+        return jsonify({"status": "Erro", "msg": str(e)}), 500
+    finally:
+        Session.remove()
+
+
+@quant_bp.route('/api/quant/reports', methods=['GET'])
+def list_reports():
+    try:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        reports_dir = os.path.join(base_dir, '..', 'data', 'reports')
+        os.makedirs(reports_dir, exist_ok=True)
+        
+        files = []
+        for f in os.listdir(reports_dir):
+            if f.endswith(".pdf"):
+                path = os.path.join(reports_dir, f)
+                stat = os.stat(path)
+                files.append({
+                    "filename": f,
+                    "size_bytes": stat.st_size,
+                    "created_at": datetime.fromtimestamp(stat.st_mtime).isoformat()
+                })
+        files.sort(key=lambda x: x["created_at"], reverse=True)
+        return jsonify({"status": "Sucesso", "reports": files})
+    except Exception as e:
+        return jsonify({"status": "Erro", "msg": str(e)}), 500
+
+
+@quant_bp.route('/api/quant/download-report', methods=['GET'])
+def download_report():
+    filename = request.args.get('filename', '').strip()
+    filename = os.path.basename(filename)
+    if not filename.endswith(".pdf"):
+        return jsonify({"status": "Erro", "msg": "Apenas downloads de arquivos PDF são permitidos."}), 400
+        
+    try:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        reports_dir = os.path.join(base_dir, '..', 'data', 'reports')
+        filepath = os.path.join(reports_dir, filename)
+        
+        if not os.path.exists(filepath):
+            return jsonify({"status": "Erro", "msg": "Arquivo solicitado não encontrado."}), 404
+            
+        from flask import send_file
+        return send_file(filepath, as_attachment=True, download_name=filename, mimetype='application/pdf')
+    except Exception as e:
+        return jsonify({"status": "Erro", "msg": str(e)}), 500
+
+
+@quant_bp.route('/api/quant/generate-report', methods=['POST'])
+def generate_report():
+    session = Session()
+    try:
+        from utils.pdf_generator import generate_monthly_report_pdf
+        
+        dash_data = service.get_dashboard_data()
+        fg_data = calculate_local_fear_greed(session)
+        
+        dash_data["fear_greed_score"] = fg_data["score"]
+        dash_data["fear_greed_label"] = fg_data["label"]
+        
+        from domain.quant_engine import calculate_risk_metrics
+        from infrastructure.price_cache import fetch_price_history as _fetch_price_history_fn
+        risk = calculate_risk_metrics(session, _fetch_price_history_fn)
+        if risk.get("status") == "Sucesso":
+            dash_data["beta"] = risk.get("beta")
+            dash_data["sharpe"] = risk.get("sharpe_12m")
+            dash_data["var_95"] = risk.get("var_95_monthly_pct")
+            
+        dash_data["comentario_ia"] = "Sua carteira está bem distribuída. Recomendamos verificar os ativos com recomendação de COMPRAR na aba 'Análise Quant' e ajustar os desvios."
+        
+        date_str = datetime.now().strftime("%Y-%m-%d_%H-%M")
+        filename = f"relatorio_patrimonial_{date_str}.pdf"
+        
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        reports_dir = os.path.join(base_dir, '..', 'data', 'reports')
+        filepath = os.path.join(reports_dir, filename)
+        
+        success = generate_monthly_report_pdf(filepath, dash_data)
+        if success:
+            return jsonify({"status": "Sucesso", "filename": filename, "msg": "Relatório patrimonial gerado com sucesso!"})
+        else:
+            return jsonify({"status": "Erro", "msg": "Erro ao compilar PDF do relatório."}), 500
+    except Exception as e:
+        logging.error(f"Erro ao gerar relatório patrimonial PDF: {e}", exc_info=True)
+        return jsonify({"status": "Erro", "msg": str(e)}), 500
+    finally:
+        Session.remove()
+
+
+@quant_bp.route('/api/ai/analyze-pdf', methods=['POST'])
+def analyze_pdf_endpoint():
+    body = request.get_json(silent=True) or {}
+    ticker = body.get('ticker', '').strip().upper()
+    if not ticker:
+        return jsonify({"status": "Erro", "msg": "Ticker do ativo é obrigatório."}), 400
+        
+    session = Session()
+    try:
+        position = session.query(Position).join(Position.asset).filter(Asset.ticker == ticker, Position.quantity > 0).first()
+        if not position or not position.last_report_url:
+            return jsonify({"status": "Erro", "msg": f"Nenhum link de relatório de RI disponível para o ativo {ticker}."}), 404
+            
+        url = position.last_report_url
+        is_fii = position.asset.category.name == "FII"
+        
+        from utils.pdf_extractor import extract_kpis_from_pdf
+        res = extract_kpis_from_pdf(url, is_fii)
+        return jsonify(res)
+    except Exception as e:
+        logging.error(f"Erro ao processar relatório RI PDF de {ticker}: {e}", exc_info=True)
+        return jsonify({"status": "Erro", "msg": str(e)}), 500
+    finally:
+        Session.remove()
