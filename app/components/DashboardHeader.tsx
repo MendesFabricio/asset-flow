@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Wallet, Calendar, TrendingUp, Calculator, PlusCircle, EyeOff, Eye, Layers, Brain, RefreshCw, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
 import { MarketTicker } from './MarketTicker';
+import { TradingHoursWidget } from './TradingHoursWidget';
 import { AlertsButton } from './AlertsButton';
 import { usePrivacy } from '../context/PrivacyContext';
 import { HealthIndicator } from './HealthIndicator';
@@ -73,6 +74,7 @@ export function DashboardHeader({
             AssetFlow <span className="text-blue-500 text-xs font-normal ml-1">Pro</span>
           </h1>
           <MarketTicker />
+          <TradingHoursWidget />
         </div>
 
         {/* CONTROLES DE INTERFACE & AÇÕES UNIFICADAS */}
