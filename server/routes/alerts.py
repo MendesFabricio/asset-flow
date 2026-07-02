@@ -133,6 +133,29 @@ def get_alerts():
                     elif float(pos.manual_dy) == 0:
                         alerts.append(make_alert(asset, "dy", "INFO", "DY zerado. Confirme se é intencional.", 1, "edit"))
 
+                # =========================================================
+                # 5. ALERTA DE DATA-COM PRÓXIMA (3 Dias)
+                # =========================================================
+                from routes.calendar import CALENDAR_CACHE
+                if CALENDAR_CACHE.get("data"):
+                    for evt in CALENDAR_CACHE["data"]:
+                        try:
+                            evt_date = datetime.strptime(evt["date"], "%Y-%m-%d").date()
+                            delta = (evt_date - today.date()).days
+                            if 0 <= delta <= 3 and evt["ticker"] == asset.ticker:
+                                alerts.append({
+                                    "id": f"{asset.id}_datacom_{evt['date']}",
+                                    "asset_id": asset.id,
+                                    "ticker": asset.ticker,
+                                    "field": "datacom",
+                                    "type": "PROVENTO",
+                                    "message": f"⏰ Data-COM em {delta} dias ({evt_date.strftime('%d/%m')}). Valor: R$ {evt['value_per_share']:.4f}/cota.",
+                                    "severity": 3,
+                                    "action": "view"
+                                })
+                        except Exception:
+                            pass
+
             # Ordena: Críticos > Risco > Config > Novidade > Alerta > Info
             alerts.sort(key=lambda x: x["severity"], reverse=True)
             return jsonify(alerts)

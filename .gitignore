@@ -66,4 +66,4 @@ server/backups/
 .aider*
 
 SECURITY_ANALYSIS.md
-server/data/cvm_cache/
+server/data/

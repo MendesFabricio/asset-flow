@@ -15,7 +15,7 @@ from datetime import datetime, date, timedelta
 from sqlalchemy.orm import scoped_session, sessionmaker, joinedload, selectinload
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from database.models import Asset, Position, Category, MarketData, PortfolioSnapshot, SystemCache, safe_commit
+from database.models import Asset, Position, Category, MarketData, PortfolioSnapshot, SystemCache, Dividend, safe_commit
 from database.session import engine, Session
 
 # ── Cache de preços (race-condition safe) ────────────────────────────────────
@@ -149,8 +149,58 @@ class PortfolioService:
         return 11
 
     def record_confirmed_dividends(self):
-        logging.info("📅 [SERVICE] Verificação de rotina de proventos concluída.")
-        return True
+        logging.info("📅 [SERVICE] Iniciando verificação automática de novos dividendos...")
+        session = Session()
+        try:
+            positions = session.query(Position).filter(Position.quantity > 0).all()
+            today = datetime.now().date()
+            
+            for pos in positions:
+                ticker_raw = pos.asset.ticker.upper().strip()
+                if any(x in ticker_raw for x in ["CAIXINHA", "BTC", "ETH"]):
+                    continue
+                
+                ticker_yahoo = f"{ticker_raw}.SA" if len(ticker_raw) >= 5 and not ticker_raw.endswith('.SA') else ticker_raw
+                try:
+                    stock = yf.Ticker(ticker_yahoo)
+                    divs = stock.dividends
+                    if not divs.empty:
+                        # Pega os dividendos dos últimos 180 dias para cobrir semestrais/trimestrais com folga
+                        cutoff = today - timedelta(days=180)
+                        recent_divs = divs[divs.index.date >= cutoff]
+                        for date_com_dt, value in recent_divs.items():
+                            date_com = date_com_dt.date()
+                            
+                            # Verifica se já existe o dividendo no banco
+                            exists = session.query(Dividend).filter_by(
+                                asset_id=pos.asset_id,
+                                date_com=date_com
+                            ).first()
+                            
+                            if not exists:
+                                qty = float(pos.quantity)
+                                total = float(value) * qty
+                                new_div = Dividend(
+                                    asset_id=pos.asset_id,
+                                    date_com=date_com,
+                                    date_payment=date_com + timedelta(days=15), # Estimativa de data de pagamento se não informada
+                                    value_per_share=float(value),
+                                    quantity_at_date=qty,
+                                    total_value=total,
+                                    status="PAGO" if date_com < today else "A RECEBER"
+                                )
+                                session.add(new_div)
+                                logging.info(f"🆕 Novo dividendo registrado para {ticker_raw}: R$ {value:.4f} em {date_com}")
+                    safe_commit(session)
+                except Exception as ex:
+                    logging.warning(f"Erro ao verificar dividendos de {ticker_raw}: {ex}")
+            return True
+        except Exception as e:
+            logging.error(f"Erro ao atualizar dividendos automáticos: {e}")
+            session.rollback()
+            return False
+        finally:
+            session.close()
 
     def get_dashboard_data(self):
         session = Session()

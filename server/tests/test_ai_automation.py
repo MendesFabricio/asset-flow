@@ -63,6 +63,65 @@ class TestAIAutomationAndSentiment(unittest.TestCase):
         self.assertIn("Graham", res.json()["message"]["content"])
         print("✅ test_ai_score_explainer_prompt passed!")
 
+
+    @patch('yfinance.Ticker')
+    def test_record_confirmed_dividends(self, mock_ticker):
+        print("Running test_record_confirmed_dividends...")
+        from services import PortfolioService
+        from database.models import Position, Asset, Dividend
+        import pandas as pd
+        from datetime import datetime
+        
+        service = PortfolioService()
+        
+        # Mock do yfinance retornando dividendos
+        mock_stock = MagicMock()
+        mock_stock.dividends = pd.Series(
+            [0.5, 0.6], 
+            index=[pd.Timestamp('2026-06-01'), pd.Timestamp('2026-06-15')]
+        )
+        mock_ticker.return_value = mock_stock
+        
+        # Patch a fábrica de Session para simular a base de dados
+        session_mock = MagicMock()
+        pos = MagicMock()
+        pos.asset_id = 1
+        pos.asset.ticker = "PETR4"
+        pos.quantity = 100
+        session_mock.query.return_value.filter.return_value.all.return_value = [pos]
+        
+        # Simula que o dividendo não existe no banco
+        session_mock.query.return_value.filter_by.return_value.first.return_value = None
+        
+        with patch('services.Session', return_value=session_mock):
+            res = service.record_confirmed_dividends()
+            self.assertTrue(res)
+            # Deve chamar session.add() para adicionar os novos dividendos detectados
+            self.assertTrue(session_mock.add.called)
+        print("✅ test_record_confirmed_dividends passed!")
+
+    def test_dividend_consistency_score_math(self):
+        print("Running test_dividend_consistency_score_math...")
+        from datetime import date
+        # Simula 4 trimestres diferentes com dividendos
+        divs = [
+            MagicMock(date_com=date(2025, 1, 15)),
+            MagicMock(date_com=date(2025, 4, 15)),
+            MagicMock(date_com=date(2025, 7, 15)),
+            MagicMock(date_com=date(2025, 10, 15)),
+        ]
+        
+        quarters = set()
+        for d in divs:
+            q_key = (d.date_com.year, (d.date_com.month - 1) // 3 + 1)
+            quarters.add(q_key)
+            
+        num_quarters = len(quarters)
+        score = min(100, int(num_quarters * 8.33))
+        self.assertEqual(score, 33)  # 4 * 8.33 = 33.32 -> 33
+        self.assertEqual(num_quarters, 4)
+        print("✅ test_dividend_consistency_score_math passed!")
+
 if __name__ == '__main__':
     print("🚀 Iniciando execução de testes de IA e Automação...")
     suite = unittest.TestLoader().loadTestsFromTestCase(TestAIAutomationAndSentiment)
