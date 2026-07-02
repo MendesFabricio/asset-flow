@@ -1,4 +1,5 @@
-from sqlalchemy import create_engine, Column, Integer, String, Float, Numeric, ForeignKey, DateTime, Date, Boolean, event, Index
+from sqlalchemy import create_engine, Column, Integer, String, Float, Numeric, ForeignKey, DateTime, Date, Boolean, event, Index, text
+import logging
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker, scoped_session
 from sqlalchemy.engine import Engine
 from datetime import datetime
@@ -103,7 +104,7 @@ class MarketData(Base):
     # 🚀 ÍNDICE COMPOSTO MESTRE: Multiplica a velocidade de geração do gráfico de cotações temporais
     __table_args__ = (
         Index('idx_market_data_asset_date', 'asset_id', 'date'),
-        Index('idx_market_data_asset_date_desc', 'asset_id', 'date'),
+        Index('idx_market_data_asset_date_desc', 'asset_id', text('date DESC')),
     )
 
 class Dividend(Base):
@@ -125,7 +126,7 @@ class Dividend(Base):
     # 🚀 ÍNDICE COMPOSTO MESTRE: Acelera a timeline do calendário de proventos/agenda do usuário
     __table_args__ = (
         Index('idx_dividends_asset_date_com', 'asset_id', 'date_com'),
-        Index('idx_dividends_asset_date_com_desc', 'asset_id', 'date_com'),
+        Index('idx_dividends_asset_date_com_desc', 'asset_id', text('date_com DESC')),
     )
 
 class PortfolioSnapshot(Base):
@@ -213,7 +214,6 @@ from sqlalchemy.orm import sessionmaker
 _local_session_factory = sessionmaker(bind=engine)
 
 def update_sync_state_db(key: str, **kwargs):
-    from datetime import datetime
     session = _local_session_factory()
     try:
         state = session.query(SyncState).filter_by(key=key).first()
@@ -226,7 +226,6 @@ def update_sync_state_db(key: str, **kwargs):
         safe_commit(session)
     except Exception as e:
         session.rollback()
-        import logging
         logging.error(f"❌ Erro ao atualizar SyncState {key} no banco: {e}")
     finally:
         session.close()
@@ -249,7 +248,6 @@ def get_sync_state_db(key: str) -> dict:
             "message": state.message
         }
     except Exception as e:
-        import logging
         logging.error(f"❌ Erro ao buscar SyncState {key} no banco: {e}")
         return {
             "status": "error",

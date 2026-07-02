@@ -132,7 +132,7 @@ def get_calendar():
     # Prorrogamos um hit leve inicial para a sessão carregar o primeiro par de cookies de forma síncrona
     try:
         secure_session.get("https://fc.yahoo.com", timeout=5)
-    except:
+    except Exception:
         pass
 
     # Dispara o pool passando a sessão única compartilhada como argumento fixo

@@ -41,6 +41,8 @@ def async_fundamentals_worker(flask_app):
                 "message": f"Erro crítico: {str(e)}"
             })
         finally:
+            if service._fundamentals_lock.locked():
+                service._fundamentals_lock.release()
             time.sleep(5)
             if FUNDAMENTALS_STATE.get("status") in ["success", "error"]:
                 FUNDAMENTALS_STATE.update({
@@ -52,12 +54,17 @@ def async_fundamentals_worker(flask_app):
 def get_data():
     force = request.args.get('force') == 'true'
     if force:
-        try:
-            logging.info("⚡ Forçando atualização síncrona de preços via requisição do usuário...")
-            service.update_prices()
-            service.take_daily_snapshot()
-        except Exception as e:
-            logging.error(f"⚠️ Falha ao forçar atualização síncrona de preços: {e}")
+        if service._price_lock.acquire(blocking=False):
+            try:
+                logging.info("⚡ Forçando atualização síncrona de preços via requisição do usuário...")
+                service.update_prices()
+                service.take_daily_snapshot()
+            except Exception as e:
+                logging.error(f"⚠️ Falha ao forçar atualização síncrona de preços: {e}")
+            finally:
+                service._price_lock.release()
+        else:
+            logging.info("⚡ Ignorando force update de preços pois já existe uma atualização em andamento.")
         
     try:
         data = service.get_dashboard_data()
@@ -89,8 +96,12 @@ def get_fundamentals_status():
 def trigger_fundamentals():
     try:
         # Trava de segurança para impedir disparos concorrentes duplicados
-        if FUNDAMENTALS_STATE.get("status") == "processing":
+        if not service._fundamentals_lock.acquire(blocking=False):
             return jsonify({"status": "Aviso", "msg": "Uma varredura de fundamentos já está em execução."}), 409
+
+        if FUNDAMENTALS_STATE.get("status") == "processing":
+            service._fundamentals_lock.release()
+            return jsonify({"status": "Aviso", "msg": "Uma varredura de fundamentos já está em execução no banco."}), 409
 
         if request.is_json:
             request.get_json(silent=True) # Imuniza o parser contra payloads fantasmas nulos
@@ -116,6 +127,8 @@ def trigger_fundamentals():
         }), 202
     except Exception as e:
         logging.error(f"❌ Falha ao orquestrar agendamento de fundamentos: {e}", exc_info=True)
+        if service._fundamentals_lock.locked():
+            service._fundamentals_lock.release()
         FUNDAMENTALS_STATE.update({
             "status": "error",
             "message": f"Erro crítico: {str(e)}"

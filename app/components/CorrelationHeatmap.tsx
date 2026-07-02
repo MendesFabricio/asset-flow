@@ -12,7 +12,7 @@ interface CorrelationResponse {
   matrix: number[][];
 }
 
-export default function CorrelationHeatmap() {
+export function CorrelationHeatmap() {
   const [data, setData] = useState<CorrelationResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

@@ -120,19 +120,26 @@ def execute_get_asset_fundamental_data(session, ticker: str):
 def chat():
     body = request.get_json(silent=True) or {}
     message = body.get("message", "").strip()
+    history = body.get("history", [])
     
     if not message:
         return Response("Por favor, envie uma mensagem válida.", mimetype='text/plain', status=400)
         
-    session = Session()
     try:
         tools = get_ollama_tools()
         messages = [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": message}
+            {"role": "system", "content": SYSTEM_PROMPT}
         ]
+        for item in history:
+            role = item.get("role")
+            content = item.get("content")
+            if role in ["user", "assistant"] and content:
+                messages.append({"role": role, "content": content})
+        messages.append({"role": "user", "content": message})
         
         def generate_stream():
+            yield "💡 *Jarvis: Analisando sua pergunta...*\n\n"
+            session = Session()
             try:
                 # Loop de execução do agente (máximo 5 iterações para evitar loops infinitos)
                 for i in range(5):
@@ -141,11 +148,11 @@ def chat():
                         "messages": messages,
                         "tools": tools,
                         "stream": False,
-                        "keep_alive": 0
+                        "keep_alive": "5m"
                     }
                     
                     logging.info(f"🤖 [Jarvis Agent] Enviando requisição para o Ollama (Iteração {i+1})...")
-                    response = requests.post(OLLAMA_CHAT_URL, json=payload, timeout=120)
+                    response = requests.post(OLLAMA_CHAT_URL, json=payload, timeout=240)
                     if response.status_code != 200:
                         raise Exception(f"Ollama respondeu com status {response.status_code}")
                         
@@ -180,14 +187,14 @@ def chat():
                             "role": "tool",
                             "name": func_name,
                             "content": json.dumps(result)
-                        })
+                         })
                 
                 # Resposta final por streaming
                 final_payload = {
                     "model": MODEL_NAME,
                     "messages": messages,
                     "stream": True,
-                    "keep_alive": 0
+                    "keep_alive": "5m"
                 }
                 
                 response = requests.post(OLLAMA_CHAT_URL, json=final_payload, stream=True, timeout=240)
@@ -204,13 +211,10 @@ def chat():
                 logging.error(f"Erro no stream do agente: {stream_err}")
                 yield f"\n[Erro de conexão com o Ollama: {stream_err}]"
             finally:
-                session.close()
+                Session.remove()
 
         return Response(stream_with_context(generate_stream()), mimetype='text/plain')
         
     except Exception as e:
         logging.error(f"❌ Falha crítica no Agente Jarvis: {e}", exc_info=True)
-        session.close()
         return Response(f"Erro interno no Jarvis: {str(e)}", mimetype='text/plain', status=500)
-    finally:
-        session.close()

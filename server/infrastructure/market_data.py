@@ -111,9 +111,14 @@ def update_fundamentals(session, dolar_rate_callback, state_dict=None):
     logging.info("📊 JOB: Calculando Fundamentos via Yahoo Finance...")
     count = 0
     try:
-        assets = session.query(Asset).join(Category).filter(
-            Category.name.in_(['Ação', 'FII', 'Internacional', 'ETF', 'BDR'])
-        ).all()
+        from sqlalchemy.orm import joinedload
+        assets = (
+            session.query(Asset)
+            .options(joinedload(Asset.position))
+            .join(Category)
+            .filter(Category.name.in_(['Ação', 'FII', 'Internacional', 'ETF', 'BDR']))
+            .all()
+        )
         
         total = len(assets)
         if state_dict is not None:
@@ -170,7 +175,7 @@ def update_fundamentals(session, dolar_rate_callback, state_dict=None):
                     lpa *= dolar_rate
                     vpa *= dolar_rate
 
-                pos = session.query(Position).filter_by(asset_id=asset.id).first()
+                pos = asset.position
                 if pos:
                     if lpa != 0: pos.manual_lpa = round(lpa, 2)
                     if vpa != 0: pos.manual_vpa = round(vpa, 2)

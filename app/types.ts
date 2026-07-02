@@ -28,7 +28,7 @@ export interface Asset {
   
   // Estratégia
   recomendacao: string;
-  status: 'COMPRA_FORTE' | 'COMPRAR' | 'AGUARDAR' | 'MANTER' | 'NEUTRO';
+  status: 'COMPRA_FORTE' | 'COMPRAR' | 'AGUARDAR' | 'MANTER' | 'NEUTRO' | 'EVITAR';
   score: number;
   motivo: string;
   
@@ -56,7 +56,11 @@ export interface DashboardData {
     [key: string]: number; 
   };
   grafico: { name: string; value: number }[];
-  alertas: string[];
+  alertas: {
+    titulo: string;
+    significado: string;
+    acao: string;
+  }[];
   ativos: Asset[];
 }
 

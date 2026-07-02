@@ -60,6 +60,8 @@ docker-data/
 
 # databases
 *.db
+*.db-shm
+*.db-wal
 server/backups/
 .aider*
 

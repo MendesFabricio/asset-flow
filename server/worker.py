@@ -6,6 +6,7 @@ import os
 import sys
 import logging
 import time
+import requests
 
 # Garante que o diretório pai esteja no sys.path para importações absolutas
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -54,18 +55,42 @@ def scheduled_dividends_check():
     except Exception as e:
         logging.error(f"❌ Erro no Job automático de rastreamento de dividendos: {e}", exc_info=True)
 
+def scheduled_quant_warm():
+    try:
+        logging.info("🔥 JOB 30m: Pré-aquecendo métricas analíticas (Monte Carlo, Correlação, Risco, Dólar)...")
+        service.get_usd_rate()
+        service.run_monte_carlo_simulation()
+        service.get_correlation_matrix()
+        service.calculate_risk_metrics()
+        
+        # Pré-aquecimento do Morning Briefing via chamada de API interna
+        try:
+            logging.info("🔥 JOB 30m: Pré-aquecendo Morning Briefing...")
+            url = "http://backend:5328/api/market/brief?force=true"
+            res = requests.get(url, timeout=120)
+            if res.status_code == 200:
+                logging.info("✅ Morning Briefing pré-aquecido com sucesso!")
+            else:
+                url_local = "http://localhost:5328/api/market/brief?force=true"
+                res_local = requests.get(url_local, timeout=120)
+                if res_local.status_code == 200:
+                    logging.info("✅ Morning Briefing pré-aquecido com sucesso (local)!")
+        except Exception as inner_err:
+            logging.debug(f"Aviso: Não foi possível acessar a rota do Morning Briefing para pre-warm: {inner_err}")
+            
+    except Exception as e:
+        logging.error(f"❌ Erro ao pré-aquecer métricas analíticas: {e}", exc_info=True)
+
 if __name__ == '__main__':
     logging.info("🚀 Iniciando Worker de Agendamento do AssetFlow Pro...")
     
-    # Executa o aquecimento do cache e primeira sincronia no boot (como feito anteriormente no backend)
+    # Executa o aquecimento do cache e primeira sincronia no boot
     try:
         logging.info("🔥 Boot: Rodando atualizações iniciais e esquentando cache...")
         update_market_cache()
         scheduled_update_prices()
-        # 🔥 Cache Warming analítico
-        logging.info("🔥 Boot: Pre-warming Monte Carlo e Matriz de Correlação...")
-        service.run_monte_carlo_simulation()
-        service.get_correlation_matrix()
+        # 🔥 Cache Warming analítico inicial
+        scheduled_quant_warm()
         logging.info("✅ Cache warming concluído. Worker pronto para receber agendamentos!")
     except Exception as e:
         logging.error(f"⚠️ Falha no boot/warming do worker: {e}", exc_info=True)
@@ -73,6 +98,7 @@ if __name__ == '__main__':
     scheduler = BlockingScheduler()
     scheduler.add_job(func=scheduled_update_indices, trigger="interval", minutes=5, max_instances=1, misfire_grace_time=30)
     scheduler.add_job(func=scheduled_update_prices, trigger="interval", minutes=10, max_instances=1, misfire_grace_time=60)
+    scheduler.add_job(func=scheduled_quant_warm, trigger="interval", minutes=30, max_instances=1, misfire_grace_time=300)
     scheduler.add_job(func=scheduled_dividends_check, trigger="cron", hour=8, minute=0, max_instances=1, misfire_grace_time=3600)
 
     try:

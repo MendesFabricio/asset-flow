@@ -37,14 +37,14 @@ export async function apiCall<T>(endpoint: string, options?: RequestInit & { tim
     }
 }
 
-export const secureStorage = {
+export const obfuscatedStorage = {
     set: (key: string, value: unknown): void => { // 🧼 Substituído 'any' por 'unknown'
         try {
             const stringValue = typeof value === 'string' ? value : JSON.stringify(value);
             const encrypted = btoa(stringValue);
             localStorage.setItem(key, encrypted);
         } catch (e) {
-            console.error("Erro ao salvar no secureStorage", e);
+            console.error("Erro ao salvar no obfuscatedStorage", e);
         }
     },
     get: (key: string): string | null => {
@@ -61,7 +61,7 @@ export const secureStorage = {
                 return encrypted;
             }
         } catch (e) {
-            console.error("Erro ao ler do secureStorage", e);
+            console.error("Erro ao ler do obfuscatedStorage", e);
             return null;
         }
     }

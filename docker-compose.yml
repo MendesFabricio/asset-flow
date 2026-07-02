@@ -4,6 +4,7 @@ services:
     build:
       context: .
       dockerfile: server/Dockerfile
+      target: backend
     container_name: assetflow_backend
     restart: always
     ports:
@@ -29,6 +30,7 @@ services:
     build:
       context: .
       dockerfile: server/Dockerfile
+      target: worker
     container_name: assetflow_worker
     restart: always
     volumes:
@@ -39,7 +41,6 @@ services:
     environment:
       - PYTHONPATH=/app
       - OLLAMA_MODEL=llama3.2:3b
-    command: python worker.py
     depends_on:
       - backend
 
@@ -55,13 +56,13 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:5328
+      - NEXT_PUBLIC_API_URL=""
       - WATCHPACK_POLLING=true
     volumes:
       - .:/app
       - /app/node_modules
       - /app/.next
-    command: npm run dev
+    command: sh -c "npm run build && npm start"
     depends_on:
       - backend
 
@@ -79,6 +80,10 @@ services:
       - ollama_data:/root/.ollama
     ports:
       - "11434:11434"
+    environment:
+      - OLLAMA_NUM_PARALLEL=1
+    mem_limit: 4g
+    cpus: 2.0
 
 volumes:
   sqlite_data:

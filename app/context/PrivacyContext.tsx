@@ -41,9 +41,9 @@ export const PrivacyProvider = ({ children }: { children: ReactNode }) => {
       const decrypted = deobscureValue(saved);
 
       if (decrypted === 'true') {
-        setTimeout(() => setIsHidden(true), 0);
+        setIsHidden(true);
       } else if (saved === 'true') {
-        setTimeout(() => setIsHidden(true), 0);
+        setIsHidden(true);
         localStorage.setItem('assetflow_privacy', obscureValue('true'));
       }
     }

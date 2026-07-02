@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import useSWR from 'swr';
 import { DashboardData } from '../types';
 
@@ -60,6 +60,9 @@ export function useAssetData() {
     message: ''
   });
 
+  const mutateDashboardRef = useRef(mutateDashboard);
+  mutateDashboardRef.current = mutateDashboard;
+
   useEffect(() => {
     // Estabelece canal SSE de streaming de progresso em tempo real com o backend
     const eventSource = new EventSource('/api/sync/stream');
@@ -74,7 +77,7 @@ export function useAssetData() {
             const next = payload.cvm_sync;
             // Se transitou de processando para sucesso, invalida e revalida os dados da carteira
             if (prev.status === 'processing' && next.status === 'success') {
-              mutateDashboard();
+              mutateDashboardRef.current();
             }
             return next;
           });
@@ -86,7 +89,7 @@ export function useAssetData() {
             const next = payload.yahoo_sync;
             // Se transitou de processando para sucesso, invalida e revalida os dados da carteira
             if (prev.status === 'processing' && next.status === 'success') {
-              mutateDashboard();
+              mutateDashboardRef.current();
             }
             return next;
           });
@@ -104,7 +107,7 @@ export function useAssetData() {
       // 🔒 Fechamento gracioso de socket ao desmontar hook
       eventSource.close();
     };
-  }, [mutateDashboard]);
+  }, []);
 
   const refreshAll = async () => {
     await fetch('/api/index?force=true');

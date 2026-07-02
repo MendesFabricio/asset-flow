@@ -51,6 +51,7 @@ CORS(app)
 
 # 🧠 MÁQUINA DE ESTADO PERSISTENTE: Controla o progresso real da sincronia em SQLite (stateless)
 SYNC_STATE = DatabaseStateProxy("cvm_sync")
+_SYNC_LOCK = threading.Lock()
 
 def _update_sync_state(**kwargs):
     """Atualiza o SYNC_STATE de forma persistente."""
@@ -62,7 +63,8 @@ def _get_sync_state() -> dict:
 
 @app.errorhandler(Exception)
 def handle_global_exception(e):
-    logging.error(f"💥 Erro crítico global interceptado: {str(e)}", exc_info=True)
+    from flask import request
+    logging.error(f"💥 Erro crítico global interceptado em {request.method} {request.url}: {str(e)}", exc_info=True)
     return jsonify({
         "status": "Erro",
         "msg": "Ocorreu um erro interno no servidor de dados do AssetFlow.",
@@ -204,14 +206,20 @@ def get_sync_status():
 
 @app.route('/api/sync-reports', methods=['POST'])
 def sync_reports():
-    try:
-        # Trava atômica no banco de dados para evitar múltiplas execuções simultâneas
-        if SYNC_STATE.get("status") == "processing":
-            return jsonify({
-                "status": "Aviso",
-                "msg": "Uma sincronização já está em andamento. Aguarde a conclusão."
-            }), 409
+    if not _SYNC_LOCK.acquire(blocking=False):
+        return jsonify({
+            "status": "Aviso",
+            "msg": "Uma sincronização já está em andamento. Aguarde a conclusão."
+        }), 409
         
+    if SYNC_STATE.get("status") == "processing":
+        _SYNC_LOCK.release()
+        return jsonify({
+            "status": "Aviso",
+            "msg": "Uma sincronização já está em andamento no banco. Aguarde a conclusão."
+        }), 409
+
+    try:
         # Prepara a máquina de estados no banco
         SYNC_STATE.update({
             "status": "processing",
@@ -222,8 +230,15 @@ def sync_reports():
 
         logging.info("🚀 Gatilho manual disparado. Resetando máquina de estados e iniciando threads...")
 
+        def run_worker_and_release(flask_app):
+            try:
+                async_sync_worker(flask_app)
+            finally:
+                if _SYNC_LOCK.locked():
+                    _SYNC_LOCK.release()
+
         threading.Thread(
-            target=async_sync_worker,
+            target=run_worker_and_release,
             args=(app._get_current_object() if hasattr(app, '_get_current_object') else app,),
             daemon=True
         ).start()
@@ -235,6 +250,8 @@ def sync_reports():
 
     except Exception as e:
         logging.error(f"❌ Erro ao agendar a execução da sincronia: {str(e)}", exc_info=True)
+        if _SYNC_LOCK.locked():
+            _SYNC_LOCK.release()
         _update_sync_state(status="error")
         return jsonify({"status": "Erro", "msg": str(e)}), 500
 

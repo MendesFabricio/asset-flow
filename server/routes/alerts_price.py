@@ -21,6 +21,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from services import Session
 from database.models import PriceAlert, MarketData, Asset, TriggeredAlert, safe_commit
+from sqlalchemy.orm import joinedload
 
 price_alerts_bp = Blueprint('price_alerts', __name__)
 
@@ -33,7 +34,13 @@ def list_price_alerts():
     """Lista todos os alertas ativos (is_active=True)."""
     session = Session()
     try:
-        alerts = session.query(PriceAlert).filter_by(is_active=True).order_by(PriceAlert.created_at.desc()).all()
+        alerts = (
+            session.query(PriceAlert)
+            .options(joinedload(PriceAlert.asset))
+            .filter_by(is_active=True)
+            .order_by(PriceAlert.created_at.desc())
+            .all()
+        )
         return jsonify({
             "status": "Sucesso",
             "alerts": [
@@ -132,6 +139,7 @@ def price_alerts_history():
     try:
         alerts = (
             session.query(PriceAlert)
+            .options(joinedload(PriceAlert.asset))
             .filter_by(is_active=False)
             .order_by(PriceAlert.triggered_at.desc())
             .limit(50)

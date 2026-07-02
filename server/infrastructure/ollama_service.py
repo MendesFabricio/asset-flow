@@ -1,6 +1,6 @@
 """
 infrastructure/ollama_service.py
-Integração assíncrona com micro-LLM Ollama (phi3 ou qwen2.5:1.5b)
+Integração assíncrona com micro-LLM Ollama (Llama 3.2:3b)
 para análise de sentimento consciente da carteira (portfolio-aware) e saída estruturada.
 """
 import logging
@@ -130,11 +130,11 @@ def _run_sentiment_analysis(ticker: str, news_titles: list, position_info: dict)
             "prompt": prompt,
             "format": "json",
             "stream": False,
-            "keep_alive": 0
+            "keep_alive": "5m"
         }
         
-        # Timeout preventivo de 60 segundos para conexões síncronas
-        response = requests.post(OLLAMA_URL, json=payload, timeout=60)
+        # Timeout preventivo estendido para 180 segundos para acomodar inferências lentas em CPU
+        response = requests.post(OLLAMA_URL, json=payload, timeout=180)
         
         if response.status_code != 200:
             raise Exception(f"Ollama respondeu com status {response.status_code}")

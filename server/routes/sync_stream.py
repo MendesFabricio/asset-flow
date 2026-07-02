@@ -17,29 +17,56 @@ def sync_stream():
     📡 STREAM SSE: Transmite eventos em tempo real para o frontend, reduzindo overhead de rede.
     Consome o progresso das tabelas persistentes no SQLite (SyncState).
     """
+    from database.session import Session
+    from database.models import SyncState
+
+    def get_sync_state_scoped(session, key: str) -> dict:
+        state = session.query(SyncState).filter_by(key=key).first()
+        if not state:
+            return {
+                "status": "idle",
+                "progress": 0,
+                "total": 0,
+                "message": "Sistema pronto."
+            }
+        return {
+            "status": state.status,
+            "progress": state.progress,
+            "total": state.total,
+            "message": state.message
+        }
+
     def event_generator():
         logging.info("🔌 [SSE] Novo cliente conectado ao canal de streaming de progresso.")
         last_payload = {}
         
-        # Import explícito para limpeza da sessão scoped
-        from database.session import Session
+        # Timeout de 30 minutos (1800s) para evitar locks ou leaks infinitos
+        MAX_DURATION = 1800
+        start_time = time.monotonic()
         
         try:
-            while True:
-                cvm_sync = get_sync_state_db("cvm_sync")
-                yahoo_sync = get_sync_state_db("yahoo_sync")
-                
-                current_payload = {
-                    "cvm_sync": cvm_sync,
-                    "yahoo_sync": yahoo_sync
-                }
-                
-                # Só despacha pacotes de dados se houver diferença real de progresso
-                if current_payload != last_payload:
-                    last_payload = current_payload
-                    yield f"data: {json.dumps(current_payload)}\n\n"
+            while time.monotonic() - start_time < MAX_DURATION:
+                session = Session()
+                try:
+                    cvm_sync = get_sync_state_scoped(session, "cvm_sync")
+                    yahoo_sync = get_sync_state_scoped(session, "yahoo_sync")
+                    
+                    current_payload = {
+                        "cvm_sync": cvm_sync,
+                        "yahoo_sync": yahoo_sync
+                    }
+                    
+                    # Só despacha se houver alteração
+                    if current_payload != last_payload:
+                        last_payload = current_payload
+                        yield f"data: {json.dumps(current_payload)}\n\n"
+                finally:
+                    Session.remove()  # 🔒 Liberação da conexão de volta ao pool a cada iteração
                 
                 time.sleep(1.0)
+                
+            logging.info("🔌 [SSE] Sessão de streaming expirou por limite de tempo máximo (30min).")
+            yield "data: {\"status\": \"timeout\", \"message\": \"Conexão SSE renovada.\"}\n\n"
         except GeneratorExit:
             logging.info("🔌 [SSE] Conexão SSE encerrada de forma graciosa pelo cliente. Efetuando cleanup do banco.")
             Session.remove()
@@ -47,10 +74,9 @@ def sync_stream():
             logging.error(f"❌ [SSE] Erro na transmissão do stream de progresso: {e}. Efetuando cleanup do banco.")
             Session.remove()
 
-    # Retorna o fluxo contínuo com headers específicos para SSE e desativa buffers adicionais do Nginx/Proxy
     headers = {
         'Cache-Control': 'no-cache',
         'Transfer-Encoding': 'chunked',
-        'X-Accel-Buffering': 'no',  # Impede buffering do Nginx em ambientes proxyados
+        'X-Accel-Buffering': 'no',
     }
     return Response(stream_with_context(event_generator()), mimetype='text/event-stream', headers=headers)

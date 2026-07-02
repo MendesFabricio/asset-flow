@@ -12,6 +12,7 @@ from services import PortfolioService
 from database.models import Session, Asset, Position, MarketData, SystemCache, safe_commit
 from domain.quant_engine import get_risk_free_rate, _to_yf_ticker
 from infrastructure.ollama_service import OLLAMA_URL, MODEL_NAME
+from sqlalchemy.orm import joinedload, selectinload
 
 simulation_bp = Blueprint('simulation', __name__)
 service = PortfolioService()
@@ -19,22 +20,64 @@ service = PortfolioService()
 @simulation_bp.route('/api/simulation/optimize', methods=['GET'])
 def optimize_portfolio():
     """📈 Rota de Fronteira Eficiente: Retorna alocação de Sharpe Máximo (Markowitz)"""
+    session = Session()
     try:
+        from datetime import datetime, timedelta
+        # 1. Tenta recuperar do cache persistido
+        cache_record = session.query(SystemCache).filter_by(key="optimize_portfolio").first()
+        if cache_record:
+            age = datetime.now() - cache_record.updated_at
+            if age < timedelta(hours=1):
+                logging.info("📈 Retornando simulação de Markowitz do Cache...")
+                return jsonify(json.loads(cache_record.value))
+
+        # 2. Se não estiver em cache, calcula
         res = service.calculate_markowitz_optimization()
+        if res.get("status") == "Sucesso" or "status" not in res:
+            if not cache_record:
+                cache_record = SystemCache(key="optimize_portfolio")
+                session.add(cache_record)
+            cache_record.value = json.dumps(res)
+            cache_record.updated_at = datetime.now()
+            safe_commit(session)
+            
         return jsonify(res)
     except Exception as e:
         logging.error(f"❌ Erro na simulação de Markowitz: {e}", exc_info=True)
         return jsonify({"status": "Erro", "msg": str(e)}), 500
+    finally:
+        Session.remove()
 
 @simulation_bp.route('/api/simulation/risk-parity', methods=['GET'])
 def risk_parity_portfolio():
     """⚖️ Rota de Paridade de Risco: Sugere pesos baseados em volatilidade individual e covariância"""
+    session = Session()
     try:
+        from datetime import datetime, timedelta
+        # 1. Tenta recuperar do cache persistido
+        cache_record = session.query(SystemCache).filter_by(key="risk_parity").first()
+        if cache_record:
+            age = datetime.now() - cache_record.updated_at
+            if age < timedelta(hours=1):
+                logging.info("⚖️ Retornando Paridade de Risco do Cache...")
+                return jsonify(json.loads(cache_record.value))
+
+        # 2. Se não estiver em cache, calcula
         res = service.calculate_risk_parity()
+        if res.get("status") == "Sucesso" or "status" not in res:
+            if not cache_record:
+                cache_record = SystemCache(key="risk_parity")
+                session.add(cache_record)
+            cache_record.value = json.dumps(res)
+            cache_record.updated_at = datetime.now()
+            safe_commit(session)
+            
         return jsonify(res)
     except Exception as e:
         logging.error(f"❌ Erro na simulação de Paridade de Risco: {e}", exc_info=True)
         return jsonify({"status": "Erro", "msg": str(e)}), 500
+    finally:
+        Session.remove()
 
 @simulation_bp.route('/api/simulation/exposure', methods=['GET'])
 def sector_exposure():
@@ -81,6 +124,10 @@ def morning_brief():
         # Coleta todas as posições ativas da carteira
         positions = (
             session.query(Position)
+            .options(
+                joinedload(Position.asset).joinedload(Asset.category),
+                joinedload(Position.asset).selectinload(Asset.market_data)
+            )
             .filter(Position.quantity > 0)
             .all()
         )
@@ -162,11 +209,11 @@ def morning_brief():
             "prompt": prompt,
             "format": "json",
             "stream": False,
-            "keep_alive": 0
+            "keep_alive": "5m"
         }
         
-        # Consulta o Ollama local com timeout de 60 segundos
-        response = requests.post(OLLAMA_URL, json=payload, timeout=60)
+        # Consulta o Ollama local com timeout de 180 segundos para suportar processamento em CPU
+        response = requests.post(OLLAMA_URL, json=payload, timeout=180)
         
         if response.status_code == 200:
             res_data = response.json()

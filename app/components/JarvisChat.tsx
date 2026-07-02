@@ -12,7 +12,7 @@ interface Message {
   text: string;
 }
 
-export default function JarvisChat() {
+export function JarvisChat() {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'welcome',
@@ -53,13 +53,20 @@ export default function JarvisChat() {
     const initialJarvisMsg: Message = { id: jarvisMsgId, sender: 'jarvis', text: '' };
     setMessages((prev) => [...prev, initialJarvisMsg]);
 
+    const history = messages
+      .filter(m => m.id !== 'welcome')
+      .map(m => ({
+        role: m.sender === 'user' ? 'user' : 'assistant',
+        content: m.text
+      }));
+
     try {
       const response = await fetch(`${API_BASE_URL}/api/ai/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ message: text }),
+        body: JSON.stringify({ message: text, history }),
       });
 
       if (!response.ok) {

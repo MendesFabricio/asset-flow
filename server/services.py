@@ -15,7 +15,7 @@ from datetime import datetime, date, timedelta
 from sqlalchemy.orm import scoped_session, sessionmaker, joinedload, selectinload
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from database.models import Asset, Position, Category, MarketData, PortfolioSnapshot, safe_commit
+from database.models import Asset, Position, Category, MarketData, PortfolioSnapshot, SystemCache, safe_commit
 from database.session import engine, Session
 
 # ── Cache de preços (race-condition safe) ────────────────────────────────────
@@ -30,6 +30,16 @@ import infrastructure.market_data as _market
 USD_CACHE = {"rate": Decimal('5.80'), "last_update": 0}
 
 class PortfolioService:
+    _instance = None
+    _price_lock = threading.Lock()
+    _sync_lock = threading.Lock()
+    _fundamentals_lock = threading.Lock()
+
+    def __new__(cls, *args, **kwargs):
+        if not cls._instance:
+            cls._instance = super(PortfolioService, cls).__new__(cls, *args, **kwargs)
+        return cls._instance
+
     def __init__(self):
         pass
 
@@ -45,25 +55,59 @@ class PortfolioService:
             if hasattr(data_point, 'iloc'): return Decimal(str(data_point.iloc[0]))
             if hasattr(data_point, 'item'): return Decimal(str(data_point.item()))
             return Decimal(str(data_point))
-        except: return Decimal('0.0')
+        except Exception: return Decimal('0.0')
 
     def get_usd_rate(self):
-        """Retorna a taxa cambial do dólar comercial com cache local estável de 1 hora"""
+        """Retorna a taxa cambial do dólar comercial com cache local/banco de 1 hora"""
         now = time.time()
-        
         if (now - USD_CACHE["last_update"]) < 3600:
             return USD_CACHE["rate"]
 
+        session = Session()
         try:
+            cache_record = session.query(SystemCache).filter_by(key="usd_rate").first()
+            if cache_record:
+                age = datetime.now() - cache_record.updated_at
+                if age < timedelta(hours=1):
+                    rate = Decimal(str(cache_record.value))
+                    USD_CACHE["rate"] = rate
+                    USD_CACHE["last_update"] = now
+                    return rate
+
+            logging.info("🌐 Cache MISS (USD Rate): buscando cotação de BRL=X...")
             ticker = yf.Ticker("BRL=X")
             data = ticker.history(period="1d")
             if not data.empty: 
-                rate = Decimal(str(data['Close'].iloc[-1]))
+                rate_val = float(data['Close'].iloc[-1])
+                rate = Decimal(str(rate_val))
+                
+                if not cache_record:
+                    cache_record = SystemCache(key="usd_rate", value=str(rate_val), updated_at=datetime.now())
+                    session.add(cache_record)
+                else:
+                    cache_record.value = str(rate_val)
+                    cache_record.updated_at = datetime.now()
+                safe_commit(session)
+                
+                USD_CACHE["rate"] = rate
+                USD_CACHE["last_update"] = now
+                return rate
+                
+            if cache_record:
+                rate = Decimal(str(cache_record.value))
                 USD_CACHE["rate"] = rate
                 USD_CACHE["last_update"] = now
                 return rate
         except Exception as e:
-            logging.warning(f"⚠️ Não foi possível atualizar a taxa do Dólar via API (Usando Cache): {e}")
+            logging.warning(f"⚠️ Erro ao atualizar cotação do Dólar (usando fallback): {e}")
+            try:
+                db_record = session.query(SystemCache).filter_by(key="usd_rate").first()
+                if db_record:
+                    return Decimal(str(db_record.value))
+            except Exception:
+                pass
+        finally:
+            Session.remove()
         
         return USD_CACHE["rate"] 
 
@@ -153,12 +197,13 @@ class PortfolioService:
                         preco = Decimal('0.0')
                         min_6m = Decimal('0.0')
                         change_percent = Decimal('0.0')
-                except: 
+                except Exception as parse_err: 
                     qtd = Decimal('0.0')
                     pm = Decimal('0.0')
                     preco = Decimal('0.0')
                     min_6m = Decimal('0.0')
                     change_percent = Decimal('0.0')
+                    logging.debug(f"Erro ao parsear dados do dashboard: {parse_err}")
 
                 fator = dolar_rate if asset.currency == 'USD' else Decimal('1.0')
                 total_atual = qtd * preco * fator
@@ -268,8 +313,9 @@ class PortfolioService:
                 if cat_name == 'Ação' and pos.asset.cvm_code and pos.last_report_type:
                     try:
                         fundamentalist_info = json.loads(pos.last_report_type)
-                    except:
+                    except Exception as json_err:
                         fundamentalist_info = None
+                        logging.debug(f"Erro ao carregar dados fundamentalistas JSON: {json_err}")
 
                 final_list.append({
                     "id": pos.asset.id, 
@@ -422,8 +468,8 @@ class PortfolioService:
                 m["vi_graham"] = Decimal(str(math.sqrt(float(Decimal('22.5') * lpa * vpa))))
                 if preco > Decimal('0.0'):
                     m["mg_graham"] = ((m["vi_graham"] - preco) / preco) * Decimal('100.0')
-        except:
-            pass
+        except Exception as calc_err:
+            logging.debug(f"Erro ao calcular indicadores fundamentalistas extras: {calc_err}")
         return m
     
     def _apply_strategy(self, pos, metrics, falta, preco, min_6m):
@@ -553,11 +599,11 @@ class PortfolioService:
 
     def _backup_database(self):
         try:
-            backup_dir = 'backups'
+            backup_dir = '/app/backups'
             if not os.path.exists(backup_dir): os.makedirs(backup_dir)
             filename = f"assetflow_backup_{date.today()}.db"
             dest = os.path.join(backup_dir, filename)
-            shutil.copy('assetflow.db', dest)
+            shutil.copy('/app/data/assetflow.db', dest)
         except Exception as e: 
             logging.error(f"❌ Falha automática ao gerar backup físico do banco: {e}")
 
@@ -565,7 +611,11 @@ class PortfolioService:
         logging.info("📸 JOB: Computando snapshot patrimonial diário...")
         session = Session()
         try:
-            positions = session.query(Position).all()
+            positions = (
+                session.query(Position)
+                .options(joinedload(Position.asset).selectinload(Asset.market_data))
+                .all()
+            )
             total_equity = Decimal('0.0'); total_invested = Decimal('0.0')
             dolar_rate = self.get_usd_rate()
             for pos in positions:
@@ -577,10 +627,11 @@ class PortfolioService:
                     price = Decimal(str(mdata.price)) if (mdata and mdata.price) else Decimal(str(pos.average_price or 0))
                     qtd = Decimal(str(pos.quantity or 0))
                     pm = Decimal(str(pos.average_price or 0))
-                except: 
+                except Exception as parse_err: 
                     price = Decimal('0.0')
                     qtd = Decimal('0.0')
                     pm = Decimal('0.0')
+                    logging.debug(f"Erro ao converter valores de posição para Decimal: {parse_err}")
                 fator = dolar_rate if asset.currency == 'USD' else Decimal('1.0')
                 total_equity += (qtd * price * fator)
                 total_invested += (qtd * pm * fator)
@@ -669,11 +720,8 @@ class PortfolioService:
         
     def add_new_asset(self, ticker, category_name, qtd, pm, meta=0):
         raw_ticker = ticker.upper().strip()
-        
-        if raw_ticker.endswith(".SA") or raw_ticker.endswith("-USD") or category_name == "Internacional":
-            currency = "BRL" 
-        else:
-            currency = "BRL" 
+        is_intl = category_name == "Internacional" or raw_ticker.endswith("-USD")
+        currency = "USD" if is_intl else "BRL" 
 
         ticker = ticker.upper().strip().replace(".SA", "")
         logging.info(f"🆕 JOB: Mapeando inclusão de novo ativo: {ticker}")

@@ -59,14 +59,6 @@ def _worker_process_fundamentalist_data(asset):
 
 # --- Rotas ---
 
-@assets_bp.route('/api/simulation')
-def simulation():
-    try:
-        result = service.run_monte_carlo_simulation()
-        return jsonify(result)
-    except Exception as e:
-        return jsonify({"status": "Erro", "msg": str(e)}), 500
-
 @assets_bp.route('/api/add_asset', methods=['POST'])
 def add_asset():
     try:
@@ -193,6 +185,8 @@ def correlation():
 
 @assets_bp.route('/api/refresh_prices', methods=['POST'])
 def refresh_prices():
+    if not service._price_lock.acquire(blocking=False):
+        return jsonify({"status": "Aviso", "msg": "Uma atualização de preços já está em andamento. Aguarde."}), 409
     try:
         logging.info("⚡ Recebido comando de atualização manual via Dashboard.")
         service.update_prices()
@@ -200,6 +194,8 @@ def refresh_prices():
         return jsonify({"status": "Sucesso", "msg": "Preços e Variações atualizados!"})
     except Exception as e:
         return jsonify({"status": "Erro", "msg": str(e)}), 500
+    finally:
+        service._price_lock.release()
 
 @assets_bp.route('/api/risk-metrics', methods=['GET'])
 def risk_metrics():

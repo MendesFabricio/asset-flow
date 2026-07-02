@@ -1,26 +1,33 @@
 # -------------------------------------------
 # ARQUIVO: server/Dockerfile
 # -------------------------------------------
-FROM python:3.11-slim
+# Estágio Base: Instala dependências comuns e copia arquivos do projeto
+FROM python:3.11-slim AS base
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y gcc python3-dev
+RUN apt-get update && apt-get install -y gcc python3-dev \
+    && rm -rf /var/lib/apt/lists/*
 
-# 1. Instala dependências
+# Instala dependências do requirements.txt
 COPY server/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 2. Copia AS DUAS pastas (server e database)
-# Se o build falhar aqui, é porque você não ajustou o "context: ." no docker-compose
+# Copia as pastas de banco de dados e servidor
 COPY database /app/database
 COPY server /app/server
 
-# 3. Define onde o Python deve procurar módulos (na raiz /app)
+# Define onde o Python deve procurar módulos (na raiz /app)
 ENV PYTHONPATH=/app
-
-# 4. Entra na pasta do servidor para rodar
 WORKDIR /app/server
 
+
+# Estágio Backend: Executa o servidor Gunicorn exposto
+FROM base AS backend
 EXPOSE 5328
 CMD ["gunicorn", "--bind", "0.0.0.0:5328", "--workers", "1", "--threads", "4", "--timeout", "120", "backend:app"]
+
+
+# Estágio Worker: Executa o processo de tarefas em background de forma isolada
+FROM base AS worker
+CMD ["python", "worker.py"]

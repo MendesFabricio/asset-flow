@@ -27,7 +27,7 @@ interface SimulationApiResponse {
   };
 }
 
-export default function MonteCarloChart() {
+export function MonteCarloChart() {
   const [data, setData] = useState<SimulationDataPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ vol: '', retorno: '' });

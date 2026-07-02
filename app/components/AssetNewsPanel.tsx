@@ -30,7 +30,7 @@ interface Props {
   onClose: () => void;
 }
 
-export default function AssetNewsPanel({ ticker, onClose }: Props) {
+export function AssetNewsPanel({ ticker, onClose }: Props) {
   const [news, setNews] = useState<NewsItem[]>([]);
   const [aiSentiment, setAiSentiment] = useState<AiSentiment | null>(null);
   const [loading, setLoading] = useState(false);
