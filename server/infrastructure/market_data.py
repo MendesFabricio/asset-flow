@@ -10,6 +10,7 @@ import time
 from datetime import datetime, timedelta
 import yfinance as yf
 from database.models import Asset, Position, Category, MarketData
+from utils.ticker_helper import to_yf_ticker
 
 def update_prices(session, invalidate_cache_callback):
     import pandas as pd
@@ -26,13 +27,7 @@ def update_prices(session, invalidate_cache_callback):
                 logging.info(f"   ℹ️ {ticker_raw} ignorado por escopo (Regra: Manual/Longo)")
                 continue
 
-            is_intl = asset.category and asset.category.name == 'Internacional'
-            needs_sa = False
-            if not ticker_raw.endswith('.SA') and not ticker_raw.endswith('-USD'):
-                if not is_intl or any(ticker_raw.endswith(s) for s in ['39', '34', '33', '11']):
-                    needs_sa = True 
-
-            symbol = f"{ticker_raw}.SA" if needs_sa else ticker_raw
+            symbol = to_yf_ticker(ticker_raw, asset.category.name if asset.category else '')
             tickers_map[symbol] = asset
             download_list.append(symbol)
 
@@ -107,127 +102,143 @@ def validate_ticker_on_yahoo(ticker):
         logging.error(f"Erro ao validar existência do ticker {ticker} no Yahoo: {e}")
         return {"valid": False, "ticker": None}
 
-def update_fundamentals(session, dolar_rate_callback, state_dict=None):
+def update_fundamentals(dolar_rate_callback, state_dict=None):
+    from database.session import Session
+    from database.models import safe_commit
+    
     logging.info("📊 JOB: Calculando Fundamentos via Yahoo Finance...")
-    count = 0
+    
+    # 1. Busca os IDs e metadados mínimos dos ativos do banco em uma sessão curta
+    session = Session()
+    assets_info = []
     try:
         from sqlalchemy.orm import joinedload
         assets = (
             session.query(Asset)
-            .options(joinedload(Asset.position))
             .join(Category)
             .filter(Category.name.in_(['Ação', 'FII', 'Internacional', 'ETF', 'BDR']))
             .all()
         )
-        
-        total = len(assets)
-        if state_dict is not None:
-            state_dict["total"] = total
-            state_dict["progress"] = 0
-            state_dict["message"] = f"Mapeando {total} ativos de renda variável..."
-
-        cutoff_date = datetime.now() - timedelta(days=365)
-        dolar_rate = dolar_rate_callback()
-        consecutive_failures = 0
-
         for asset in assets:
-            try:
-                ticker_raw = asset.ticker.strip().upper()
-                is_intl = asset.category.name == 'Internacional'
-                
-                if '.' not in ticker_raw and (not is_intl or len(ticker_raw) >= 5):
-                    ticker_symbol = f"{ticker_raw}.SA"
-                else:
-                    ticker_symbol = ticker_raw
-                    
-                if state_dict is not None:
-                    state_dict["message"] = f"Analisando {ticker_raw} ({count + 1}/{total})"
+            assets_info.append({
+                "id": asset.id,
+                "ticker": asset.ticker,
+                "category_name": asset.category.name if asset.category else '',
+                "currency": asset.currency
+            })
+    finally:
+        Session.remove()
 
-                y_asset = yf.Ticker(ticker_symbol)
-                
-                current_price = 0
-                if hasattr(y_asset, 'fast_info') and y_asset.fast_info.last_price:
-                    current_price = y_asset.fast_info.last_price
-                else:
-                    hist = y_asset.history(period="1d")
-                    if not hist.empty: current_price = hist['Close'].iloc[-1]
+    total = len(assets_info)
+    if state_dict is not None:
+        state_dict["total"] = total
+        state_dict["progress"] = 0
+        state_dict["message"] = f"Mapeando {total} ativos de renda variável..."
 
-                if current_price <= 0:
-                    count += 1
-                    if state_dict is not None: state_dict["progress"] = count
-                    continue
+    cutoff_date = datetime.now() - timedelta(days=365)
+    dolar_rate = dolar_rate_callback()
+    consecutive_failures = 0
+    count = 0
 
-                divs = y_asset.dividends
-                total_divs_val = 0.0
-                
-                if not divs.empty:
-                    divs.index = divs.index.tz_localize(None)
-                    divs_last_12m = divs[divs.index >= cutoff_date]
-                    total_divs_val = float(divs_last_12m.sum())
+    for asset_data in assets_info:
+        asset_id = asset_data["id"]
+        ticker_raw = asset_data["ticker"].strip().upper()
+        category_name = asset_data["category_name"]
+        currency = asset_data["currency"]
 
-                dy_calculated = total_divs_val / current_price if current_price > 0 else 0
+        try:
+            ticker_symbol = to_yf_ticker(ticker_raw, category_name)
+            is_intl = (currency == 'USD') if currency else (
+                category_name in ('Internacional', 'ETF', 'BDR')
+            )
                 
-                info = y_asset.info
-                lpa = info.get('trailingEps') or info.get('forwardEps') or 0
-                vpa = info.get('bookValue') or 0
+            if state_dict is not None:
+                state_dict["message"] = f"Analisando {ticker_raw} ({count + 1}/{total})"
 
-                if is_intl and not ticker_symbol.endswith('.SA'):
-                    lpa *= dolar_rate
-                    vpa *= dolar_rate
+            # Chamadas de rede fora da transação de banco de dados
+            y_asset = yf.Ticker(ticker_symbol)
+            
+            current_price = 0
+            if hasattr(y_asset, 'fast_info') and y_asset.fast_info.last_price:
+                current_price = y_asset.fast_info.last_price
+            else:
+                hist = y_asset.history(period="1d")
+                if not hist.empty: current_price = hist['Close'].iloc[-1]
 
-                # Check for upcoming splits
-                try:
-                    splits = y_asset.splits
-                    if not splits.empty:
-                        today_date = datetime.now().date()
-                        future_splits = splits[splits.index.date >= today_date]
-                        if not future_splits.empty:
-                            fut_date = future_splits.index[0].date()
-                            fut_ratio = float(future_splits.iloc[0])
-                            asset.upcoming_split = f"{fut_date}:{fut_ratio}"
-                        else:
-                            asset.upcoming_split = None
-                    else:
-                        asset.upcoming_split = None
-                except Exception as split_err:
-                    logging.warning(f"Erro ao verificar splits para {asset.ticker}: {split_err}")
-                    asset.upcoming_split = None
-
-                pos = asset.position
-                if pos:
-                    if lpa != 0: pos.manual_lpa = round(lpa, 2)
-                    if vpa != 0: pos.manual_vpa = round(vpa, 2)
-                    if dy_calculated >= 0:
-                        pos.manual_dy = round(dy_calculated, 4)
-                    
-                count += 1
-                consecutive_failures = 0 # Reseta após sucesso real
-                if state_dict is not None:
-                    state_dict["progress"] = count
-                    
-            except Exception as e:
-                consecutive_failures += 1
-                err_msg = str(e)
-                logging.warning(f"   ⚠️ Falha em {asset.ticker} (consecutivas: {consecutive_failures}): {err_msg}")
-                
-                # Se for erro 429 ou bloqueio de rate-limit, aborta imediatamente
-                if "429" in err_msg or "too many requests" in err_msg.lower() or "rate limit" in err_msg.lower():
-                    raise Exception("Yahoo Finance instável (Erro 429/Bloqueio). Limite de requisições excedido. Tente novamente mais tarde.")
-                
-                # Se houver 5 falhas consecutivas, aborta a esteira para não ficar travado
-                if consecutive_failures >= 5:
-                    raise Exception("Múltiplas falhas consecutivas ao conectar ao Yahoo Finance. Sincronização interrompida para segurança.")
-                
+            if current_price <= 0:
                 count += 1
                 if state_dict is not None: state_dict["progress"] = count
-        
-        session.commit()
-        logging.info(f"🏁 Varredura fundamentalista concluída: {count} registros atualizados.")
-        return {"status": "Sucesso", "msg": f"Sucesso! {total} ativos reavaliados via Yahoo Finance."}
-    except Exception as e:
-        session.rollback()
-        logging.error(f"❌ Erro geral no job de fundamentos: {e}", exc_info=True)
-        return {"status": "Erro", "msg": str(e)}
+                continue
+
+            divs = y_asset.dividends
+            total_divs_val = 0.0
+            
+            if not divs.empty:
+                divs.index = divs.index.tz_localize(None)
+                divs_last_12m = divs[divs.index >= cutoff_date]
+                total_divs_val = float(divs_last_12m.sum())
+
+            dy_calculated = total_divs_val / current_price if current_price > 0 else 0
+            
+            info = y_asset.info
+            lpa = info.get('trailingEps') or info.get('forwardEps') or 0
+            vpa = info.get('bookValue') or 0
+
+            if is_intl and not ticker_symbol.endswith('.SA'):
+                lpa *= dolar_rate
+                vpa *= dolar_rate
+
+            # Check for upcoming splits
+            upcoming_split_val = None
+            try:
+                splits = y_asset.splits
+                if not splits.empty:
+                    today_date = datetime.now().date()
+                    future_splits = splits[splits.index.date >= today_date]
+                    if not future_splits.empty:
+                        fut_date = future_splits.index[0].date()
+                        fut_ratio = float(future_splits.iloc[0])
+                        upcoming_split_val = f"{fut_date}:{fut_ratio}"
+            except Exception as split_err:
+                logging.warning(f"Erro ao verificar splits para {ticker_raw}: {split_err}")
+
+            # 2. Agora com os dados obtidos, abre uma sessão rápida apenas para atualizar o ativo no banco
+            session = Session()
+            try:
+                db_asset = session.query(Asset).filter_by(id=asset_id).first()
+                if db_asset:
+                    db_asset.upcoming_split = upcoming_split_val
+                    pos = db_asset.position
+                    if pos:
+                        if lpa != 0: pos.manual_lpa = round(lpa, 2)
+                        if vpa != 0: pos.manual_vpa = round(vpa, 2)
+                        if dy_calculated >= 0:
+                            pos.manual_dy = round(dy_calculated, 4)
+                    safe_commit(session)
+                    consecutive_failures = 0 # Reseta após sucesso real
+            finally:
+                Session.remove()
+                
+            count += 1
+            if state_dict is not None:
+                state_dict["progress"] = count
+                
+        except Exception as e:
+            consecutive_failures += 1
+            err_msg = str(e)
+            logging.warning(f"   ⚠️ Falha em {ticker_raw} (consecutivas: {consecutive_failures}): {err_msg}")
+            
+            if "429" in err_msg or "too many requests" in err_msg.lower() or "rate limit" in err_msg.lower():
+                raise Exception("Yahoo Finance instável (Erro 429/Bloqueio). Limite de requisições excedido. Tente novamente mais tarde.")
+            
+            if consecutive_failures >= 5:
+                raise Exception("Múltiplas falhas consecutivas ao conectar ao Yahoo Finance. Sincronização interrompida para segurança.")
+            
+            count += 1
+            if state_dict is not None: state_dict["progress"] = count
+            
+    logging.info(f"🏁 Varredura fundamentalista concluída: {count} registros atualizados.")
+    return {"status": "Sucesso", "msg": f"Sucesso! {total} ativos reavaliados via Yahoo Finance."}
 
 def sync_reports_with_fnet(session):
     from crawlers.b3_fnet import B3FnetCrawler

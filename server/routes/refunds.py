@@ -1,6 +1,7 @@
 # server/routes/refunds.py
 from flask import Blueprint, jsonify, request
 from database.models import Session, RefundConfig, Debtor, ReceivableLoan, LoanInstallment, PaymentTransaction, AuditLog, safe_commit
+from sqlalchemy.orm import joinedload
 from datetime import datetime, date
 import calendar
 from decimal import Decimal
@@ -116,7 +117,11 @@ def handle_debtors():
             
         # GET
         q = request.args.get('q', '').strip()
-        query = db.query(Debtor).filter(Debtor.is_deleted == False)
+        query = db.query(Debtor).options(
+            joinedload(Debtor.loans)
+            .joinedload(ReceivableLoan.installments)
+            .joinedload(LoanInstallment.transactions)
+        ).filter(Debtor.is_deleted == False)
         if q:
             query = query.filter(Debtor.nome.ilike(f"%{q}%"))
             
@@ -242,7 +247,10 @@ def handle_loans():
             
         # GET
         debtor_id = request.args.get('debtor_id')
-        query = db.query(ReceivableLoan).filter(ReceivableLoan.is_deleted == False)
+        query = db.query(ReceivableLoan).options(
+            joinedload(ReceivableLoan.debtor),
+            joinedload(ReceivableLoan.installments).joinedload(LoanInstallment.transactions)
+        ).filter(ReceivableLoan.is_deleted == False)
         if debtor_id:
             query = query.filter(ReceivableLoan.debtor_id == debtor_id)
             
@@ -448,8 +456,14 @@ def pay_batch():
 @refunds_bp.route('/dashboard', methods=['GET'])
 def get_dashboard_data():
     with Session() as db:
-        loans = db.query(ReceivableLoan).filter(ReceivableLoan.is_deleted == False).all()
-        installments = db.query(LoanInstallment).filter(LoanInstallment.is_deleted == False).all()
+        loans = db.query(ReceivableLoan).options(
+            joinedload(ReceivableLoan.debtor)
+        ).filter(ReceivableLoan.is_deleted == False).all()
+        
+        installments = db.query(LoanInstallment).options(
+            joinedload(LoanInstallment.transactions),
+            joinedload(LoanInstallment.loan).joinedload(ReceivableLoan.debtor)
+        ).filter(LoanInstallment.is_deleted == False).all()
         
         total_emprestado = sum(l.valor_total for l in loans)
         
@@ -467,7 +481,11 @@ def get_dashboard_data():
                 paid_so_far = sum(t.valor_pago for t in inst.transactions)
                 total_atrasado += (inst.valor_parcela - paid_so_far)
                 
-        debtors = db.query(Debtor).filter(Debtor.is_deleted == False).all()
+        debtors = db.query(Debtor).options(
+            joinedload(Debtor.loans)
+            .joinedload(ReceivableLoan.installments)
+            .joinedload(LoanInstallment.transactions)
+        ).filter(Debtor.is_deleted == False).all()
         maior_devedor_nome = "Nenhum"
         maior_devedor_saldo = Decimal('0.0')
         for d in debtors:

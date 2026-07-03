@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify
 from database.models import Asset, Position, Session, Dividend
+from utils.ticker_helper import to_yf_ticker
 import yfinance as yf
 from datetime import datetime
 import pytz
@@ -46,14 +47,11 @@ def get_secure_session():
 
 def fetch_single_asset_proventos(item, secure_session):
     """🛠️ TRABALHADOR: Reutiliza a sessão única injetada para evitar conflito de Crumbs/401"""
-    ticker_raw, quantity, today, tz = item
+    ticker_raw, quantity, today, tz, category_name = item
     local_events = []
     
     try:
-        if len(ticker_raw) >= 5 and not ticker_raw.endswith('.SA'):
-            ticker_yahoo = f"{ticker_raw}.SA"
-        else:
-            ticker_yahoo = ticker_raw
+        ticker_yahoo = to_yf_ticker(ticker_raw, category_name)
         
         # ⚡ O SEGREDO: O Ticker agora usa a sessão compartilhada que já possui o Cookie válido
         stock = yf.Ticker(ticker_yahoo, session=secure_session)
@@ -119,7 +117,7 @@ def get_calendar():
                 ticker_raw = pos.asset.ticker.strip().upper()
                 if any(x in ticker_raw for x in ["CAIXINHA", "BTC", "ETH"]):
                     continue
-                items_to_process.append((ticker_raw, pos.quantity, today, tz))
+                items_to_process.append((ticker_raw, pos.quantity, today, tz, pos.asset.category.name if pos.asset.category else ''))
         except Exception as e:
             logging.error(f"💥 Erro ao ler posições para o calendário: {e}")
             return jsonify({"error": "Erro de banco de dados"}), 500

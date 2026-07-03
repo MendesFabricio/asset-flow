@@ -1,7 +1,7 @@
 import logging
 import requests
 import json
-from flask import Blueprint, request, Response, stream_with_context
+from flask import Blueprint, request, Response, stream_with_context, jsonify
 from database.models import Session, Asset, Position, LoanInstallment, ReceivableLoan
 from infrastructure.ollama_service import OLLAMA_CHAT_URL, MODEL_NAME, get_ollama_tools
 from domain.quant_engine import calculate_risk_metrics
@@ -307,19 +307,14 @@ def explain_score(ticker):
         from services import PortfolioService
         service = PortfolioService()
         
-        price = 0.0
-        if asset.market_data:
-            price = float(asset.market_data[0].price or 0.0)
-            
-        dash_data = service.get_dashboard_data()
-        asset_data = next((a for a in dash_data.get("ativos", []) if a["ticker"].upper() == ticker), None)
-        
+        asset_data = service.get_single_asset_score_data(ticker)
         if not asset_data:
             return jsonify({"status": "Erro", "msg": "Ativo sem posição ou métricas ativas."}), 400
             
         score = asset_data.get("score", 50)
         recomendacao = asset_data.get("recomendacao", "MANTER")
         motivo = asset_data.get("motivo", "")
+        price = asset_data.get("preco_atual", 0.0)
         
         prompt = (
             f"Você é o Jarvis. Explique de forma muito concisa, amigável e direta "

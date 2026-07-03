@@ -1,5 +1,4 @@
-import os
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session
 
 # Configuração do Banco de Dados SQLite em WAL Mode
@@ -12,14 +11,6 @@ engine = create_engine(
     },
     pool_pre_ping=True,
 )
-
-@event.listens_for(engine, "connect")
-def set_sqlite_pragma(dbapi_connection, connection_record):
-    cursor = dbapi_connection.cursor()
-    cursor.execute("PRAGMA journal_mode=WAL")
-    cursor.execute("PRAGMA synchronous=NORMAL")
-    cursor.execute("PRAGMA wal_autocheckpoint=1000")
-    cursor.close()
 
 # SessionFactory controlada thread-safe (scoped_session)
 session_factory = sessionmaker(bind=engine)

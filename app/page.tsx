@@ -5,7 +5,7 @@ import { apiCall } from './utils/apiClient';
 import {
   TrendingUp, Wallet, Target, Layers, RefreshCw, PiggyBank, BarChart3, LineChart, PlusCircle,
   Brain, Calendar, Eye, EyeOff, Percent, Grip, Building2, Globe, Landmark, Bitcoin,
-  CheckCircle, AlertTriangle, X, Search
+  CheckCircle, AlertTriangle, X, Search, CreditCard
 } from 'lucide-react';
 import { usePrivacy } from './context/PrivacyContext';
 import { formatMoney } from './utils';
@@ -26,6 +26,8 @@ const AddAssetModal = dynamic(() => import('./components/AddAssetModal').then(mo
 const AssetNewsPanel = dynamic(() => import('./components/AssetNewsPanel').then(mod => mod.AssetNewsPanel), { ssr: false, loading: () => <SkeletonLoading /> });
 const RiskMetricsPanel = dynamic(() => import('./components/RiskMetricsPanel').then(mod => mod.RiskMetricsPanel), { ssr: false, loading: () => <SkeletonLoading /> });
 const ReceivablesTab = dynamic(() => import('./components/ReceivablesTab').then(mod => mod.ReceivablesTab), { ssr: false, loading: () => <SkeletonLoading /> });
+const CreditCardsTab = dynamic(() => import('./components/CreditCardsTab'), { ssr: false, loading: () => <SkeletonLoading /> });
+const FixedIncomeTab = dynamic(() => import('./components/FixedIncomeTab'), { ssr: false, loading: () => <SkeletonLoading /> });
 const AssetDetailsModal = dynamic(() => import('./components/AssetDetailsModal').then(mod => mod.AssetDetailsModal), { ssr: false, loading: () => <SkeletonLoading /> });
 
 const MonteCarloChart = dynamic(() => import('./components/MonteCarloChart').then(mod => mod.MonteCarloChart), { ssr: false, loading: () => <SkeletonLoading /> });
@@ -88,6 +90,7 @@ export default function Home() {
     { id: 'Renda Fixa', icon: <Landmark size={14} />, label: 'Renda Fixa' },
     { id: 'Reserva', icon: <Wallet size={14} />, label: 'CDB / LCI' },
     { id: 'Financeiro', icon: <Wallet size={14} />, label: 'Reembolsos' },
+    { id: 'Cartoes', icon: <CreditCard size={14} />, label: 'Cartões' },
   ];
 
   const analyticsTabs = [
@@ -377,9 +380,21 @@ export default function Home() {
           </div>
         )}
 
+        {tab === 'Renda Fixa' && (
+          <div className="animate-in fade-in w-full">
+            <FixedIncomeTab />
+          </div>
+        )}
+
         {tab === 'Financeiro' && (
           <div className="animate-in fade-in w-full">
             <ReceivablesTab />
+          </div>
+        )}
+
+        {tab === 'Cartoes' && (
+          <div className="animate-in fade-in w-full">
+            <CreditCardsTab />
           </div>
         )}
 

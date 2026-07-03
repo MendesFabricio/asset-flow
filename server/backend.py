@@ -26,6 +26,8 @@ from routes.sync_stream import sync_stream_bp
 from routes.simulation import simulation_bp
 from routes.ai import ai_bp
 from routes.quant_analysis import quant_bp
+from routes.credit_cards import cards_bp
+from routes.fixed_income import fixed_income_bp
 
 
 
@@ -63,6 +65,26 @@ def _get_sync_state() -> dict:
     """Retorna o status atual da sincronia."""
     return get_sync_state_db("cvm_sync")
 
+@app.before_request
+def require_authentication():
+    from flask import request, Response
+    # Bypasses OPTIONS preflight and health checks
+    if request.method == "OPTIONS" or request.path in ["/api/health"]:
+        return
+        
+    auth_user = os.getenv("AUTH_USER")
+    auth_pass = os.getenv("AUTH_PASSWORD")
+    
+    if not auth_user or not auth_pass:
+        return
+        
+    auth = request.authorization
+    if not auth or not (auth.username == auth_user and auth.password == auth_pass):
+        return Response(
+            'Acesso restrito. Por favor, forneça credenciais básicas.', 401,
+            {'WWW-Authenticate': 'Basic realm="AssetFlow Login"'}
+        )
+
 @app.errorhandler(Exception)
 def handle_global_exception(e):
     from flask import request
@@ -89,6 +111,8 @@ app.register_blueprint(sync_stream_bp)
 app.register_blueprint(simulation_bp)
 app.register_blueprint(ai_bp)
 app.register_blueprint(quant_bp)
+app.register_blueprint(cards_bp)
+app.register_blueprint(fixed_income_bp)
 
 
 

@@ -6,10 +6,6 @@ Este documento reúne o status de telemetria, bugs resolvidos/conhecidos, backlo
 
 ## 🐛 Bugs Conhecidos & Mitigações
 
-1 - Proventos não esta pegando nada e nao tem nada no historico tambem (parece que nao esta carregando)
-2 - na consolidaçao mudar a ordem para algo que faz mais sentido e a reserva nao ficar no meio
-3 - frontend travou e só fica carregando depois que fui pra ferramenta de proventos
-
 
 ---
 

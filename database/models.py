@@ -54,6 +54,7 @@ class Asset(Base):
     position = relationship("Position", uselist=False, back_populates="asset", cascade="all, delete-orphan")
     market_data = relationship("MarketData", back_populates="asset", cascade="all, delete-orphan")
     dividends = relationship("Dividend", back_populates="asset", cascade="all, delete-orphan")
+    fixed_income = relationship("FixedIncome", uselist=False, back_populates="asset", cascade="all, delete-orphan")
 
     # ── Inteligência Artificial (Ollama background checks) ───────────────────
     ai_summary = Column(String, nullable=True)
@@ -332,26 +333,84 @@ class TriggeredAlert(Base):
     triggered_at = Column(DateTime, default=datetime.now)
     is_notified = Column(Boolean, default=False)
 
+class CreditCard(Base):
+    __tablename__ = "credit_cards"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    limit = Column(Numeric(18, 4), nullable=False)
+    closing_day = Column(Integer, nullable=False)  # ex: 5
+    due_day = Column(Integer, nullable=False)      # ex: 15
+    is_deleted = Column(Boolean, default=False)
+
+    expenses = relationship("CardExpense", back_populates="card", cascade="all, delete-orphan")
+
+class CardExpense(Base):
+    __tablename__ = "card_expenses"
+    id = Column(Integer, primary_key=True, index=True)
+    card_id = Column(Integer, ForeignKey('credit_cards.id', ondelete="CASCADE"), nullable=False)
+    description = Column(String, nullable=False)
+    total_value = Column(Numeric(18, 4), nullable=False)
+    installments_count = Column(Integer, default=1)
+    date = Column(DateTime, default=datetime.now)
+    is_deleted = Column(Boolean, default=False)
+
+    card = relationship("CreditCard", back_populates="expenses")
+    installments = relationship("CardInstallment", back_populates="expense", cascade="all, delete-orphan")
+
+class CardInstallment(Base):
+    __tablename__ = "card_installments"
+    id = Column(Integer, primary_key=True, index=True)
+    expense_id = Column(Integer, ForeignKey('card_expenses.id', ondelete="CASCADE"), nullable=False)
+    installment_number = Column(Integer, nullable=False)
+    value = Column(Numeric(18, 4), nullable=False)
+    due_date = Column(DateTime, nullable=False)
+    status = Column(String, default="PENDING")  # "PENDING" | "PAID"
+    invoice_month = Column(String, nullable=False)  # "YYYY-MM"
+    is_deleted = Column(Boolean, default=False)
+
+    expense = relationship("CardExpense", back_populates="installments")
+
+class FixedIncome(Base):
+    __tablename__ = "fixed_income"
+    id = Column(Integer, primary_key=True, index=True)
+    asset_id = Column(Integer, ForeignKey('assets.id', ondelete="CASCADE"), unique=True, nullable=False)
+    index_type = Column(String, nullable=False)  # "CDI" | "IPCA" | "PRE"
+    interest_rate = Column(Numeric(18, 4), nullable=False)  # ex: 12.5 (12.5% a.a.) ou 6.0 (IPCA + 6%)
+    issue_date = Column(DateTime, nullable=False)
+    due_date = Column(DateTime, nullable=False)
+    is_deleted = Column(Boolean, default=False)
+
+    asset = relationship("Asset", back_populates="fixed_income")
+
 from database.session import engine, Session
 from sqlalchemy.orm import sessionmaker
 _local_session_factory = sessionmaker(bind=engine)
 
 def update_sync_state_db(key: str, **kwargs):
-    session = _local_session_factory()
-    try:
-        state = session.query(SyncState).filter_by(key=key).first()
-        if not state:
-            state = SyncState(key=key)
-            session.add(state)
-        for k, v in kwargs.items():
-            setattr(state, k, v)
-        state.updated_at = datetime.now()
-        safe_commit(session)
-    except Exception as e:
-        session.rollback()
-        logging.error(f"❌ Erro ao atualizar SyncState {key} no banco: {e}")
-    finally:
-        session.close()
+    import time
+    max_retries = 5
+    for attempt in range(max_retries):
+        session = _local_session_factory()
+        try:
+            state = session.query(SyncState).filter_by(key=key).first()
+            if not state:
+                state = SyncState(key=key)
+                session.add(state)
+            for k, v in kwargs.items():
+                setattr(state, k, v)
+            state.updated_at = datetime.now()
+            safe_commit(session)
+            return  # Sucesso — sai do loop
+        except Exception as e:
+            session.rollback()
+            err_msg = str(e)
+            if "database is locked" in err_msg and attempt < max_retries - 1:
+                time.sleep(0.5 * (attempt + 1))  # backoff linear: 0.5s, 1s, 1.5s...
+                continue
+            logging.error(f"❌ Erro ao atualizar SyncState {key} no banco: {e}")
+            return
+        finally:
+            session.close()
 
 def get_sync_state_db(key: str) -> dict:
     session = _local_session_factory()
@@ -437,7 +496,7 @@ def init_db():
         except Exception as e:
             logging.error(f"❌ Falha ao copiar banco de dados inicial: {e}")
 
-    # Base.metadata.create_all(engine)
+    Base.metadata.create_all(engine)
     from sqlalchemy import inspect, text
     try:
         inspector = inspect(engine)

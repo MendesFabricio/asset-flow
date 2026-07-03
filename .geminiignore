@@ -1,0 +1,45 @@
+# ==========================================
+# 🛑 TOKEN SAVER - ASSETFLOW PRO
+# ==========================================
+
+# 1. Dependências e Builds (Extremamente pesados)
+node_modules/
+.next/
+__pycache__/
+venv/
+env/
+.venv/
+dist/
+build/
+
+# 2. Lockfiles (O maior ralo de tokens do universo)
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+
+# 3. Bancos de Dados e Backups Binários
+database/*.db
+database/*.db-wal
+database/*.db-shm
+server/*.db
+server/backups/
+data/
+
+# 4. Arquivos Estáticos e Imagens
+public/*.svg
+public/*.ico
+public/*.png
+public/*.jpg
+app/favicon.ico
+
+# 5. Configurações de IDE e Editor
+.vscode/
+.idea/
+.cursor/
+
+# 6. Logs
+*.log
+logs/
+
+# 7. Tipagens estáticas geradas
+*.tsbuildinfo
