@@ -15,8 +15,9 @@ SessionLocal = sessionmaker(bind=engine)
 
 import os
 
-OLLAMA_URL = "http://ollama:11434/api/generate"
-OLLAMA_CHAT_URL = "http://ollama:11434/api/chat"
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434").rstrip("/")
+OLLAMA_URL = f"{OLLAMA_BASE_URL}/api/generate"
+OLLAMA_CHAT_URL = f"{OLLAMA_BASE_URL}/api/chat"
 MODEL_NAME = os.getenv("OLLAMA_MODEL", "llama3.2:3b")  # Modelo leve para hardware restrito
 
 def get_ollama_tools() -> list:

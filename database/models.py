@@ -497,6 +497,30 @@ def init_db():
             logging.error(f"❌ Falha ao copiar banco de dados inicial: {e}")
 
     Base.metadata.create_all(engine)
+    
+    # Sementes padrão para a tabela de categorias se estiver vazia
+    db_session = _local_session_factory()
+    try:
+        from decimal import Decimal
+        if db_session.query(Category).count() == 0:
+            logging.info("🌱 Tabela de categorias vazia. Inserindo categorias padrão...")
+            default_categories = [
+                Category(name="Ação", target_percent=Decimal("30.0")),
+                Category(name="FII", target_percent=Decimal("20.0")),
+                Category(name="Internacional", target_percent=Decimal("20.0")),
+                Category(name="Cripto", target_percent=Decimal("5.0")),
+                Category(name="Renda Fixa", target_percent=Decimal("20.0")),
+                Category(name="Reserva", target_percent=Decimal("5.0"))
+            ]
+            db_session.add_all(default_categories)
+            db_session.commit()
+            logging.info("✅ Categorias padrão cadastradas com sucesso!")
+    except Exception as seed_err:
+        db_session.rollback()
+        logging.warning(f"⚠️ Erro ao inserir categorias padrão: {seed_err}")
+    finally:
+        db_session.close()
+
     from sqlalchemy import inspect, text
     try:
         inspector = inspect(engine)

@@ -59,7 +59,8 @@ def healthcheck():
     detail_ollama = "Serviço de IA ativo e respondendo."
     try:
         # Endpoint de tags retorna todos os modelos disponíveis sem processar prompts pesados
-        res = requests.get("http://ollama:11434/api/tags", timeout=3.0)
+        ollama_base_url = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434").rstrip("/")
+        res = requests.get(f"{ollama_base_url}/api/tags", timeout=3.0)
         if res.status_code == 200:
             models = [m.get("name") for m in res.json().get("models", [])]
             detail_ollama = f"Daemon ativo. Modelos disponíveis: {', '.join(models) if models else 'Nenhum'}"
