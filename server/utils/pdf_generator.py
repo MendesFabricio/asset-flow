@@ -10,6 +10,12 @@ def generate_monthly_report_pdf(output_path: str, portfolio_data: dict) -> bool:
     Generates a beautiful monthly portfolio performance PDF report using ReportLab.
     """
     try:
+        def safe_float(val):
+            try:
+                return float(val) if val is not None else 0.0
+            except:
+                return 0.0
+
         # Garante a existência do diretório
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         
@@ -83,7 +89,7 @@ def generate_monthly_report_pdf(output_path: str, portfolio_data: dict) -> bool:
         
         # 2. Resumo Executivo
         story.append(Paragraph("Resumo da Carteira", section_style))
-        total_val = portfolio_data.get("total_value", 0.0)
+        total_val = safe_float(portfolio_data.get("resumo", {}).get("Total", 0.0))
         fear_greed = portfolio_data.get("fear_greed_score", 50)
         fear_greed_label = portfolio_data.get("fear_greed_label", "Neutro")
         
@@ -98,23 +104,32 @@ def generate_monthly_report_pdf(output_path: str, portfolio_data: dict) -> bool:
         # 3. Tabela de Posições
         story.append(Paragraph("Detalhamento dos Ativos em Carteira", section_style))
         
-        headers = ["Ticker", "Tipo", "Moeda", "Qtd", "PM (R$)", "Cotação (R$)", "Total (R$)", "Meta (%)"]
+        headers = ["Ticker", "Classe", "Moeda", "Qtd", "PM", "Cotação", "Total Posição", "Meta (%)"]
         table_data = [[Paragraph(h, table_header_style) for h in headers]]
         
         for asset in portfolio_data.get("ativos", []):
+            ticker = asset.get("ticker", "")
+            tipo = asset.get("tipo", "Outros")
+            moeda = asset.get("currency", "BRL")
+            qtd = safe_float(asset.get("qtd"))
+            pm = safe_float(asset.get("pm"))
+            preco = safe_float(asset.get("preco_atual"))
+            total = safe_float(asset.get("total_atual"))
+            meta = safe_float(asset.get("meta"))
+
             row = [
-                Paragraph(asset.get("ticker", ""), table_body_style),
-                Paragraph(asset.get("category", "Outros"), table_body_style),
-                Paragraph(asset.get("currency", "BRL"), table_body_style),
-                Paragraph(f"{asset.get('quantity', 0.0):,.2f}", table_body_style),
-                Paragraph(f"R$ {asset.get('average_price', 0.0):,.2f}", table_body_style),
-                Paragraph(f"R$ {asset.get('price', 0.0):,.2f}", table_body_style),
-                Paragraph(f"R$ {asset.get('total_value', 0.0):,.2f}", table_body_style),
-                Paragraph(f"{asset.get('target_percent', 0.0):.1f}%", table_body_style)
+                Paragraph(ticker, table_body_style),
+                Paragraph(tipo, table_body_style),
+                Paragraph(moeda, table_body_style),
+                Paragraph(f"{qtd:,.2f}", table_body_style),
+                Paragraph(f"R$ {pm:,.2f}" if moeda == "BRL" else f"$ {pm:,.2f}", table_body_style),
+                Paragraph(f"R$ {preco:,.2f}" if moeda == "BRL" else f"$ {preco:,.2f}", table_body_style),
+                Paragraph(f"R$ {total:,.2f}" if moeda == "BRL" else f"$ {total:,.2f}", table_body_style),
+                Paragraph(f"{meta:.1f}%", table_body_style)
             ]
             table_data.append(row)
             
-        t = Table(table_data, colWidths=[55, 55, 40, 50, 65, 65, 80, 50])
+        t = Table(table_data, colWidths=[55, 60, 40, 50, 65, 65, 80, 45])
         t.setStyle(TableStyle([
             ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#0f172a')),
             ('ALIGN', (0,0), (-1,-1), 'LEFT'),

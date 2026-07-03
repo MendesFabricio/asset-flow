@@ -96,10 +96,18 @@ def get_fundamentals_status():
 def trigger_fundamentals():
     try:
         # Trava de segurança para impedir disparos concorrentes duplicados
+        is_locked = service._fundamentals_lock.locked()
+        db_status = FUNDAMENTALS_STATE.get("status")
+        
+        if db_status == "processing" and not is_locked:
+            logging.warning("⚠️ Estado órfão de processamento no Yahoo detectado (sem lock ativo). Forçando reset para idle.")
+            FUNDAMENTALS_STATE.update({"status": "idle", "message": "Sistema pronto."})
+            db_status = "idle"
+
         if not service._fundamentals_lock.acquire(blocking=False):
             return jsonify({"status": "Aviso", "msg": "Uma varredura de fundamentos já está em execução."}), 409
 
-        if FUNDAMENTALS_STATE.get("status") == "processing":
+        if db_status == "processing":
             service._fundamentals_lock.release()
             return jsonify({"status": "Aviso", "msg": "Uma varredura de fundamentos já está em execução no banco."}), 409
 

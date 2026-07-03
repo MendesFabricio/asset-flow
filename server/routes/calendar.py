@@ -1,11 +1,12 @@
 from flask import Blueprint, jsonify
-from database.models import Asset, Position, Session
+from database.models import Asset, Position, Session, Dividend
 import yfinance as yf
 from datetime import datetime
 import pytz
 import logging
 import time
 import requests
+import threading
 from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -17,6 +18,8 @@ CALENDAR_CACHE = {
     "last_update": 0
 }
 CACHE_TIMEOUT = 600  # 10 minutos
+CALENDAR_UPDATE_LOCK = threading.Lock()
+IS_UPDATING_CALENDAR = False
 
 def get_secure_session():
     """🛡️ Cria uma sessão HTTP disfarçada de navegador com pool expandido para threads"""
@@ -98,17 +101,17 @@ def fetch_single_asset_proventos(item, secure_session):
 
 @calendar_bp.route('/api/calendar', methods=['GET'])
 def get_calendar():
+    global IS_UPDATING_CALENDAR
     now = time.time()
-    
-    if CALENDAR_CACHE["data"] is not None and (now - CALENDAR_CACHE["last_update"]) < CACHE_TIMEOUT:
-        return jsonify(CALENDAR_CACHE["data"])
-
-    logging.info("🔍 --- INICIANDO BUSCA ULTRA-RÁPIDA DE PROVENTOS (SESSÃO INJETADA) ---")
     
     tz = pytz.timezone("America/Sao_Paulo")
     today = datetime.now(tz).date()
+
+    if CALENDAR_CACHE["data"] is not None and (now - CALENDAR_CACHE["last_update"]) < CACHE_TIMEOUT:
+        return jsonify(CALENDAR_CACHE["data"])
+
+    # Carrega posições ativas
     items_to_process = []
-    
     with Session() as session:
         try:
             positions = session.query(Position).join(Asset).filter(Position.quantity > 0).all()
@@ -124,28 +127,70 @@ def get_calendar():
     if not items_to_process:
         return jsonify([])
 
-    events = []
-    
-    # ⚡ PASSO CRUCIAL: Instancia a sessão segura UMA vez aqui na thread principal do Flask
-    secure_session = get_secure_session()
-    
-    # Prorrogamos um hit leve inicial para a sessão carregar o primeiro par de cookies de forma síncrona
-    try:
-        secure_session.get("https://fc.yahoo.com", timeout=5)
-    except Exception:
-        pass
+    # Função que roda na thread em background
+    def run_update():
+        global IS_UPDATING_CALENDAR
+        with CALENDAR_UPDATE_LOCK:
+            IS_UPDATING_CALENDAR = True
+            try:
+                logging.info("🔍 [BACKGROUND] --- INICIANDO BUSCA ULTRA-RÁPIDA DE PROVENTOS (SESSÃO INJETADA) ---")
+                secure_session = get_secure_session()
+                try:
+                    secure_session.get("https://fc.yahoo.com", timeout=5)
+                except Exception:
+                    pass
 
-    # Dispara o pool passando a sessão única compartilhada como argumento fixo
-    with ThreadPoolExecutor(max_workers=4) as executor:
-        futures = [executor.submit(fetch_single_asset_proventos, item, secure_session) for item in items_to_process]
-        
-        for future in as_completed(futures):
-            events.extend(future.result())
+                bg_events = []
+                with ThreadPoolExecutor(max_workers=4) as executor:
+                    futures = [executor.submit(fetch_single_asset_proventos, item, secure_session) for item in items_to_process]
+                    for future in as_completed(futures):
+                        try:
+                            bg_events.extend(future.result())
+                        except Exception as thread_err:
+                            logging.warning(f"Erro em thread de busca de provento: {thread_err}")
 
-    events.sort(key=lambda x: x['date'])
-    
-    CALENDAR_CACHE["data"] = events
-    CALENDAR_CACHE["last_update"] = now
-    
-    logging.info(f"🏁 Fim da varredura paralela protegida. {len(events)} eventos consolidados.")
-    return jsonify(events)
+                bg_events.sort(key=lambda x: x['date'])
+                CALENDAR_CACHE["data"] = bg_events
+                CALENDAR_CACHE["last_update"] = time.time()
+                logging.info(f"🏁 [BACKGROUND] Fim da varredura paralela protegida. {len(bg_events)} eventos consolidados.")
+            except Exception as bg_err:
+                logging.error(f"Erro na atualização de proventos em background: {bg_err}")
+            finally:
+                IS_UPDATING_CALENDAR = False
+
+    # Dispara thread em background se não estiver ativa
+    if not IS_UPDATING_CALENDAR:
+        threading.Thread(target=run_update, daemon=True).start()
+
+    # Se já temos algum cache (mesmo expirado), retorna ele imediatamente
+    if CALENDAR_CACHE["data"] is not None:
+        return jsonify(CALENDAR_CACHE["data"])
+
+    # Se o cache é None (primeiro load pós boot), busca no DB SQLite como fallback rápido
+    db_events = []
+    with Session() as session:
+        try:
+            positions = session.query(Position).join(Asset).filter(Position.quantity > 0).all()
+            active_ids = [pos.asset_id for pos in positions]
+            
+            future_divs = session.query(Dividend).filter(
+                Dividend.asset_id.in_(active_ids),
+                Dividend.date_com >= today
+            ).all()
+            
+            for div in future_divs:
+                pos = next((p for p in positions if p.asset_id == div.asset_id), None)
+                qty = float(pos.quantity) if pos else 0.0
+                db_events.append({
+                    "ticker": div.asset.ticker,
+                    "date": div.date_com.strftime('%Y-%m-%d'),
+                    "total": float(div.value_per_share) * qty,
+                    "value_per_share": float(div.value_per_share),
+                    "status": "Confirmado" if div.status == "PAGO" else "Anunciado",
+                    "is_estimate": False
+                })
+            db_events.sort(key=lambda x: x['date'])
+        except Exception as db_err:
+            logging.error(f"Erro ao carregar proventos de fallback do banco: {db_err}")
+            
+    return jsonify(db_events)

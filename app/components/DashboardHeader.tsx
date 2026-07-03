@@ -73,22 +73,15 @@ export function DashboardHeader({
           <h1 className="text-lg font-bold text-white tracking-tight mr-2">
             AssetFlow <span className="text-blue-500 text-xs font-normal ml-1">Pro</span>
           </h1>
-          <MarketTicker />
-          <TradingHoursWidget />
+          <div className="hidden lg:flex items-center gap-2">
+            <MarketTicker />
+            <TradingHoursWidget />
+          </div>
         </div>
 
         {/* CONTROLES DE INTERFACE & AÇÕES UNIFICADAS */}
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            {/* 📅 PROVENTOS */}
-            <Link
-              href="/agenda"
-              className="bg-slate-800 hover:bg-slate-700 text-white px-3 py-2 rounded-lg transition-all flex items-center gap-2 text-xs font-bold border border-slate-700 group shadow-sm"
-            >
-              <Calendar size={15} className="text-blue-400 group-hover:text-blue-300 transition-colors" />
-              <span className="hidden sm:inline">Proventos</span>
-            </Link>
-
             {/* 🛠️ DROPDOWN DE FERRAMENTAS & SINCRONIA */}
             <div className="relative" ref={dropdownRef}>
               <button
@@ -114,6 +107,18 @@ export function DashboardHeader({
                     <div>
                       <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest px-1">Simulações & Análises</span>
                       <div className="mt-2 space-y-1">
+                        <Link
+                          href="/agenda"
+                          onClick={() => setIsToolsOpen(false)}
+                          className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-slate-800/50 transition-colors flex items-center gap-2.5 text-xs text-slate-200"
+                        >
+                          <Calendar size={14} className="text-blue-400" />
+                          <div>
+                            <p className="font-bold">Proventos & Renda Passiva</p>
+                            <p className="text-[9px] text-slate-500">Histórico, agenda e yields projetados</p>
+                          </div>
+                        </Link>
+
                         <button
                           type="button"
                           onClick={() => {

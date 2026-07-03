@@ -79,21 +79,22 @@ export default function Home() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const categories = [
-    { id: 'Resumo', icon: <Layers size={16} /> },
-    { id: 'Ação', icon: <TrendingUp size={16} /> },
-    { id: 'FII', icon: <Building2 size={16} /> },
-    { id: 'Internacional', icon: <Globe size={16} /> },
-    { id: 'Cripto', icon: <Bitcoin size={16} />, label: 'Criptomoeda' },
-    { id: 'Renda Fixa', icon: <Landmark size={16} />, label: 'Renda Fixa' },
-    { id: 'Reserva', icon: <Wallet size={16} />, label: 'Reserva' },
-    { id: 'Evolução', icon: <LineChart size={16} /> },
-    { id: 'Correlação', icon: <Grip size={16} />, label: "Heatmap" },
-    { id: 'Quantitativo', icon: <BarChart3 size={16} />, label: 'Análise Quant' },
+  const portfolioTabs = [
+    { id: 'Resumo', icon: <Layers size={14} />, label: 'Resumo' },
+    { id: 'Ação', icon: <TrendingUp size={14} />, label: 'Ações' },
+    { id: 'FII', icon: <Building2 size={14} />, label: 'FIIs' },
+    { id: 'Internacional', icon: <Globe size={14} />, label: 'Internacional' },
+    { id: 'Cripto', icon: <Bitcoin size={14} />, label: 'Cripto' },
+    { id: 'Renda Fixa', icon: <Landmark size={14} />, label: 'Renda Fixa' },
+    { id: 'Reserva', icon: <Wallet size={14} />, label: 'CDB / LCI' },
+    { id: 'Financeiro', icon: <Wallet size={14} />, label: 'Reembolsos' },
+  ];
 
-    { id: 'Financeiro', icon: <Wallet size={16} />, label: 'Reembolsos' },
-    { id: 'Jarvis', icon: <Brain size={16} />, label: 'Jarvis AI' },
-
+  const analyticsTabs = [
+    { id: 'Evolução', icon: <LineChart size={14} />, label: 'Evolução' },
+    { id: 'Correlação', icon: <Grip size={14} />, label: 'Correlação' },
+    { id: 'Quantitativo', icon: <BarChart3 size={14} />, label: 'Análise Quant' },
+    { id: 'Jarvis', icon: <Brain size={14} />, label: 'Jarvis AI' },
   ];
 
 
@@ -253,24 +254,47 @@ export default function Home() {
       />
 
       {/* TABS DE CATEGORIAS E BUSCA */}
-      <div className="max-w-7xl mx-auto px-4 py-2 flex flex-col md:flex-row justify-between items-center gap-4">
-        <div className="flex gap-2 overflow-x-auto no-scrollbar w-full md:w-auto pb-2 md:pb-0">
-          {categories.map((c) => (
-            <button
-              type="button"
-              key={c.id}
-              onClick={() => {
-                setTab(c.id);
-              }}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-full text-xs font-bold transition-all duration-300 border ${tab === c.id
-                  ? 'bg-blue-500/10 text-blue-400 border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.12)]'
-                  : 'bg-slate-900/30 text-slate-500 border-slate-800/60 hover:text-slate-300 hover:border-slate-700/50'
-                }`}
-            >
-              {c.icon}
-              <span>{c.label || c.id}</span>
-            </button>
-          ))}
+      <div className="max-w-7xl mx-auto px-4 py-4 space-y-3">
+        {/* Ativos e Carteira */}
+        <div className="flex flex-col md:flex-row md:items-center gap-3">
+          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest min-w-[125px]">Minha Carteira:</span>
+          <div className="flex gap-1.5 overflow-x-auto no-scrollbar w-full pb-1 md:pb-0">
+            {portfolioTabs.map((c) => (
+              <button
+                type="button"
+                key={c.id}
+                onClick={() => setTab(c.id)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-300 border ${tab === c.id
+                    ? 'bg-blue-500/15 text-blue-400 border-blue-500/40 shadow-[0_0_12px_rgba(59,130,246,0.15)]'
+                    : 'bg-slate-900/45 text-slate-400 border-slate-800/80 hover:text-slate-200 hover:border-slate-700/50'
+                  }`}
+              >
+                {c.icon}
+                <span>{c.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Análises e Inteligência */}
+        <div className="flex flex-col md:flex-row md:items-center gap-3 pt-2 border-t border-slate-900/50">
+          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest min-w-[125px]">Análises & Jarvis:</span>
+          <div className="flex gap-1.5 overflow-x-auto no-scrollbar w-full pb-1 md:pb-0">
+            {analyticsTabs.map((c) => (
+              <button
+                type="button"
+                key={c.id}
+                onClick={() => setTab(c.id)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-300 border ${tab === c.id
+                    ? 'bg-indigo-500/15 text-indigo-400 border-indigo-500/40 shadow-[0_0_12px_rgba(99,102,241,0.15)]'
+                    : 'bg-slate-900/45 text-slate-400 border-slate-800/80 hover:text-slate-200 hover:border-slate-700/50'
+                  }`}
+              >
+                {c.icon}
+                <span>{c.label}</span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

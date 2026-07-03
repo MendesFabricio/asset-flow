@@ -102,6 +102,10 @@ def get_dividend_analytics():
             for pos in positions:
                 if not pos.asset:
                     continue
+                cat = pos.asset.category.name if pos.asset.category else ""
+                if cat in ["Reserva"]:
+                    continue
+                    
                 ticker = pos.asset.ticker.upper()
                 qty = float(pos.quantity)
                 avg_price = float(pos.average_price)
@@ -110,12 +114,14 @@ def get_dividend_analytics():
                 mdata = pos.asset.market_data[0] if pos.asset.market_data else None
                 price = float(mdata.price or 0) if mdata else avg_price
                 
-                # DY Forward
                 projected_div = projected_map.get(ticker, 0.0)
-                current_value = qty * price
-                dy_forward = (projected_div / current_value * 100) if current_value > 0 else 0.0
-                if dy_forward <= 0.0 and pos.manual_dy:
+                
+                # DY Forward
+                if pos.manual_dy and float(pos.manual_dy) > 0:
                     dy_forward = float(pos.manual_dy) * 100
+                else:
+                    current_value = qty * price
+                    dy_forward = (projected_div / current_value * 100) if current_value > 0 else 0.0
                 
                 # Payout histórico estimado (DPA / LPA)
                 payout = None
@@ -166,6 +172,10 @@ def get_yoc_history():
             for pos in positions:
                 if not pos.asset:
                     continue
+                cat = pos.asset.category.name if pos.asset.category else ""
+                if cat in ["Reserva"]:
+                    continue
+                    
                 ticker = pos.asset.ticker.upper()
                 avg_price = float(pos.average_price)
                 if avg_price <= 0:

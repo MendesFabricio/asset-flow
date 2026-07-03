@@ -41,33 +41,42 @@ def get_rebalance_bands():
         if not positions:
             return jsonify({"status": "Sucesso", "data": []})
 
-        total_value = 0.0
-        pos_values = []
-        
+        entire_portfolio_value = 0.0
         for pos in positions:
             price = float(pos.asset.market_data[0].price or 0.0) if pos.asset and pos.asset.market_data else 0.0
-            val = float(pos.quantity) * price
-            pos_values.append((pos, val))
-            total_value += val
+            entire_portfolio_value += float(pos.quantity) * price
 
         data = []
-        for pos, val in pos_values:
-            weight_pct = (val / total_value * 100) if total_value > 0 else 0.0
-            target_pct = float(pos.target_percent or 0.0)
+        for pos in positions:
+            if not pos.asset:
+                continue
+            cat = pos.asset.category.name if pos.asset.category else ""
+            if cat in ["Reserva"]:
+                continue
+                
+            price = float(pos.asset.market_data[0].price or 0.0) if pos.asset.market_data else 0.0
+            val = float(pos.quantity) * price
+            
+            weight_pct = (val / entire_portfolio_value * 100) if entire_portfolio_value > 0 else 0.0
+            
+            cat_target = float(pos.asset.category.target_percent or 0.0)
+            asset_target = float(pos.target_percent or 0.0)
+            target_pct = (cat_target / 100.0) * asset_target
+            
             dev = weight_pct - target_pct
             
             if abs(dev) > 2.0:
                 status = "EXCEDENTE" if dev > 0 else "SUBALOCADO"
                 if dev > 0:
-                    action_note = f"Vender R$ {abs(dev/100 * total_value):.2f}"
+                    action_note = f"Vender R$ {abs(dev/100 * entire_portfolio_value):.2f}"
                 else:
-                    action_note = f"Comprar R$ {abs(dev/100 * total_value):.2f}"
+                    action_note = f"Comprar R$ {abs(dev/100 * entire_portfolio_value):.2f}"
             else:
                 status = "NORMAL"
                 action_note = "Em conformidade"
 
             data.append({
-                "ticker": pos.asset.ticker.upper() if pos.asset else "N/A",
+                "ticker": pos.asset.ticker.upper(),
                 "weight_pct": round(weight_pct, 2),
                 "target_pct": round(target_pct, 2),
                 "deviation_pct": round(dev, 2),
@@ -380,6 +389,22 @@ def generate_report():
             dash_data["sharpe"] = risk.get("sharpe_12m")
             dash_data["var_95"] = risk.get("var_95_monthly_pct")
             
+        # Consulta de Recebíveis Ativos
+        receivables_list = []
+        from database.models import LoanInstallment
+        installments = session.query(LoanInstallment).filter(LoanInstallment.status.in_(["ABERTA", "ATRASADA"]), LoanInstallment.is_deleted == False).all()
+        for inst in installments:
+            receivables_list.append({
+                "descricao": inst.loan.descricao,
+                "devedor": inst.loan.debtor.nome if inst.loan.debtor else "Desconhecido",
+                "valor_parcela": float(inst.valor_parcela),
+                "status": inst.status,
+                "parcela_atual": int(inst.numero_parcela),
+                "total_parcelas": int(inst.loan.total_parcelas),
+                "vencimento_dia": int(inst.data_vencimento.day)
+            })
+        dash_data["recebiveis"] = receivables_list
+
         dash_data["comentario_ia"] = "Sua carteira está bem distribuída. Recomendamos verificar os ativos com recomendação de COMPRAR na aba 'Análise Quant' e ajustar os desvios."
         
         date_str = datetime.now().strftime("%Y-%m-%d_%H-%M")
@@ -410,7 +435,7 @@ def analyze_pdf_endpoint():
         
     session = Session()
     try:
-        position = session.query(Position).join(Position.asset).filter(Asset.ticker == ticker, Position.quantity > 0).first()
+        position = session.query(Position).join(Position.asset).filter(Asset.ticker == ticker).first()
         if not position or not position.last_report_url:
             return jsonify({"status": "Erro", "msg": f"Nenhum link de relatório de RI disponível para o ativo {ticker}."}), 404
             

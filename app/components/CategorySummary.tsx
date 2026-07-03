@@ -164,6 +164,8 @@ export const CategorySummary = ({ ativos, categorias = [], onUpdate }: CategoryS
     return acc;
   }, {});
 
+  const CATEGORY_ORDER = ['Ação', 'FII', 'Internacional', 'Cripto', 'Renda Fixa', 'Reserva'];
+
   const lista = (Object.values(groups)).map(group => {
     const assetsInCat = ativos.filter(a => (a.tipo || 'Outros') === group.tipo);
 
@@ -178,12 +180,19 @@ export const CategorySummary = ({ ativos, categorias = [], onUpdate }: CategoryS
     const variacaoPct = totalOntem > 0 ? (variacaoValor / totalOntem) * 100 : 0;
 
     return { ...group, variacaoPct, variacaoValor };
-  }).sort((a, b) => b.atual - a.atual);
+  }).sort((a, b) => {
+    const idxA = CATEGORY_ORDER.indexOf(a.tipo);
+    const idxB = CATEGORY_ORDER.indexOf(b.tipo);
+    const valA = idxA === -1 ? 999 : idxA;
+    const valB = idxB === -1 ? 999 : idxB;
+    return valA - valB;
+  });
 
   const totalInvestidoGeral = lista.reduce((acc, item) => acc + item.investido, 0);
   const totalAtualGeral = lista.reduce((acc, item) => acc + item.atual, 0);
 
   const totalMetaConfigurada = lista.reduce((acc, item) => {
+    if (item.tipo === 'Reserva') return acc;
     const catInfo = categorias.find(c => c.name === item.tipo);
     return acc + (catInfo ? catInfo.meta : 0);
   }, 0);
@@ -263,7 +272,11 @@ export const CategorySummary = ({ ativos, categorias = [], onUpdate }: CategoryS
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-slate-300">{item.tipo}</span>
 
-                        {Math.abs(item.variacaoPct) > 0.001 && (
+                        {item.tipo === 'Reserva' ? (
+                          <div className="flex items-center gap-0.5 text-[9px] font-mono font-bold px-1.5 py-0.5 rounded text-slate-400 bg-slate-800/85 border border-slate-750/70 cursor-default">
+                            Estável (CDB/Selic)
+                          </div>
+                        ) : Math.abs(item.variacaoPct) > 0.001 && (
                           <div
                             className={`flex items-center gap-0.5 text-[9px] font-mono font-bold px-1.5 py-0.5 rounded cursor-help transition-all hover:scale-105 ${isPositiveVar
                               ? 'text-emerald-400 bg-emerald-400/10 border border-emerald-400/20'
@@ -296,41 +309,54 @@ export const CategorySummary = ({ ativos, categorias = [], onUpdate }: CategoryS
                     </td>
 
                     <td className="px-4 py-3 align-middle">
-                      <div
-                        className="w-full cursor-help py-1"
-                        onMouseEnter={(e) => {
-                          const rect = e.currentTarget.getBoundingClientRect();
-                          setHoveredInfo({
-                            x: rect.right + 10,
-                            y: rect.top,
-                            data: { item, meta, pctAtual, diff, visualWidth }
-                          });
-                        }}
-                        onMouseLeave={() => setHoveredInfo(null)}
-                      >
-                        <div className="flex justify-between text-[10px] mb-1.5 font-mono leading-none">
-                          <span className="text-slate-200 font-bold">{pctAtual.toFixed(1)}%</span>
-                          {meta > 0 && (
-                            <span className={diff > 0 ? "text-amber-500 font-bold" : "text-emerald-500 font-bold"}>
-                              {diff > 0 ? '+' : ''}{diff.toFixed(1)}%
-                            </span>
-                          )}
+                      {item.tipo === 'Reserva' ? (
+                        <div className="flex flex-col py-1">
+                          <span className="text-slate-200 font-bold font-mono text-[10px] leading-none">{pctAtual.toFixed(1)}%</span>
+                          <span className="text-[9px] text-slate-500 font-bold leading-none mt-1">Excluído das metas</span>
                         </div>
-                        <div className="h-1.5 w-full bg-slate-800/60 rounded-full overflow-hidden relative">
-                          <div
-                            className={`h-full rounded-full ${barColor} transition-all duration-500 shadow-[0_0_10px_rgba(0,0,0,0.3)]`}
-                            style={{ width: `${visualWidth}%` }}
-                          ></div>
+                      ) : (
+                        <div
+                          className="w-full cursor-help py-1"
+                          onMouseEnter={(e) => {
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            setHoveredInfo({
+                              x: rect.right + 10,
+                              y: rect.top,
+                              data: { item, meta, pctAtual, diff, visualWidth }
+                            });
+                          }}
+                          onMouseLeave={() => setHoveredInfo(null)}
+                        >
+                          <div className="flex justify-between text-[10px] mb-1.5 font-mono leading-none">
+                            <span className="text-slate-200 font-bold">{pctAtual.toFixed(1)}%</span>
+                            {meta > 0 && (
+                              <span className={diff > 0 ? "text-amber-500 font-bold" : "text-emerald-500 font-bold"}>
+                                {diff > 0 ? '+' : ''}{diff.toFixed(1)}%
+                              </span>
+                            )}
+                          </div>
+                          <div className="h-1.5 w-full bg-slate-800/60 rounded-full overflow-hidden relative">
+                            <div
+                              className={`h-full rounded-full ${barColor} transition-all duration-500 shadow-[0_0_10px_rgba(0,0,0,0.3)]`}
+                              style={{ width: `${visualWidth}%` }}
+                            ></div>
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </td>
 
                     <td className="px-6 py-3 text-right align-middle">
                       <div className="flex items-center justify-end gap-2 h-full">
-                        <span className="text-slate-400 font-bold font-mono text-xs block">{meta.toFixed(0)}%</span>
-                        <button type="button" onClick={() => handleEdit(item.tipo, meta)} className="opacity-0 group-hover:opacity-100 p-1.5 rounded hover:bg-slate-800 text-slate-600 hover:text-white transition-all -mr-2">
-                          <Pencil size={12} />
-                        </button>
+                        {item.tipo === 'Reserva' ? (
+                          <span className="text-slate-500 font-bold font-mono text-xs block">-</span>
+                        ) : (
+                          <>
+                            <span className="text-slate-400 font-bold font-mono text-xs block">{meta.toFixed(0)}%</span>
+                            <button type="button" onClick={() => handleEdit(item.tipo, meta)} className="opacity-0 group-hover:opacity-100 p-1.5 rounded hover:bg-slate-800 text-slate-600 hover:text-white transition-all -mr-2">
+                              <Pencil size={12} />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>

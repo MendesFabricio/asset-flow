@@ -114,11 +114,15 @@ def get_alerts():
                 # ALERTAS DE SPLIT/INPLIT (Desdobramento/Grupamento) 📈📉
                 # =========================================================
                 if category in ['Ação', 'FII']:
-                    # Split Alert (Desdobramento)
-                    if asset.currency == "BRL" and current_price > 120.0:
-                        alerts.append(make_alert(asset, "split", "ALERTA", f"Preço alto (R$ {current_price:.2f}). Candidato a desdobramento (Split).", 3, "view"))
-                    elif asset.currency == "USD" and current_price > 500.0:
-                        alerts.append(make_alert(asset, "split", "ALERTA", f"Preço alto ($ {current_price:.2f}). Candidato a desdobramento (Split).", 3, "view"))
+                    # Split Alert (Desdobramento Confirmado)
+                    if asset.upcoming_split:
+                        try:
+                            split_date_str, ratio = asset.upcoming_split.split(":")
+                            d_parts = split_date_str.split("-")
+                            formatted_date = f"{d_parts[2]}/{d_parts[1]}/{d_parts[0]}"
+                            alerts.append(make_alert(asset, "split", "CRÍTICO", f"Desdobramento (Split) confirmado de {ratio}x em {formatted_date}.", 5, "view"))
+                        except Exception:
+                            pass
 
                     # Inplit Alert (Grupamento / Penny Stock)
                     if asset.currency == "BRL" and current_price > 0 and current_price < 1.0:
@@ -130,8 +134,6 @@ def get_alerts():
                 if category in ['Ação', 'FII']:
                     if pos.manual_dy is None:
                         alerts.append(make_alert(asset, "dy", "DADOS", "Falta cadastrar DY.", 1, "edit"))
-                    elif float(pos.manual_dy) == 0:
-                        alerts.append(make_alert(asset, "dy", "INFO", "DY zerado. Confirme se é intencional.", 1, "edit"))
 
                 # =========================================================
                 # 5. ALERTA DE DATA-COM PRÓXIMA (3 Dias)

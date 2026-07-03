@@ -13,7 +13,7 @@ class FIIProcessor:
         """
         try:
             headers = {
-                'User-Agent': 'Mozilla/5.0',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
                 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
                 'Accept-Encoding': 'gzip, deflate, br',
                 'Connection': 'keep-alive'
@@ -126,15 +126,15 @@ class FIIProcessor:
                     "segmento": data.get('segmento', 'N/A'),
                     "gestao": data.get('gestao', 'N/A'),
                     "caixa_pct": data.get('percentual_caixa', 0),
-                    "alavancagem": data.get('alavancagem', 0) # <--- NOVO
+                    "alavancagem": data.get('alavancagem', 0)
                 },
                 "indicadores": {
                     "P/VP": 0, 
                     "DY Mensal (XML)": f"{data.get('dy_mensal_xml', 0):.2f}%",
                     "VPA": f"R$ {data.get('vpa', 0):.2f}",
                     "Caixa": f"R$ {data.get('disponibilidades', 0):,.2f}",
-                    "Dívida (Passivo)": f"R$ {data.get('total_passivo', 0):,.2f}", # <--- NOVO
-                    "Alavancagem": f"{data.get('alavancagem', 0):.2f}%", # <--- NOVO
+                    "Dívida (Passivo)": f"R$ {data.get('total_passivo', 0):,.2f}",
+                    "Alavancagem": f"{data.get('alavancagem', 0):.2f}%",
                     "Cotas": f"{data.get('numero_cotas', 0):,.0f}"
                 },
                 "raw_xml_data": data

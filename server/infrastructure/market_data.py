@@ -175,6 +175,24 @@ def update_fundamentals(session, dolar_rate_callback, state_dict=None):
                     lpa *= dolar_rate
                     vpa *= dolar_rate
 
+                # Check for upcoming splits
+                try:
+                    splits = y_asset.splits
+                    if not splits.empty:
+                        today_date = datetime.now().date()
+                        future_splits = splits[splits.index.date >= today_date]
+                        if not future_splits.empty:
+                            fut_date = future_splits.index[0].date()
+                            fut_ratio = float(future_splits.iloc[0])
+                            asset.upcoming_split = f"{fut_date}:{fut_ratio}"
+                        else:
+                            asset.upcoming_split = None
+                    else:
+                        asset.upcoming_split = None
+                except Exception as split_err:
+                    logging.warning(f"Erro ao verificar splits para {asset.ticker}: {split_err}")
+                    asset.upcoming_split = None
+
                 pos = asset.position
                 if pos:
                     if lpa != 0: pos.manual_lpa = round(lpa, 2)
@@ -216,6 +234,7 @@ def sync_reports_with_fnet(session):
     from utils.cnpj_finder import CNPJFinder
     from utils.cvm_finder import CVMFinder 
     from utils.cvm_processor import CVMProcessor
+    from utils.fii_processor import FIIProcessor
 
     try:
         assets_to_sync = session.query(Position).join(Asset).join(Category).filter(
@@ -234,7 +253,6 @@ def sync_reports_with_fnet(session):
                 cnpj_encontrado = CNPJFinder.find_by_ticker(ticker)
                 if cnpj_encontrado:
                     asset.cnpj = cnpj_encontrado
-                    session.flush()
 
             if not is_fii and asset.cnpj and (not asset.cvm_code or asset.cvm_code == ""):
                 cnpj_limpo = "".join(filter(str.isdigit, str(asset.cnpj)))
@@ -242,12 +260,46 @@ def sync_reports_with_fnet(session):
                 if codigo_cvm:
                     asset.cvm_code = codigo_cvm
                     logging.info(f"✅ Código CVM Vinculado: {ticker} -> {codigo_cvm}")
-                    session.flush()
 
             if is_fii and asset.cnpj:
                 doc_package = B3FnetCrawler.get_documents_package(asset.cnpj)
                 if doc_package:
-                    pos.last_report_type = json.dumps(doc_package)
+                    # Tenta processar o informe mensal do FII para extrair indicadores de saúde
+                    fii_indicators = None
+                    mensal = doc_package.get('mensal')
+                    if mensal and mensal.get('link'):
+                        try:
+                            fii_data = FIIProcessor.parse_informe_mensal(mensal['link'])
+                            if fii_data:
+                                mdata = asset.market_data[0] if asset.market_data else None
+                                price = float(mdata.price) if mdata and mdata.price else 0.0
+                                vpa = fii_data.get('ticker_info', {}).get('vpa', 0.0) or 0.0
+                                p_vp = price / vpa if vpa > 0 else 0.0
+                                
+                                fii_indicators = {
+                                    "ticker_info": {
+                                        "ultimo_periodo": mensal.get('ref_date', 'Mensal'),
+                                        "data_base": mensal.get('date', '')
+                                    },
+                                    "cards_indicadores": [
+                                        { "titulo": "P/VP", "valor_formatado": f"{p_vp:.2f}", "tipo": "eficiencia" },
+                                        { "titulo": "VPA", "valor_formatado": f"R$ {vpa:.2f}", "tipo": "eficiencia" },
+                                        { "titulo": "DY Mensal (XML)", "valor_formatado": fii_data["indicadores"].get("DY Mensal (XML)", "0.00%"), "tipo": "rentabilidade" },
+                                        { "titulo": "Patrimônio Líquido", "valor": fii_data["ticker_info"].get("patrimonio"), "tipo": "rentabilidade" },
+                                        { "titulo": "Disponibilidades (Caixa)", "valor": fii_data["raw_xml_data"].get("disponibilidades"), "tipo": "caixa", "subtitulo": f"{fii_data['ticker_info'].get('caixa_pct', 0):.2f}% do PL" },
+                                        { "titulo": "Passivo Total", "valor": fii_data["raw_xml_data"].get("total_passivo"), "tipo": "risco", "subtitulo": f"Alavancagem: {fii_data['ticker_info'].get('alavancagem', 0):.2f}%" },
+                                    ],
+                                    "evolucao_grafico": []
+                                }
+                        except Exception as fii_err:
+                            logging.warning(f"⚠️ Erro ao processar XML de FII {ticker}: {fii_err}")
+
+                    combined = {
+                        "reports": list(doc_package.values()),
+                        "fundamentalist": fii_indicators
+                    }
+                    pos.last_report_type = json.dumps(combined)
+                    
                     gerencial = doc_package.get('gerencial')
                     pos.last_report_url = gerencial["link"] if gerencial else list(doc_package.values())[0]["link"]
                     datas = [f"{k[0].upper()}: {v['ref_date']}" for k, v in doc_package.items() if 'ref_date' in v]
@@ -258,11 +310,29 @@ def sync_reports_with_fnet(session):
             elif not is_fii and asset.cvm_code:
                 try:
                     analise_completa = CVMProcessor.get_dashboard_data(asset.cvm_code)
+                    doc_links = None
+                    try:
+                        from crawlers.cvm_enet import CVMEnetCrawler
+                        doc_links = CVMEnetCrawler.get_documents(asset.cvm_code)
+                    except Exception as enet_err:
+                        logging.warning(f"⚠️ Erro ao buscar links de relatórios da CVM para {ticker}: {enet_err}")
+
+                    combined = {
+                        "fundamentalist": analise_completa,
+                        "reports": list(doc_links.values()) if doc_links else []
+                    }
+                    pos.last_report_type = json.dumps(combined)
+                    pos.last_report_url = list(doc_links.values())[0]["link"] if doc_links else (pos.last_report_url or "")
+                    
+                    datas = []
+                    if doc_links:
+                        datas = [f"{k[0].upper()}: {v['ref_date']}" for k, v in doc_links.items() if 'ref_date' in v]
                     if analise_completa:
-                        pos.last_report_type = json.dumps(analise_completa)
-                        pos.last_report_at = f"Balanço: {analise_completa['ticker_info']['ultimo_periodo']}"
-                        count_acao += 1
-                        logging.info(f"📊 Análise fundamentalista CVM salva para: {ticker}")
+                        datas.append(f"Balanço: {analise_completa['ticker_info']['ultimo_periodo']}")
+                        
+                    pos.last_report_at = " | ".join(datas)
+                    count_acao += 1
+                    logging.info(f"📊 Análise fundamentalista CVM salva para: {ticker}")
                 except Exception as e:
                     logging.warning(f"⚠️ Falha no motor CVM para o papel {ticker}: {e}")
 

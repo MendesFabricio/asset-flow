@@ -274,6 +274,21 @@ def calculate_risk_metrics(session, fetch_prices) -> dict:
     prices = _align_prices_to_b3(prices)
     prices = prices[[c for c in prices.columns if prices[c].count() >= 30]]
 
+    # Limpeza de outliers e glitches de preço do yfinance (Ex: quedas abruptas de 99% como XPML11)
+    for col in prices.columns:
+        if col == BENCHMARK:
+            continue
+        vals = prices[col].tolist()
+        for idx in range(1, len(vals)):
+            prev = vals[idx - 1]
+            curr = vals[idx]
+            if prev is None or pd.isna(prev) or prev <= 0 or curr is None or pd.isna(curr):
+                continue
+            ratio = curr / prev
+            if ratio < 0.5 or ratio > 2.0:
+                vals[idx] = prev
+        prices[col] = vals
+
     if BENCHMARK not in prices.columns:
         return {"status": "Erro", "msg": "IBOVESPA indisponível."}
 

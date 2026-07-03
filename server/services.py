@@ -16,7 +16,7 @@ from sqlalchemy.orm import scoped_session, sessionmaker, joinedload, selectinloa
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from database.models import Asset, Position, Category, MarketData, PortfolioSnapshot, SystemCache, Dividend, safe_commit
-from database.session import engine, Session
+from database.session import engine, Session, session_factory
 
 # ── Cache de preços (race-condition safe) ────────────────────────────────────
 from infrastructure.price_cache import fetch_price_history as _fetch_price_history_fn, invalidate as _invalidate_cache
@@ -63,7 +63,7 @@ class PortfolioService:
         if (now - USD_CACHE["last_update"]) < 3600:
             return USD_CACHE["rate"]
 
-        session = Session()
+        session = session_factory()
         try:
             cache_record = session.query(SystemCache).filter_by(key="usd_rate").first()
             if cache_record:
@@ -297,7 +297,7 @@ class PortfolioService:
                 )
                 
                 # Regras de Alertas estruturados com Ações Recomendadas
-                if cat_name not in ['Renda Fixa', 'Reserva']:
+                if cat_name not in ['Reserva']:
                     if pos.target_percent and Decimal(str(pos.target_percent)) > 0:
                         excesso = pct_na_categoria / Decimal(str(pos.target_percent))
                         if excesso > Decimal('2.0'):
@@ -371,6 +371,7 @@ class PortfolioService:
                     "id": pos.asset.id, 
                     "ticker": pos.asset.ticker,
                     "tipo": cat_name,
+                    "currency": pos.asset.currency,
                     "cvm_code": pos.asset.cvm_code,
                     "qtd": pos.quantity,
                     "pm": pos.average_price,

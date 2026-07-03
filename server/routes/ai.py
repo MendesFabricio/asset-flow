@@ -2,7 +2,7 @@ import logging
 import requests
 import json
 from flask import Blueprint, request, Response, stream_with_context
-from database.models import Session, Asset, Position, Receivable
+from database.models import Session, Asset, Position, LoanInstallment, ReceivableLoan
 from infrastructure.ollama_service import OLLAMA_CHAT_URL, MODEL_NAME, get_ollama_tools
 from domain.quant_engine import calculate_risk_metrics
 from infrastructure.price_cache import fetch_price_history as _fetch_price_history_fn
@@ -44,11 +44,15 @@ def execute_query_portfolio_metrics(session):
             )
             
     # Recebíveis
-    receivables = session.query(Receivable).filter(Receivable.status != 'Concluido').all()
+    installments = (
+        session.query(LoanInstallment)
+        .filter(LoanInstallment.status.in_(['ABERTA', 'ATRASADA']), LoanInstallment.is_deleted == False)
+        .all()
+    )
     rec_summary = []
-    for r in receivables:
+    for inst in installments:
         rec_summary.append(
-            f"- Recebível: {r.descricao}, Devedor={r.devedor}, Parcela=R${r.valor_parcela:.2f}, Parcela Atual={r.parcela_atual}/{r.total_parcelas}, Dia Vencimento={r.vencimento_dia}"
+            f"- Recebível: {inst.loan.descricao}, Devedor={inst.loan.debtor.nome if inst.loan.debtor else 'Desconhecido'}, Parcela=R${inst.valor_parcela:.2f}, Parcela Atual={inst.numero_parcela}/{inst.loan.total_parcelas}, Vencimento={inst.data_vencimento.strftime('%Y-%m-%d')}"
         )
         
     # Métricas de risco
@@ -83,7 +87,7 @@ def execute_get_asset_fundamental_data(session, ticker: str):
     if not asset:
         return {"status": "Erro", "error": f"Ativo com ticker '{ticker}' não foi encontrado no banco de dados."}
         
-    cvm_context = "Nenhum demonstrativo CVM disponível."
+    cvm_context = "Nenhum demonstrativo fundamentalista disponível."
     if asset.cvm_code:
         try:
             from utils.cvm_processor import CVMProcessor
@@ -93,11 +97,27 @@ def execute_get_asset_fundamental_data(session, ticker: str):
                 cards = cvm_data.get("cards_indicadores", [])
                 metrics_str = ", ".join([f"{c['titulo']}: {c.get('valor_formatado') or c.get('valor')}" for c in cards])
                 cvm_context = (
-                    f"Demonstrativos CVM (Data-base: {info.get('data_base')}, Período: {info.get('ultimo_periodo')}):\n"
+                    f"Demonstrativos CVM Ação (Data-base: {info.get('data_base')}, Período: {info.get('ultimo_periodo')}):\n"
                     f"{metrics_str}"
                 )
         except Exception as e:
             cvm_context = f"Erro ao buscar demonstrativos CVM: {str(e)}"
+    elif asset.category and asset.category.name == "FII":
+        try:
+            pos = asset.position
+            if pos and pos.last_report_type:
+                data = json.loads(pos.last_report_type)
+                fundamentalist = data.get("fundamentalist")
+                if fundamentalist:
+                    info = fundamentalist.get("ticker_info", {})
+                    cards = fundamentalist.get("cards_indicadores", [])
+                    metrics_str = ", ".join([f"{c['titulo']}: {c.get('valor_formatado') or c.get('valor')}" for c in cards])
+                    cvm_context = (
+                        f"Demonstrativos FII (Data-base: {info.get('data_base')}, Período: {info.get('ultimo_periodo')}):\n"
+                        f"{metrics_str}"
+                    )
+        except Exception as e:
+            cvm_context = f"Erro ao extrair demonstrativos FII: {str(e)}"
             
     # Obter dados de múltiplos se houver
     mdata_summary = "Dados de mercado indisponíveis."

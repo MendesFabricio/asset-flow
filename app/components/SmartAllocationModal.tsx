@@ -47,25 +47,9 @@ interface SmartAllocationModalProps {
 
 export const SmartAllocationModal = ({ isOpen, onClose, ativos }: SmartAllocationModalProps) => {
   const [amountStr, setAmountStr] = useState('');
-  const [allocation, setAllocation] = useState<AllocationItem[]>([]);
-  const [tooltipData, setTooltipData] = useState<{ x: number, y: number, lines: string[] } | null>(null);
-  const [windowWidth, setWindowWidth] = useState(1024); // Default seguro
-
-  // Modo de simulação: 'local' (client-side original) | 'server' (com correlação)
-  const [mode, setMode] = useState<'local' | 'server'>('local');
   const [serverResult, setServerResult] = useState<ServerRebalanceResult | null>(null);
   const [serverLoading, setServerLoading] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
-
-  // Monitora largura da tela para o Tooltip inteligente
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setTimeout(() => setWindowWidth(window.innerWidth), 0);
-      const handleResize = () => setWindowWidth(window.innerWidth);
-      window.addEventListener('resize', handleResize);
-      return () => window.removeEventListener('resize', handleResize);
-    }
-  }, [])
 
   const parseCurrency = (v: string) => {
     if (!v) return 0;
@@ -74,8 +58,7 @@ export const SmartAllocationModal = ({ isOpen, onClose, ativos }: SmartAllocatio
     return Number.isFinite(n) ? n : 0;
   };
 
-  // Simulação server-side com correlação
-  const handleServerSimulate = useCallback(async () => {
+  const handleSimulate = useCallback(async () => {
     const amount = parseCurrency(amountStr);
     if (!amount || amount <= 0) return;
     setServerLoading(true);
@@ -95,156 +78,10 @@ export const SmartAllocationModal = ({ isOpen, onClose, ativos }: SmartAllocatio
     }
   }, [amountStr]);
 
-  const handleSimulate = () => {
-    if (mode === 'server') { handleServerSimulate(); return; }
-    const amount = parseCurrency(amountStr);
-    if (!amount || amount <= 0) return;
-
-    const POLICY = {
-      // 🔧 1. Disciplina Global: Gasta no máximo X% do aporte total para fechar gaps.
-      // O resto (se houver) vai para expansão ou caixa.
-      REBALANCE_GLOBAL_CAP: amount > 10000 ? 0.50 : 0.70,
-      EXPANSION_CAP: 0.05,
-      MIN_SCORE: 40,
-      MIN_CASH_STOP: 50
-    };
-
-    const validAssets = ativos.filter(a => a.preco_atual > 0 && Number.isFinite(a.preco_atual));
-    const assetMap = new Map(validAssets.map(a => [a.ticker, a]));
-
-    let availableCash = amount;
-    // Controle global de gasto em rebalanceamento
-    let rebalanceSpent = 0;
-    const maxRebalanceGlobal = amount * POLICY.REBALANCE_GLOBAL_CAP;
-
-    const purchaseMap = new Map<string, { qtd: number, custo: number, motivo: string, tipo: 'REBALANCE' | 'EXPANSION', logs: string[] }>();
-
-    // --- TURNO 1: REBALANCEAMENTO (Com Teto Global) ---
-    const rebalanceCandidates = validAssets
-      .filter(a => a.falta_comprar > 0)
-      .sort((a, b) => b.falta_comprar - a.falta_comprar);
-
-    for (const asset of rebalanceCandidates) {
-      if (availableCash < asset.preco_atual) continue;
-
-      // Quanto ainda posso gastar em rebalanceamento HOJE?
-      const remainingRebalanceBudget = Math.max(0, maxRebalanceGlobal - rebalanceSpent);
-
-      // Se acabou o orçamento de rebalanceamento, para o turno 1 (mesmo sobrando caixa)
-      if (remainingRebalanceBudget < asset.preco_atual) break;
-
-      const sharesToFillGap = Math.ceil(asset.falta_comprar / asset.preco_atual);
-      const sharesAffordable = Math.floor(availableCash / asset.preco_atual);
-      const sharesSafety = Math.floor(remainingRebalanceBudget / asset.preco_atual);
-
-      const sharesToBuy = Math.min(sharesToFillGap, sharesAffordable, sharesSafety);
-
-      if (sharesToBuy > 0) {
-        const cost = sharesToBuy * asset.preco_atual;
-
-        const logs = [`Meta em aberto: ${formatMoney(asset.falta_comprar)}`];
-
-        // 🔧 3. Justificativa Rica
-        const impacto = Math.min((cost / asset.falta_comprar) * 100, 100);
-        if (impacto >= 99) logs.push('🎯 Meta totalmente atingida');
-        else logs.push(`📈 Cobre ${impacto.toFixed(0)}% do gap atual`);
-
-        if (sharesSafety < sharesToFillGap && sharesSafety < sharesAffordable) {
-          logs.push(`🔒 Travado pelo Teto de Rebalanceamento (${(POLICY.REBALANCE_GLOBAL_CAP * 100).toFixed(0)}%)`);
-        }
-
-        purchaseMap.set(asset.ticker, {
-          qtd: sharesToBuy,
-          custo: cost,
-          motivo: 'Rebalanceamento',
-          tipo: 'REBALANCE',
-          logs: logs
-        });
-
-        availableCash -= cost;
-        rebalanceSpent += cost;
-      }
-    }
-
-    // --- TURNO 2: EXPANSÃO ---
-    if (availableCash > 100) {
-      const expansionCandidates = validAssets
-        .filter(a =>
-          a.falta_comprar <= 0 &&
-          (a.score || 0) >= POLICY.MIN_SCORE &&
-          (!a.vi_graham || a.preco_atual < a.vi_graham)
-        )
-        .sort((a, b) => (b.score || 0) - (a.score || 0));
-
-      for (const asset of expansionCandidates) {
-        if (availableCash < asset.preco_atual) continue;
-
-        const existing = purchaseMap.get(asset.ticker);
-        if (existing) continue;
-
-        const maxExpansionCash = amount * POLICY.EXPANSION_CAP;
-        const sharesAffordable = Math.floor(availableCash / asset.preco_atual);
-        const sharesCap = Math.floor(maxExpansionCash / asset.preco_atual);
-
-        const sharesToBuy = Math.min(sharesAffordable, sharesCap);
-
-        if (sharesToBuy > 0) {
-          const cost = sharesToBuy * asset.preco_atual;
-
-          const logs = [`Score de Qualidade: ${asset.score}`];
-          if (asset.vi_graham && asset.preco_atual < asset.vi_graham) {
-            logs.push(`Abaixo do V.I. Graham (${formatMoney(asset.vi_graham)})`);
-          }
-          if (sharesCap < sharesAffordable) {
-            logs.push(`🛡️ Pulverização forçada (Max 5%)`);
-          }
-
-          purchaseMap.set(asset.ticker, {
-            qtd: sharesToBuy,
-            custo: cost,
-            motivo: 'Expansão',
-            tipo: 'EXPANSION',
-            logs: logs
-          });
-          availableCash -= cost;
-        }
-        if (availableCash < POLICY.MIN_CASH_STOP) break;
-      }
-    }
-
-    const finalSuggestions: AllocationItem[] = [];
-    purchaseMap.forEach((data, ticker) => {
-      const asset = assetMap.get(ticker);
-      if (asset) {
-        let impacto: number | null = null;
-        if (asset.falta_comprar > 0) {
-          impacto = Math.min((data.custo / asset.falta_comprar) * 100, 100);
-        }
-
-        finalSuggestions.push({
-          ...asset,
-          qtd_compra: data.qtd,
-          custo_total: data.custo,
-          impacto_meta: impacto,
-          motivo_texto: data.motivo,
-          tipo_acao: data.tipo,
-          justificativas: data.logs
-        });
-      }
-    });
-
-    setAllocation(finalSuggestions.sort((a, b) => {
-      if (a.tipo_acao !== b.tipo_acao) return a.tipo_acao === 'REBALANCE' ? -1 : 1;
-      return b.custo_total - a.custo_total;
-    }));
-  };
-
   if (!isOpen) return null;
 
   const valorInput = parseCurrency(amountStr);
-  const totalAlocado = mode === 'local'
-    ? allocation.reduce((acc, item) => acc + item.custo_total, 0)
-    : (serverResult ? serverResult.sugestoes.reduce((acc, s) => acc + s.suggested_value, 0) : 0);
+  const totalAlocado = serverResult ? serverResult.sugestoes.reduce((acc, s) => acc + s.suggested_value, 0) : 0;
   const sobra = valorInput - totalAlocado;
   const highSobra = sobra > (valorInput * 0.05) && sobra > 100;
 
@@ -265,26 +102,6 @@ export const SmartAllocationModal = ({ isOpen, onClose, ativos }: SmartAllocatio
               <X size={18} />
             </button>
           </div>
-        </div>
-
-        {/* MODE SELECTOR */}
-        <div className="px-6 pt-4 flex gap-2">
-          {([
-            { id: 'local', label: 'Simulador Local', icon: Calculator },
-            { id: 'server', label: 'Com Correlação (IA)', icon: Activity },
-          ] as const).map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              onClick={() => setMode(id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
-                mode === id
-                  ? 'bg-purple-600/20 border-purple-500/50 text-purple-300'
-                  : 'bg-slate-800/50 border-slate-700 text-slate-500 hover:text-slate-300'
-              }`}
-            >
-              <Icon size={12} />{label}
-            </button>
-          ))}
         </div>
 
         <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-8 bg-[#0f172a]">
@@ -315,21 +132,20 @@ export const SmartAllocationModal = ({ isOpen, onClose, ativos }: SmartAllocatio
             </button>
           </div>
 
-          {/* SERVER-SIDE RESULTS */}
-          {mode === 'server' && serverError && (
+          {serverError && (
             <div className="bg-red-900/20 border border-red-900/40 rounded-xl p-3 text-sm text-red-400 flex items-center gap-2">
               <AlertTriangle size={14} /> {serverError}
             </div>
           )}
 
-          {mode === 'server' && serverLoading && (
+          {serverLoading && (
             <div className="flex items-center justify-center gap-2 py-8 text-slate-500">
               <RefreshCw size={16} className="animate-spin" />
               <span className="text-sm">Calculando com dados de correlação...</span>
             </div>
           )}
 
-          {mode === 'server' && serverResult && !serverLoading && (
+          {serverResult && !serverLoading && (
             <div className="space-y-4 animate-in slide-in-from-bottom-4 duration-500">
               {/* Resumo do aporte */}
               <div className="grid grid-cols-3 gap-2">
@@ -411,65 +227,7 @@ export const SmartAllocationModal = ({ isOpen, onClose, ativos }: SmartAllocatio
             </div>
           )}
 
-          {/* LOCAL RESULTS */}
-          {mode === 'local' && allocation.length > 0 && (
-            <div className="space-y-4 animate-in slide-in-from-bottom-4 duration-500">
-              <div className="flex justify-between items-end px-1 border-b border-slate-800 pb-2">
-                <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                  <ShoppingCart size={16} className="text-emerald-400" />
-                  Plano de Execução
-                </h3>
-                <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-1 rounded-full border border-slate-700">
-                  {allocation.length} ordens
-                </span>
-              </div>
-
-              <div className="space-y-2">
-                {allocation.map((item) => (
-                  <div key={item.ticker} className="flex items-center justify-between p-3 bg-slate-800/30 border border-slate-800 rounded-xl hover:bg-slate-800/60 transition-colors group relative">
-                    <div className="flex items-center gap-3">
-                      <div className="relative">
-                        <img src={`https://raw.githubusercontent.com/thefintz/icones-b3/main/icones/${item.ticker}.png`} className="w-10 h-10 rounded-full bg-slate-800 object-cover shadow-sm" />
-                        <div className="absolute -bottom-1 -right-1 bg-slate-900 rounded-full p-0.5">
-                          <div className="bg-blue-500/20 text-blue-400 text-[8px] font-bold px-1.5 rounded-full border border-blue-500/30">
-                            +{item.qtd_compra}
-                          </div>
-                        </div>
-                      </div>
-                      <div>
-                        <div className="font-bold text-slate-200 text-sm flex items-center gap-2">
-                          {item.ticker}
-                          <div
-                            className={`text-[9px] font-normal px-1.5 py-0.5 rounded border flex items-center gap-1 cursor-help transition-colors ${item.tipo_acao === 'EXPANSION'
-                              ? 'text-amber-400 bg-amber-900/20 border-amber-900/40 hover:bg-amber-900/40'
-                              : 'text-emerald-400 bg-emerald-900/20 border-emerald-900/40 hover:bg-emerald-900/40'
-                              }`}
-                            onMouseEnter={(e) => {
-                              const rect = e.currentTarget.getBoundingClientRect();
-                              setTooltipData({ x: rect.right, y: rect.top, lines: item.justificativas });
-                            }}
-                            onMouseLeave={() => setTooltipData(null)}
-                          >
-                            {item.tipo_acao === 'EXPANSION' ? <Sparkles size={8} /> : <Target size={8} />}
-                            {item.motivo_texto}
-                            <Info size={8} className="opacity-50 ml-0.5" />
-                          </div>
-                        </div>
-                        <div className="text-[10px] text-slate-500 uppercase font-medium mt-0.5">{item.tipo} • Score {item.score}</div>
-                      </div>
-                    </div>
-
-                    <div className="text-right">
-                      <div className="text-emerald-400 font-bold font-mono text-sm">{formatMoney(item.custo_total)}</div>
-                      <div className="text-[10px] text-slate-600 font-mono">{formatMoney(item.preco_atual)} / un</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {amountStr !== '' && allocation.length === 0 && parseCurrency(amountStr) > 0 && (
+          {amountStr !== '' && serverResult && serverResult.sugestoes.filter(s => s.action === 'COMPRAR').length === 0 && !serverLoading && parseCurrency(amountStr) > 0 && (
             <div className="text-center py-8 text-slate-500 border-t border-slate-800/50 flex flex-col items-center gap-2">
               <AlertTriangle className="text-slate-600" size={24} />
               <p className="text-xs italic">
@@ -480,7 +238,7 @@ export const SmartAllocationModal = ({ isOpen, onClose, ativos }: SmartAllocatio
           )}
         </div>
 
-        {((mode === 'local' && allocation.length > 0) || (mode === 'server' && serverResult && !serverLoading)) && (
+        {serverResult && !serverLoading && (
           <div className="flex flex-col border-t border-slate-800">
             {highSobra && (
               <div className="bg-amber-900/20 px-4 py-2 flex items-start gap-2 border-b border-amber-900/30">
@@ -488,11 +246,7 @@ export const SmartAllocationModal = ({ isOpen, onClose, ativos }: SmartAllocatio
                 <div>
                   <p className="text-[10px] font-bold text-amber-400 uppercase">Proteção de Capital</p>
                   <p className="text-[10px] text-amber-200/70 leading-tight">
-                    <b>{formatMoney(sobra)}</b> preservados. Motivos: {
-                      mode === 'local' 
-                        ? 'Teto global de rebalanceamento atingido ou falta de ativos qualificados para expansão.' 
-                        : 'Efeito de arredondamento de lotes/unidades (compras apenas em unidades inteiras, com exceção da aba Reserva).'
-                    }
+                    <b>{formatMoney(sobra)}</b> preservados. Motivos: Efeito de arredondamento de lotes/unidades (compras apenas em unidades inteiras, com exceção da aba CDB / LCI).
                   </p>
                 </div>
               </div>
@@ -512,32 +266,6 @@ export const SmartAllocationModal = ({ isOpen, onClose, ativos }: SmartAllocatio
           </div>
         )}
       </Card>
-
-      {/* 🚀 TOOLTIP FLUTUANTE INTELIGENTE */}
-      {tooltipData && (
-        <div
-          className="fixed z-[100] animate-in fade-in zoom-in-95 duration-150 pointer-events-none"
-          // 🔧 2. Lógica de Posição Inteligente
-          style={{
-            top: tooltipData.y - 10,
-            left: tooltipData.x > (windowWidth - 220) ? tooltipData.x - 230 : tooltipData.x + 10
-          }}
-        >
-          <div className="bg-slate-900/95 backdrop-blur border border-slate-700 shadow-2xl rounded-lg p-3 w-52 ring-1 ring-black/50">
-            <p className="text-[9px] font-bold text-slate-400 uppercase mb-2 border-b border-slate-800 pb-1">
-              Racional da Escolha
-            </p>
-            <div className="space-y-1.5">
-              {tooltipData.lines.map((line, idx) => (
-                <div key={idx} className="text-[10px] text-slate-300 flex items-start gap-1.5 leading-tight">
-                  <span className="mt-1 w-1 h-1 rounded-full bg-blue-500 shrink-0" />
-                  {line}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

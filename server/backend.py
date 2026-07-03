@@ -18,7 +18,7 @@ from routes.dividends import dividends_bp
 from routes.maintenance import maintenance_bp
 from services import PortfolioService
 from utils.cvm_processor import CVMProcessor
-from routes.finance import finance_bp
+from routes.refunds import refunds_bp
 from routes.market import market_bp, update_market_cache
 from routes.alerts_price import price_alerts_bp, check_price_alerts
 from routes.health import health_bp
@@ -81,7 +81,7 @@ app.register_blueprint(calendar_bp)
 app.register_blueprint(alerts_bp)
 app.register_blueprint(dividends_bp)
 app.register_blueprint(maintenance_bp)
-app.register_blueprint(finance_bp, url_prefix='/api/finance')
+app.register_blueprint(refunds_bp, url_prefix='/api/refunds')
 app.register_blueprint(market_bp, url_prefix='/api/market')
 app.register_blueprint(price_alerts_bp)
 app.register_blueprint(health_bp)
@@ -210,13 +210,21 @@ def get_sync_status():
 
 @app.route('/api/sync-reports', methods=['POST'])
 def sync_reports():
+    is_locked = _SYNC_LOCK.locked()
+    db_status = SYNC_STATE.get("status")
+    
+    if db_status == "processing" and not is_locked:
+        logging.warning("⚠️ Estado órfão de processamento no CVM detectado (sem lock ativo). Forçando reset para idle.")
+        SYNC_STATE.update({"status": "idle", "message": "Sistema pronto."})
+        db_status = "idle"
+
     if not _SYNC_LOCK.acquire(blocking=False):
         return jsonify({
             "status": "Aviso",
             "msg": "Uma sincronização já está em andamento. Aguarde a conclusão."
         }), 409
         
-    if SYNC_STATE.get("status") == "processing":
+    if db_status == "processing":
         _SYNC_LOCK.release()
         return jsonify({
             "status": "Aviso",

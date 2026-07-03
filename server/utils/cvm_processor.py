@@ -51,50 +51,65 @@ class CVMProcessor:
                     list_files = z.namelist()
                     
                     arquivos_alvo = {
-                        'DRE': f"itr_cia_aberta_DRE_con_{ano}.csv",
-                        'BPA': f"itr_cia_aberta_BPA_con_{ano}.csv",
-                        'BPP': f"itr_cia_aberta_BPP_con_{ano}.csv",
-                        'DFC': f"itr_cia_aberta_DFC_MI_con_{ano}.csv" if f"itr_cia_aberta_DFC_MI_con_{ano}.csv" in list_files else f"itr_cia_aberta_DFC_MD_con_{ano}.csv"
+                        'DRE': (f"itr_cia_aberta_DRE_con_{ano}.csv", f"itr_cia_aberta_DRE_ind_{ano}.csv"),
+                        'BPA': (f"itr_cia_aberta_BPA_con_{ano}.csv", f"itr_cia_aberta_BPA_ind_{ano}.csv"),
+                        'BPP': (f"itr_cia_aberta_BPP_con_{ano}.csv", f"itr_cia_aberta_BPP_ind_{ano}.csv"),
+                        'DFC': (f"itr_cia_aberta_DFC_MI_con_{ano}.csv" if f"itr_cia_aberta_DFC_MI_con_{ano}.csv" in list_files else f"itr_cia_aberta_DFC_MD_con_{ano}.csv",
+                                f"itr_cia_aberta_DFC_MI_ind_{ano}.csv" if f"itr_cia_aberta_DFC_MI_ind_{ano}.csv" in list_files else f"itr_cia_aberta_DFC_MD_ind_{ano}.csv")
                     }
 
                     consolidado_per_date = {}
 
-                    for tipo, filename in arquivos_alvo.items():
-                        if filename not in list_files: continue
-                        with z.open(filename) as f:
-                            df = pd.read_csv(f, sep=';', encoding='latin1', low_memory=False)
-                            df.columns = [col.upper() for col in df.columns]
-                            df['CD_CVM'] = df['CD_CVM'].astype(str).str.zfill(6)
-                            df = df[df['CD_CVM'].isin(cvm_codes)]
-                            
-                            for code in cvm_codes:
-                                emp_df = df[df['CD_CVM'] == code]
-                                for dt_refer, grupo in emp_df.groupby('DT_REFER'):
-                                    chave = f"{code}_{dt_refer}"
-                                    if chave not in consolidado_per_date:
-                                        try:
-                                            mes = datetime.strptime(dt_refer, '%Y-%m-%d').month
-                                        except ValueError:
-                                            mes = int(dt_refer.split('-')[1]) if '-' in dt_refer else 1
-                                            
-                                        tri = (mes-1)//3 + 1
-                                        consolidado_per_date[chave] = {
-                                            "cvm_code": code, "ano": ano, "trimestre": tri,
-                                            "label": f"{tri}T{ano}", "data_base": dt_refer, "valores": {}
-                                        }
+                    for tipo, (file_con, file_ind) in arquivos_alvo.items():
+                        df = None
+                        if file_con in list_files:
+                            with z.open(file_con) as f:
+                                df_temp = pd.read_csv(f, sep=';', encoding='latin1', low_memory=False)
+                                df_temp.columns = [col.upper() for col in df_temp.columns]
+                                df_temp['CD_CVM'] = df_temp['CD_CVM'].astype(str).str.zfill(6)
+                                df_temp = df_temp[df_temp['CD_CVM'].isin(cvm_codes)]
+                                if not df_temp.empty:
+                                    df = df_temp
                                     
-                                    for cd_cvm_conta, label in CVMProcessor.CONTAS_MAP.items():
-                                        linha = grupo[grupo['CD_CONTA'] == cd_cvm_conta]
-                                        if linha.empty: 
-                                            continue
-                                            
-                                        # 🛡️ LOOKUP SEGURO CONTRA COLUNAS ALTERNADAS (Evita KeyError)
-                                        colunas_valores = ['VL_CONTA', 'VL_CONT', 'VL_VALOR']
-                                        col_achada = next((c for c in colunas_valores if c in linha.columns), None)
+                        if (df is None or df.empty) and file_ind in list_files:
+                            with z.open(file_ind) as f:
+                                df_temp = pd.read_csv(f, sep=';', encoding='latin1', low_memory=False)
+                                df_temp.columns = [col.upper() for col in df_temp.columns]
+                                df_temp['CD_CVM'] = df_temp['CD_CVM'].astype(str).str.zfill(6)
+                                df_temp = df_temp[df_temp['CD_CVM'].isin(cvm_codes)]
+                                if not df_temp.empty:
+                                    df = df_temp
+                                    
+                        if df is None or df.empty:
+                            continue
+                            
+                        for code in cvm_codes:
+                            emp_df = df[df['CD_CVM'] == code]
+                            for dt_refer, grupo in emp_df.groupby('DT_REFER'):
+                                chave = f"{code}_{dt_refer}"
+                                if chave not in consolidado_per_date:
+                                    try:
+                                        mes = datetime.strptime(dt_refer, '%Y-%m-%d').month
+                                    except ValueError:
+                                        mes = int(dt_refer.split('-')[1]) if '-' in dt_refer else 1
                                         
-                                        if col_achada:
-                                            val = float(linha.iloc[0][col_achada])
-                                            consolidado_per_date[chave]["valores"][label] = consolidado_per_date[chave]["valores"].get(label, 0.0) + val
+                                    tri = (mes-1)//3 + 1
+                                    consolidado_per_date[chave] = {
+                                        "cvm_code": code, "ano": ano, "trimestre": tri,
+                                        "label": f"{tri}T{ano}", "data_base": dt_refer, "valores": {}
+                                    }
+                                
+                                for cd_cvm_conta, label in CVMProcessor.CONTAS_MAP.items():
+                                    linha = grupo[grupo['CD_CONTA'] == cd_cvm_conta]
+                                    if linha.empty: 
+                                        continue
+                                        
+                                    colunas_valores = ['VL_CONTA', 'VL_CONT', 'VL_VALOR']
+                                    col_achada = next((c for c in colunas_valores if c in linha.columns), None)
+                                    
+                                    if col_achada:
+                                        val = float(linha.iloc[0][col_achada])
+                                        consolidado_per_date[chave]["valores"][label] = consolidado_per_date[chave]["valores"].get(label, 0.0) + val
 
                     for data in consolidado_per_date.values():
                         v = data["valores"]

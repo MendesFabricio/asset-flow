@@ -81,6 +81,12 @@ class B3FnetCrawler:
                 if r.status_code == 200:
                     data_list = r.json().get('data', [])
                     if data_list:
+                        # Se for a categoria 'mensal', filtra para pegar apenas "Informe Mensal Estruturado"
+                        if key == "mensal":
+                            filtered = [d for d in data_list if "mensal" in (d.get('tipoDocumento') or d.get('categoriaDocumento') or '').lower()]
+                            if filtered:
+                                data_list = filtered
+
                         # Pega o documento mais recente baseado no ID e Data de Entrega
                         sorted_list = sorted(
                             data_list, 

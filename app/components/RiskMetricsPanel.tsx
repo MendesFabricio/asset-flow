@@ -154,12 +154,16 @@ export function RiskMetricsPanel() {
       }).catch(() => {});
 
     // Busca posições ativas para obter alocação atual
-    apiCall<{ ativos: { ticker: string; percent: number }[] }>('/api/assets')
+    apiCall<any>('/api/assets')
       .then(res => {
-        if (res && res.ativos) {
+        const assetsList = Array.isArray(res) ? res : (res && res.ativos ? res.ativos : []);
+        if (assetsList && assetsList.length > 0) {
+          const totalVal = assetsList.reduce((acc: number, curr: any) => acc + parseFloat(curr.total_atual || 0), 0);
           const mapping: Record<string, number> = {};
-          res.ativos.forEach(a => {
-            mapping[a.ticker.toUpperCase()] = a.percent;
+          assetsList.forEach((a: any) => {
+            const val = parseFloat(a.total_atual || 0);
+            const pct = totalVal > 0 ? (val / totalVal) * 100 : 0;
+            mapping[a.ticker.toUpperCase()] = pct;
           });
           setCurrentAlloc(mapping);
         }

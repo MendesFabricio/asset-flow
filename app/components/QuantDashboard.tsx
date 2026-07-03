@@ -189,9 +189,9 @@ export function QuantDashboard() {
           setDcaError(res.status || 'Falha ao processar simulação.');
         }
       })
-      .catch((err) => {
+      .catch((err: any) => {
         console.error(err);
-        setDcaError('Erro ao comunicar com a API do simulador.');
+        setDcaError(err?.message || 'Erro ao comunicar com a API do simulador.');
       })
       .finally(() => {
         setDcaLoading(false);

@@ -6,14 +6,8 @@ from datetime import datetime
 from tenacity import retry, stop_after_attempt, wait_fixed, retry_if_exception_type
 from sqlalchemy.exc import OperationalError
 
-@retry(
-    stop=stop_after_attempt(3),
-    wait=wait_fixed(1),
-    retry=retry_if_exception_type(OperationalError),
-    reraise=True
-)
 def safe_commit(session):
-    """Commita uma transação no SQLAlchemy com retry automático contra locks do SQLite."""
+    """Commita uma transação no SQLAlchemy de forma direta (locks tratados pelo busy_timeout do SQLite)."""
     session.commit()
 
 Base = declarative_base()
@@ -66,6 +60,7 @@ class Asset(Base):
     ai_sentiment = Column(String, nullable=True)
     ai_status = Column(String, default="idle")
     ai_updated_at = Column(DateTime, nullable=True)
+    upcoming_split = Column(String, nullable=True)
 
 class Position(Base):
     __tablename__ = 'positions'
@@ -140,17 +135,133 @@ class PortfolioSnapshot(Base):
     total_invested = Column(Numeric(18, 4))    
     profit = Column(Numeric(18, 4))   
 
-class Receivable(Base):
-    __tablename__ = "receivables"
+class RefundConfig(Base):
+    __tablename__ = "refund_configs"
+    id = Column(Integer, primary_key=True)
+    fechamento_dia = Column(Integer, default=15)
+    vencimento_dia = Column(Integer, default=20)
 
+class Debtor(Base):
+    __tablename__ = "debtors"
     id = Column(Integer, primary_key=True, index=True)
-    descricao = Column(String)
-    devedor = Column(String)
-    valor_parcela = Column(Numeric(18, 4))
-    parcela_atual = Column(Integer)
-    total_parcelas = Column(Integer)
-    vencimento_dia = Column(Integer)
-    status = Column(String)
+    nome = Column(String, unique=True, nullable=False)
+    foto_url = Column(String, nullable=True)
+    telefone = Column(String, nullable=True)
+    observacoes = Column(String, nullable=True)
+    is_deleted = Column(Boolean, default=False)
+    
+    loans = relationship("ReceivableLoan", back_populates="debtor")
+
+    @property
+    def valor_total_emprestado(self):
+        from decimal import Decimal
+        active_loans = [l for l in self.loans if not l.is_deleted]
+        return sum(Decimal(str(l.valor_total)) for l in active_loans)
+
+    @property
+    def valor_total_recebido(self):
+        from decimal import Decimal
+        total = Decimal('0.0')
+        active_loans = [l for l in self.loans if not l.is_deleted]
+        for l in active_loans:
+            for inst in l.installments:
+                if inst.is_deleted:
+                    continue
+                for t in inst.transactions:
+                    total += Decimal(str(t.valor_pago))
+        return total
+
+    @property
+    def saldo_pendente(self):
+        return self.valor_total_emprestado - self.valor_total_recebido
+
+    @property
+    def data_ultimo_pagamento(self):
+        dates = []
+        active_loans = [l for l in self.loans if not l.is_deleted]
+        for l in active_loans:
+            for inst in l.installments:
+                if inst.is_deleted:
+                    continue
+                for t in inst.transactions:
+                    if t.data_movimentacao:
+                        dates.append(t.data_movimentacao)
+        return max(dates) if dates else None
+
+    @property
+    def data_primeiro_emprestimo(self):
+        dates = [l.data_emprestimo for l in self.loans if not l.is_deleted and l.data_emprestimo]
+        return min(dates) if dates else None
+
+    @property
+    def data_ultimo_contato(self):
+        dates = []
+        active_loans = [l for l in self.loans if not l.is_deleted]
+        for l in active_loans:
+            if l.data_emprestimo:
+                dates.append(l.data_emprestimo)
+            for inst in l.installments:
+                if inst.is_deleted:
+                    continue
+                for t in inst.transactions:
+                    if t.data_movimentacao:
+                        dates.append(t.data_movimentacao)
+        return max(dates) if dates else None
+
+class ReceivableLoan(Base):
+    __tablename__ = "receivable_loans"
+    id = Column(Integer, primary_key=True, index=True)
+    debtor_id = Column(Integer, ForeignKey('debtors.id', ondelete="CASCADE"), nullable=False)
+    descricao = Column(String, nullable=False)
+    categoria = Column(String, nullable=True)
+    data_emprestimo = Column(DateTime, default=datetime.now)
+    valor_total = Column(Numeric(18, 4), nullable=False)
+    is_parcelado = Column(Boolean, default=False)
+    total_parcelas = Column(Integer, default=1)
+    status = Column(String, default="PENDENTE")  # "PENDENTE" | "PARCIAL" | "LIQUIDADO"
+    observacoes = Column(String, nullable=True)
+    fatura_mes = Column(String, nullable=True)
+    is_deleted = Column(Boolean, default=False)
+
+    debtor = relationship("Debtor", back_populates="loans")
+    installments = relationship("LoanInstallment", back_populates="loan", cascade="all, delete-orphan")
+
+class LoanInstallment(Base):
+    __tablename__ = "loan_installments"
+    id = Column(Integer, primary_key=True, index=True)
+    loan_id = Column(Integer, ForeignKey('receivable_loans.id', ondelete="CASCADE"), nullable=False)
+    numero_parcela = Column(Integer, nullable=False)
+    valor_parcela = Column(Numeric(18, 4), nullable=False)
+    data_vencimento = Column(DateTime, nullable=False)
+    status = Column(String, default="ABERTA")  # "ABERTA" | "PAGA" | "ATRASADA"
+    data_efetiva_pagamento = Column(DateTime, nullable=True)
+    observacoes = Column(String, nullable=True)
+    fatura_mes = Column(String, nullable=True)
+    is_deleted = Column(Boolean, default=False)
+
+    loan = relationship("ReceivableLoan", back_populates="installments")
+    transactions = relationship("PaymentTransaction", back_populates="installment", cascade="all, delete-orphan")
+
+class PaymentTransaction(Base):
+    __tablename__ = "payment_transactions"
+    id = Column(Integer, primary_key=True, index=True)
+    installment_id = Column(Integer, ForeignKey('loan_installments.id', ondelete="CASCADE"), nullable=False)
+    valor_pago = Column(Numeric(18, 4), nullable=False)
+    data_movimentacao = Column(DateTime, default=datetime.now)
+    tipo_movimentacao = Column(String, nullable=False)  # "PARCIAL" | "ANTECIPADO" | "ATRASADO" | "EXCESSO" | "MENOR"
+    forma_pagamento = Column(String, nullable=True)
+
+    installment = relationship("LoanInstallment", back_populates="transactions")
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+    id = Column(Integer, primary_key=True)
+    tabela_afetada = Column(String, nullable=False)
+    registro_id = Column(Integer, nullable=False)
+    campo_alterado = Column(String, nullable=False)
+    valor_antigo = Column(String, nullable=True)
+    valor_novo = Column(String, nullable=True)
+    alterado_em = Column(DateTime, default=datetime.now)
 
 class PriceAlert(Base):
     """
@@ -326,7 +437,7 @@ def init_db():
         except Exception as e:
             logging.error(f"❌ Falha ao copiar banco de dados inicial: {e}")
 
-    Base.metadata.create_all(engine)
+    # Base.metadata.create_all(engine)
     from sqlalchemy import inspect, text
     try:
         inspector = inspect(engine)
@@ -342,6 +453,15 @@ def init_db():
                 conn.execute(text("ALTER TABLE assets ADD COLUMN ai_status TEXT DEFAULT 'idle'"))
             if 'ai_updated_at' not in columns_assets:
                 conn.execute(text("ALTER TABLE assets ADD COLUMN ai_updated_at DATETIME"))
+            if 'upcoming_split' not in columns_assets:
+                conn.execute(text("ALTER TABLE assets ADD COLUMN upcoming_split TEXT"))
+                
+        # Seed inicial de RefundConfig se estiver vazio
+        if inspector.has_table('refund_configs'):
+            with engine.begin() as conn:
+                res = conn.execute(text("SELECT COUNT(*) FROM refund_configs")).fetchone()
+                if res and res[0] == 0:
+                    conn.execute(text("INSERT INTO refund_configs (id, fechamento_dia, vencimento_dia) VALUES (1, 15, 20)"))
                 
         # Migração estrutural da tabela price_alerts de ticker para asset_id (3FN)
         has_old = inspector.has_table('old_price_alerts')

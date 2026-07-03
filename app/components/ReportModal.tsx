@@ -57,12 +57,31 @@ const ReportModal = ({ isOpen, onClose, ativo }: ReportModalProps) => {
     const [activeTab, setActiveTab] = useState<'docs' | 'saude'>('docs');
     const [subTab, setSubTab] = useState<'eficiencia' | 'divida' | 'rentabilidade'>('eficiencia');
     const [hoveredBar, setHoveredBar] = useState<number | null>(null);
-    const { isHidden } = usePrivacy() as { isHidden: boolean }; // 🧼 Removido 'as any'
+    const { isHidden } = usePrivacy() as { isHidden: boolean };
 
     useEffect(() => {
         const timer = setTimeout(() => {
             setMounted(true);
-            if (ativo?.tipo === 'Ação') setActiveTab('saude');
+            let hasFundamentalist = false;
+            try {
+                const rawData = (ativo as any)?.last_report_type;
+                if (typeof rawData === 'string' && rawData.trim().startsWith('{')) {
+                    const parsedData = JSON.parse(rawData);
+                    if (parsedData.fundamentalist !== undefined) {
+                        hasFundamentalist = !!parsedData.fundamentalist;
+                    } else {
+                        hasFundamentalist = ativo?.tipo === 'Ação';
+                    }
+                }
+            } catch (e) {
+                hasFundamentalist = ativo?.tipo === 'Ação';
+            }
+
+            if (hasFundamentalist) {
+                setActiveTab('saude');
+            } else {
+                setActiveTab('docs');
+            }
         }, 0);
         return () => {
             clearTimeout(timer);
@@ -72,8 +91,8 @@ const ReportModal = ({ isOpen, onClose, ativo }: ReportModalProps) => {
 
     if (!isOpen || !ativo || !mounted) return null;
 
-    let reports: ReportItem[] = []; // 🧼 Substituído 'any[]' por tipo estrito
-    let fundamentalist: FundamentalistData | null = (ativo as Asset & { fundamentalist_data?: FundamentalistData }).fundamentalist_data || null;
+    let reports: ReportItem[] = [];
+    let fundamentalist: FundamentalistData | null = null;
 
     try {
         const extAtivo = ativo as Asset & { last_report_type?: string; last_report_url?: string; last_report_at?: string };
@@ -81,10 +100,15 @@ const ReportModal = ({ isOpen, onClose, ativo }: ReportModalProps) => {
         const rawData = extAtivo.last_report_type;
         if (typeof rawData === 'string' && rawData.trim().startsWith('{')) {
             const parsedData = JSON.parse(rawData);
-            if (ativo.tipo === 'Ação') {
-                fundamentalist = parsedData as FundamentalistData;
+            if (parsedData.fundamentalist !== undefined || parsedData.reports !== undefined) {
+                fundamentalist = parsedData.fundamentalist || null;
+                reports = parsedData.reports || [];
             } else {
-                reports = Object.values(parsedData) as ReportItem[];
+                if (ativo.tipo === 'Ação') {
+                    fundamentalist = parsedData as FundamentalistData;
+                } else {
+                    reports = Object.values(parsedData) as ReportItem[];
+                }
             }
         }
         // Fallback para quando não há JSON, mas há URL
@@ -92,7 +116,7 @@ const ReportModal = ({ isOpen, onClose, ativo }: ReportModalProps) => {
             reports = [{
                 link: extAtivo.last_report_url,
                 date: extAtivo.last_report_at || "Recente",
-                type: (typeof rawData === 'string' && rawData.length > 2) ? rawData : "Relatório Geral"
+                type: "Relatório Geral"
             }];
         }
     } catch (e) {

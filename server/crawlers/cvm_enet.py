@@ -1,6 +1,9 @@
 # server/crawlers/cvm_enet.py
 import requests
 from requests.adapters import HTTPAdapter
+# server/crawlers/cvm_enet.py
+import requests
+from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
 import json
 import logging
@@ -8,7 +11,7 @@ import threading
 from datetime import datetime
 
 class CVMEnetCrawler:
-    URL_LISTA = "https://www.rad.cvm.gov.br/ENET/FrmGerenciarDocumentos.aspx/ListarDocumentos"
+    URL_LISTA = "https://www.rad.cvm.gov.br/ENET/frmConsultaExternaCVM.aspx/ListarDocumentos"
     
     # ⚡ COMPARTILHAMENTO DE CONEXÃO: Instâncias de controle para reuso seguro de sockets HTTP
     _session = None
@@ -49,7 +52,7 @@ class CVMEnetCrawler:
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
             "X-Requested-With": "XMLHttpRequest",
             "Origin": "https://www.rad.cvm.gov.br",
-            "Referer": f"https://www.rad.cvm.gov.br/ENET/Consulta/FrmGerenciarDocumentos.aspx?CodigoCVM={cvm_code}",
+            "Referer": f"https://www.rad.cvm.gov.br/ENET/frmConsultaExternaCVM.aspx?CodigoCVM={cvm_code}",
             "Connection": "keep-alive"
         }
 
@@ -70,15 +73,23 @@ class CVMEnetCrawler:
 
         for key, cat_id in filtros.items():
             payload = {
-                "data": {
-                    "idAgrupamento": 0,
-                    "tipoConsultar": "C",
-                    "codCVM": str(cvm_code),
-                    "dataInicio": data_inicio,
-                    "dataFim": data_fim,
-                    "idCategoriaDocumento": cat_id,
-                    "setorSetorial": "0"
-                }
+                "dataDe": data_inicio,
+                "dataAte": data_fim,
+                "empresa": str(cvm_code),
+                "setorAtividade": "-1",
+                "categoriaEmissor": "-1",
+                "situacaoEmissor": "-1",
+                "tipoParticipante": "-1",
+                "dataReferencia": "",
+                "categoria": cat_id,
+                "periodo": "2",
+                "horaIni": "",
+                "horaFim": "",
+                "palavraChave": "",
+                "ultimaDtRef": "false",
+                "tipoEmpresa": "0",
+                "token": "",
+                "versaoCaptcha": ""
             }
 
             try:
@@ -86,26 +97,61 @@ class CVMEnetCrawler:
                 r = session.post(cls.URL_LISTA, json=payload, headers=headers, timeout=15)
                 
                 if r.status_code == 200:
-                    response_json = r.json()
-                    d_data = json.loads(response_json.get('d', '{}'))
-                    docs = d_data.get('data', [])
-                    
-                    if docs:
-                        # Ordena para pegar o protocolo mais recente de forma segura contra tipos nulos
-                        doc = sorted(docs, key=lambda x: int(x.get('Protocolo', 0) or 0), reverse=True)[0]
-                        
-                        link_direto = (
-                            f"https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?"
-                            f"Tela=ext&numSequencia={doc.get('Sequencia')}&numVersao={doc.get('Versao')}&"
-                            f"numProtocolo={doc.get('Protocolo')}&descTipo=IPE&CodigoInstituicao=1"
-                        )
-                        
-                        package[key] = {
-                            "link": link_direto,
-                            "date": doc.get('DataEntrega'),
-                            "ref_date": "ITR/DFP" if key == "balanco" else "Fato Rel.",
-                            "type": doc.get('DescricaoCategoria')
-                        }
+                    response_data = r.json()
+                    d_val = response_data.get('d')
+                    if isinstance(d_val, str):
+                        try:
+                            d_data = json.loads(d_val)
+                        except Exception:
+                            d_data = {}
+                    elif isinstance(d_val, dict):
+                        d_data = d_val
+                    else:
+                        d_data = {}
+
+                    dados_str = d_data.get('dados') or d_data.get('data') or ''
+                    if isinstance(dados_str, str) and dados_str:
+                        rows = dados_str.split('$&$&&*')
+                        valid_rows = []
+                        for row in rows:
+                            fields = row.split('$&')
+                            if len(fields) >= 11:
+                                import re
+                                match = re.search(r"OpenDownloadDocumentos\('(\d+)','(\d+)','([^']+)','([^']+)'\)", fields[10])
+                                if match:
+                                    numSeq, numVer, numProt, descT = match.groups()
+                                    link = (
+                                        f"https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?"
+                                        f"Tela=ext&numSequencia={numSeq}&numVersao={numVer}&"
+                                        f"numProtocolo={numProt}&descTipo={descT}&CodigoInstituicao=1"
+                                    )
+                                    
+                                    d_ent = re.search(r"(\d{2}/\d{2}/\d{4})", fields[6])
+                                    data_entrega = d_ent.group(1) if d_ent else "Recente"
+                                    
+                                    d_ref = re.search(r"(\d{2}/\d{2}/\d{4})", fields[5])
+                                    data_ref = d_ref.group(1) if d_ref else "ITR/DFP"
+                                    
+                                    try:
+                                        proto_num = int(numSeq)
+                                    except Exception:
+                                        proto_num = 0
+                                        
+                                    valid_rows.append({
+                                        "proto_num": proto_num,
+                                        "link": link,
+                                        "date": data_entrega,
+                                        "ref_date": data_ref,
+                                        "type": fields[2]
+                                    })
+                        if valid_rows:
+                            newest = sorted(valid_rows, key=lambda x: x["proto_num"], reverse=True)[0]
+                            package[key] = {
+                                "link": newest["link"],
+                                "date": newest["date"],
+                                "ref_date": newest["ref_date"],
+                                "type": newest["type"]
+                            }
                 else:
                     logging.warning(f"⚠️ Resposta inesperada do ENET CVM para o código {cvm_code} [{key}]: HTTP {r.status_code}")
             except Exception as e:
