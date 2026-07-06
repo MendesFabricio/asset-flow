@@ -349,16 +349,6 @@ export default function Home() {
                 <CategorySummary ativos={data?.ativos || []} categorias={(data as any)?.categorias || []} onUpdate={() => refetch()} />
               </div>
             </div>
-
-            {/* MONTE CARLO */}
-            <div className="w-full relative z-0">
-              <MonteCarloChart />
-            </div>
-
-            {/* ATRIBUIÇÃO DE PERFORMANCE */}
-            <div className="w-full">
-              <RiskMetricsPanel />
-            </div>
           </div>
         )}
 
@@ -375,8 +365,12 @@ export default function Home() {
         )}
 
         {tab === 'Quantitativo' && (
-          <div className="animate-in fade-in w-full">
+          <div className="flex flex-col gap-6 animate-in fade-in w-full">
             <QuantDashboard />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 relative z-0">
+              <MonteCarloChart />
+              <RiskMetricsPanel />
+            </div>
           </div>
         )}
 
