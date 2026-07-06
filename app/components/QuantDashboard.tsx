@@ -72,9 +72,16 @@ export function QuantDashboard() {
     ])
       .then(([fg, rep]) => {
         if (fg.status === 'Sucesso') setFearGreedData(fg.data);
+        else setFearGreedData(null);
+
         if (rep.status === 'Sucesso') setReportsList(rep.reports || []);
+        else setReportsList([]);
       })
-      .catch((err) => console.error(err))
+      .catch((err) => {
+        console.error(err);
+        setFearGreedData(null);
+        setReportsList([]);
+      })
       .finally(() => setLoadingReports(false));
   };
 
@@ -129,21 +136,38 @@ export function QuantDashboard() {
     ])
       .then(([frontier, rebalance, attribution, kelly, momentum, sharpe]) => {
         if (frontier.status === 'Sucesso') setFrontierData(frontier);
+        else setFrontierData(null);
+
         if (rebalance.status === 'Sucesso') setRebalanceData(rebalance);
+        else setRebalanceData(null);
+
         if (attribution.status === 'Sucesso') setAttributionData(attribution);
+        else setAttributionData(null);
+
         if (kelly.status === 'Sucesso') setKellyData(kelly);
+        else setKellyData(null);
+
         if (momentum.status === 'Sucesso') setMomentumData(momentum);
+        else setMomentumData(null);
         
         if (sharpe.status === 'Sucesso') {
           setSharpeData(sharpe);
           // Adiciona portfolio e os 3 primeiros tickers à exibição inicial
           const keys = Object.keys(sharpe.series);
           setSharpeFilter(keys.slice(0, 4));
+        } else {
+          setSharpeData(null);
         }
       })
       .catch((err) => {
         console.error(err);
         setError('Erro ao carregar os dados quantitativos. Verifique a conexão com o servidor.');
+        setFrontierData(null);
+        setRebalanceData(null);
+        setAttributionData(null);
+        setKellyData(null);
+        setMomentumData(null);
+        setSharpeData(null);
       })
       .finally(() => {
         setLoading(false);

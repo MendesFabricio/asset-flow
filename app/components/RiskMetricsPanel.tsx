@@ -134,10 +134,16 @@ export function RiskMetricsPanel() {
     apiCall<RiskMetrics>('/api/risk-metrics', { signal: abortRef.current.signal })
       .then((d: RiskMetrics) => {
         if (d.status === 'Sucesso') setData(d);
-        else setError(d.msg || 'Erro ao carregar métricas.');
+        else {
+          setData(null);
+          setError(d.msg || 'Erro ao carregar métricas.');
+        }
       })
       .catch(e => {
-        if (e.name !== 'AbortError') setError('Falha ao conectar ao servidor.');
+        if (e.name !== 'AbortError') {
+          setData(null);
+          setError('Falha ao conectar ao servidor.');
+        }
       })
       .finally(() => setLoading(false));
 
@@ -145,13 +151,15 @@ export function RiskMetricsPanel() {
     apiCall<{ status: string; weights: Record<string, number> }>('/api/simulation/optimize')
       .then(res => {
         if (res.status === 'Sucesso') setMarkowitz(res.weights);
-      }).catch(() => {});
+        else setMarkowitz({});
+      }).catch(() => setMarkowitz({}));
 
     // Busca paridade de risco
     apiCall<{ status: string; weights: Record<string, number> }>('/api/simulation/risk-parity')
       .then(res => {
         if (res.status === 'Sucesso') setRiskParity(res.weights);
-      }).catch(() => {});
+        else setRiskParity({});
+      }).catch(() => setRiskParity({}));
 
     // Busca posições ativas para obter alocação atual
     apiCall<any>('/api/assets')

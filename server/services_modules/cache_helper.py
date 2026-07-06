@@ -29,12 +29,21 @@ class CacheHelperService:
 
     def _invalidate_quant_cache(self, session):
         try:
-            session.query(SystemCache).filter(SystemCache.key.in_(["risk_metrics_cache", "correlation_matrix_cache", "efficient_frontier"])).delete()
+            user_id = getattr(self, "current_user_id", None)
+            keys = ["risk_metrics_cache", "correlation_matrix_cache", "efficient_frontier"]
+            if user_id:
+                keys_to_del = keys + [f"{k}_{user_id}" for k in keys]
+            else:
+                keys_to_del = keys
+            session.query(SystemCache).filter(SystemCache.key.in_(keys_to_del)).delete()
         except Exception as e:
             logging.warning(f"Falha ao invalidar cache quant: {e}")
 
     def _get_cached_value(self, session, key, ttl_seconds=3600):
         try:
+            user_id = getattr(self, "current_user_id", None)
+            if user_id and key in ["risk_metrics_cache", "correlation_matrix_cache", "efficient_frontier"]:
+                key = f"{key}_{user_id}"
             cache = session.query(SystemCache).filter_by(key=key).first()
             if cache and datetime.now() - cache.updated_at < timedelta(seconds=ttl_seconds):
                 return json.loads(cache.value)
@@ -44,6 +53,9 @@ class CacheHelperService:
 
     def _set_cached_value(self, session, key, value):
         try:
+            user_id = getattr(self, "current_user_id", None)
+            if user_id and key in ["risk_metrics_cache", "correlation_matrix_cache", "efficient_frontier"]:
+                key = f"{key}_{user_id}"
             cache = session.query(SystemCache).filter_by(key=key).first()
             if not cache:
                 cache = SystemCache(key=key)
