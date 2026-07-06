@@ -22,7 +22,6 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
-
     # 🔒 LIMITES
     mem_limit: 2g
     cpus: 1.0
@@ -69,7 +68,7 @@ services:
     volumes:
       - .:/app
       - /app/node_modules
-    command: npm run dev
+    command: sh -c "npm run build && npm start"
     depends_on:
       - backend
 

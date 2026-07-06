@@ -1,5 +1,5 @@
 # server/routes/refunds.py
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, g
 from database.models import Session, RefundConfig, Debtor, ReceivableLoan, LoanInstallment, PaymentTransaction, AuditLog, safe_commit
 from sqlalchemy.orm import joinedload
 from datetime import datetime, date
@@ -91,7 +91,7 @@ def handle_debtors():
                 return jsonify({"status": "Erro", "msg": "Nome é obrigatório"}), 400
                 
             # Check if exists (soft deleted or active)
-            existing = db.query(Debtor).filter_by(nome=nome).first()
+            existing = db.query(Debtor).filter_by(nome=nome, user_id=g.user_id).first()
             if existing:
                 if existing.is_deleted:
                     existing.is_deleted = False
@@ -122,7 +122,7 @@ def handle_debtors():
             joinedload(Debtor.loans)
             .joinedload(ReceivableLoan.installments)
             .joinedload(LoanInstallment.transactions)
-        ).filter(Debtor.is_deleted == False)
+        ).filter(Debtor.user_id == g.user_id, Debtor.is_deleted == False)
         if q:
             query = query.filter(Debtor.nome.ilike(f"%{q}%"))
             
@@ -144,7 +144,7 @@ def handle_debtors():
 @refunds_bp.route('/debtors/<int:id>', methods=['DELETE'])
 def delete_debtor(id):
     with Session() as db:
-        debtor = db.query(Debtor).filter_by(id=id, is_deleted=False).first()
+        debtor = db.query(Debtor).filter_by(id=id, user_id=g.user_id, is_deleted=False).first()
         if not debtor:
             return jsonify({"status": "Erro", "msg": "Devedor não encontrado"}), 404
             
@@ -185,7 +185,7 @@ def handle_loans():
             if not debtor_id or not descricao or valor_total <= 0:
                 return jsonify({"status": "Erro", "msg": "Campos obrigatórios inválidos ou ausentes"}), 400
                 
-            debtor = db.query(Debtor).filter_by(id=debtor_id, is_deleted=False).first()
+            debtor = db.query(Debtor).filter_by(id=debtor_id, user_id=g.user_id, is_deleted=False).first()
             if not debtor:
                 return jsonify({"status": "Erro", "msg": "Devedor não encontrado"}), 404
                 
@@ -251,7 +251,7 @@ def handle_loans():
         query = db.query(ReceivableLoan).options(
             joinedload(ReceivableLoan.debtor),
             joinedload(ReceivableLoan.installments).joinedload(LoanInstallment.transactions)
-        ).filter(ReceivableLoan.is_deleted == False)
+        ).filter(ReceivableLoan.user_id == g.user_id, ReceivableLoan.is_deleted == False)
         if debtor_id:
             query = query.filter(ReceivableLoan.debtor_id == debtor_id)
             
@@ -286,7 +286,7 @@ def handle_loans():
 @refunds_bp.route('/loans/<int:id>', methods=['DELETE'])
 def delete_loan(id):
     with Session() as db:
-        loan = db.query(ReceivableLoan).filter_by(id=id, is_deleted=False).first()
+        loan = db.query(ReceivableLoan).filter_by(id=id, user_id=g.user_id, is_deleted=False).first()
         if not loan:
             return jsonify({"status": "Erro", "msg": "Empréstimo não encontrado"}), 404
             
@@ -418,7 +418,7 @@ def pay_installment(id):
         return jsonify({"status": "Erro", "msg": "Valor deve ser maior que zero"}), 400
         
     with Session() as db:
-        inst = db.query(LoanInstallment).filter_by(id=id, is_deleted=False).first()
+        inst = db.query(LoanInstallment).filter_by(id=id, user_id=g.user_id, is_deleted=False).first()
         if not inst:
             return jsonify({"status": "Erro", "msg": "Parcela não encontrada"}), 404
             
@@ -440,7 +440,7 @@ def pay_batch():
         
     with Session() as db:
         count = 0
-        installments = db.query(LoanInstallment).filter(LoanInstallment.id.in_(ids), LoanInstallment.is_deleted == False).all()
+        installments = db.query(LoanInstallment).filter(LoanInstallment.id.in_(ids), LoanInstallment.user_id == g.user_id, LoanInstallment.is_deleted == False).all()
         
         for inst in installments:
             if inst.status == 'PAGA':
@@ -459,12 +459,12 @@ def get_dashboard_data():
     with Session() as db:
         loans = db.query(ReceivableLoan).options(
             joinedload(ReceivableLoan.debtor)
-        ).filter(ReceivableLoan.is_deleted == False).all()
+        ).filter(ReceivableLoan.user_id == g.user_id, ReceivableLoan.is_deleted == False).all()
         
         installments = db.query(LoanInstallment).options(
             joinedload(LoanInstallment.transactions),
             joinedload(LoanInstallment.loan).joinedload(ReceivableLoan.debtor)
-        ).filter(LoanInstallment.is_deleted == False).all()
+        ).filter(LoanInstallment.user_id == g.user_id, LoanInstallment.is_deleted == False).all()
         
         total_emprestado = sum(l.valor_total for l in loans)
         
@@ -486,7 +486,7 @@ def get_dashboard_data():
             joinedload(Debtor.loans)
             .joinedload(ReceivableLoan.installments)
             .joinedload(LoanInstallment.transactions)
-        ).filter(Debtor.is_deleted == False).all()
+        ).filter(Debtor.user_id == g.user_id, Debtor.is_deleted == False).all()
         maior_devedor_nome = "Nenhum"
         maior_devedor_saldo = Decimal('0.0')
         for d in debtors:
@@ -576,12 +576,12 @@ def update_debtor(id):
         return jsonify({"status": "Erro", "msg": "Nome é obrigatório"}), 400
         
     with Session() as db:
-        debtor = db.query(Debtor).filter_by(id=id, is_deleted=False).first()
+        debtor = db.query(Debtor).filter_by(id=id, user_id=g.user_id, is_deleted=False).first()
         if not debtor:
             return jsonify({"status": "Erro", "msg": "Devedor não encontrado"}), 404
             
         if nome != debtor.nome:
-            duplicate = db.query(Debtor).filter_by(nome=nome).first()
+            duplicate = db.query(Debtor).filter_by(nome=nome, user_id=g.user_id).first()
             if duplicate and not duplicate.is_deleted:
                 return jsonify({"status": "Erro", "msg": "Já existe outro devedor ativo com este nome"}), 400
                 
@@ -611,7 +611,7 @@ def update_loan(id):
         return jsonify({"status": "Erro", "msg": "Descrição é obrigatória"}), 400
         
     with Session() as db:
-        loan = db.query(ReceivableLoan).filter_by(id=id, is_deleted=False).first()
+        loan = db.query(ReceivableLoan).filter_by(id=id, user_id=g.user_id, is_deleted=False).first()
         if not loan:
             return jsonify({"status": "Erro", "msg": "Empréstimo não encontrado"}), 404
             
@@ -643,7 +643,7 @@ def pay_global_debtor(id):
         return jsonify({"status": "Erro", "msg": "Valor de pagamento deve ser maior que zero"}), 400
         
     with Session() as db:
-        debtor = db.query(Debtor).filter_by(id=id, is_deleted=False).first()
+        debtor = db.query(Debtor).filter_by(id=id, user_id=g.user_id, is_deleted=False).first()
         if not debtor:
             return jsonify({"status": "Erro", "msg": "Devedor não encontrado"}), 404
             
@@ -655,6 +655,7 @@ def pay_global_debtor(id):
             db.query(LoanInstallment)
             .filter(
                 LoanInstallment.loan_id.in_(active_loan_ids),
+                LoanInstallment.user_id == g.user_id,
                 LoanInstallment.status.in_(["ABERTA", "ATRASADA"]),
                 LoanInstallment.is_deleted == False
             )

@@ -1,5 +1,5 @@
 # server/routes/credit_cards.py
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, g
 from database.models import Session, CreditCard, CardExpense, CardInstallment, safe_commit
 from datetime import datetime, date
 import calendar
@@ -62,7 +62,7 @@ def handle_cards():
             return jsonify({"msg": "Cartão de crédito criado com sucesso!"}), 201
             
         # GET
-        cards = db.query(CreditCard).filter_by(is_deleted=False).all()
+        cards = db.query(CreditCard).filter_by(user_id=g.user_id, is_deleted=False).all()
         return jsonify([{
             "id": c.id,
             "name": c.name,
@@ -74,7 +74,7 @@ def handle_cards():
 @cards_bp.route('/api/credit-cards/<int:id>', methods=['PUT', 'DELETE'])
 def handle_single_card(id):
     with Session() as db:
-        card = db.query(CreditCard).filter_by(id=id, is_deleted=False).first()
+        card = db.query(CreditCard).filter_by(id=id, user_id=g.user_id, is_deleted=False).first()
         if not card:
             return jsonify({"status": "Erro", "msg": "Cartão não encontrado"}), 404
             
@@ -105,7 +105,7 @@ def handle_single_card(id):
 @cards_bp.route('/api/credit-cards/<int:card_id>/expenses', methods=['GET', 'POST'])
 def handle_expenses(card_id):
     with Session() as db:
-        card = db.query(CreditCard).filter_by(id=card_id, is_deleted=False).first()
+        card = db.query(CreditCard).filter_by(id=card_id, user_id=g.user_id, is_deleted=False).first()
         if not card:
             return jsonify({"status": "Erro", "msg": "Cartão não encontrado"}), 404
             
@@ -171,7 +171,7 @@ def handle_expenses(card_id):
         expenses = (
             db.query(CardExpense)
             .options(joinedload(CardExpense.installments))
-            .filter_by(card_id=card_id, is_deleted=False)
+            .filter_by(card_id=card_id, user_id=g.user_id, is_deleted=False)
             .order_by(CardExpense.id.desc())
             .all()
         )
@@ -195,7 +195,7 @@ def handle_expenses(card_id):
 @cards_bp.route('/api/credit-cards/installments/<int:id>/pay', methods=['POST'])
 def pay_installment(id):
     with Session() as db:
-        inst = db.query(CardInstallment).filter_by(id=id, is_deleted=False).first()
+        inst = db.query(CardInstallment).filter_by(id=id, user_id=g.user_id, is_deleted=False).first()
         if not inst:
             return jsonify({"status": "Erro", "msg": "Parcela não encontrada"}), 404
             
@@ -211,12 +211,16 @@ def pay_installment(id):
 @cards_bp.route('/api/credit-cards/dashboard', methods=['GET'])
 def get_dashboard():
     with Session() as db:
-        cards = db.query(CreditCard).filter_by(is_deleted=False).all()
+        cards = db.query(CreditCard).filter_by(user_id=g.user_id, is_deleted=False).all()
         installments = (
             db.query(CardInstallment)
             .join(CardExpense)
             .join(CreditCard)
-            .filter(CardInstallment.is_deleted == False, CreditCard.is_deleted == False)
+            .filter(
+                CardInstallment.is_deleted == False,
+                CreditCard.is_deleted == False,
+                CreditCard.user_id == g.user_id
+            )
             .all()
         )
         

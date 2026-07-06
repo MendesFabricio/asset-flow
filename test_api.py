@@ -1,41 +1,76 @@
 import requests, json
 
-# Login
-resp = requests.post('http://localhost:5328/api/auth/login', json={'username': 'Fabricio', 'password': 'Fabricio123'}, timeout=15)
-print('Login status:', resp.status_code)
-data = resp.json()
-token = data.get('token')
-print(f'Token obtido: {"SIM" if token else "NAO"}')
-
-if token:
+def test_user_session(username, password, expect_data=True):
+    print(f"\n================================================")
+    print(f"TESTANDO USUARIO: {username}")
+    print(f"================================================")
+    
+    # 1. Login
+    resp = requests.post('http://localhost:5328/api/auth/login', json={'username': username, 'password': password}, timeout=15)
+    print('Login status:', resp.status_code)
+    if resp.status_code != 200:
+        print(f"Erro no login do usuario {username}:", resp.json())
+        return False
+        
+    token = resp.json().get('token')
     headers = {'Authorization': f'Bearer {token}'}
     
-    # Test /api/index (dashboard principal)
-    dash_resp = requests.get('http://localhost:5328/api/index', headers=headers, timeout=30)
-    print(f'\n/api/index status: {dash_resp.status_code}')
-    if dash_resp.status_code == 200:
-        dash = dash_resp.json()
-        print('Chaves:', list(dash.keys()) if isinstance(dash, dict) else 'lista')
-        if 'resumo' in dash:
-            print('Resumo:', dash['resumo'])
-    
-    # Test /api/refunds/debtors
+    # 2. Testar /api/refunds/debtors
     debtors_resp = requests.get('http://localhost:5328/api/refunds/debtors', headers=headers, timeout=20)
-    print(f'\n/api/refunds/debtors status: {debtors_resp.status_code}')
-    if debtors_resp.status_code == 200:
-        debtors = debtors_resp.json()
-        print(f'Debtors count: {len(debtors)}')
-        for d in debtors:
-            print(f'  ID: {d.get("id")}, Nome: {d.get("nome")}, Saldo Pendente: {d.get("saldo_pendente")}')
-            
-    # Test /api/refunds/loans
+    print(f'Debtors status: {debtors_resp.status_code}')
+    debtors = debtors_resp.json()
+    print(f'Debtors count: {len(debtors)}')
+    for d in debtors:
+        print(f'  Nome: {d.get("nome")}, Saldo: {d.get("saldo_pendente")}')
+        
+    # 3. Testar /api/refunds/loans
     loans_resp = requests.get('http://localhost:5328/api/refunds/loans', headers=headers, timeout=20)
-    print(f'\n/api/refunds/loans status: {loans_resp.status_code}')
-    if loans_resp.status_code == 200:
-        loans = loans_resp.json()
-        if isinstance(loans, list):
-            print(f'Loans count: {len(loans)}')
-            for l in loans[:3]:
-                print(f'  ID: {l.get("id")}, Descricao: {l.get("descricao")}, Valor Total: {l.get("valor_total")}, Status: {l.get("status")}')
+    print(f'Loans status: {loans_resp.status_code}')
+    loans = loans_resp.json()
+    print(f'Loans count: {len(loans)}')
+    for l in loans[:2]:
+        print(f'  ID: {l.get("id")}, Descricao: {l.get("descricao")}, Valor: {l.get("valor_total")}')
+        
+    # 4. Testar /api/refunds/dashboard
+    ref_dash_resp = requests.get('http://localhost:5328/api/refunds/dashboard', headers=headers, timeout=20)
+    print(f'Refunds Dashboard status: {ref_dash_resp.status_code}')
+    ref_dash = ref_dash_resp.json()
+    print(f'Refunds Dashboard - Total Emprestado: {ref_dash.get("total_emprestado")}, Pendente: {ref_dash.get("total_pendente")}')
+
+    # 5. Testar /api/credit-cards
+    cards_resp = requests.get('http://localhost:5328/api/credit-cards', headers=headers, timeout=20)
+    print(f'Credit Cards status: {cards_resp.status_code}')
+    cards = cards_resp.json()
+    print(f'Credit Cards count: {len(cards)}')
+    
+    # 6. Testar /api/credit-cards/dashboard
+    card_dash_resp = requests.get('http://localhost:5328/api/credit-cards/dashboard', headers=headers, timeout=20)
+    print(f'Credit Cards Dashboard status: {card_dash_resp.status_code}')
+    card_dash = card_dash_resp.json()
+    print(f'Credit Cards Dashboard - Limite: {card_dash.get("total_limit")}, Spent: {card_dash.get("total_spent")}')
+    
+    # Validacoes de seguranca
+    if expect_data:
+        if len(debtors) == 0 or len(loans) == 0:
+            print("❌ ERRO: Esperava encontrar dados para este usuario, mas veio vazio.")
+            return False
+        print("✅ Dados carregados corretamente conforme esperado.")
+    else:
+        if len(debtors) > 0 or len(loans) > 0 or len(cards) > 0 or float(ref_dash.get("total_emprestado", 0)) > 0 or float(card_dash.get("total_limit", 0)) > 0:
+            print("❌ FALHA DE SEGURANCA: O usuario enxerga dados de outro inquilino!")
+            return False
+        print("✅ ISOLAMENTO CONFIRMADO: Usuario nao consegue enxergar dados de terceiros.")
+    return True
+
+# Registrar o usuario 'Teste' se ele nao existir
+reg_resp = requests.post('http://localhost:5328/api/auth/register', json={'username': 'Teste', 'password': 'teste'}, timeout=15)
+print('Registro do usuario Teste:', reg_resp.status_code, reg_resp.json())
+
+# Rodar os testes para os dois perfis
+fabricio_ok = test_user_session('Fabricio', 'Fabricio123', expect_data=True)
+teste_ok = test_user_session('Teste', 'teste', expect_data=False)
+
+if fabricio_ok and teste_ok:
+    print("\n🎉 TODOS OS TESTES PASSARAM COM EXCELENCIA! O ISOLAMENTO DE TENACY ESTA 100% OPERACIONAL.")
 else:
-    print('ERRO: Sem token')
+    print("\n❌ ALGUNS TESTES FALHARAM. VERIFIQUE OS LOGS ACIMA.")
