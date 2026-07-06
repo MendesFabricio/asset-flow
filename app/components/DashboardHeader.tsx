@@ -1,6 +1,6 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
-import { Wallet, Calendar, TrendingUp, Calculator, PlusCircle, EyeOff, Eye, Layers, Brain, RefreshCw, ChevronDown } from 'lucide-react';
+import { Wallet, Calendar, TrendingUp, Calculator, PlusCircle, EyeOff, Eye, Layers, Brain, RefreshCw, ChevronDown, LogOut } from 'lucide-react';
 import Link from 'next/link';
 import { MarketTicker } from './MarketTicker';
 import { TradingHoursWidget } from './TradingHoursWidget';
@@ -48,10 +48,16 @@ export function DashboardHeader({
   const updatingFundamentals = fundamentalsStatus.status === 'processing';
   
   const [isToolsOpen, setIsToolsOpen] = useState(false);
+  const [username, setUsername] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Fecha dropdown ao clicar fora do componente
+  // Busca o usuário logado e fecha dropdown ao clicar fora
   useEffect(() => {
+    const savedUsername = localStorage.getItem('assetflow_username');
+    if (savedUsername) {
+      setUsername(savedUsername);
+    }
+
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsToolsOpen(false);
@@ -60,6 +66,14 @@ export function DashboardHeader({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  const handleLogout = async () => {
+    const res = await fetch('/api/auth/logout', { method: 'POST' });
+    if (res.ok) {
+      localStorage.removeItem('assetflow_username');
+      window.location.href = '/login';
+    }
+  };
 
   return (
     <div className="sticky top-0 z-30 bg-[#0b0f19]/95 backdrop-blur-md border-b border-slate-800/50">
@@ -236,6 +250,12 @@ export function DashboardHeader({
 
           {/* PRIVACIDADE, ALERTAS E SISTEMA */}
           <div className="flex items-center gap-2">
+            {username && (
+              <span className="text-xs text-slate-400 font-medium mr-1 hidden sm:inline-block bg-slate-800/40 border border-slate-800/80 px-2 py-1.5 rounded-lg">
+                👤 {username}
+              </span>
+            )}
+
             <HealthIndicator />
             
             <button
@@ -248,6 +268,15 @@ export function DashboardHeader({
             </button>
 
             <AlertsButton onFixAsset={onFixAsset} />
+
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="p-2 rounded-lg bg-slate-800 hover:bg-rose-950/40 hover:text-rose-400 text-slate-300 border border-slate-700 hover:border-rose-900/50 transition-colors shadow-sm"
+              title="Sair do AssetFlow"
+            >
+              <LogOut size={15} />
+            </button>
           </div>
 
           {/* RESUMO FINANCEIRO (PATRIMÔNIO) */}

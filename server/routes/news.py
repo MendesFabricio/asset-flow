@@ -13,13 +13,13 @@ news_bp = Blueprint('news', __name__)
 
 @news_bp.route('/api/news/<ticker>', methods=['GET'])
 def get_news(ticker):
-    from flask import request
+    from flask import request, g
     force_reanalyze = request.args.get("force", "false").lower() == "true"
     ticker_clean = ticker.strip().upper().replace(".SA", "")
     session = Session()
     try:
         # 1. Busca o Ativo no banco para vincular a IA
-        asset = session.query(Asset).filter_by(ticker=ticker_clean).first()
+        asset = session.query(Asset).filter_by(ticker=ticker_clean, user_id=g.user_id).first()
 
         # 2. Busca notícias no Google News RSS
         search_query = f"{ticker_clean} mercado financeiro"

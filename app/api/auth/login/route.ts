@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 
+const BACKEND_URL = process.env.BACKEND_URL || 'http://backend:5328';
+
 // 🔒 Rate Limiting em memória por IP
 interface RateLimitRecord {
   attempts: number;
@@ -29,33 +31,49 @@ export async function POST(req: Request) {
       }
     }
 
-    const { password } = await req.json();
-    const validPass = process.env.BASIC_AUTH_PASSWORD;
+    const { username, password } = await req.json();
 
-    // 🛡️ Segurança estrita: impede boot ou login se a senha de produção estiver ausente
-    if (!validPass) {
+    if (!username || !password) {
       return NextResponse.json({
         success: false,
-        message: 'Acesso indisponível: BASIC_AUTH_PASSWORD não configurada no servidor.'
-      }, { status: 500 });
+        message: 'Usuário e senha são obrigatórios.'
+      }, { status: 400 });
     }
 
-    if (password === validPass) {
+    // Chama o backend Flask para validar login
+    const backendRes = await fetch(`${BACKEND_URL}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
+
+    if (backendRes.ok) {
+      const data = await backendRes.json();
+      const token = data.token;
+      
       // Login com sucesso: limpa o histórico de erros do IP
       attemptsMap.delete(ip);
 
-      const response = NextResponse.json({ success: true });
+      const response = NextResponse.json({ 
+        success: true,
+        user: data.user
+      });
       
-      // Cria um cookie seguro que dura 7 dias
-      response.cookies.set('assetflow_session', 'authenticated', {
+      // Cria um cookie seguro que dura 7 dias contendo o token JWT assinado
+      response.cookies.set('assetflow_session', token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
         maxAge: 60 * 60 * 24 * 7, // 7 dias
         path: '/',
       });
 
       return response;
     }
+
+    // Trata falha retornada pelo backend Flask
+    const errorData = await backendRes.json().catch(() => ({}));
+    const errorMsg = errorData.msg || 'Credenciais inválidas.';
 
     // ❌ Falha de login: incrementa contador de tentativas
     const failRecord = attemptsMap.get(ip) || { attempts: 0, lockoutUntil: 0 };
@@ -68,10 +86,10 @@ export async function POST(req: Request) {
     const remaining = MAX_ATTEMPTS - failRecord.attempts;
     const msg = failRecord.attempts >= MAX_ATTEMPTS
       ? 'Muitas tentativas falhas. Seu IP foi bloqueado por 15 minutos.'
-      : `Senha incorreta. Você tem mais ${remaining} tentativa(s) antes do bloqueio.`;
+      : `${errorMsg} Você tem mais ${remaining} tentativa(s) antes do bloqueio.`;
 
-    return NextResponse.json({ success: false, message: msg }, { status: 401 });
+    return NextResponse.json({ success: false, message: msg }, { status: backendRes.status });
   } catch (error) {
-    return NextResponse.json({ success: false }, { status: 500 });
+    return NextResponse.json({ success: false, message: 'Erro de conexão com o servidor.' }, { status: 500 });
   }
 }

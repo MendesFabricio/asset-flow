@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, g
 from database.models import Asset, Position, Session, Dividend
 from utils.ticker_helper import to_yf_ticker
 import yfinance as yf
@@ -168,7 +168,7 @@ def get_calendar():
     db_events = []
     with Session() as session:
         try:
-            positions = session.query(Position).join(Asset).filter(Position.quantity > 0).all()
+            positions = session.query(Position).filter_by(user_id=g.user_id).join(Asset).filter(Position.quantity > 0).all()
             active_ids = [pos.asset_id for pos in positions]
             
             future_divs = session.query(Dividend).filter(

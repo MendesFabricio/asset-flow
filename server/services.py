@@ -46,6 +46,20 @@ class PortfolioService(
     def __init__(self):
         pass
 
+    @property
+    def current_user_id(self):
+        from flask import has_request_context, g
+        if has_request_context() and hasattr(g, 'user_id'):
+            return g.user_id
+        return None
+
+    @property
+    def current_username(self):
+        from flask import has_request_context, g
+        if has_request_context() and hasattr(g, 'username'):
+            return g.username
+        return None
+
     def get_usd_rate(self):
         """Retorna a taxa cambial do dólar comercial com cache local/banco de 1 hora"""
         now = time.time()

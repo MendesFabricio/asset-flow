@@ -28,6 +28,7 @@ from routes.ai import ai_bp
 from routes.quant_analysis import quant_bp
 from routes.credit_cards import cards_bp
 from routes.fixed_income import fixed_income_bp
+from routes.auth import auth_bp
 
 
 
@@ -67,23 +68,29 @@ def _get_sync_state() -> dict:
 
 @app.before_request
 def require_authentication():
-    from flask import request, Response
-    # Bypasses OPTIONS preflight and health checks
-    if request.method == "OPTIONS" or request.path in ["/api/health"]:
+    from flask import request, Response, g
+    # Bypasses OPTIONS preflight, health check and auth endpoints
+    if request.method == "OPTIONS" or request.path in ["/api/health", "/api/auth/login", "/api/auth/register"]:
         return
         
-    auth_user = os.getenv("AUTH_USER")
-    auth_pass = os.getenv("AUTH_PASSWORD")
-    
-    if not auth_user or not auth_pass:
-        return
+    auth_header = request.headers.get("Authorization")
+    token = None
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
         
-    auth = request.authorization
-    if not auth or not (auth.username == auth_user and auth.password == auth_pass):
-        return Response(
-            'Acesso restrito. Por favor, forneça credenciais básicas.', 401,
-            {'WWW-Authenticate': 'Basic realm="AssetFlow Login"'}
-        )
+    if not token:
+        token = request.cookies.get("assetflow_session")
+        
+    if not token:
+        return jsonify({"status": "Erro", "msg": "Token de autenticação ausente."}), 401
+        
+    from routes.auth import verify_session_token
+    user_data = verify_session_token(token)
+    if not user_data:
+        return jsonify({"status": "Erro", "msg": "Sessão inválida ou expirada. Efetue login novamente."}), 401
+        
+    g.user_id = user_data["user_id"]
+    g.username = user_data["username"]
 
 @app.errorhandler(Exception)
 def handle_global_exception(e):
@@ -96,6 +103,7 @@ def handle_global_exception(e):
     }), 500
 
 # Registro de Blueprints
+app.register_blueprint(auth_bp)
 app.register_blueprint(dashboard_bp)
 app.register_blueprint(assets_bp)
 app.register_blueprint(news_bp)

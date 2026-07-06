@@ -134,10 +134,12 @@ class DashboardService:
         return rec_text, status, score, " • ".join(motivos), rsi
 
     def get_dashboard_data(self):
+        user_id = self.current_user_id
         session = Session()
         try:
             positions = (
                 session.query(Position)
+                .filter_by(user_id=user_id)
                 .options(
                     joinedload(Position.asset)
                     .joinedload(Asset.category),
@@ -417,10 +419,12 @@ class DashboardService:
             Session.remove()
 
     def get_single_asset_score_data(self, ticker):
+        user_id = self.current_user_id
         session = Session()
         try:
             pos = (
                 session.query(Position)
+                .filter_by(user_id=user_id)
                 .join(Asset)
                 .options(
                     joinedload(Position.asset).joinedload(Asset.category),
@@ -456,6 +460,7 @@ class DashboardService:
             
             active_positions = (
                 session.query(Position)
+                .filter_by(user_id=user_id)
                 .join(Asset)
                 .options(
                     joinedload(Position.asset).joinedload(Asset.category),

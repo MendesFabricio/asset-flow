@@ -21,45 +21,49 @@ class BackupService:
             logging.error(f"❌ Falha automática ao gerar backup físico do banco: {e}")
 
     def take_daily_snapshot(self):
-        logging.info("📸 JOB: Computando snapshot patrimonial diário...")
+        logging.info("📸 JOB: Computando snapshot patrimonial diário para todos os usuários...")
         session = Session()
         try:
-            positions = (
-                session.query(Position)
-                .options(joinedload(Position.asset).selectinload(Asset.market_data))
-                .all()
-            )
-            total_equity = Decimal('0.0')
-            total_invested = Decimal('0.0')
-            dolar_rate = self.get_usd_rate()
-            for pos in positions:
-                asset = pos.asset
-                if not asset: 
-                    continue 
+            from database.models import User
+            users = session.query(User).all()
+            for user in users:
+                positions = (
+                    session.query(Position)
+                    .filter_by(user_id=user.id)
+                    .options(joinedload(Position.asset).selectinload(Asset.market_data))
+                    .all()
+                )
+                total_equity = Decimal('0.0')
+                total_invested = Decimal('0.0')
+                dolar_rate = self.get_usd_rate()
+                for pos in positions:
+                    asset = pos.asset
+                    if not asset: 
+                        continue 
+                    
+                    mdata = asset.market_data[0] if asset.market_data else None
+                    try:
+                        price = Decimal(str(mdata.price)) if (mdata and mdata.price) else Decimal(str(pos.average_price or 0))
+                        qtd = Decimal(str(pos.quantity or 0))
+                        pm = Decimal(str(pos.average_price or 0))
+                    except Exception as parse_err: 
+                        price = Decimal('0.0')
+                        qtd = Decimal('0.0')
+                        pm = Decimal('0.0')
+                        logging.debug(f"Erro ao converter valores de posição para Decimal: {parse_err}")
+                    fator = dolar_rate if asset.currency == 'USD' else Decimal('1.0')
+                    total_equity += (qtd * price * fator)
+                    total_invested += (qtd * pm * fator)
                 
-                mdata = asset.market_data[0] if asset.market_data else None
-                try:
-                    price = Decimal(str(mdata.price)) if (mdata and mdata.price) else Decimal(str(pos.average_price or 0))
-                    qtd = Decimal(str(pos.quantity or 0))
-                    pm = Decimal(str(pos.average_price or 0))
-                except Exception as parse_err: 
-                    price = Decimal('0.0')
-                    qtd = Decimal('0.0')
-                    pm = Decimal('0.0')
-                    logging.debug(f"Erro ao converter valores de posição para Decimal: {parse_err}")
-                fator = dolar_rate if asset.currency == 'USD' else Decimal('1.0')
-                total_equity += (qtd * price * fator)
-                total_invested += (qtd * pm * fator)
-            
-            today = date.today()
-            existing = session.query(PortfolioSnapshot).filter(PortfolioSnapshot.date == today).first()
-            if existing:
-                existing.total_equity = total_equity
-                existing.total_invested = total_invested
-                existing.profit = total_equity - total_invested
-            else:
-                snap = PortfolioSnapshot(date=today, total_equity=total_equity, total_invested=total_invested, profit=total_equity-total_invested)
-                session.add(snap)
+                today = date.today()
+                existing = session.query(PortfolioSnapshot).filter_by(user_id=user.id).filter(PortfolioSnapshot.date == today).first()
+                if existing:
+                    existing.total_equity = total_equity
+                    existing.total_invested = total_invested
+                    existing.profit = total_equity - total_invested
+                else:
+                    snap = PortfolioSnapshot(user_id=user.id, date=today, total_equity=total_equity, total_invested=total_invested, profit=total_equity-total_invested)
+                    session.add(snap)
             safe_commit(session)
             self._backup_database()
         except Exception as e: 
@@ -69,9 +73,10 @@ class BackupService:
             Session.remove()
 
     def get_history_data(self):
+        user_id = self.current_user_id
         session = Session()
         try:
-            snapshots = session.query(PortfolioSnapshot).order_by(PortfolioSnapshot.date).all()
+            snapshots = session.query(PortfolioSnapshot).filter_by(user_id=user_id).order_by(PortfolioSnapshot.date).all()
             history = []
             if not snapshots:
                 return history

@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, String, Float, Numeric, ForeignKey, DateTime, Date, Boolean, event, Index, text
+from sqlalchemy import create_engine, Column, Integer, String, Float, Numeric, ForeignKey, DateTime, Date, Boolean, event, Index, text, UniqueConstraint
 import logging
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker, scoped_session
 from sqlalchemy.engine import Engine
@@ -11,6 +11,29 @@ def safe_commit(session):
     session.commit()
 
 Base = declarative_base()
+
+class User(Base):
+    __tablename__ = 'users'
+    id = Column(Integer, primary_key=True)
+    username = Column(String, unique=True, nullable=False, index=True)
+    password_hash = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    assets = relationship("Asset", back_populates="user", cascade="all, delete-orphan")
+    positions = relationship("Position", back_populates="user", cascade="all, delete-orphan")
+    dividends = relationship("Dividend", back_populates="user", cascade="all, delete-orphan")
+    portfolio_snapshots = relationship("PortfolioSnapshot", back_populates="user", cascade="all, delete-orphan")
+    debtors = relationship("Debtor", back_populates="user", cascade="all, delete-orphan")
+    receivable_loans = relationship("ReceivableLoan", back_populates="user", cascade="all, delete-orphan")
+    loan_installments = relationship("LoanInstallment", back_populates="user", cascade="all, delete-orphan")
+    payment_transactions = relationship("PaymentTransaction", back_populates="user", cascade="all, delete-orphan")
+    price_alerts = relationship("PriceAlert", back_populates="user", cascade="all, delete-orphan")
+    ai_chat_histories = relationship("AIChatHistory", back_populates="user", cascade="all, delete-orphan")
+    credit_cards = relationship("CreditCard", back_populates="user", cascade="all, delete-orphan")
+    card_expenses = relationship("CardExpense", back_populates="user", cascade="all, delete-orphan")
+    card_installments = relationship("CardInstallment", back_populates="user", cascade="all, delete-orphan")
+    fixed_incomes = relationship("FixedIncome", back_populates="user", cascade="all, delete-orphan")
+    refund_configs = relationship("RefundConfig", back_populates="user", cascade="all, delete-orphan")
 
 # 🛡️ PRAGMAS DE PRODUÇÃO: Otimizações críticas de concorrência e performance para SQLite
 @event.listens_for(Engine, "connect")
@@ -41,7 +64,7 @@ class Category(Base):
 class Asset(Base):
     __tablename__ = 'assets'
     id = Column(Integer, primary_key=True)
-    ticker = Column(String, unique=True, nullable=False)
+    ticker = Column(String, nullable=False)
     name = Column(String)
     cnpj = Column(String, nullable=True)
     cvm_code = Column(String, nullable=True)
@@ -49,8 +72,10 @@ class Asset(Base):
     
     # ⚡ ÍNDICE: Acelera o filtro de ativos pertencentes a uma mesma categoria na tabela
     category_id = Column(Integer, ForeignKey('categories.id'), nullable=False, index=True) 
+    user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"), nullable=False, index=True)
     
     category = relationship("Category", back_populates="assets")
+    user = relationship("User", back_populates="assets")
     position = relationship("Position", uselist=False, back_populates="asset", cascade="all, delete-orphan")
     market_data = relationship("MarketData", back_populates="asset", cascade="all, delete-orphan")
     dividends = relationship("Dividend", back_populates="asset", cascade="all, delete-orphan")
@@ -63,10 +88,15 @@ class Asset(Base):
     ai_updated_at = Column(DateTime, nullable=True)
     upcoming_split = Column(String, nullable=True)
 
+    __table_args__ = (
+        UniqueConstraint('ticker', 'user_id', name='_ticker_user_uc'),
+    )
+
 class Position(Base):
     __tablename__ = 'positions'
     id = Column(Integer, primary_key=True)
-    asset_id = Column(Integer, ForeignKey('assets.id', ondelete="CASCADE"), unique=True, nullable=False)
+    asset_id = Column(Integer, ForeignKey('assets.id', ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"), nullable=False, index=True)
     
     quantity = Column(Numeric(18, 4), default=0.0)
     average_price = Column(Numeric(18, 4), default=0.0)
@@ -80,6 +110,11 @@ class Position(Base):
     last_report_type = Column(String, nullable=True)
     
     asset = relationship("Asset", back_populates="position")
+    user = relationship("User", back_populates="positions")
+
+    __table_args__ = (
+        UniqueConstraint('asset_id', 'user_id', name='_asset_user_uc'),
+    )
 
 class MarketData(Base):
     __tablename__ = 'market_data'
@@ -109,6 +144,7 @@ class Dividend(Base):
     
     # ⚡ ÍNDICES INDIVIDUAIS: Acelera o cálculo acumulado de proventos recebidos por ativo
     asset_id = Column(Integer, ForeignKey('assets.id', ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"), nullable=False, index=True)
     date_com = Column(Date, nullable=False, index=True)
     
     date_payment = Column(Date, nullable=True)
@@ -118,6 +154,7 @@ class Dividend(Base):
     status = Column(String, default="GARANTIDO") 
     
     asset = relationship("Asset", back_populates="dividends")
+    user = relationship("User", back_populates="dividends")
 
     # 🚀 ÍNDICE COMPOSTO MESTRE: Acelera a timeline do calendário de proventos/agenda do usuário
     __table_args__ = (
@@ -128,6 +165,7 @@ class Dividend(Base):
 class PortfolioSnapshot(Base):
     __tablename__ = 'snapshots'
     id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"), nullable=False, index=True)
     
     # ⚡ ÍNDICE CRÍTICO: Executa a query do gráfico principal de evolução histórica instantaneamente
     date = Column(Date, default=datetime.now, index=True)
@@ -136,22 +174,33 @@ class PortfolioSnapshot(Base):
     total_invested = Column(Numeric(18, 4))    
     profit = Column(Numeric(18, 4))   
 
+    user = relationship("User", back_populates="portfolio_snapshots")
+
 class RefundConfig(Base):
     __tablename__ = "refund_configs"
     id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"), nullable=False, index=True)
     fechamento_dia = Column(Integer, default=15)
     vencimento_dia = Column(Integer, default=20)
+
+    user = relationship("User", back_populates="refund_configs")
 
 class Debtor(Base):
     __tablename__ = "debtors"
     id = Column(Integer, primary_key=True, index=True)
-    nome = Column(String, unique=True, nullable=False)
+    nome = Column(String, nullable=False)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"), nullable=False, index=True)
     foto_url = Column(String, nullable=True)
     telefone = Column(String, nullable=True)
     observacoes = Column(String, nullable=True)
     is_deleted = Column(Boolean, default=False)
     
     loans = relationship("ReceivableLoan", back_populates="debtor")
+    user = relationship("User", back_populates="debtors")
+
+    __table_args__ = (
+        UniqueConstraint('nome', 'user_id', name='_debtor_nome_user_uc'),
+    )
 
     @property
     def valor_total_emprestado(self):
@@ -213,6 +262,7 @@ class ReceivableLoan(Base):
     __tablename__ = "receivable_loans"
     id = Column(Integer, primary_key=True, index=True)
     debtor_id = Column(Integer, ForeignKey('debtors.id', ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"), nullable=False, index=True)
     descricao = Column(String, nullable=False)
     categoria = Column(String, nullable=True)
     data_emprestimo = Column(DateTime, default=datetime.now)
@@ -225,12 +275,13 @@ class ReceivableLoan(Base):
     is_deleted = Column(Boolean, default=False)
 
     debtor = relationship("Debtor", back_populates="loans")
+    user = relationship("User", back_populates="receivable_loans")
     installments = relationship("LoanInstallment", back_populates="loan", cascade="all, delete-orphan")
-
 class LoanInstallment(Base):
     __tablename__ = "loan_installments"
     id = Column(Integer, primary_key=True, index=True)
     loan_id = Column(Integer, ForeignKey('receivable_loans.id', ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"), nullable=False, index=True)
     numero_parcela = Column(Integer, nullable=False)
     valor_parcela = Column(Numeric(18, 4), nullable=False)
     data_vencimento = Column(DateTime, nullable=False)
@@ -241,18 +292,21 @@ class LoanInstallment(Base):
     is_deleted = Column(Boolean, default=False)
 
     loan = relationship("ReceivableLoan", back_populates="installments")
+    user = relationship("User", back_populates="loan_installments")
     transactions = relationship("PaymentTransaction", back_populates="installment", cascade="all, delete-orphan")
 
 class PaymentTransaction(Base):
     __tablename__ = "payment_transactions"
     id = Column(Integer, primary_key=True, index=True)
     installment_id = Column(Integer, ForeignKey('loan_installments.id', ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"), nullable=False, index=True)
     valor_pago = Column(Numeric(18, 4), nullable=False)
     data_movimentacao = Column(DateTime, default=datetime.now)
     tipo_movimentacao = Column(String, nullable=False)  # "PARCIAL" | "ANTECIPADO" | "ATRASADO" | "EXCESSO" | "MENOR"
     forma_pagamento = Column(String, nullable=True)
 
     installment = relationship("LoanInstallment", back_populates="transactions")
+    user = relationship("User", back_populates="payment_transactions")
 
 class AuditLog(Base):
     __tablename__ = "audit_logs"
@@ -272,6 +326,7 @@ class PriceAlert(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     asset_id = Column(Integer, ForeignKey('assets.id', ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"), nullable=False, index=True)
     target_price = Column(Numeric(18, 4), nullable=False)
     condition = Column(String, nullable=False, default="ABOVE")  # "ABOVE" | "BELOW"
     note = Column(String, default="")           # Anotação livre do usuário
@@ -280,8 +335,7 @@ class PriceAlert(Base):
     triggered_at = Column(DateTime, nullable=True)
 
     asset = relationship("Asset")
-
-
+    user = relationship("User", back_populates="price_alerts")
 
 class SyncState(Base):
     """
@@ -313,10 +367,13 @@ class AIChatHistory(Base):
     __tablename__ = "ai_chat_histories"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"), nullable=False, index=True)
     session_id = Column(String, index=True, nullable=False)
     role = Column(String, nullable=False)  # "user" | "assistant"
     content = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.now)
+
+    user = relationship("User", back_populates="ai_chat_histories")
 
 class TriggeredAlert(Base):
     """
@@ -336,6 +393,7 @@ class TriggeredAlert(Base):
 class CreditCard(Base):
     __tablename__ = "credit_cards"
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"), nullable=False, index=True)
     name = Column(String, nullable=False)
     limit = Column(Numeric(18, 4), nullable=False)
     closing_day = Column(Integer, nullable=False)  # ex: 5
@@ -343,11 +401,13 @@ class CreditCard(Base):
     is_deleted = Column(Boolean, default=False)
 
     expenses = relationship("CardExpense", back_populates="card", cascade="all, delete-orphan")
+    user = relationship("User", back_populates="credit_cards")
 
 class CardExpense(Base):
     __tablename__ = "card_expenses"
     id = Column(Integer, primary_key=True, index=True)
     card_id = Column(Integer, ForeignKey('credit_cards.id', ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"), nullable=False, index=True)
     description = Column(String, nullable=False)
     total_value = Column(Numeric(18, 4), nullable=False)
     installments_count = Column(Integer, default=1)
@@ -356,11 +416,13 @@ class CardExpense(Base):
 
     card = relationship("CreditCard", back_populates="expenses")
     installments = relationship("CardInstallment", back_populates="expense", cascade="all, delete-orphan")
+    user = relationship("User", back_populates="card_expenses")
 
 class CardInstallment(Base):
     __tablename__ = "card_installments"
     id = Column(Integer, primary_key=True, index=True)
     expense_id = Column(Integer, ForeignKey('card_expenses.id', ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"), nullable=False, index=True)
     installment_number = Column(Integer, nullable=False)
     value = Column(Numeric(18, 4), nullable=False)
     due_date = Column(DateTime, nullable=False)
@@ -369,11 +431,13 @@ class CardInstallment(Base):
     is_deleted = Column(Boolean, default=False)
 
     expense = relationship("CardExpense", back_populates="installments")
+    user = relationship("User", back_populates="card_installments")
 
 class FixedIncome(Base):
     __tablename__ = "fixed_income"
     id = Column(Integer, primary_key=True, index=True)
-    asset_id = Column(Integer, ForeignKey('assets.id', ondelete="CASCADE"), unique=True, nullable=False)
+    asset_id = Column(Integer, ForeignKey('assets.id', ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"), nullable=False, index=True)
     index_type = Column(String, nullable=False)  # "CDI" | "IPCA" | "PRE"
     interest_rate = Column(Numeric(18, 4), nullable=False)  # ex: 12.5 (12.5% a.a.) ou 6.0 (IPCA + 6%)
     issue_date = Column(DateTime, nullable=False)
@@ -381,6 +445,11 @@ class FixedIncome(Base):
     is_deleted = Column(Boolean, default=False)
 
     asset = relationship("Asset", back_populates="fixed_income")
+    user = relationship("User", back_populates="fixed_incomes")
+
+    __table_args__ = (
+        UniqueConstraint('asset_id', 'user_id', name='_fixed_income_asset_user_uc'),
+    )
 
 from database.session import engine, Session
 from sqlalchemy.orm import sessionmaker
@@ -497,6 +566,27 @@ def init_db():
             logging.error(f"❌ Falha ao copiar banco de dados inicial: {e}")
 
     Base.metadata.create_all(engine)
+    
+    # Rodar migrações do Alembic programaticamente
+    try:
+        logging.info("⚙️ Rodando migrações pendentes do Alembic...")
+        from alembic.config import Config
+        from alembic import command
+        alembic_ini_path = '/app/server/alembic.ini'
+        if not os.path.exists(alembic_ini_path):
+            alembic_ini_path = 'server/alembic.ini'
+            
+        alembic_cfg = Config(alembic_ini_path)
+        
+        script_loc = '/app/server/alembic'
+        if not os.path.exists(script_loc):
+            script_loc = 'server/alembic'
+            
+        alembic_cfg.set_main_option("script_location", script_loc)
+        command.upgrade(alembic_cfg, "head")
+        logging.info("✅ Migrações do Alembic executadas com sucesso!")
+    except Exception as alembic_err:
+        logging.warning(f"⚠️ Aviso ao rodar migrações do Alembic: {alembic_err}")
     
     # Sementes padrão para a tabela de categorias se estiver vazia
     db_session = _local_session_factory()
@@ -619,3 +709,20 @@ def init_db():
                 logging.info("✅ Tabela de alertas de preço migrada com sucesso para 3FN!")
     except Exception as e:
         logging.warning(f"⚠️ Erro ao atualizar schema do banco: {e}")
+
+
+# --- EVENT LISTENERS PARA SEGURANÇA E ISOLAMENTO MULTIUSUÁRIO ---
+# NOTA: O isolamento multi-tenant é feito explicitamente em cada rota via
+# .filter_by(user_id=g.user_id). O listener do_orm_execute foi removido pois
+# causava deadlock no gunicorn ao interceptar queries internas do SQLAlchemy.
+from sqlalchemy.event import listens_for
+from sqlalchemy.orm import Session as SQLAlchemySession
+from flask import has_request_context, g
+
+@listens_for(SQLAlchemySession, "before_flush")
+def before_flush_user_scoping(session, flush_context, instances):
+    """Garante que todo novo objeto das tabelas de negócio receba o user_id do usuário logado."""
+    if has_request_context() and hasattr(g, 'user_id') and g.user_id is not None:
+        for obj in session.new:
+            if hasattr(obj, 'user_id') and getattr(obj, 'user_id') is None:
+                setattr(obj, 'user_id', g.user_id)

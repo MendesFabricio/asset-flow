@@ -21,9 +21,10 @@ def log_audit(session, table, reg_id, field, old_val, new_val):
     session.add(log)
 
 def get_config(session):
-    config = session.query(RefundConfig).filter_by(id=1).first()
+    from flask import g
+    config = session.query(RefundConfig).filter_by(user_id=g.user_id).first()
     if not config:
-        config = RefundConfig(id=1, fechamento_dia=15, vencimento_dia=20)
+        config = RefundConfig(user_id=g.user_id, fechamento_dia=15, vencimento_dia=20)
         session.add(config)
         safe_commit(session)
     return config

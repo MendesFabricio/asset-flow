@@ -69,8 +69,7 @@ services:
     volumes:
       - .:/app
       - /app/node_modules
-      - /app/.next
-    command: npm start
+    command: npm run dev
     depends_on:
       - backend
 

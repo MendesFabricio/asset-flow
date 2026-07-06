@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, g
 from database.models import Dividend, Asset, Session, Position # ⚡ Importada a factory controlada thread-safe
 import logging
 from services import PortfolioService
@@ -11,8 +11,8 @@ def get_dividend_history():
     # ⚡ Gerenciador de Contexto: Garante liberação e fechamento imediato de conexões no SQLite
     with Session() as session:
         try:
-            # Busca todos os dividendos carimbados, ordenando pelos mais recentes
-            history = session.query(Dividend).join(Asset).order_by(Dividend.date_com.desc()).all()
+            # Busca todos os dividendos carimbados do usuário logado, ordenando pelos mais recentes
+            history = session.query(Dividend).filter_by(user_id=g.user_id).join(Asset).order_by(Dividend.date_com.desc()).all()
             
             results = []
             for div in history:
@@ -45,8 +45,8 @@ def get_dividend_yoc():
                 t = f["ticker"]
                 projected_map[t] = projected_map.get(t, 0.0) + f["amount"]
                 
-            # 2. Busca posições
-            positions = session.query(Position).filter(Position.quantity > 0).all()
+            # 2. Busca posições do usuário logado
+            positions = session.query(Position).filter_by(user_id=g.user_id).filter(Position.quantity > 0).all()
             
             yoc_list = []
             for pos in positions:
@@ -224,7 +224,7 @@ def get_dividend_seasonality():
     """Retorna uma matriz de sazonalidade mensal dos dividendos recebidos no portfólio"""
     with Session() as session:
         try:
-            divs = session.query(Dividend).all()
+            divs = session.query(Dividend).filter_by(user_id=g.user_id).all()
             matrix = {}
             
             for d in divs:

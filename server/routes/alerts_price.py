@@ -32,12 +32,13 @@ price_alerts_bp = Blueprint('price_alerts', __name__)
 @price_alerts_bp.route('/api/price-alerts', methods=['GET'])
 def list_price_alerts():
     """Lista todos os alertas ativos (is_active=True)."""
+    from flask import g
     session = Session()
     try:
         alerts = (
             session.query(PriceAlert)
             .options(joinedload(PriceAlert.asset))
-            .filter_by(is_active=True)
+            .filter_by(user_id=g.user_id, is_active=True)
             .order_by(PriceAlert.created_at.desc())
             .all()
         )
@@ -68,6 +69,7 @@ def create_price_alert():
     Cria um novo alerta de preço.
     Body JSON: { "ticker": "PETR4", "target_price": 38.50, "condition": "BELOW", "note": "Stop loss" }
     """
+    from flask import g
     session = Session()
     try:
         body = request.get_json(silent=True) or {}
@@ -84,12 +86,13 @@ def create_price_alert():
             return jsonify({"status": "Erro", "msg": "Condition deve ser ABOVE ou BELOW."}), 400
 
         # Resolve o asset pelo ticker para manter 3FN no banco
-        asset = session.query(Asset).filter_by(ticker=ticker).first()
+        asset = session.query(Asset).filter_by(ticker=ticker, user_id=g.user_id).first()
         if not asset:
             return jsonify({"status": "Erro", "msg": f"Ativo {ticker} não cadastrado na carteira."}), 400
 
         alert = PriceAlert(
             asset_id=asset.id,
+            user_id=g.user_id,
             target_price=target_price,
             condition=condition,
             note=note,
@@ -117,9 +120,10 @@ def create_price_alert():
 @price_alerts_bp.route('/api/price-alerts/<int:alert_id>', methods=['DELETE'])
 def delete_price_alert(alert_id: int):
     """Remove (hard-delete) um alerta pelo ID."""
+    from flask import g
     session = Session()
     try:
-        alert = session.query(PriceAlert).filter_by(id=alert_id).first()
+        alert = session.query(PriceAlert).filter_by(id=alert_id, user_id=g.user_id).first()
         if not alert:
             return jsonify({"status": "Erro", "msg": "Alerta não encontrado."}), 404
         session.delete(alert)
@@ -135,12 +139,13 @@ def delete_price_alert(alert_id: int):
 @price_alerts_bp.route('/api/price-alerts/history', methods=['GET'])
 def price_alerts_history():
     """Retorna os últimos 50 alertas disparados (is_active=False)."""
+    from flask import g
     session = Session()
     try:
         alerts = (
             session.query(PriceAlert)
             .options(joinedload(PriceAlert.asset))
-            .filter_by(is_active=False)
+            .filter_by(user_id=g.user_id, is_active=False)
             .order_by(PriceAlert.triggered_at.desc())
             .limit(50)
             .all()

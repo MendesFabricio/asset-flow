@@ -24,6 +24,7 @@ class IntegrationService:
             for pos in positions:
                 positions_info.append({
                     "asset_id": pos.asset_id,
+                    "user_id": pos.user_id,
                     "ticker": pos.asset.ticker,
                     "category_name": pos.asset.category.name if pos.asset.category else '',
                     "quantity": float(pos.quantity)
@@ -35,6 +36,7 @@ class IntegrationService:
         for pos_item in positions_info:
             ticker_raw = pos_item["ticker"]
             asset_id = pos_item["asset_id"]
+            user_id = pos_item["user_id"]
             qty = pos_item["quantity"]
             category_name = pos_item["category_name"]
             
@@ -53,6 +55,7 @@ class IntegrationService:
                         try:
                             exists = session.query(Dividend).filter_by(
                                 asset_id=asset_id,
+                                user_id=user_id,
                                 date_com=date_com
                             ).first()
                             
@@ -60,6 +63,7 @@ class IntegrationService:
                                 total = float(value) * qty
                                 new_div = Dividend(
                                     asset_id=asset_id,
+                                    user_id=user_id,
                                     date_com=date_com,
                                     date_payment=date_com + timedelta(days=15),
                                     value_per_share=float(value),
