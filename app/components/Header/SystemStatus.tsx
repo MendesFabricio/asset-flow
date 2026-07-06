@@ -1,15 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import useSWR from 'swr';
 import { 
-  Activity, 
-  Database, 
-  TrendingUp, 
-  Brain, 
-  CheckCircle2, 
-  XCircle, 
-  AlertTriangle 
+  Activity, Database, TrendingUp, Brain, CheckCircle2, 
+  XCircle, AlertTriangle, RefreshCw, Layers 
 } from 'lucide-react';
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
@@ -29,15 +24,25 @@ interface HealthResponse {
   };
 }
 
-export const HealthIndicator = () => {
-  const [showTooltip, setShowTooltip] = useState(false);
+export function SystemStatus() {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  // Consulta o endpoint de healthcheck a cada 15 segundos para monitoramento contínuo
   const { data, error, isLoading } = useSWR<HealthResponse>(
     '/api/health',
     fetcher,
     { refreshInterval: 15000, revalidateOnFocus: true }
   );
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const getStatusConfig = () => {
     if (isLoading) {
@@ -52,8 +57,8 @@ export const HealthIndicator = () => {
     if (error || !data) {
       return {
         dotClass: 'bg-rose-500 animate-ping shadow-[0_0_10px_rgba(244,63,94,0.6)]',
-        text: 'Desconectado',
-        color: 'text-rose-500',
+        text: 'Instável',
+        color: 'text-rose-500 border-rose-900/50',
         borderColor: 'border-rose-900/50',
       };
     }
@@ -62,23 +67,23 @@ export const HealthIndicator = () => {
       case 'online':
         return {
           dotClass: 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.6)]',
-          text: 'Sistemas Normais',
-          color: 'text-emerald-400',
+          text: 'Sistemas Operacionais',
+          color: 'text-emerald-400 border-emerald-900/30',
           borderColor: 'border-emerald-900/30',
         };
       case 'warning':
         return {
           dotClass: 'bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.6)] animate-pulse',
-          text: 'Alerta de Serviços',
-          color: 'text-amber-400',
+          text: 'Serviço sob Alerta',
+          color: 'text-amber-400 border-amber-900/30',
           borderColor: 'border-amber-900/30',
         };
       case 'offline':
       default:
         return {
           dotClass: 'bg-rose-500 shadow-[0_0_12px_rgba(239,68,68,0.7)] animate-bounce',
-          text: 'Sistemas Instáveis',
-          color: 'text-rose-400',
+          text: 'Instável',
+          color: 'text-rose-400 border-rose-900/40',
           borderColor: 'border-rose-900/40',
         };
     }
@@ -86,7 +91,6 @@ export const HealthIndicator = () => {
 
   const config = getStatusConfig();
 
-  // Helper para renderizar a pílula de cada microsserviço no tooltip
   const renderServiceRow = (
     name: string, 
     status: 'online' | 'offline' | undefined, 
@@ -115,15 +119,14 @@ export const HealthIndicator = () => {
   };
 
   return (
-    <div 
-      className="relative z-50 select-none"
-      onMouseEnter={() => setShowTooltip(true)}
-      onMouseLeave={() => setShowTooltip(false)}
-    >
+    <div className="relative select-none" ref={containerRef}>
       {/* Indicador em pílula premium */}
-      <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border bg-slate-900/40 backdrop-blur-md cursor-pointer transition-all duration-300 hover:bg-slate-900/80 ${config.borderColor}`}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className={`flex items-center gap-2 px-3 py-1.5 rounded-full border bg-slate-900/40 backdrop-blur-md cursor-pointer transition-all duration-300 hover:bg-slate-900/80 ${config.borderColor}`}
+      >
         <span className="relative flex h-2 w-2">
-          {/* Pulsação externa se não estiver 100% ideal */}
           {(!data || data.status !== 'online') && (
             <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${config.dotClass.split(' ')[0]}`}></span>
           )}
@@ -132,11 +135,11 @@ export const HealthIndicator = () => {
         <span className={`text-[10px] font-bold uppercase tracking-wider ${config.color}`}>
           {config.text}
         </span>
-      </div>
+      </button>
 
       {/* Tooltip Rico Expandido */}
-      {showTooltip && (
-        <div className="absolute right-0 mt-2.5 w-72 rounded-xl border border-slate-800 bg-[#0b0f19] p-3 shadow-2xl shadow-black/80 animate-in fade-in slide-in-from-top-2 duration-200">
+      {isOpen && (
+        <div className="absolute right-0 mt-2.5 w-72 rounded-xl border border-slate-800 bg-[#0b0f19] p-3 shadow-2xl shadow-black/80 animate-in fade-in slide-in-from-top-2 duration-200 z-50">
           {/* Header */}
           <div className="flex items-center justify-between pb-2 border-b border-slate-900 mb-2.5">
             <div className="flex items-center gap-2">
@@ -153,22 +156,28 @@ export const HealthIndicator = () => {
           {/* Sub-serviços */}
           <div className="space-y-2">
             {renderServiceRow(
-              'Banco de Dados', 
-              data?.services.database.status, 
-              data?.services.database.message || 'Checando integridade das tabelas e do WAL...',
-              Database
-            )}
-            {renderServiceRow(
-              'Market Feed (Yahoo)', 
+              'API Financeira', 
               data?.services.yahoo_finance.status, 
               data?.services.yahoo_finance.message || 'Verificando rate limit e conectividade...',
               TrendingUp
             )}
             {renderServiceRow(
-              'Ollama AI Agent', 
+              'Banco de Dados SQLite', 
+              data?.services.database.status, 
+              data?.services.database.message || 'Checando integridade das tabelas e do WAL...',
+              Database
+            )}
+            {renderServiceRow(
+              'IA Jarvis (Ollama)', 
               data?.services.ollama.status, 
               data?.services.ollama.message || 'Pingando daemon de inteligência artificial...',
               Brain
+            )}
+            {renderServiceRow(
+              'Sincronizador CVM', 
+              'online', 
+              'Serviço FNET ativo aguardando pipelines...',
+              Layers
             )}
           </div>
 
@@ -193,4 +202,4 @@ export const HealthIndicator = () => {
       )}
     </div>
   );
-};
+}

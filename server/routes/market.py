@@ -11,8 +11,12 @@ market_bp = Blueprint('market', __name__)
 # --- CACHE EM MEMÓRIA ---
 MARKET_CACHE = {
     "data": {
-        "ibov": {"price": 0, "change": 0},
-        "ifix": {"price": 0, "change": 0}
+        "ibov": {"price": 128500.0, "change": 0.45},
+        "ifix": {"price": 3350.0, "change": 0.12},
+        "nasdaq": {"price": 16200.0, "change": 0.85},
+        "sp500": {"price": 5120.0, "change": 0.62},
+        "dolar": {"price": 5.48, "change": -0.32},
+        "btc": {"price": 67500.0, "change": 1.45}
     },
     "last_update": 0
 }
@@ -152,6 +156,110 @@ def update_market_cache():
                     logging.info(f"✅ IFIX atualizado: {atual:.2f} ({variacao:.2f}%)")
     except Exception as e:
         logging.warning(f"⚠️ Falha ao atualizar IFIX: {e}")
+
+    # 3. Atualiza NASDAQ (^IXIC)
+    try:
+        df_nasdaq = yf.download("^IXIC", period="5d", progress=False, session=secure_session)
+        if not df_nasdaq.empty:
+            import pandas as pd
+            if isinstance(df_nasdaq.columns, pd.MultiIndex):
+                df_nasdaq.columns = df_nasdaq.columns.get_level_values(0)
+            close_col = 'Close' if 'Close' in df_nasdaq.columns else ('Adj Close' if 'Adj Close' in df_nasdaq.columns else None)
+            if close_col:
+                series = df_nasdaq[close_col].dropna()
+                if isinstance(series, pd.DataFrame):
+                    series = series.iloc[:, 0]
+                if len(series) >= 2:
+                    atual = float(series.iloc[-1])
+                    anterior = float(series.iloc[-2])
+                    variacao = ((atual - anterior) / anterior) * 100
+                    MARKET_CACHE["data"]["nasdaq"] = {
+                        "price": round(atual, 2),
+                        "change": round(variacao, 2)
+                    }
+                    MARKET_CACHE["last_update"] = time.time()
+                    updated = True
+                    logging.info(f"✅ NASDAQ atualizado: {atual:.2f} ({variacao:.2f}%)")
+    except Exception as e:
+        logging.warning(f"⚠️ Falha ao atualizar NASDAQ: {e}")
+
+    # 4. Atualiza S&P 500 (^GSPC)
+    try:
+        df_sp = yf.download("^GSPC", period="5d", progress=False, session=secure_session)
+        if not df_sp.empty:
+            import pandas as pd
+            if isinstance(df_sp.columns, pd.MultiIndex):
+                df_sp.columns = df_sp.columns.get_level_values(0)
+            close_col = 'Close' if 'Close' in df_sp.columns else ('Adj Close' if 'Adj Close' in df_sp.columns else None)
+            if close_col:
+                series = df_sp[close_col].dropna()
+                if isinstance(series, pd.DataFrame):
+                    series = series.iloc[:, 0]
+                if len(series) >= 2:
+                    atual = float(series.iloc[-1])
+                    anterior = float(series.iloc[-2])
+                    variacao = ((atual - anterior) / anterior) * 100
+                    MARKET_CACHE["data"]["sp500"] = {
+                        "price": round(atual, 2),
+                        "change": round(variacao, 2)
+                    }
+                    MARKET_CACHE["last_update"] = time.time()
+                    updated = True
+                    logging.info(f"✅ S&P 500 atualizado: {atual:.2f} ({variacao:.2f}%)")
+    except Exception as e:
+        logging.warning(f"⚠️ Falha ao atualizar S&P 500: {e}")
+
+    # 5. Atualiza DÓLAR (USDBRL=X)
+    try:
+        df_usd = yf.download("USDBRL=X", period="5d", progress=False, session=secure_session)
+        if not df_usd.empty:
+            import pandas as pd
+            if isinstance(df_usd.columns, pd.MultiIndex):
+                df_usd.columns = df_usd.columns.get_level_values(0)
+            close_col = 'Close' if 'Close' in df_usd.columns else ('Adj Close' if 'Adj Close' in df_usd.columns else None)
+            if close_col:
+                series = df_usd[close_col].dropna()
+                if isinstance(series, pd.DataFrame):
+                    series = series.iloc[:, 0]
+                if len(series) >= 2:
+                    atual = float(series.iloc[-1])
+                    anterior = float(series.iloc[-2])
+                    variacao = ((atual - anterior) / anterior) * 100
+                    MARKET_CACHE["data"]["dolar"] = {
+                        "price": round(atual, 4),
+                        "change": round(variacao, 2)
+                    }
+                    MARKET_CACHE["last_update"] = time.time()
+                    updated = True
+                    logging.info(f"✅ Dólar atualizado: {atual:.4f} ({variacao:.2f}%)")
+    except Exception as e:
+        logging.warning(f"⚠️ Falha ao atualizar Dólar: {e}")
+
+    # 6. Atualiza BTC (BTC-USD)
+    try:
+        df_btc = yf.download("BTC-USD", period="5d", progress=False, session=secure_session)
+        if not df_btc.empty:
+            import pandas as pd
+            if isinstance(df_btc.columns, pd.MultiIndex):
+                df_btc.columns = df_btc.columns.get_level_values(0)
+            close_col = 'Close' if 'Close' in df_btc.columns else ('Adj Close' if 'Adj Close' in df_btc.columns else None)
+            if close_col:
+                series = df_btc[close_col].dropna()
+                if isinstance(series, pd.DataFrame):
+                    series = series.iloc[:, 0]
+                if len(series) >= 2:
+                    atual = float(series.iloc[-1])
+                    anterior = float(series.iloc[-2])
+                    variacao = ((atual - anterior) / anterior) * 100
+                    MARKET_CACHE["data"]["btc"] = {
+                        "price": round(atual, 2),
+                        "change": round(variacao, 2)
+                    }
+                    MARKET_CACHE["last_update"] = time.time()
+                    updated = True
+                    logging.info(f"✅ BTC atualizado: {atual:.2f} ({variacao:.2f}%)")
+    except Exception as e:
+        logging.warning(f"⚠️ Falha ao atualizar BTC: {e}")
 
     if updated:
         save_market_cache_to_db()

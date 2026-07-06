@@ -11,7 +11,7 @@ import { usePrivacy } from './context/PrivacyContext';
 import { formatMoney } from './utils';
 import { StatCard } from './components/StatCard';
 import { useAssetData } from './hooks/useAssetData';
-import { DashboardHeader } from './components/DashboardHeader';
+import { Header } from './components/Header';
 import { AssetsTable } from './components/AssetsTable';
 import { Asset } from './types';
 import { useModalStore } from './store/modalStore';
@@ -213,10 +213,10 @@ export default function Home() {
   if (loading) {
     return (
       <main className="min-h-screen bg-[#0b0f19] text-slate-200 font-sans selection:bg-blue-500/30 pb-20 relative">
-        <DashboardHeader
+        <Header
           total={0}
-          rendaMensal={0}
-          money={(v) => '••••••'}
+          ativos={[]}
+          money={(v: number) => '••••••'}
           syncStatus={{ status: 'idle', message: '' }}
           fundamentalsStatus={{ status: 'idle', message: '' }}
           onSyncReports={handleSyncReports}
@@ -238,9 +238,9 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-[#0b0f19] text-slate-200 font-sans selection:bg-blue-500/30 pb-20 relative">
       {/* HEADER PRINCIPAL EXTRAÍDO */}
-      <DashboardHeader
+      <Header
         total={data?.resumo?.Total || 0}
-        rendaMensal={rendaMensal}
+        ativos={data?.ativos || []}
         money={money}
         syncStatus={syncStatus}
         fundamentalsStatus={fundamentalsStatus}
