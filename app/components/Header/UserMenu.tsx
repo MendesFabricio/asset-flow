@@ -6,7 +6,11 @@ import {
 } from 'lucide-react';
 import { usePrivacy } from '../../context/PrivacyContext';
 
-export function UserMenu() {
+interface UserMenuProps {
+  showName?: boolean;
+}
+
+export function UserMenu({ showName = false }: UserMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [username, setUsername] = useState('');
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
@@ -52,13 +56,13 @@ export function UserMenu() {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 px-2.5 py-1.5 rounded-xl transition-all text-xs font-semibold text-slate-200"
+        className="flex items-center gap-1.5 bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 p-1.5 rounded-xl transition-all text-xs font-semibold text-slate-200"
       >
         <div className="w-5 h-5 rounded-full bg-gradient-to-br from-slate-700 to-slate-800 border border-slate-600/40 text-slate-200 flex items-center justify-center font-bold text-[9px] shadow-sm">
           {initials}
         </div>
-        <span className="hidden sm:inline">{username || 'Investidor'}</span>
-        <ChevronDown size={12} className={`transition-transform duration-200 text-slate-500 ${isOpen ? 'rotate-180' : ''}`} />
+        {showName && <span className="hidden sm:inline">{username || 'Investidor'}</span>}
+        <ChevronDown size={11} className={`transition-transform duration-200 text-slate-500 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (

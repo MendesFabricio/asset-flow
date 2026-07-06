@@ -64,7 +64,7 @@ export const MarketTicker = React.memo(() => {
 
   if (loading || activeTickers.length === 0) {
     return (
-      <div className="h-7 w-32 bg-slate-900/50 border border-slate-800 rounded-full animate-pulse" />
+      <div className="h-7 w-[210px] bg-slate-900/50 border border-slate-800 rounded-full animate-pulse" />
     );
   }
 
@@ -73,7 +73,7 @@ export const MarketTicker = React.memo(() => {
 
   return (
     <div className="relative group/ticker">
-      <div className="flex items-center gap-2 px-3 py-1 bg-slate-900/80 hover:bg-slate-900 border border-slate-800/80 rounded-full shadow-sm cursor-help hover:border-slate-700 transition-all select-none duration-300">
+      <div className="flex items-center justify-between w-[210px] px-3 py-1 bg-slate-900/80 hover:bg-slate-900 border border-slate-800/80 rounded-full shadow-sm cursor-help hover:border-slate-700 transition-all select-none duration-300">
         <span className="text-[9px] font-bold text-slate-500 tracking-wider uppercase">{current.label}</span>
         
         <span className="text-xs font-semibold text-slate-200 font-mono tabular-nums">

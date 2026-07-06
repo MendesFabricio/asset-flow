@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Menu, X } from 'lucide-react';
 import { Logo } from './Logo';
 import { MarketStatus } from './MarketStatus';
@@ -49,16 +49,30 @@ export function Header({
   showRefreshSuccess
 }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [username, setUsername] = useState('');
+
+  useEffect(() => {
+    const saved = localStorage.getItem('assetflow_username');
+    if (saved) {
+      setUsername(saved);
+    }
+  }, []);
 
   return (
     <header className="sticky top-0 z-30 w-full bg-slate-950/80 backdrop-blur-md border-b border-slate-900 select-none">
       <div className="max-w-7xl mx-auto px-4 lg:px-6 py-3 flex justify-between items-center">
         
-        {/* ESQUERDA: LOGO + STATUS */}
-        <div className="flex items-center gap-3 shrink-0">
+        {/* ESQUERDA: LOGO + USER INFO + STATUS */}
+        <div className="flex items-center gap-3.5 shrink-0">
           <Logo />
-          <div className="hidden sm:block">
-            <MarketStatus />
+          <div className="hidden sm:block h-6 w-px bg-slate-900" />
+          <div className="hidden sm:flex flex-col justify-center leading-none">
+            <span className="text-[10px] font-bold text-slate-300 tracking-wide uppercase">
+              {username || 'Investidor'}
+            </span>
+            <div className="mt-1">
+              <MarketStatus minimal={true} />
+            </div>
           </div>
         </div>
 
@@ -69,8 +83,6 @@ export function Header({
 
         {/* DIREITA: DESKTOP CONTROLS */}
         <div className="hidden xl:flex items-center gap-3 shrink-0">
-          <PortfolioSummary total={total} ativos={ativos} money={money} />
-          <div className="h-6 w-px bg-slate-900 mx-1" />
           <ToolsMenu
             onSyncReports={onSyncReports}
             onUpdateFundamentals={onUpdateFundamentals}
@@ -89,11 +101,12 @@ export function Header({
           <Notifications onFixAsset={onFixAsset} />
           <SystemStatus />
           <UserMenu />
+          <div className="h-6 w-px bg-slate-900 mx-1" />
+          <PortfolioSummary total={total} ativos={ativos} money={money} />
         </div>
 
         {/* CONTROLES COMPACTOS (Para notebooks menores xl) */}
         <div className="hidden lg:flex xl:hidden items-center gap-3 shrink-0">
-          <PortfolioSummary total={total} ativos={ativos} money={money} />
           <ToolsMenu
             onSyncReports={onSyncReports}
             onUpdateFundamentals={onUpdateFundamentals}
@@ -110,6 +123,8 @@ export function Header({
           <NewAssetButton onClick={onOpenAddModal} />
           <Notifications onFixAsset={onFixAsset} />
           <UserMenu />
+          <div className="h-6 w-px bg-slate-900 mx-1" />
+          <PortfolioSummary total={total} ativos={ativos} money={money} />
         </div>
 
         {/* CONTROLES TABLET (lg e abaixo) */}
