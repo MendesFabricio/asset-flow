@@ -56,7 +56,7 @@ def get_ollama_tools() -> list:
         }
     ]
 
-def _run_sentiment_analysis(ticker: str, news_titles: list, position_info: dict):
+def _run_sentiment_analysis(asset_id: int, ticker: str, news_titles: list, position_info: dict):
     """
     Worker que roda na thread de background para consultar o Ollama local
     e salvar o resultado no banco.
@@ -64,7 +64,7 @@ def _run_sentiment_analysis(ticker: str, news_titles: list, position_info: dict)
     logging.info(f"🤖 [IA] Iniciando análise de sentimento consciente da carteira para: {ticker}")
     session = SessionLocal()
     try:
-        asset = session.query(Asset).filter_by(ticker=ticker).first()
+        asset = session.query(Asset).filter_by(id=asset_id).first()
         if not asset:
             logging.warning(f"⚠️ [IA] Ativo {ticker} não encontrado no banco.")
             return
@@ -183,7 +183,7 @@ def _run_sentiment_analysis(ticker: str, news_titles: list, position_info: dict)
         session.rollback()
         logging.error(f"❌ [IA] Falha na integração com Ollama para {ticker}: {e}")
         try:
-            asset = session.query(Asset).filter_by(ticker=ticker).first()
+            asset = session.query(Asset).filter_by(id=asset_id).first()
             if asset:
                 asset.ai_status = "error"
                 asset.ai_summary = f"Erro na análise de IA: {str(e)}"
@@ -193,13 +193,13 @@ def _run_sentiment_analysis(ticker: str, news_titles: list, position_info: dict)
     finally:
         session.close()
 
-def analyze_asset_sentiment_async(ticker: str, news_titles: list, position_info: dict):
+def analyze_asset_sentiment_async(asset_id: int, ticker: str, news_titles: list, position_info: dict):
     """
     Dispara a análise de IA em uma thread de background isolada.
     """
     thread = threading.Thread(
         target=_run_sentiment_analysis,
-        args=(ticker, news_titles, position_info),
+        args=(asset_id, ticker, news_titles, position_info),
         daemon=True
     )
     thread.start()

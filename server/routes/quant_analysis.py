@@ -329,7 +329,7 @@ def get_fear_greed():
 def list_reports():
     try:
         base_dir = os.path.dirname(os.path.abspath(__file__))
-        reports_dir = os.path.join(base_dir, '..', 'data', 'reports')
+        reports_dir = os.path.join(base_dir, '..', 'data', 'reports', str(g.user_id))
         os.makedirs(reports_dir, exist_ok=True)
         
         files = []
@@ -357,7 +357,7 @@ def download_report():
         
     try:
         base_dir = os.path.dirname(os.path.abspath(__file__))
-        reports_dir = os.path.join(base_dir, '..', 'data', 'reports')
+        reports_dir = os.path.join(base_dir, '..', 'data', 'reports', str(g.user_id))
         filepath = os.path.join(reports_dir, filename)
         
         if not os.path.exists(filepath):
@@ -389,10 +389,10 @@ def generate_report():
             dash_data["sharpe"] = risk.get("sharpe_12m")
             dash_data["var_95"] = risk.get("var_95_monthly_pct")
             
-        # Consulta de Recebíveis Ativos
+        # Consulta de Recebíveis Ativos do usuário logado
         receivables_list = []
         from database.models import LoanInstallment
-        installments = session.query(LoanInstallment).filter(LoanInstallment.status.in_(["ABERTA", "ATRASADA"]), LoanInstallment.is_deleted == False).all()
+        installments = session.query(LoanInstallment).filter(LoanInstallment.user_id == g.user_id, LoanInstallment.status.in_(["ABERTA", "ATRASADA"]), LoanInstallment.is_deleted == False).all()
         for inst in installments:
             receivables_list.append({
                 "descricao": inst.loan.descricao,
@@ -411,7 +411,7 @@ def generate_report():
         filename = f"relatorio_patrimonial_{date_str}.pdf"
         
         base_dir = os.path.dirname(os.path.abspath(__file__))
-        reports_dir = os.path.join(base_dir, '..', 'data', 'reports')
+        reports_dir = os.path.join(base_dir, '..', 'data', 'reports', str(g.user_id))
         filepath = os.path.join(reports_dir, filename)
         
         success = generate_monthly_report_pdf(filepath, dash_data)

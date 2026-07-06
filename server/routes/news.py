@@ -106,7 +106,7 @@ def get_news(ticker):
                     "target_percent": pos_target
                 }
                 
-                analyze_asset_sentiment_async(asset.ticker, titles, position_info)
+                analyze_asset_sentiment_async(asset.id, asset.ticker, titles, position_info)
                 asset.ai_status = "processing"
                 asset.ai_updated_at = datetime.now()  # Registra o início do processamento como referência de timeout
                 session.commit()
@@ -144,7 +144,8 @@ def get_daily_sector_summary():
         import json
         
         # 1. Tenta recuperar do cache (expiração de 12 horas)
-        cache_record = session.query(SystemCache).filter_by(key="sector_news_summary").first()
+        cache_key = f"sector_news_summary_{g.user_id}"
+        cache_record = session.query(SystemCache).filter_by(key=cache_key).first()
         if cache_record and not force_reanalyze:
             age = datetime.now() - cache_record.updated_at
             if age < timedelta(hours=12):
@@ -215,7 +216,7 @@ def get_daily_sector_summary():
         }
         
         if not cache_record:
-            cache_record = SystemCache(key="sector_news_summary")
+            cache_record = SystemCache(key=cache_key)
             session.add(cache_record)
         cache_record.value = json.dumps(result_data)
         safe_commit(session)
