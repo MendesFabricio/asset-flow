@@ -24,13 +24,13 @@ const CategorySummary = dynamic(() => import('./components/CategorySummary').the
 const EditModal = dynamic(() => import('./components/EditModal').then(mod => mod.EditModal), { ssr: false, loading: () => <SkeletonLoading /> });
 const AddAssetModal = dynamic(() => import('./components/AddAssetModal').then(mod => mod.AddAssetModal), { ssr: false, loading: () => <SkeletonLoading /> });
 const AssetNewsPanel = dynamic(() => import('./components/AssetNewsPanel').then(mod => mod.AssetNewsPanel), { ssr: false, loading: () => <SkeletonLoading /> });
-const RiskMetricsPanel = dynamic(() => import('./components/RiskMetricsPanel').then(mod => mod.RiskMetricsPanel), { ssr: false, loading: () => <SkeletonLoading /> });
+
 const ReceivablesTab = dynamic(() => import('./components/ReceivablesTab').then(mod => mod.ReceivablesTab), { ssr: false, loading: () => <SkeletonLoading /> });
 const CreditCardsTab = dynamic(() => import('./components/CreditCardsTab'), { ssr: false, loading: () => <SkeletonLoading /> });
 const FixedIncomeTab = dynamic(() => import('./components/FixedIncomeTab'), { ssr: false, loading: () => <SkeletonLoading /> });
 const AssetDetailsModal = dynamic(() => import('./components/AssetDetailsModal').then(mod => mod.AssetDetailsModal), { ssr: false, loading: () => <SkeletonLoading /> });
 
-const MonteCarloChart = dynamic(() => import('./components/MonteCarloChart').then(mod => mod.MonteCarloChart), { ssr: false, loading: () => <SkeletonLoading /> });
+
 const CorrelationHeatmap = dynamic(() => import('./components/CorrelationHeatmap').then(mod => mod.CorrelationHeatmap), { ssr: false, loading: () => <SkeletonLoading /> });
 
 const SmartAllocationModal = dynamic(() => import('./components/SmartAllocationModal').then(mod => mod.SmartAllocationModal), { ssr: false, loading: () => <SkeletonLoading /> });
@@ -365,12 +365,8 @@ export default function Home() {
         )}
 
         {tab === 'Quantitativo' && (
-          <div className="flex flex-col gap-6 animate-in fade-in w-full">
+          <div className="animate-in fade-in w-full">
             <QuantDashboard />
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 relative z-0">
-              <MonteCarloChart />
-              <RiskMetricsPanel />
-            </div>
           </div>
         )}
 

@@ -1,6 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
+import { SkeletonLoading } from './SkeletonLoading';
+
+const MonteCarloChart = dynamic(() => import('./MonteCarloChart').then(mod => mod.MonteCarloChart), { ssr: false, loading: () => <SkeletonLoading /> });
+const RiskMetricsPanel = dynamic(() => import('./RiskMetricsPanel').then(mod => mod.RiskMetricsPanel), { ssr: false, loading: () => <SkeletonLoading /> });
+
 import { apiCall } from '../utils/apiClient';
 import { Card } from './ui/Card';
 import { Badge } from './ui/Badge';
@@ -48,7 +54,7 @@ import {
 } from '../types';
 
 export function QuantDashboard() {
-  const [activeTab, setActiveTab] = useState<'frontier' | 'rebalance' | 'ranking' | 'sharpe' | 'dca' | 'reports'>('frontier');
+  const [activeTab, setActiveTab] = useState<'frontier' | 'rebalance' | 'ranking' | 'sharpe' | 'dca' | 'reports' | 'montecarlo' | 'performance'>('frontier');
   
   // Data States
   const [frontierData, setFrontierData] = useState<EfficientFrontierData | null>(null);
@@ -348,6 +354,26 @@ export function QuantDashboard() {
             }`}
           >
             DCA vs Lump Sum
+          </button>
+          <button
+            onClick={() => setActiveTab('montecarlo')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition ${
+              activeTab === 'montecarlo'
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            Monte Carlo
+          </button>
+          <button
+            onClick={() => setActiveTab('performance')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition ${
+              activeTab === 'performance'
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            Atribuição
           </button>
           <button
             onClick={() => setActiveTab('reports')}
@@ -1279,6 +1305,18 @@ export function QuantDashboard() {
               </div>
             )}
           </Card>
+        </div>
+      )}
+
+      {activeTab === 'montecarlo' && (
+        <div className="animate-in fade-in w-full">
+          <MonteCarloChart />
+        </div>
+      )}
+
+      {activeTab === 'performance' && (
+        <div className="animate-in fade-in w-full">
+          <RiskMetricsPanel />
         </div>
       )}
 
