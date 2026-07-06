@@ -3,6 +3,8 @@ import { useState, useRef, useEffect } from 'react';
 import { Wallet, Calendar, TrendingUp, Calculator, PlusCircle, EyeOff, Eye, Layers, Brain, RefreshCw, ChevronDown, LogOut } from 'lucide-react';
 import Link from 'next/link';
 import { AlertsButton } from './AlertsButton';
+import { MarketTicker } from './MarketTicker';
+import { TradingHoursWidget } from './TradingHoursWidget';
 import { usePrivacy } from '../context/PrivacyContext';
 import { HealthIndicator } from './HealthIndicator';
 
@@ -71,11 +73,14 @@ export function DashboardHeader({
   }, []);
 
   const handleLogout = async () => {
-    const res = await fetch('/api/auth/logout', { method: 'POST' });
-    if (res.ok) {
-      localStorage.removeItem('assetflow_username');
-      window.location.href = '/login';
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch (e) {
+      console.error(e);
     }
+    localStorage.removeItem('assetflow_username');
+    document.cookie = "assetflow_session=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    window.location.href = '/login';
   };
 
   return (
@@ -90,6 +95,10 @@ export function DashboardHeader({
           <h1 className="text-lg font-bold text-white tracking-tight mr-2">
             AssetFlow <span className="text-blue-500 text-xs font-normal ml-1">Pro</span>
           </h1>
+          <div className="hidden lg:flex items-center gap-2">
+            <MarketTicker />
+            <TradingHoursWidget />
+          </div>
         </div>
 
         {/* CONTROLES DE INTERFACE & AÇÕES UNIFICADAS */}

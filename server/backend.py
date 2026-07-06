@@ -70,7 +70,7 @@ def _get_sync_state() -> dict:
 def require_authentication():
     from flask import request, Response, g
     # Bypasses OPTIONS preflight, health check and auth endpoints
-    if request.method == "OPTIONS" or request.path in ["/api/health", "/api/auth/login", "/api/auth/register"]:
+    if request.method == "OPTIONS" or request.path in ["/api/health", "/api/auth/login", "/api/auth/register", "/api/auth/logout"]:
         return
         
     auth_header = request.headers.get("Authorization")

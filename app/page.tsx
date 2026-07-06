@@ -12,8 +12,6 @@ import { formatMoney } from './utils';
 import { StatCard } from './components/StatCard';
 import { useAssetData } from './hooks/useAssetData';
 import { DashboardHeader } from './components/DashboardHeader';
-import { MarketTicker } from './components/MarketTicker';
-import { TradingHoursWidget } from './components/TradingHoursWidget';
 import { AssetsTable } from './components/AssetsTable';
 import { Asset } from './types';
 import { useModalStore } from './store/modalStore';
@@ -257,18 +255,6 @@ export default function Home() {
         isRefetching={isRefetching}
         showRefreshSuccess={showRefreshSuccess}
       />
-
-      {/* BARRA DE STATUS DE MERCADO SECUNDÁRIA */}
-      <div className="max-w-7xl mx-auto px-4 pt-4 pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/40">
-        <div className="flex items-center gap-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.6)] animate-pulse" />
-          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-none">Painel de Mercado</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <MarketTicker />
-          <TradingHoursWidget />
-        </div>
-      </div>
 
       {/* TABS DE CATEGORIAS E BUSCA */}
       <div className="max-w-7xl mx-auto px-4 py-4 space-y-3">

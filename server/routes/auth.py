@@ -101,3 +101,9 @@ def register():
         return jsonify({"status": "Erro", "msg": "Erro interno do servidor ao criar conta."}), 500
     finally:
         Session.remove()
+
+@auth_bp.route('/api/auth/logout', methods=['POST'])
+def logout():
+    response = jsonify({"status": "Sucesso", "msg": "Logout efetuado com sucesso."})
+    response.delete_cookie("assetflow_session")
+    return response
