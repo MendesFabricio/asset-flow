@@ -206,12 +206,21 @@ def get_dca_lump_sum():
 def get_efficient_frontier():
     session = Session()
     try:
-        cache_record = session.query(SystemCache).filter_by(key="efficient_frontier").first()
+        cache_key = f"efficient_frontier_{g.user_id}"
+        cache_record = session.query(SystemCache).filter_by(key=cache_key).first()
         if cache_record:
             return jsonify(json.loads(cache_record.value))
             
         logging.info("📈 Cache de Fronteira Eficiente frio. Calculando síncrono...")
         res = service.calculate_efficient_frontier_points()
+        if res.get("status") == "Sucesso" or "status" not in res:
+            if not cache_record:
+                cache_record = SystemCache(key=cache_key)
+                session.add(cache_record)
+            cache_record.value = json.dumps(res)
+            cache_record.updated_at = datetime.now()
+            from database.models import safe_commit
+            safe_commit(session)
         return jsonify(res)
     except Exception as e:
         logging.error(f"❌ Erro ao buscar Fronteira Eficiente: {e}", exc_info=True)

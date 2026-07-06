@@ -2,8 +2,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Wallet, Calendar, TrendingUp, Calculator, PlusCircle, EyeOff, Eye, Layers, Brain, RefreshCw, ChevronDown, LogOut } from 'lucide-react';
 import Link from 'next/link';
-import { MarketTicker } from './MarketTicker';
-import { TradingHoursWidget } from './TradingHoursWidget';
 import { AlertsButton } from './AlertsButton';
 import { usePrivacy } from '../context/PrivacyContext';
 import { HealthIndicator } from './HealthIndicator';
@@ -48,10 +46,12 @@ export function DashboardHeader({
   const updatingFundamentals = fundamentalsStatus.status === 'processing';
   
   const [isToolsOpen, setIsToolsOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [username, setUsername] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const profileRef = useRef<HTMLDivElement>(null);
 
-  // Busca o usuário logado e fecha dropdown ao clicar fora
+  // Busca o usuário logado e fecha dropdowns ao clicar fora
   useEffect(() => {
     const savedUsername = localStorage.getItem('assetflow_username');
     if (savedUsername) {
@@ -61,6 +61,9 @@ export function DashboardHeader({
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsToolsOpen(false);
+      }
+      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+        setIsProfileOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -87,10 +90,6 @@ export function DashboardHeader({
           <h1 className="text-lg font-bold text-white tracking-tight mr-2">
             AssetFlow <span className="text-blue-500 text-xs font-normal ml-1">Pro</span>
           </h1>
-          <div className="hidden lg:flex items-center gap-2">
-            <MarketTicker />
-            <TradingHoursWidget />
-          </div>
         </div>
 
         {/* CONTROLES DE INTERFACE & AÇÕES UNIFICADAS */}
@@ -248,35 +247,55 @@ export function DashboardHeader({
 
           <div className="h-6 w-px bg-slate-800 mx-1"></div>
 
-          {/* PRIVACIDADE, ALERTAS E SISTEMA */}
+          {/* SISTEMA, ALERTAS E PERFIL */}
           <div className="flex items-center gap-2">
-            {username && (
-              <span className="text-xs text-slate-400 font-medium mr-1 hidden sm:inline-block bg-slate-800/40 border border-slate-800/80 px-2 py-1.5 rounded-lg">
-                👤 {username}
-              </span>
-            )}
-
             <HealthIndicator />
-            
-            <button
-              type="button"
-              onClick={togglePrivacy}
-              className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors shadow-sm"
-              title="Alternar Privacidade"
-            >
-              {isHidden ? <EyeOff size={15} /> : <Eye size={15} />}
-            </button>
-
             <AlertsButton onFixAsset={onFixAsset} />
 
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="p-2 rounded-lg bg-slate-800 hover:bg-rose-950/40 hover:text-rose-400 text-slate-300 border border-slate-700 hover:border-rose-900/50 transition-colors shadow-sm"
-              title="Sair do AssetFlow"
-            >
-              <LogOut size={15} />
-            </button>
+            {/* Dropdown de Perfil elegante */}
+            <div className="relative" ref={profileRef}>
+              <button
+                type="button"
+                onClick={() => setIsProfileOpen(!isProfileOpen)}
+                className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700/80 border border-slate-700/50 px-2.5 py-1.5 rounded-lg transition-colors text-xs font-semibold text-slate-200"
+              >
+                <span className="w-4 h-4 rounded-full bg-blue-600/30 text-blue-400 flex items-center justify-center font-bold text-[9px]">
+                  {username ? username.substring(0, 2).toUpperCase() : 'US'}
+                </span>
+                <span className="hidden sm:inline">{username || 'Usuário'}</span>
+                <ChevronDown size={12} className={`transition-transform duration-200 ${isProfileOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {isProfileOpen && (
+                <div className="absolute right-0 mt-2 w-48 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl p-2 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
+                  <div className="px-2.5 py-1.5 border-b border-slate-800/80 mb-1">
+                    <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Conta ativa</p>
+                    <p className="text-xs text-white font-medium truncate mt-0.5">{username}</p>
+                  </div>
+                  
+                  <button
+                    type="button"
+                    onClick={() => {
+                      togglePrivacy();
+                      setIsProfileOpen(false);
+                    }}
+                    className="w-full text-left px-2.5 py-2 rounded-lg hover:bg-slate-800/60 text-slate-300 hover:text-white transition-colors flex items-center gap-2 text-xs"
+                  >
+                    {isHidden ? <Eye size={13} className="text-slate-400" /> : <EyeOff size={13} className="text-slate-400" />}
+                    <span>{isHidden ? "Exibir Valores" : "Ocultar Valores"}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="w-full text-left px-2.5 py-2 rounded-lg hover:bg-rose-950/30 text-slate-300 hover:text-rose-400 transition-colors flex items-center gap-2 text-xs"
+                  >
+                    <LogOut size={13} className="text-rose-400/80" />
+                    <span>Sair da conta</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* RESUMO FINANCEIRO (PATRIMÔNIO) */}
