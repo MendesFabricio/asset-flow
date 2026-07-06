@@ -15,10 +15,9 @@ def _get_current_user_id():
 
 def calculate_kelly_criterion(session, fetch_prices) -> dict:
     uid = _get_current_user_id()
-    query = session.query(Position)
-    if uid is not None:
-        query = query.filter_by(user_id=uid)
-    positions = query.filter(Position.quantity > 0).all()
+    if uid is None:
+        return {"status": "Erro", "msg": "Usuário não autenticado."}
+    positions = session.query(Position).filter_by(user_id=uid).filter(Position.quantity > 0).all()
     tickers_yf, tickers_clean, categories = [], [], []
     for pos in positions:
         if not pos.asset:
@@ -92,10 +91,9 @@ def calculate_kelly_criterion(session, fetch_prices) -> dict:
 
 def calculate_alpha_attribution(session, fetch_prices) -> dict:
     uid = _get_current_user_id()
-    query = session.query(Position)
-    if uid is not None:
-        query = query.filter_by(user_id=uid)
-    positions = query.filter(Position.quantity > 0).all()
+    if uid is None:
+        return {"status": "Erro", "msg": "Usuário não autenticado."}
+    positions = session.query(Position).filter_by(user_id=uid).filter(Position.quantity > 0).all()
     tickers_yf, tickers_clean, categories, weights_val = [], [], [], []
     total_val = 0.0
     

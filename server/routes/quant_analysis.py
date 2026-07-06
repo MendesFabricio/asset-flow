@@ -251,10 +251,14 @@ def calculate_local_fear_greed(session):
     from database.models import Position, Asset, Category, MarketData
     from sqlalchemy.orm import joinedload
     
+    uid = g.get("user_id")
+    if not uid:
+        return {"score": 50, "label": "Neutro", "avg_rsi": 50, "above_sma_pct": 50, "drawdown_score": 50}
+        
     positions = session.query(Position).options(
         joinedload(Position.asset).joinedload(Asset.category),
         joinedload(Position.asset).selectinload(Asset.market_data)
-    ).filter(Position.user_id == g.user_id, Position.quantity > 0).all()
+    ).filter(Position.user_id == uid, Position.quantity > 0).all()
     
     variable_assets = []
     total_var_value = 0.0
