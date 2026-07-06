@@ -2,6 +2,15 @@
 import logging
 from database.models import Position, Dividend
 
+def _get_current_user_id():
+    try:
+        from flask import has_request_context, g
+        if has_request_context() and hasattr(g, 'user_id'):
+            return g.user_id
+    except Exception:
+        pass
+    return None
+
 def calculate_income_projection(
     session,
     monthly_contribution: float = 1000.0,
@@ -11,7 +20,11 @@ def calculate_income_projection(
 ) -> dict:
     logging.info(f"📊 Projetando IF: R${monthly_contribution}/mês, {years}a, {annual_return_pct}% a.a.")
 
-    positions = session.query(Position).filter(Position.quantity > 0).all()
+    uid = _get_current_user_id()
+    query = session.query(Position)
+    if uid is not None:
+        query = query.filter_by(user_id=uid)
+    positions = query.filter(Position.quantity > 0).all()
     current_portfolio = 0.0
     current_income = 0.0
     for pos in positions:
@@ -72,7 +85,11 @@ def calculate_income_projection(
 def calculate_dividend_forecast(session) -> dict:
     logging.info("📅 Computando projeções preditivas de dividendos...")
     
-    positions = session.query(Position).filter(Position.quantity > 0).all()
+    uid = _get_current_user_id()
+    query = session.query(Position)
+    if uid is not None:
+        query = query.filter_by(user_id=uid)
+    positions = query.filter(Position.quantity > 0).all()
     if not positions:
         return {"status": "Sucesso", "forecast": [], "total_projected": 0.0}
         
@@ -85,7 +102,11 @@ def calculate_dividend_forecast(session) -> dict:
         ticker = pos.asset.ticker.upper()
         qty = float(pos.quantity)
         
-        divs = session.query(Dividend).filter_by(asset_id=pos.asset_id).all()
+        # Filtra dividendos do ativo pertencentes ao usuario
+        if uid is not None:
+            divs = session.query(Dividend).filter_by(asset_id=pos.asset_id, user_id=uid).all()
+        else:
+            divs = session.query(Dividend).filter_by(asset_id=pos.asset_id).all()
         if not divs:
             mdata = pos.asset.market_data[0] if pos.asset.market_data else None
             price = float(mdata.price or 0) if mdata else float(pos.average_price or 0)

@@ -14,10 +14,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 calendar_bp = Blueprint('calendar', __name__)
 
-CALENDAR_CACHE = {
-    "data": None,
-    "last_update": 0
-}
+CALENDAR_CACHE = {}  # Cache por user_id: {user_id: {"data": [...], "last_update": time.time()}}
 CACHE_TIMEOUT = 600  # 10 minutos
 CALENDAR_UPDATE_LOCK = threading.Lock()
 IS_UPDATING_CALENDAR = False
@@ -101,18 +98,20 @@ def fetch_single_asset_proventos(item, secure_session):
 def get_calendar():
     global IS_UPDATING_CALENDAR
     now = time.time()
+    user_id = g.user_id
+    user_cache = CALENDAR_CACHE.get(user_id, {"data": None, "last_update": 0})
     
     tz = pytz.timezone("America/Sao_Paulo")
     today = datetime.now(tz).date()
 
-    if CALENDAR_CACHE["data"] is not None and (now - CALENDAR_CACHE["last_update"]) < CACHE_TIMEOUT:
-        return jsonify(CALENDAR_CACHE["data"])
+    if user_cache["data"] is not None and (now - user_cache["last_update"]) < CACHE_TIMEOUT:
+        return jsonify(user_cache["data"])
 
-    # Carrega posições ativas
+    # Carrega posições ativas do usuário logado
     items_to_process = []
     with Session() as session:
         try:
-            positions = session.query(Position).join(Asset).filter(Position.quantity > 0).all()
+            positions = session.query(Position).filter_by(user_id=user_id).join(Asset).filter(Position.quantity > 0).all()
             for pos in positions:
                 ticker_raw = pos.asset.ticker.strip().upper()
                 if any(x in ticker_raw for x in ["CAIXINHA", "BTC", "ETH"]):
@@ -148,9 +147,11 @@ def get_calendar():
                             logging.warning(f"Erro em thread de busca de provento: {thread_err}")
 
                 bg_events.sort(key=lambda x: x['date'])
-                CALENDAR_CACHE["data"] = bg_events
-                CALENDAR_CACHE["last_update"] = time.time()
-                logging.info(f"🏁 [BACKGROUND] Fim da varredura paralela protegida. {len(bg_events)} eventos consolidados.")
+                CALENDAR_CACHE[user_id] = {
+                    "data": bg_events,
+                    "last_update": time.time()
+                }
+                logging.info(f"🏁 [BACKGROUND] Fim da varredura paralela protegida para user {user_id}. {len(bg_events)} eventos consolidados.")
             except Exception as bg_err:
                 logging.error(f"Erro na atualização de proventos em background: {bg_err}")
             finally:
@@ -161,8 +162,8 @@ def get_calendar():
         threading.Thread(target=run_update, daemon=True).start()
 
     # Se já temos algum cache (mesmo expirado), retorna ele imediatamente
-    if CALENDAR_CACHE["data"] is not None:
-        return jsonify(CALENDAR_CACHE["data"])
+    if user_cache["data"] is not None:
+        return jsonify(user_cache["data"])
 
     # Se o cache é None (primeiro load pós boot), busca no DB SQLite como fallback rápido
     db_events = []

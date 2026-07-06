@@ -94,12 +94,6 @@ if __name__ == '__main__':
         update_market_cache()
         scheduled_update_prices()
         scheduled_quant_warm()
-        # Gera o briefing inicial no boot se o cache estiver vazio
-        url_boot = "http://backend:5328/api/market/brief"
-        try:
-            requests.get(url_boot, timeout=5)
-        except Exception:
-            pass
         logging.info("✅ Cache warming concluído. Worker pronto para receber agendamentos!")
     except Exception as e:
         logging.error(f"⚠️ Falha no boot/warming do worker: {e}", exc_info=True)
@@ -108,7 +102,6 @@ if __name__ == '__main__':
     scheduler.add_job(func=scheduled_update_indices, trigger="interval", minutes=5, max_instances=1, misfire_grace_time=30)
     scheduler.add_job(func=scheduled_update_prices, trigger="interval", minutes=10, max_instances=1, misfire_grace_time=60)
     scheduler.add_job(func=scheduled_quant_warm, trigger="interval", minutes=30, max_instances=1, misfire_grace_time=300)
-    scheduler.add_job(func=scheduled_morning_brief_generation, trigger="cron", hour=7, minute=0, max_instances=1, misfire_grace_time=3600)
     scheduler.add_job(func=scheduled_dividends_check, trigger="cron", hour=8, minute=0, max_instances=1, misfire_grace_time=3600)
 
     try:

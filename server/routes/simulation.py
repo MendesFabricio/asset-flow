@@ -7,7 +7,7 @@ import time
 import logging
 import requests
 import json
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, g
 from services import PortfolioService
 from database.models import Session, Asset, Position, MarketData, SystemCache, safe_commit
 from domain.quant_engine import get_risk_free_rate, _to_yf_ticker
@@ -23,8 +23,9 @@ def optimize_portfolio():
     session = Session()
     try:
         from datetime import datetime, timedelta
+        cache_key = f"optimize_portfolio_{g.user_id}"
         # 1. Tenta recuperar do cache persistido
-        cache_record = session.query(SystemCache).filter_by(key="optimize_portfolio").first()
+        cache_record = session.query(SystemCache).filter_by(key=cache_key).first()
         if cache_record:
             age = datetime.now() - cache_record.updated_at
             if age < timedelta(hours=1):
@@ -35,7 +36,7 @@ def optimize_portfolio():
         res = service.calculate_markowitz_optimization()
         if res.get("status") == "Sucesso" or "status" not in res:
             if not cache_record:
-                cache_record = SystemCache(key="optimize_portfolio")
+                cache_record = SystemCache(key=cache_key)
                 session.add(cache_record)
             cache_record.value = json.dumps(res)
             cache_record.updated_at = datetime.now()
@@ -54,8 +55,9 @@ def risk_parity_portfolio():
     session = Session()
     try:
         from datetime import datetime, timedelta
+        cache_key = f"risk_parity_{g.user_id}"
         # 1. Tenta recuperar do cache persistido
-        cache_record = session.query(SystemCache).filter_by(key="risk_parity").first()
+        cache_record = session.query(SystemCache).filter_by(key=cache_key).first()
         if cache_record:
             age = datetime.now() - cache_record.updated_at
             if age < timedelta(hours=1):
@@ -66,7 +68,7 @@ def risk_parity_portfolio():
         res = service.calculate_risk_parity()
         if res.get("status") == "Sucesso" or "status" not in res:
             if not cache_record:
-                cache_record = SystemCache(key="risk_parity")
+                cache_record = SystemCache(key=cache_key)
                 session.add(cache_record)
             cache_record.value = json.dumps(res)
             cache_record.updated_at = datetime.now()
@@ -112,21 +114,22 @@ def morning_brief():
         force_reanalyze = request.args.get("force", "false").lower() == "true"
         
         from datetime import datetime, timedelta
-        cache_record = session.query(SystemCache).filter_by(key="morning_brief").first()
+        cache_key = f"morning_brief_{g.user_id}"
+        cache_record = session.query(SystemCache).filter_by(key=cache_key).first()
         if cache_record and not force_reanalyze:
             return jsonify(json.loads(cache_record.value))
 
         selic = get_risk_free_rate()
         dolar_rate = service.get_usd_rate()
         
-        # Coleta todas as posições ativas da carteira
+        # Coleta todas as posições ativas da carteira do usuário logado
         positions = (
             session.query(Position)
             .options(
                 joinedload(Position.asset).joinedload(Asset.category),
                 joinedload(Position.asset).selectinload(Asset.market_data)
             )
-            .filter(Position.quantity > 0)
+            .filter(Position.user_id == g.user_id, Position.quantity > 0)
             .all()
         )
         
@@ -228,9 +231,9 @@ def morning_brief():
                 }
                 
                 # Atualiza cache
-                cache_record = session.query(SystemCache).filter_by(key="morning_brief").first()
+                cache_record = session.query(SystemCache).filter_by(key=cache_key).first()
                 if not cache_record:
-                    cache_record = SystemCache(key="morning_brief")
+                    cache_record = SystemCache(key=cache_key)
                     session.add(cache_record)
                 cache_record.value = json.dumps(brief_data)
                 cache_record.updated_at = datetime.now()

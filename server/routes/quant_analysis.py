@@ -1,5 +1,5 @@
 # server/routes/quant_analysis.py
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, g
 import sys
 import os
 import json
@@ -36,8 +36,8 @@ def get_attribution_analysis():
 def get_rebalance_bands():
     session = Session()
     try:
-        # Busca posições ativas
-        positions = session.query(Position).filter(Position.quantity > 0).all()
+        # Busca posições ativas do usuário logado
+        positions = session.query(Position).filter_by(user_id=g.user_id).filter(Position.quantity > 0).all()
         if not positions:
             return jsonify({"status": "Sucesso", "data": []})
 
@@ -109,7 +109,7 @@ def get_dca_lump_sum():
         # Fallback: pega a maior posição de renda variável ou IBOV se não houver ativos
         session = Session()
         try:
-            positions = session.query(Position).filter(Position.quantity > 0).all()
+            positions = session.query(Position).filter_by(user_id=g.user_id).filter(Position.quantity > 0).all()
             active_tickers = [p.asset.ticker.upper() for p in positions if p.asset and p.asset.category and p.asset.category.name not in ["Renda Fixa", "Reserva"]]
             if active_tickers:
                 ticker = active_tickers[0]
@@ -245,7 +245,7 @@ def calculate_local_fear_greed(session):
     positions = session.query(Position).options(
         joinedload(Position.asset).joinedload(Asset.category),
         joinedload(Position.asset).selectinload(Asset.market_data)
-    ).filter(Position.quantity > 0).all()
+    ).filter(Position.user_id == g.user_id, Position.quantity > 0).all()
     
     variable_assets = []
     total_var_value = 0.0
@@ -435,7 +435,7 @@ def analyze_pdf_endpoint():
         
     session = Session()
     try:
-        position = session.query(Position).join(Position.asset).filter(Asset.ticker == ticker).first()
+        position = session.query(Position).join(Position.asset).filter(Position.user_id == g.user_id, Asset.ticker == ticker).first()
         if not position or not position.last_report_url:
             return jsonify({"status": "Erro", "msg": f"Nenhum link de relatório de RI disponível para o ativo {ticker}."}), 404
             

@@ -6,9 +6,20 @@ from datetime import datetime, timedelta
 from database.models import Position, SystemCache, safe_commit
 from domain.quant.helpers import _to_yf_ticker, _align_prices_to_b3, get_risk_free_rate
 
-def calculate_risk_metrics(session, fetch_prices) -> dict:
+def _get_current_user_id():
     try:
-        cache_record = session.query(SystemCache).filter_by(key="risk_metrics").first()
+        from flask import has_request_context, g
+        if has_request_context() and hasattr(g, 'user_id'):
+            return g.user_id
+    except Exception:
+        pass
+    return None
+
+def calculate_risk_metrics(session, fetch_prices) -> dict:
+    uid = _get_current_user_id()
+    cache_key = f"risk_metrics_{uid}" if uid is not None else "risk_metrics"
+    try:
+        cache_record = session.query(SystemCache).filter_by(key=cache_key).first()
         if cache_record:
             age = datetime.now() - cache_record.updated_at
             if age < timedelta(hours=1):
@@ -20,7 +31,10 @@ def calculate_risk_metrics(session, fetch_prices) -> dict:
     logging.info("📐 Calculando métricas de risco...")
     import pandas as pd
 
-    positions = session.query(Position).filter(Position.quantity > 0).all()
+    query = session.query(Position)
+    if uid is not None:
+        query = query.filter_by(user_id=uid)
+    positions = query.filter(Position.quantity > 0).all()
     tickers_yf, weights_val, total_value = [], [], 0.0
 
     for pos in positions:
@@ -357,9 +371,9 @@ def calculate_risk_metrics(session, fetch_prices) -> dict:
     }
 
     try:
-        cache_record = session.query(SystemCache).filter_by(key="risk_metrics").first()
+        cache_record = session.query(SystemCache).filter_by(key=cache_key).first()
         if not cache_record:
-            cache_record = SystemCache(key="risk_metrics")
+            cache_record = SystemCache(key=cache_key)
             session.add(cache_record)
         cache_record.value = json.dumps(result)
         cache_record.updated_at = datetime.now()

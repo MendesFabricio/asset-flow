@@ -1,5 +1,5 @@
 # server/routes/alerts.py
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, g
 from database.models import Asset, Position, Category, Session # ⚡ Importado a fábrica central controlada
 from datetime import datetime
 import logging # ⚡ Substituição de prints genéricos por logs estruturados
@@ -27,8 +27,8 @@ def get_alerts():
     # ⚡ Gerenciador de Contexto: Thread-safe nativo que abre, gerencia e fecha a sessão sem riscos
     with Session() as session:
         try:
-            # Busca apenas ativos que você tem em carteira (qtd > 0)
-            positions = session.query(Position).join(Asset).join(Category).filter(Position.quantity > 0).all()
+            # Busca apenas ativos que você tem em carteira (qtd > 0) do usuário logado
+            positions = session.query(Position).filter_by(user_id=g.user_id).join(Asset).join(Category).filter(Position.quantity > 0).all()
             today = datetime.now()
 
             for pos in positions:

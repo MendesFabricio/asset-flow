@@ -96,7 +96,7 @@ def get_dividend_analytics():
                 t = f["ticker"]
                 projected_map[t] = projected_map.get(t, 0.0) + f["amount"]
                 
-            positions = session.query(Position).filter(Position.quantity > 0).all()
+            positions = session.query(Position).filter_by(user_id=g.user_id).filter(Position.quantity > 0).all()
             analytics = []
             
             for pos in positions:
@@ -166,7 +166,7 @@ def get_yoc_history():
     """Retorna a série histórica de Yield on Cost por ativo"""
     with Session() as session:
         try:
-            positions = session.query(Position).filter(Position.quantity > 0).all()
+            positions = session.query(Position).filter_by(user_id=g.user_id).filter(Position.quantity > 0).all()
             results = {}
             
             for pos in positions:

@@ -4,8 +4,21 @@ import pandas as pd
 from database.models import Position
 from domain.quant.helpers import _to_yf_ticker, _align_prices_to_b3, get_risk_free_rate
 
+def _get_current_user_id():
+    try:
+        from flask import has_request_context, g
+        if has_request_context() and hasattr(g, 'user_id'):
+            return g.user_id
+    except Exception:
+        pass
+    return None
+
 def calculate_kelly_criterion(session, fetch_prices) -> dict:
-    positions = session.query(Position).filter(Position.quantity > 0).all()
+    uid = _get_current_user_id()
+    query = session.query(Position)
+    if uid is not None:
+        query = query.filter_by(user_id=uid)
+    positions = query.filter(Position.quantity > 0).all()
     tickers_yf, tickers_clean, categories = [], [], []
     for pos in positions:
         if not pos.asset:
@@ -78,7 +91,11 @@ def calculate_kelly_criterion(session, fetch_prices) -> dict:
     }
 
 def calculate_alpha_attribution(session, fetch_prices) -> dict:
-    positions = session.query(Position).filter(Position.quantity > 0).all()
+    uid = _get_current_user_id()
+    query = session.query(Position)
+    if uid is not None:
+        query = query.filter_by(user_id=uid)
+    positions = query.filter(Position.quantity > 0).all()
     tickers_yf, tickers_clean, categories, weights_val = [], [], [], []
     total_val = 0.0
     
@@ -177,7 +194,11 @@ def calculate_alpha_attribution(session, fetch_prices) -> dict:
     }
 
 def calculate_rolling_sharpe(session, fetch_prices) -> dict:
-    positions = session.query(Position).filter(Position.quantity > 0).all()
+    uid = _get_current_user_id()
+    query = session.query(Position)
+    if uid is not None:
+        query = query.filter_by(user_id=uid)
+    positions = query.filter(Position.quantity > 0).all()
     tickers_yf, tickers_clean, weights_val = [], [], []
     total_val = 0.0
     
@@ -255,7 +276,11 @@ def calculate_rolling_sharpe(session, fetch_prices) -> dict:
     }
 
 def calculate_momentum_ranking(session, fetch_prices) -> dict:
-    positions = session.query(Position).filter(Position.quantity > 0).all()
+    uid = _get_current_user_id()
+    query = session.query(Position)
+    if uid is not None:
+        query = query.filter_by(user_id=uid)
+    positions = query.filter(Position.quantity > 0).all()
     tickers_yf, tickers_clean = [], []
     
     for pos in positions:

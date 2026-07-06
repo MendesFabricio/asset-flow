@@ -3,11 +3,24 @@ import logging
 from database.models import Position
 from domain.quant.helpers import _to_yf_ticker, _align_prices_to_b3
 
+def _get_current_user_id():
+    try:
+        from flask import has_request_context, g
+        if has_request_context() and hasattr(g, 'user_id'):
+            return g.user_id
+    except Exception:
+        pass
+    return None
+
 def calculate_smart_rebalance(session, fetch_prices, monthly_contribution: float = 0.0) -> dict:
     logging.info(f"⚖️ Smart Rebalance (aporte R$ {monthly_contribution:.2f})...")
     import pandas as pd
 
-    positions = session.query(Position).filter(Position.quantity > 0).all()
+    uid = _get_current_user_id()
+    query = session.query(Position)
+    if uid is not None:
+        query = query.filter_by(user_id=uid)
+    positions = query.filter(Position.quantity > 0).all()
     if not positions:
         return {"status": "Erro", "msg": "Carteira sem posições."}
 
