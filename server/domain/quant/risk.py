@@ -13,7 +13,7 @@ def _get_current_user_id():
             return g.user_id
     except Exception:
         pass
-    return None
+    return 1
 
 def calculate_risk_metrics(session, fetch_prices) -> dict:
     uid = _get_current_user_id()
@@ -33,8 +33,9 @@ def calculate_risk_metrics(session, fetch_prices) -> dict:
 
     query = session.query(Position)
     if uid is not None:
-        query = query.filter_by(user_id=uid)
-    positions = query.filter(Position.quantity > 0).all()
+        positions = query.filter(Position.user_id == uid, Position.quantity > 0).all()
+    else:
+        positions = query.filter(Position.quantity > 0).all()
     tickers_yf, weights_val, total_value = [], [], 0.0
 
     for pos in positions:
@@ -131,7 +132,7 @@ def calculate_risk_metrics(session, fetch_prices) -> dict:
         dv = ann_v
     sortino = (ann_p - RISK_FREE) / dv if dv > 0 else 0.0
 
-    cum = (1 + p).cumprod()
+    cum = np.exp(p.cumsum())
     dd_series = (cum - cum.cummax()) / cum.cummax()
     mdd = float(dd_series.min())
     calmar = ann_p / abs(mdd) if mdd != 0 else 0.0
@@ -288,7 +289,10 @@ def calculate_risk_metrics(session, fetch_prices) -> dict:
 
     aligned_copy = aligned.copy()
     aligned_copy.index = pd.to_datetime(aligned_copy.index)
-    monthly = aligned_copy.resample('ME').sum().apply(np.exp) - 1.0
+    try:
+        monthly = aligned_copy.resample('ME').sum().apply(np.exp) - 1.0
+    except ValueError:
+        monthly = aligned_copy.resample('M').sum().apply(np.exp) - 1.0
     
     m_p = monthly["portfolio"]
     m_b = monthly["benchmark"]

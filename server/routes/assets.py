@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request
 from pydantic import BaseModel, Field, ValidationError
+from typing import Optional
 import sys
 import os
 import logging
@@ -28,7 +29,7 @@ class UpdateInput(BaseModel):
     dy: float = Field(default=0)
     lpa: float = Field(default=0)
     vpa: float = Field(default=0)
-    current_price: float = Field(default=None)
+    current_price: Optional[float] = Field(default=None)
 
 # --- Funções Auxiliares de Threading ---
 

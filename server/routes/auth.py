@@ -10,8 +10,9 @@ from itsdangerous import URLSafeTimedSerializer
 auth_bp = Blueprint('auth', __name__)
 
 def get_serializer():
-    # Fallback key caso SECRET_KEY não esteja configurada
-    secret_key = current_app.config.get("SECRET_KEY") or "assetflow_super_secret_key_prod_1337"
+    secret_key = current_app.config.get("SECRET_KEY")
+    if not secret_key:
+        raise RuntimeError("SECRET_KEY de sessão ausente no contexto do aplicativo Flask.")
     return URLSafeTimedSerializer(secret_key)
 
 def generate_session_token(user_id: int, username: str) -> str:

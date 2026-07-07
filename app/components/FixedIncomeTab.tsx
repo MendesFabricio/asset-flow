@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  Plus, Landmark, Calendar, Trash2, X, Wallet, 
-  TrendingUp, AlertCircle, ArrowUpRight, DollarSign, Clock, Percent, ShieldCheck
+  Plus, Landmark, Calendar, Trash2, X, 
+  TrendingUp, ArrowUpRight, Percent, ShieldCheck
 } from 'lucide-react';
 import { formatMoney } from '../utils';
 
@@ -184,7 +184,7 @@ export default function FixedIncomeTab() {
             </thead>
             <tbody>
               {titles.map((t) => {
-                const progressPct = Math.min(100, Math.round((t.days_elapsed / t.total_days) * 100));
+                const progressPct = t.total_days > 0 ? Math.min(100, Math.round((t.days_elapsed / t.total_days) * 100)) : 0;
                 
                 return (
                   <tr key={t.id} className="border-b border-slate-800/60 hover:bg-slate-900/20 transition">

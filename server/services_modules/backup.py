@@ -2,7 +2,7 @@
 import logging
 import os
 import shutil
-from datetime import date, datetime
+from datetime import date
 from decimal import Decimal
 from sqlalchemy.orm import joinedload
 from database.models import Position, Asset, PortfolioSnapshot, safe_commit

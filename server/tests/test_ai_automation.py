@@ -93,7 +93,7 @@ class TestAIAutomationAndSentiment(unittest.TestCase):
         # Simula que o dividendo não existe no banco
         session_mock.query.return_value.filter_by.return_value.first.return_value = None
         
-        with patch('services.Session', return_value=session_mock):
+        with patch('services_modules.integration.Session', return_value=session_mock):
             res = service.record_confirmed_dividends()
             self.assertTrue(res)
             # Deve chamar session.add() para adicionar os novos dividendos detectados

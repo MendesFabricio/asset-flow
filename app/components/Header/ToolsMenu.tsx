@@ -100,7 +100,7 @@ export function ToolsMenu({
                 <button
                   type="button"
                   onClick={() => {
-                    onOpenAddModal();
+                    alert('Funcionalidade "Importação OCR" em desenvolvimento. Em breve disponível no AssetFlow Pro!');
                     setIsOpen(false);
                   }}
                   className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-slate-900/60 transition-colors flex items-center gap-2.5 text-xs text-slate-200"
@@ -221,13 +221,20 @@ export function ToolsMenu({
                   </div>
                 </button>
 
-                <div className="flex items-center gap-2.5 px-2 py-1.5 text-slate-500 select-none cursor-not-allowed">
-                  <Terminal size={14} />
+                <button
+                  type="button"
+                  onClick={() => {
+                    alert('O console de logs do desenvolvedor está em desenvolvimento para o painel administrativo Pro.');
+                    setIsOpen(false);
+                  }}
+                  className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-slate-900/60 transition-colors flex items-center gap-2.5 text-xs text-slate-400 hover:text-slate-200"
+                >
+                  <Terminal size={14} className="text-slate-500" />
                   <div>
-                    <p className="font-bold text-[10px]">Dev Console Logs</p>
-                    <p className="text-[8px]">Apenas administrador local</p>
+                    <p className="font-bold">Dev Console Logs</p>
+                    <p className="text-[9px] text-slate-500">Restrito a administrador local</p>
                   </div>
-                </div>
+                </button>
               </div>
             </div>
 

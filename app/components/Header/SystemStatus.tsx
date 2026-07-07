@@ -173,12 +173,6 @@ export function SystemStatus() {
               data?.services.ollama.message || 'Pingando daemon de inteligência artificial...',
               Brain
             )}
-            {renderServiceRow(
-              'Sincronizador CVM', 
-              'online', 
-              'Serviço FNET ativo aguardando pipelines...',
-              Layers
-            )}
           </div>
 
           {/* Footer Informativo */}

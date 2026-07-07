@@ -3,8 +3,8 @@
 import React, { useState, useEffect, useTransition, useMemo } from 'react';
 import { 
   Plus, CheckCircle, User, Calendar, CheckSquare, Pencil, 
-  Trash2, X, Wallet, Filter, History, Settings, BarChart2, 
-  TrendingUp, AlertCircle, Phone, ArrowUpRight, DollarSign,
+  Trash2, X, Wallet, Settings, BarChart2, 
+  TrendingUp, AlertCircle, Phone, DollarSign,
   PieChart as PieIcon, Layers, FileText
 } from 'lucide-react';
 import { 
@@ -955,7 +955,7 @@ export const ReceivablesTab = () => {
                         )}
                       </td>
                       <td className="p-4 font-medium text-white max-w-[180px] truncate">{item.loanDesc}</td>
-                      <td className="p-4 text-slate-350 font-semibold">{item.debtorNome}</td>
+                      <td className="p-4 text-slate-400 font-semibold">{item.debtorNome}</td>
                       <td className="p-4 text-slate-400">
                         <span className="bg-slate-900 px-2 py-0.5 rounded border border-slate-800/80 text-[10px] font-medium">{item.categoria}</span>
                       </td>
@@ -963,7 +963,7 @@ export const ReceivablesTab = () => {
                         {item.installment.numero_parcela}/{item.loanId ? loans.find(l => l.id === item.loanId)?.total_parcelas : 1}
                       </td>
                       <td className="p-4 text-slate-400 font-mono">{item.installment.data_vencimento.split('T')[0]}</td>
-                      <td className="p-4 text-slate-450 font-mono font-medium">{item.installment.fatura_mes}</td>
+                      <td className="p-4 text-slate-500 font-mono font-medium">{item.installment.fatura_mes}</td>
                       <td className="p-4 text-right font-bold font-mono text-slate-200">{formatMoney(item.installment.valor_parcela)}</td>
                       <td className="p-4 text-right font-semibold font-mono text-emerald-500">{formatMoney(item.installment.valor_pago)}</td>
                       <td className="p-4 text-center">

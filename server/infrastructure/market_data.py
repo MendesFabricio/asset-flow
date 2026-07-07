@@ -44,9 +44,20 @@ def update_prices(session, invalidate_cache_callback):
         for symbol, asset in tickers_map.items():
             try:
                 hist = pd.DataFrame()
-                if symbol in batch_data.columns:
-                    hist = batch_data[symbol]
+                if isinstance(batch_data.columns, pd.MultiIndex):
+                    if symbol in batch_data.columns.levels[0]:
+                        hist = batch_data[symbol]
                 else:
+                    if len(download_list) == 1:
+                        hist = batch_data
+                    elif symbol in batch_data.columns:
+                        hist = batch_data[symbol]
+
+                if hist.empty or 'Close' not in hist.columns:
+                    logging.info(f"🔄 Fallback individual para {symbol}...")
+                    hist = yf.Ticker(symbol).history(period="6mo")
+
+                if hist.empty:
                     continue
 
                 hist = hist.dropna(subset=['Close'])

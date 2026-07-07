@@ -11,7 +11,7 @@ def _get_current_user_id():
             return g.user_id
     except Exception:
         pass
-    return None
+    return 1
 
 def get_correlation_matrix(session, fetch_prices) -> dict:
     logging.info("🧮 Calculando matriz de correlação...")
@@ -41,8 +41,7 @@ def get_correlation_matrix(session, fetch_prices) -> dict:
 
     raw = fetch_prices(unique, period="1y")
     if isinstance(raw.columns, pd.MultiIndex):
-        lv = raw.columns.get_level_values(1)
-        prices = raw.xs("Close", axis=1, level=1 if "Close" in lv else 0)
+        prices = raw.xs("Close", axis=1, level=1)
     else:
         prices = raw[["Close"]] if "Close" in raw.columns else raw
 
@@ -77,7 +76,6 @@ def get_correlation_matrix(session, fetch_prices) -> dict:
     return {"status": "Sucesso", "labels": labels, "matrix": matrix}
 
 def calculate_sector_correlation(session, fetch_prices) -> dict:
-    from database.models import Position
     import pandas as pd
     logging.info("🧮 Calculando Matriz de Correlação Setorial...")
     

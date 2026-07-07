@@ -66,13 +66,3 @@ class CacheHelperService:
         except Exception as e:
             session.rollback()
             logging.warning(f"Erro ao gravar cache no banco para {key}: {e}")
-
-    def _extract_value(self, data_point):
-        try:
-            if hasattr(data_point, 'iloc'): 
-                return Decimal(str(data_point.iloc[0]))
-            if hasattr(data_point, 'item'): 
-                return Decimal(str(data_point.item()))
-            return Decimal(str(data_point))
-        except Exception: 
-            return Decimal('0.0')

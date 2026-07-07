@@ -9,8 +9,8 @@ import requests
 import json
 from flask import Blueprint, jsonify, g
 from services import PortfolioService
-from database.models import Session, Asset, Position, MarketData, SystemCache, safe_commit
-from domain.quant_engine import get_risk_free_rate, _to_yf_ticker
+from database.models import Session, Asset, Position, SystemCache, safe_commit
+from domain.quant_engine import get_risk_free_rate
 from infrastructure.ollama_service import OLLAMA_URL, MODEL_NAME
 from sqlalchemy.orm import joinedload, selectinload
 

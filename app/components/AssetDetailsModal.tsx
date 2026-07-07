@@ -183,7 +183,14 @@ export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalP
             "support_host": "https://www.tradingview.com"
         });
 
-        containerRef.current.appendChild(script);
+        const container = containerRef.current;
+        container.appendChild(script);
+
+        return () => {
+            if (container) {
+                container.innerHTML = '';
+            }
+        };
     }, [isOpen, asset]);
 
     if (!isOpen || !asset) return null;

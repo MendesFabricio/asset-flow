@@ -2,10 +2,9 @@
 import logging
 import math
 import traceback
-from datetime import datetime, timedelta
 from decimal import Decimal
 from sqlalchemy.orm import joinedload
-from database.models import Position, Asset, Category, Dividend, safe_commit
+from database.models import Position, Asset, Category, safe_commit
 from database.session import Session
 
 class DashboardService:

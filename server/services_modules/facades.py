@@ -1,6 +1,5 @@
 # server/services_modules/facades.py
-import logging
-from database.session import Session, session_factory
+from database.session import Session
 import domain.quant_engine as _quant
 from infrastructure.price_cache import fetch_price_history as _fetch_price_history_fn
 

@@ -136,7 +136,7 @@ def get_news(ticker):
 
 @news_bp.route('/api/news/daily-summary', methods=['GET'])
 def get_daily_sector_summary():
-    from flask import request
+    from flask import request, g
     force_reanalyze = request.args.get("force", "false").lower() == "true"
     session = Session()
     try:

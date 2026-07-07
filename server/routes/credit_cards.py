@@ -91,7 +91,9 @@ def handle_single_card(id):
             
         # PUT
         data = request.json or {}
-        card.name = data.get('name', card.name).strip()
+        name_val = data.get('name')
+        if name_val is not None:
+            card.name = str(name_val).strip()
         try:
             card.limit = Decimal(str(data.get('limit', card.limit)))
             card.closing_day = int(data.get('closing_day', card.closing_day))

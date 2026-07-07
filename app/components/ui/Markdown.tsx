@@ -2,7 +2,7 @@
 import React from 'react';
 
 interface MarkdownProps {
-  text: any;
+  text: unknown;
 }
 
 export function Markdown({ text }: MarkdownProps) {
@@ -25,27 +25,69 @@ export function Markdown({ text }: MarkdownProps) {
 
   const lines = cleanText.split('\n');
 
-  const renderInlineBold = (lineText: string) => {
-    const boldRegex = /\*\*(.*?)\*\*/g;
-    const parts: (string | React.ReactNode)[] = [];
-    let lastIndex = 0;
-    let match;
+  const renderInlineFormatting = (lineText: string): React.ReactNode[] | string => {
+    let parts: (string | React.ReactNode)[] = [lineText];
+    
+    const applyRegex = (
+      regex: RegExp, 
+      replacer: (match: string[], key: string) => React.ReactNode
+    ) => {
+      const newParts: (string | React.ReactNode)[] = [];
+      parts.forEach((part, pIdx) => {
+        if (typeof part !== 'string') {
+          newParts.push(part);
+          return;
+        }
+        
+        let lastIndex = 0;
+        let match;
+        regex.lastIndex = 0;
+        
+        while ((match = regex.exec(part)) !== null) {
+          if (match.index > lastIndex) {
+            newParts.push(part.substring(lastIndex, match.index));
+          }
+          newParts.push(replacer(match, `${pIdx}-${match.index}`));
+          lastIndex = regex.lastIndex;
+        }
+        if (lastIndex < part.length) {
+          newParts.push(part.substring(lastIndex));
+        }
+      });
+      parts = newParts;
+    };
 
-    while ((match = boldRegex.exec(lineText)) !== null) {
-      if (match.index > lastIndex) {
-        parts.push(lineText.substring(lastIndex, match.index));
-      }
-      parts.push(
-        <strong key={match.index} className="text-white font-extrabold">
-          {match[1]}
-        </strong>
-      );
-      lastIndex = boldRegex.lastIndex;
-    }
-    if (lastIndex < lineText.length) {
-      parts.push(lineText.substring(lastIndex));
-    }
-    return parts.length > 0 ? parts : lineText;
+    applyRegex(/\[([^\]]+)\]\(([^)]+)\)/g, (match, key) => (
+      <a 
+        key={key} 
+        href={match[2]} 
+        target="_blank" 
+        rel="noopener noreferrer" 
+        className="text-indigo-400 hover:text-indigo-300 underline font-medium"
+      >
+        {match[1]}
+      </a>
+    ));
+
+    applyRegex(/`([^`]+)`/g, (match, key) => (
+      <code key={key} className="bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800 text-[10px] text-indigo-300 font-mono">
+        {match[1]}
+      </code>
+    ));
+
+    applyRegex(/\*\*([^*]+)\*\*/g, (match, key) => (
+      <strong key={key} className="text-white font-extrabold">
+        {match[1]}
+      </strong>
+    ));
+
+    applyRegex(/\*([^*]+)\*/g, (match, key) => (
+      <em key={key} className="text-slate-200 italic">
+        {match[1]}
+      </em>
+    ));
+
+    return parts;
   };
 
   return (
@@ -54,11 +96,11 @@ export function Markdown({ text }: MarkdownProps) {
         const trimmed = line.trim();
         if (!trimmed) return <div key={idx} className="h-1" />;
 
-        // Headers: ###, ##, #
+        // Headers: #, ##, ###, ####, #####+
         if (trimmed.startsWith('#')) {
           const depth = (trimmed.match(/^#+/) || ['#'])[0].length;
-          const cleanText = trimmed.replace(/^#+\s*/, '');
-          const boldText = renderInlineBold(cleanText);
+          const content = trimmed.replace(/^#+\s*/, '');
+          const boldText = renderInlineFormatting(content);
 
           if (depth === 1) {
             return (
@@ -74,10 +116,24 @@ export function Markdown({ text }: MarkdownProps) {
               </h2>
             );
           }
+          if (depth === 3) {
+            return (
+              <h3 key={idx} className="text-[10px] font-bold text-slate-200 mt-2.5 mb-1 uppercase tracking-wider">
+                {boldText}
+              </h3>
+            );
+          }
+          if (depth === 4) {
+            return (
+              <h4 key={idx} className="text-[9.5px] font-semibold text-slate-300 mt-2 mb-1">
+                {boldText}
+              </h4>
+            );
+          }
           return (
-            <h3 key={idx} className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mt-2 mb-1">
+            <h5 key={idx} className="text-[9px] font-medium text-slate-400 mt-1.5 mb-0.5 italic">
               {boldText}
-            </h3>
+            </h5>
           );
         }
 
@@ -88,7 +144,7 @@ export function Markdown({ text }: MarkdownProps) {
             <div key={idx} className="flex items-start gap-1.5 pl-1.5 my-0.5">
               <span className="text-indigo-400 select-none text-[10px] mt-0.5">•</span>
               <p className="text-xs text-slate-300 leading-relaxed flex-1">
-                {renderInlineBold(cleanText)}
+                {renderInlineFormatting(cleanText)}
               </p>
             </div>
           );
@@ -97,7 +153,7 @@ export function Markdown({ text }: MarkdownProps) {
         // Standard Paragraph
         return (
           <p key={idx} className="text-xs text-slate-300 leading-relaxed">
-            {renderInlineBold(line)}
+            {renderInlineFormatting(line)}
           </p>
         );
       })}

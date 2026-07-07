@@ -153,7 +153,19 @@ export const CategorySummary = ({ ativos, categorias = [], onUpdate }: CategoryS
     return Math.max(0, 100 - otherCatsTotal);
   };
 
-  if (!ativos || ativos.length === 0) return null;
+  if (!ativos || ativos.length === 0) {
+    return (
+      <Card className="flex flex-col items-center justify-center p-8 h-full !bg-[#0f172a] !border-slate-800 text-center min-h-[400px]">
+        <div className="p-3 bg-indigo-500/10 rounded-full border border-indigo-500/20 text-indigo-400 mb-4 animate-pulse">
+          <PieChart size={24} />
+        </div>
+        <h4 className="text-sm font-bold text-white mb-1">Nenhum ativo cadastrado</h4>
+        <p className="text-xs text-slate-500 max-w-sm mb-4 leading-relaxed">
+          Sua carteira de investimentos está vazia. Cadastre seus ativos em ações, FIIs ou renda fixa para visualizar a distribuição patrimonial e metas.
+        </p>
+      </Card>
+    );
+  }
 
   // --- LÓGICA DE DADOS ---
   const groups = ativos.reduce((acc: Record<string, GroupedAsset>, asset) => {

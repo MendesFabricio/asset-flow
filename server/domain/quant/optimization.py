@@ -13,7 +13,7 @@ def _get_current_user_id():
             return g.user_id
     except Exception:
         pass
-    return None
+    return 1
 
 def calculate_risk_parity(session, fetch_prices) -> dict:
     import pandas as pd
@@ -251,17 +251,4 @@ def calculate_efficient_frontier_points(session, fetch_prices) -> dict:
         "max_sharpe": max_sharpe_pt,
         "min_vol": min_vol_pt
     }
-    
-    try:
-        cache_key = f"efficient_frontier_{uid}"
-        cache_record = session.query(SystemCache).filter_by(key=cache_key).first()
-        if not cache_record:
-            cache_record = SystemCache(key=cache_key)
-            session.add(cache_record)
-        cache_record.value = json.dumps(output)
-        cache_record.updated_at = datetime.now()
-        safe_commit(session)
-    except Exception as cache_err:
-        logging.error(f"❌ Falha ao salvar cache de Fronteira Eficiente no banco: {cache_err}")
-        
     return output

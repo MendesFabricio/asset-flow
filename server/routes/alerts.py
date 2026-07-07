@@ -139,8 +139,9 @@ def get_alerts():
                 # 5. ALERTA DE DATA-COM PRÓXIMA (3 Dias)
                 # =========================================================
                 from routes.calendar import CALENDAR_CACHE
-                if CALENDAR_CACHE.get("data"):
-                    for evt in CALENDAR_CACHE["data"]:
+                user_cache = CALENDAR_CACHE.get(g.user_id, {})
+                if user_cache.get("data"):
+                    for evt in user_cache["data"]:
                         try:
                             evt_date = datetime.strptime(evt["date"], "%Y-%m-%d").date()
                             delta = (evt_date - today.date()).days

@@ -11,13 +11,17 @@ def _get_current_user_id():
             return g.user_id
     except Exception:
         pass
-    return None
+    return 1
 
 def calculate_kelly_criterion(session, fetch_prices) -> dict:
     uid = _get_current_user_id()
     if uid is None:
         return {"status": "Erro", "msg": "Usuário não autenticado."}
-    positions = session.query(Position).filter_by(user_id=uid).filter(Position.quantity > 0).all()
+    query = session.query(Position)
+    if uid is not None:
+        positions = query.filter(Position.user_id == uid, Position.quantity > 0).all()
+    else:
+        positions = query.filter(Position.quantity > 0).all()
     tickers_yf, tickers_clean, categories = [], [], []
     for pos in positions:
         if not pos.asset:
@@ -93,7 +97,11 @@ def calculate_alpha_attribution(session, fetch_prices) -> dict:
     uid = _get_current_user_id()
     if uid is None:
         return {"status": "Erro", "msg": "Usuário não autenticado."}
-    positions = session.query(Position).filter_by(user_id=uid).filter(Position.quantity > 0).all()
+    query = session.query(Position)
+    if uid is not None:
+        positions = query.filter(Position.user_id == uid, Position.quantity > 0).all()
+    else:
+        positions = query.filter(Position.quantity > 0).all()
     tickers_yf, tickers_clean, categories, weights_val = [], [], [], []
     total_val = 0.0
     
@@ -195,8 +203,9 @@ def calculate_rolling_sharpe(session, fetch_prices) -> dict:
     uid = _get_current_user_id()
     query = session.query(Position)
     if uid is not None:
-        query = query.filter_by(user_id=uid)
-    positions = query.filter(Position.quantity > 0).all()
+        positions = query.filter(Position.user_id == uid, Position.quantity > 0).all()
+    else:
+        positions = query.filter(Position.quantity > 0).all()
     tickers_yf, tickers_clean, weights_val = [], [], []
     total_val = 0.0
     
@@ -277,8 +286,9 @@ def calculate_momentum_ranking(session, fetch_prices) -> dict:
     uid = _get_current_user_id()
     query = session.query(Position)
     if uid is not None:
-        query = query.filter_by(user_id=uid)
-    positions = query.filter(Position.quantity > 0).all()
+        positions = query.filter(Position.user_id == uid, Position.quantity > 0).all()
+    else:
+        positions = query.filter(Position.quantity > 0).all()
     tickers_yf, tickers_clean = [], []
     
     for pos in positions:

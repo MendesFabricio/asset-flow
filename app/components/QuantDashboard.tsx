@@ -20,9 +20,7 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
-  ResponsiveContainer,
-  ReferenceDot,
-  TooltipProps
+  ResponsiveContainer
 } from 'recharts';
 import {
   BarChart3,
@@ -216,7 +214,7 @@ export function QuantDashboard() {
         if (res.status === 'Sucesso') {
           setDcaResult(res);
         } else {
-          setDcaError(res.status || 'Falha ao processar simulação.');
+          setDcaError((res as any).msg || 'Falha ao processar simulação.');
         }
       })
       .catch((err: any) => {
@@ -389,9 +387,17 @@ export function QuantDashboard() {
       </div>
 
       {/* ──────────────────────────────────────────────────────── */}
-      {/* 📊 TAB 1: FRONTEIRA EFICIENTE (MARKOWITZ) */}
-      {/* ──────────────────────────────────────────────────────── */}
-      {activeTab === 'frontier' && frontierData && (
+      {['frontier', 'rebalance', 'ranking', 'sharpe', 'montecarlo', 'performance'].includes(activeTab) && (!frontierData || !rebalanceData) ? (
+        <Card className="flex flex-col items-center justify-center p-12 text-center !bg-[#0f172a] !border-slate-800 min-h-[350px]">
+          <Info className="text-indigo-400 mb-4 animate-pulse" size={32} />
+          <h3 className="font-bold text-slate-200 text-sm">Dados Quantitativos Insuficientes</h3>
+          <p className="text-slate-500 text-xs mt-2 max-w-sm leading-relaxed">
+            É necessário ter ao menos 2 ativos de renda variável cadastrados em sua carteira com histórico mínimo de cotações para computar os modelos de Markowitz, Paridade de Risco, Critério de Kelly e correlação.
+          </p>
+        </Card>
+      ) : (
+        <>
+          {activeTab === 'frontier' && frontierData && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <Card className="lg:col-span-2 flex flex-col gap-4 !bg-slate-950 !border-slate-900 p-6 min-h-[480px]">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -1320,6 +1326,8 @@ export function QuantDashboard() {
         </div>
       )}
 
+        </>
+      )}
     </div>
   );
 }

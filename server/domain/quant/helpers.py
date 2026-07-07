@@ -13,7 +13,7 @@ def _align_prices_to_b3(prices):
         start_date = prices.index.min()
         end_date = prices.index.max()
         
-        b3_cal = mcal.get_calendar('BMF')
+        b3_cal = mcal.get_calendar('BVMF')
         valid_days = b3_cal.schedule(start_date=start_date, end_date=end_date)
         if valid_days.empty:
             return prices.ffill().bfill()

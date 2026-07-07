@@ -30,7 +30,7 @@ interface SimulationApiResponse {
 export function MonteCarloChart() {
   const [data, setData] = useState<SimulationDataPoint[]>([]);
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({ vol: '', retorno: '' });
+  const [stats, setStats] = useState({ vol: '' });
   const { isHidden } = usePrivacy() as { isHidden: boolean };
 
   useEffect(() => {
@@ -50,7 +50,7 @@ export function MonteCarloChart() {
           }));
 
           setData(formattedData);
-          setStats({ vol: d.volatilidade_anual, retorno: '' });
+          setStats({ vol: d.volatilidade_anual });
         }
       })
       .catch(err => {

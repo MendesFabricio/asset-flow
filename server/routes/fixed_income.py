@@ -1,5 +1,5 @@
 # server/routes/fixed_income.py
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, g
 from database.models import Session, Asset, Position, Category, FixedIncome, safe_commit
 from datetime import datetime
 from decimal import Decimal
@@ -92,25 +92,25 @@ def handle_fixed_income():
                 db.flush()
                 
             # Verifica ou cria Asset
-            asset = db.query(Asset).filter_by(ticker=ticker).first()
+            asset = db.query(Asset).filter_by(ticker=ticker, user_id=g.user_id).first()
             if not asset:
-                asset = Asset(ticker=ticker, name=name, category_id=cat.id, currency="BRL")
+                asset = Asset(ticker=ticker, name=name, category_id=cat.id, currency="BRL", user_id=g.user_id)
                 db.add(asset)
                 db.flush()
                 
             # Verifica ou cria Position
-            pos = db.query(Position).filter_by(asset_id=asset.id).first()
+            pos = db.query(Position).filter_by(asset_id=asset.id, user_id=g.user_id).first()
             if not pos:
-                pos = Position(asset_id=asset.id)
+                pos = Position(asset_id=asset.id, user_id=g.user_id)
                 db.add(pos)
                 
             pos.quantity = quantity
             pos.average_price = average_price
             
             # Cria ou atualiza FixedIncome
-            fi = db.query(FixedIncome).filter_by(asset_id=asset.id).first()
+            fi = db.query(FixedIncome).filter_by(asset_id=asset.id, user_id=g.user_id).first()
             if not fi:
-                fi = FixedIncome(asset_id=asset.id)
+                fi = FixedIncome(asset_id=asset.id, user_id=g.user_id)
                 db.add(fi)
                 
             fi.index_type = index_type
@@ -128,7 +128,7 @@ def handle_fixed_income():
             .join(Asset)
             .join(Position)
             .options(joinedload(FixedIncome.asset).joinedload(Asset.position))
-            .filter(FixedIncome.is_deleted == False)
+            .filter(FixedIncome.is_deleted == False, FixedIncome.user_id == g.user_id)
             .all()
         )
         
@@ -157,14 +157,14 @@ def handle_fixed_income():
 @fixed_income_bp.route('/api/fixed-income/<int:id>', methods=['PUT', 'DELETE'])
 def handle_single_fixed_income(id):
     with Session() as db:
-        fi = db.query(FixedIncome).filter_by(id=id, is_deleted=False).first()
+        fi = db.query(FixedIncome).filter_by(id=id, user_id=g.user_id, is_deleted=False).first()
         if not fi:
             return jsonify({"status": "Erro", "msg": "Título de Renda Fixa não encontrado"}), 404
             
         if request.method == 'DELETE':
             fi.is_deleted = True
             # Também zera a posição vinculada
-            pos = db.query(Position).filter_by(asset_id=fi.asset_id).first()
+            pos = db.query(Position).filter_by(asset_id=fi.asset_id, user_id=g.user_id).first()
             if pos:
                 pos.quantity = Decimal('0.0')
             safe_commit(db)
@@ -179,7 +179,7 @@ def handle_single_fixed_income(id):
             fi.due_date = datetime.fromisoformat(data.get('due_date', fi.due_date.isoformat()).replace('Z', ''))
             
             # Atualiza quantidade e preço médio na posição
-            pos = db.query(Position).filter_by(asset_id=fi.asset_id).first()
+            pos = db.query(Position).filter_by(asset_id=fi.asset_id, user_id=g.user_id).first()
             if pos:
                 pos.quantity = Decimal(str(data.get('quantity', pos.quantity)))
                 pos.average_price = Decimal(str(data.get('average_price', pos.average_price)))

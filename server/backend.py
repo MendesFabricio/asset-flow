@@ -51,6 +51,12 @@ class CustomJSONProvider(DefaultJSONProvider):
         return super().default(o)
 
 app = Flask(__name__)
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY")
+if not app.config["SECRET_KEY"]:
+    logging.warning("⚠️ SECRET_KEY não definida no ambiente! Utilizando chave provisória e randômica para esta sessão.")
+    import secrets
+    app.config["SECRET_KEY"] = secrets.token_hex(32)
+
 app.json = CustomJSONProvider(app)
 CORS(app)
 

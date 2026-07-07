@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { apiCall } from '../utils/apiClient';
 import { formatMoney } from '../utils';
+import { Asset } from '../types';
 
 interface RiskMetrics {
   status: string;
@@ -161,17 +162,21 @@ export function RiskMetricsPanel() {
         else setRiskParity({});
       }).catch(() => setRiskParity({}));
 
-    // Busca posições ativas para obter alocação atual
-    apiCall<any>('/api/assets')
+    apiCall<Asset[]>('/api/assets')
       .then(res => {
-        const assetsList = Array.isArray(res) ? res : (res && res.ativos ? res.ativos : []);
+        const assetsList = Array.isArray(res) ? res : [];
         if (assetsList && assetsList.length > 0) {
-          const totalVal = assetsList.reduce((acc: number, curr: any) => acc + parseFloat(curr.total_atual || 0), 0);
+          const totalVal = assetsList.reduce((acc: number, curr: Asset) => {
+            const val = parseFloat(curr.total_atual as any || 0);
+            return acc + (isNaN(val) ? 0 : val);
+          }, 0);
           const mapping: Record<string, number> = {};
-          assetsList.forEach((a: any) => {
-            const val = parseFloat(a.total_atual || 0);
-            const pct = totalVal > 0 ? (val / totalVal) * 100 : 0;
-            mapping[a.ticker.toUpperCase()] = pct;
+          assetsList.forEach((a: Asset) => {
+            const val = parseFloat(a.total_atual as any || 0);
+            const pct = totalVal > 0 ? ((isNaN(val) ? 0 : val) / totalVal) * 100 : 0;
+            if (a.ticker) {
+              mapping[a.ticker.toUpperCase()] = pct;
+            }
           });
           setCurrentAlloc(mapping);
         }
@@ -195,11 +200,11 @@ export function RiskMetricsPanel() {
 
   if (error || !data) {
     return (
-      <div className="bg-slate-900/40 border border-red-900/30 rounded-2xl p-6 flex items-center gap-3">
-        <AlertTriangle className="text-red-400 shrink-0" size={20} />
+      <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-6 flex items-center gap-3">
+        <Info className="text-indigo-400 shrink-0" size={20} />
         <div>
-          <p className="text-sm font-semibold text-red-400">Métricas de risco indisponíveis</p>
-          <p className="text-xs text-slate-500 mt-0.5">{error || 'Dados históricos insuficientes.'}</p>
+          <p className="text-sm font-semibold text-slate-350">Métricas de Risco & Performance</p>
+          <p className="text-xs text-slate-500 mt-1">{error || 'Aguardando o cadastro de ativos de renda variável ou a consolidação de dados históricos mínimos (30 dias) para computar as métricas.'}</p>
         </div>
       </div>
     );
@@ -239,20 +244,20 @@ export function RiskMetricsPanel() {
             label="Beta (β)" value={data.beta.toFixed(3)} icon={Activity}
             color={betaColor}
             tooltip={`Beta mede a sensibilidade do portfólio ao mercado.\n1.0 = move igual ao IBOV\n>1.0 = amplifica movimentos`}
-            subtext={data.interpretacao.beta}
+            subtext={data.interpretacao?.beta ?? ''}
           />
           <MetricCard
             label="Alpha (α)" value={data.alpha_anual_pct > 0 ? `+${data.alpha_anual_pct.toFixed(2)}` : data.alpha_anual_pct.toFixed(2)}
             unit="% a.a." icon={data.alpha_anual_pct >= 0 ? TrendingUp : TrendingDown}
             color={alphaColor}
             tooltip="Alpha de Jensen: retorno acima/abaixo do esperado pelo CAPM. Alpha positivo = você gerou valor acima do mercado ajustado pelo risco."
-            subtext={data.interpretacao.alpha}
+            subtext={data.interpretacao?.alpha ?? ''}
           />
           <MetricCard
             label="Sharpe (12m)" value={data.sharpe_12m.toFixed(3)} icon={Target}
             color={sharpeColor}
             tooltip="Sharpe Ratio: retorno excedente por unidade de risco total. >1.0 é bom, >2.0 é excepcional."
-            subtext={data.interpretacao.sharpe}
+            subtext={data.interpretacao?.sharpe ?? ''}
           />
           <MetricCard
             label="Sortino (12m)" value={data.sortino_12m.toFixed(3)} icon={ShieldAlert}
@@ -368,7 +373,7 @@ export function RiskMetricsPanel() {
             </ResponsiveContainer>
           </div>
           <p className="text-[10px] text-slate-600 text-center mt-1">
-            {data.interpretacao.drawdown}
+            {data.interpretacao?.drawdown ?? ''}
           </p>
         </div>
 

@@ -53,7 +53,36 @@ export const SmartAllocationModal = ({ isOpen, onClose, ativos }: SmartAllocatio
 
   const parseCurrency = (v: string) => {
     if (!v) return 0;
-    const clean = v.replace(/[^\d,.]/g, '').replace(/\./g, '').replace(',', '.');
+    const clean = v.replace(/[^\d,.]/g, '');
+    const hasComma = clean.includes(',');
+    const hasDot = clean.includes('.');
+    
+    if (hasComma && hasDot) {
+      const lastComma = clean.lastIndexOf(',');
+      const lastDot = clean.lastIndexOf('.');
+      if (lastComma > lastDot) {
+        return Number(clean.replace(/\./g, '').replace(',', '.')) || 0;
+      } else {
+        return Number(clean.replace(/,/g, '')) || 0;
+      }
+    }
+    
+    if (hasComma) {
+      const parts = clean.split(',');
+      if (parts.length > 2 || (parts.length === 2 && parts[1].length !== 2)) {
+        return Number(clean.replace(/,/g, '')) || 0;
+      }
+      return Number(clean.replace(',', '.')) || 0;
+    }
+    
+    if (hasDot) {
+      const parts = clean.split('.');
+      if (parts.length > 2 || (parts.length === 2 && parts[1].length !== 2)) {
+        return Number(clean.replace(/\./g, '')) || 0;
+      }
+      return Number(clean) || 0;
+    }
+    
     const n = Number(clean);
     return Number.isFinite(n) ? n : 0;
   };
@@ -178,6 +207,7 @@ export const SmartAllocationModal = ({ isOpen, onClose, ativos }: SmartAllocatio
                       <div className="flex items-center gap-2">
                         <img
                           src={`https://raw.githubusercontent.com/thefintz/icones-b3/main/icones/${s.ticker}.png`}
+                          alt={`Ícone ${s.ticker}`}
                           className="w-8 h-8 rounded-full bg-slate-800 object-cover"
                           onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
                         />

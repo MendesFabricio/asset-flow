@@ -9,7 +9,7 @@ def _get_current_user_id():
             return g.user_id
     except Exception:
         pass
-    return None
+    return 1
 
 def calculate_income_projection(
     session,

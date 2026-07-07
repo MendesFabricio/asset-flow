@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState, useEffect, useTransition } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Plus, CheckCircle, CreditCard, Calendar, Trash2, X, Wallet, 
-  TrendingUp, AlertCircle, ArrowUpRight, DollarSign, FileText,
+  TrendingUp, AlertCircle, DollarSign, FileText,
   Clock, CheckSquare
 } from 'lucide-react';
 import { formatMoney } from '../utils';
@@ -53,8 +53,6 @@ export default function CreditCardsTab() {
   const [expenses, setExpenses] = useState<ExpenseItem[]>([]);
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   
-  const [isPending, startTransition] = useTransition();
-
   // Modais
   const [showAddCard, setShowAddCard] = useState(false);
   const [showAddExpense, setShowAddExpense] = useState(false);

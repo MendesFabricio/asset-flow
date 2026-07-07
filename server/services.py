@@ -67,7 +67,7 @@ class PortfolioService(
             if (now - USD_CACHE["last_update"]) < 3600:
                 return USD_CACHE["rate"]
 
-        session = session_factory()
+        session = Session()
         try:
             cache_record = session.query(SystemCache).filter_by(key="usd_rate").first()
             if cache_record:

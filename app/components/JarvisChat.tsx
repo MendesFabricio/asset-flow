@@ -109,14 +109,21 @@ export function JarvisChat() {
     const initialJarvisMsg: Message = { id: jarvisMsgId, sender: 'jarvis', text: '' };
     setMessages((prev) => [...prev, initialJarvisMsg]);
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 180000);
+
     try {
       const response = await fetch(`${API_BASE_URL}/api/ai/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({ message: text, session_id: sessionId }),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         throw new Error('Erro na requisição de IA.');
@@ -143,6 +150,7 @@ export function JarvisChat() {
         }
       }
     } catch (e) {
+      clearTimeout(timeoutId);
       console.error(e);
       setMessages((prev) =>
         prev.map((msg) =>

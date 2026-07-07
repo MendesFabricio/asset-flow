@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { 
-  ChevronDown, User, Settings, Sun, Moon, History, LogOut, Eye, EyeOff 
+  ChevronDown, User, Settings, History, LogOut, Eye, EyeOff 
 } from 'lucide-react';
 import { usePrivacy } from '../../context/PrivacyContext';
 
@@ -13,7 +13,6 @@ interface UserMenuProps {
 export function UserMenu({ showName = false }: UserMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [username, setUsername] = useState('');
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const dropdownRef = useRef<HTMLDivElement>(null);
   
   const { isHidden, togglePrivacy } = usePrivacy() as { isHidden: boolean; togglePrivacy: () => void };
@@ -47,10 +46,6 @@ export function UserMenu({ showName = false }: UserMenuProps) {
   const initials = username ? username.substring(0, 2).toUpperCase() : 'US';
   const email = username ? `${username.toLowerCase()}@assetflow.com` : 'user@assetflow.com';
 
-  const toggleTheme = () => {
-    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
-  };
-
   return (
     <div className="relative select-none" ref={dropdownRef}>
       <button
@@ -78,7 +73,10 @@ export function UserMenu({ showName = false }: UserMenuProps) {
           <button
             type="button"
             className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-slate-900 text-slate-400 hover:text-slate-200 transition-colors flex items-center gap-2.5 text-xs"
-            onClick={() => setIsOpen(false)}
+            onClick={() => {
+              alert('Funcionalidade "Meu Perfil" em desenvolvimento. Em breve no AssetFlow Pro!');
+              setIsOpen(false);
+            }}
           >
             <User size={13} />
             <span>Meu Perfil</span>
@@ -98,17 +96,11 @@ export function UserMenu({ showName = false }: UserMenuProps) {
 
           <button
             type="button"
-            onClick={toggleTheme}
             className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-slate-900 text-slate-400 hover:text-slate-200 transition-colors flex items-center gap-2.5 text-xs"
-          >
-            {theme === 'dark' ? <Sun size={13} /> : <Moon size={13} />}
-            <span>Tema: {theme === 'dark' ? 'Escuro' : 'Claro'}</span>
-          </button>
-
-          <button
-            type="button"
-            className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-slate-900 text-slate-400 hover:text-slate-200 transition-colors flex items-center gap-2.5 text-xs"
-            onClick={() => setIsOpen(false)}
+            onClick={() => {
+              alert('Funcionalidade "Logs de Auditoria" em desenvolvimento. Em breve no AssetFlow Pro!');
+              setIsOpen(false);
+            }}
           >
             <History size={13} />
             <span>Logs de Auditoria</span>
@@ -117,7 +109,10 @@ export function UserMenu({ showName = false }: UserMenuProps) {
           <button
             type="button"
             className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-slate-900 text-slate-400 hover:text-slate-200 transition-colors flex items-center gap-2.5 text-xs"
-            onClick={() => setIsOpen(false)}
+            onClick={() => {
+              alert('Funcionalidade "Avançado" em desenvolvimento. Em breve no AssetFlow Pro!');
+              setIsOpen(false);
+            }}
           >
             <Settings size={13} />
             <span>Avançado</span>

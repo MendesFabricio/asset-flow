@@ -247,11 +247,18 @@ def get_momentum_ranking():
         return jsonify({"status": "Erro", "msg": str(e)}), 500
 
 
-def calculate_local_fear_greed(session):
+def calculate_local_fear_greed(session, user_id=None):
     from database.models import Position, Asset, Category, MarketData
     from sqlalchemy.orm import joinedload
+    from flask import has_request_context, g
     
-    uid = g.get("user_id")
+    uid = user_id
+    if not uid:
+        if has_request_context():
+            uid = g.get("user_id")
+        else:
+            uid = 1
+        
     if not uid:
         return {"score": 50, "label": "Neutro", "avg_rsi": 50, "above_sma_pct": 50, "drawdown_score": 50}
         

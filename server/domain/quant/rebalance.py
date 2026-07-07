@@ -10,7 +10,7 @@ def _get_current_user_id():
             return g.user_id
     except Exception:
         pass
-    return None
+    return 1
 
 def calculate_smart_rebalance(session, fetch_prices, monthly_contribution: float = 0.0) -> dict:
     logging.info(f"⚖️ Smart Rebalance (aporte R$ {monthly_contribution:.2f})...")

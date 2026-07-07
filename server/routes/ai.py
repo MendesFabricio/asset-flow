@@ -1,7 +1,7 @@
 import logging
 import requests
 import json
-from flask import Blueprint, request, Response, stream_with_context, jsonify
+from flask import Blueprint, request, Response, stream_with_context, jsonify, g
 from database.models import Session, Asset, Position, LoanInstallment, ReceivableLoan
 from infrastructure.ollama_service import OLLAMA_CHAT_URL, MODEL_NAME, get_ollama_tools
 from domain.quant_engine import calculate_risk_metrics
@@ -23,7 +23,7 @@ SYSTEM_PROMPT = (
 )
 
 def execute_query_portfolio_metrics(session):
-    assets = session.query(Asset).outerjoin(Position).all()
+    assets = session.query(Asset).filter_by(user_id=g.user_id).outerjoin(Position).all()
     portfolio_summary = []
     dolar_rate = 5.80
     try:
@@ -46,7 +46,7 @@ def execute_query_portfolio_metrics(session):
     # Recebíveis
     installments = (
         session.query(LoanInstallment)
-        .filter(LoanInstallment.status.in_(['ABERTA', 'ATRASADA']), LoanInstallment.is_deleted == False)
+        .filter(LoanInstallment.status.in_(['ABERTA', 'ATRASADA']), LoanInstallment.is_deleted == False, LoanInstallment.user_id == g.user_id)
         .all()
     )
     rec_summary = []
@@ -83,7 +83,7 @@ def execute_query_portfolio_metrics(session):
 
 def execute_get_asset_fundamental_data(session, ticker: str):
     ticker = ticker.strip().upper()
-    asset = session.query(Asset).filter_by(ticker=ticker).first()
+    asset = session.query(Asset).filter_by(ticker=ticker, user_id=g.user_id).first()
     if not asset:
         return {"status": "Erro", "error": f"Ativo com ticker '{ticker}' não foi encontrado no banco de dados."}
         
@@ -150,12 +150,12 @@ def chat():
         session = Session()
         
         # 1. Salva a pergunta do usuário no banco
-        user_msg_db = AIChatHistory(session_id=session_id, role="user", content=message)
+        user_msg_db = AIChatHistory(session_id=session_id, role="user", content=message, user_id=g.user_id)
         session.add(user_msg_db)
         session.commit()
         
         # 2. Resgata histórico persistido desta sessão no SQLite
-        db_history = session.query(AIChatHistory).filter_by(session_id=session_id).order_by(AIChatHistory.created_at.asc()).all()
+        db_history = session.query(AIChatHistory).filter_by(session_id=session_id, user_id=g.user_id).order_by(AIChatHistory.created_at.asc()).all()
         
         Session.remove()  # Libera para a thread de streaming
         
@@ -246,7 +246,7 @@ def chat():
                 # 3. Salva a resposta do assistente no banco
                 if full_response.strip():
                     from database.models import AIChatHistory
-                    assistant_msg_db = AIChatHistory(session_id=session_id, role="assistant", content=full_response)
+                    assistant_msg_db = AIChatHistory(session_id=session_id, role="assistant", content=full_response, user_id=g.user_id)
                     stream_session.add(assistant_msg_db)
                     stream_session.commit()
                     
@@ -269,7 +269,7 @@ def get_ai_history():
     session = Session()
     try:
         from database.models import AIChatHistory
-        history_records = session.query(AIChatHistory).filter_by(session_id=session_id).order_by(AIChatHistory.created_at.asc()).all()
+        history_records = session.query(AIChatHistory).filter_by(session_id=session_id, user_id=g.user_id).order_by(AIChatHistory.created_at.asc()).all()
         data = [{"role": msg.role, "content": msg.content, "created_at": msg.created_at.isoformat()} for msg in history_records]
         return jsonify({"status": "Sucesso", "data": data})
     except Exception as e:
@@ -285,7 +285,7 @@ def clear_ai_history():
     session = Session()
     try:
         from database.models import AIChatHistory, safe_commit
-        session.query(AIChatHistory).filter_by(session_id=session_id).delete()
+        session.query(AIChatHistory).filter_by(session_id=session_id, user_id=g.user_id).delete()
         safe_commit(session)
         return jsonify({"status": "Sucesso", "msg": f"Histórico da sessão '{session_id}' limpo."})
     except Exception as e:
@@ -300,7 +300,7 @@ def explain_score(ticker):
     ticker = ticker.strip().upper()
     session = Session()
     try:
-        asset = session.query(Asset).filter_by(ticker=ticker).first()
+        asset = session.query(Asset).filter_by(ticker=ticker, user_id=g.user_id).first()
         if not asset:
             return jsonify({"status": "Erro", "msg": f"Ativo '{ticker}' não encontrado."}), 404
         

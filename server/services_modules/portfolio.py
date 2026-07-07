@@ -51,12 +51,10 @@ class PortfolioCrudService:
             Session.remove()
         
     def add_new_asset(self, ticker, category_name, qtd, pm, meta=0):
-        raw_ticker = ticker.upper().strip()
-        is_intl = category_name == "Internacional" or raw_ticker.endswith("-USD")
+        ticker = ticker.upper().strip().replace(".SA", "")
+        is_intl = category_name == "Internacional" or ticker.endswith("-USD")
         currency = "USD" if is_intl else "BRL" 
         user_id = self.current_user_id
-
-        ticker = ticker.upper().strip().replace(".SA", "")
         logging.info(f"🆕 JOB: Mapeando inclusão de novo ativo: {ticker}")
         session = Session()
         try:

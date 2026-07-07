@@ -14,3 +14,4 @@ from domain.quant.rebalance import calculate_smart_rebalance
 from domain.quant.projection import calculate_income_projection, calculate_dividend_forecast
 from domain.quant.optimization import calculate_markowitz_optimization, calculate_risk_parity, calculate_efficient_frontier_points
 from domain.quant.analysis import calculate_kelly_criterion, calculate_alpha_attribution, calculate_rolling_sharpe, calculate_momentum_ranking
+from domain.quant.exposure import calculate_sector_exposure

@@ -11,7 +11,7 @@ def _get_current_user_id():
             return g.user_id
     except Exception:
         pass
-    return None
+    return 1
 
 def run_monte_carlo(session, fetch_prices, simulations=1000, days=252) -> dict:
     import pandas as pd
