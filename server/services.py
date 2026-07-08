@@ -19,7 +19,7 @@ from services_modules.integration import IntegrationService
 from services_modules.facades import FacadeService
 from services_modules.dashboard import DashboardService
 from services_modules.categories import CategoryService
-from database.session import Session, session_factory
+from database.session import Session
 from database.models import SystemCache, safe_commit
 
 # Mantém as variáveis globais compartilhadas

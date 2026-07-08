@@ -179,7 +179,12 @@ def async_sync_worker(flask_app):
 
         # 1. Sincroniza FIIs (FNET)
         _update_sync_state(message="Sincronizando relatórios de FIIs na B3...")
-        fnet_result = service.sync_reports_with_fnet()
+        
+        # 🔒 CORREÇÃO CRÍTICA: Abre a sessão thread-safe exigida pelo método do processador
+        from services import Session as ScopedSession
+        with ScopedSession() as db_session:
+            fnet_result = service.sync_reports_with_fnet(db_session)
+            
         logging.info(f"📊 [BACKGROUND TASK] FNET concluído: {fnet_result.get('msg')}")
 
         # 2. Coleta de Ativos (Ações CVM)

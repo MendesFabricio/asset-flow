@@ -83,7 +83,11 @@ class IntegrationService:
     def validate_ticker_on_yahoo(self, ticker):
         return _market.validate_ticker_on_yahoo(ticker)
         
-    def sync_reports_with_fnet(self):
+    def sync_reports_with_fnet(self, session=None):
+        """💡 CORREÇÃO CRÍTICA: Permite receber uma sessão explícita da thread injetada pelo backend."""
+        if session is not None:
+            return _market.sync_reports_with_fnet(session)
+            
         session = Session()
         try:
             return _market.sync_reports_with_fnet(session)
