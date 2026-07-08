@@ -115,11 +115,11 @@ export function useAssetData() {
   };
 
   // Funções stub mantidas para compatibilidade com o resto do sistema
-  const mutateSync = (newData?: any, options?: any) => {
+  const mutateSync = (newData?: any) => {
     if (newData) setSyncStatus(newData);
     mutateDashboard();
   };
-  const mutateFundamentals = (newData?: any, options?: any) => {
+  const mutateFundamentals = (newData?: any) => {
     if (newData) setFundamentalsStatus(newData);
     mutateDashboard();
   };

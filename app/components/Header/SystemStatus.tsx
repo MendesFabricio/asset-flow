@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import useSWR from 'swr';
 import { 
   Activity, Database, TrendingUp, Brain, CheckCircle2, 
-  XCircle, AlertTriangle, RefreshCw, Layers 
+  XCircle, AlertTriangle 
 } from 'lucide-react';
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());

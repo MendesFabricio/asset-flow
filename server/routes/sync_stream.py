@@ -44,35 +44,33 @@ def sync_stream():
         MAX_DURATION = 1800
         start_time = time.monotonic()
         
+        session = Session()
         try:
             while time.monotonic() - start_time < MAX_DURATION:
-                session = Session()
-                try:
-                    cvm_sync = get_sync_state_scoped(session, "cvm_sync")
-                    yahoo_sync = get_sync_state_scoped(session, "yahoo_sync")
-                    
-                    current_payload = {
-                        "cvm_sync": cvm_sync,
-                        "yahoo_sync": yahoo_sync
-                    }
-                    
-                    # Só despacha se houver alteração
-                    if current_payload != last_payload:
-                        last_payload = current_payload
-                        yield f"data: {json.dumps(current_payload)}\n\n"
-                finally:
-                    Session.remove()  # 🔒 Liberação da conexão de volta ao pool a cada iteração
+                cvm_sync = get_sync_state_scoped(session, "cvm_sync")
+                yahoo_sync = get_sync_state_scoped(session, "yahoo_sync")
                 
+                current_payload = {
+                    "cvm_sync": cvm_sync,
+                    "yahoo_sync": yahoo_sync
+                }
+                
+                # Só despacha se houver alteração
+                if current_payload != last_payload:
+                    last_payload = current_payload
+                    yield f"data: {json.dumps(current_payload)}\n\n"
+                
+                session.rollback() # 🔄 Limpa transação de leitura para expirar cache de identidade e ver alterações
                 time.sleep(1.0)
                 
             logging.info("🔌 [SSE] Sessão de streaming expirou por limite de tempo máximo (30min).")
             yield "data: {\"status\": \"timeout\", \"message\": \"Conexão SSE renovada.\"}\n\n"
         except GeneratorExit:
             logging.info("🔌 [SSE] Conexão SSE encerrada de forma graciosa pelo cliente. Efetuando cleanup do banco.")
-            Session.remove()
         except Exception as e:
             logging.error(f"❌ [SSE] Erro na transmissão do stream de progresso: {e}. Efetuando cleanup do banco.")
-            Session.remove()
+        finally:
+            Session.remove()  # 🔒 Liberação única da conexão de volta ao pool no encerramento final
 
     headers = {
         'Cache-Control': 'no-cache',

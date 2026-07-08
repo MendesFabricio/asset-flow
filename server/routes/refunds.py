@@ -29,31 +29,7 @@ def get_config(session):
         safe_commit(session)
     return config
 
-def get_fatura_mes_helper(data_ref, fechamento_dia):
-    y = data_ref.year
-    m = data_ref.month
-    if data_ref.day > fechamento_dia:
-        if m == 12:
-            m = 1
-            y += 1
-        else:
-            m += 1
-    return f"{y}-{m:02d}"
-
-def get_due_date_for_fatura_helper(fatura_mes, vencimento_dia):
-    parts = fatura_mes.split('-')
-    y = int(parts[0])
-    m = int(parts[1])
-    last_day = calendar.monthrange(y, m)[1]
-    day = min(vencimento_dia, last_day)
-    return datetime(y, m, day)
-
-def add_months(sourcedate, months):
-    month = sourcedate.month - 1 + months
-    year = sourcedate.year + month // 12
-    month = month % 12 + 1
-    day = min(sourcedate.day, calendar.monthrange(year, month)[1])
-    return date(year, month, day)
+from utils.date_helper import get_invoice_month_helper as get_fatura_mes_helper, get_due_date_helper as get_due_date_for_fatura_helper, add_months_helper as add_months
 
 @refunds_bp.route('/config', methods=['GET', 'POST'])
 def handle_config():
@@ -117,29 +93,96 @@ def handle_debtors():
             return jsonify({"msg": "Devedor criado com sucesso!"}), 201
             
         # GET
+        from sqlalchemy import func
+        
         q = request.args.get('q', '').strip()
-        query = db.query(Debtor).options(
-            joinedload(Debtor.loans)
-            .joinedload(ReceivableLoan.installments)
-            .joinedload(LoanInstallment.transactions)
+        
+        # Subquery para valor_total_emprestado
+        loan_sub = db.query(func.coalesce(func.sum(ReceivableLoan.valor_total), 0.0)).filter(
+            ReceivableLoan.debtor_id == Debtor.id,
+            ReceivableLoan.is_deleted == False
+        ).correlate(Debtor).as_scalar()
+
+        # Subquery para valor_total_recebido
+        rec_sub = db.query(func.coalesce(func.sum(PaymentTransaction.valor_pago), 0.0)).select_from(PaymentTransaction)\
+            .join(LoanInstallment, PaymentTransaction.installment_id == LoanInstallment.id)\
+            .join(ReceivableLoan, LoanInstallment.loan_id == ReceivableLoan.id)\
+            .filter(
+                ReceivableLoan.debtor_id == Debtor.id,
+                ReceivableLoan.is_deleted == False,
+                LoanInstallment.is_deleted == False,
+                PaymentTransaction.is_deleted == False
+            ).correlate(Debtor).as_scalar()
+
+        # Subquery para data_primeiro_emprestimo
+        first_loan_sub = db.query(func.min(ReceivableLoan.data_emprestimo)).filter(
+            ReceivableLoan.debtor_id == Debtor.id,
+            ReceivableLoan.is_deleted == False
+        ).correlate(Debtor).as_scalar()
+
+        # Subquery para data_ultimo_pagamento
+        last_pay_sub = db.query(func.max(PaymentTransaction.data_movimentacao)).select_from(PaymentTransaction)\
+            .join(LoanInstallment, PaymentTransaction.installment_id == LoanInstallment.id)\
+            .join(ReceivableLoan, LoanInstallment.loan_id == ReceivableLoan.id)\
+            .filter(
+                ReceivableLoan.debtor_id == Debtor.id,
+                ReceivableLoan.is_deleted == False,
+                LoanInstallment.is_deleted == False,
+                PaymentTransaction.is_deleted == False
+            ).correlate(Debtor).as_scalar()
+
+        # Subquery para data_ultimo_emprestimo
+        last_loan_sub = db.query(func.max(ReceivableLoan.data_emprestimo)).filter(
+            ReceivableLoan.debtor_id == Debtor.id,
+            ReceivableLoan.is_deleted == False
+        ).correlate(Debtor).as_scalar()
+
+        query = db.query(
+            Debtor,
+            loan_sub.label('emprestado'),
+            rec_sub.label('recebido'),
+            first_loan_sub.label('first_loan'),
+            last_pay_sub.label('last_pay'),
+            last_loan_sub.label('last_loan')
         ).filter(Debtor.user_id == g.user_id, Debtor.is_deleted == False)
+
         if q:
             query = query.filter(Debtor.nome.ilike(f"%{q}%"))
             
-        debtors = query.all()
-        return jsonify([{
-            "id": d.id,
-            "nome": d.nome,
-            "foto_url": d.foto_url,
-            "telefone": d.telefone,
-            "observacoes": d.observacoes,
-            "valor_total_emprestado": float(d.valor_total_emprestado),
-            "valor_total_recebido": float(d.valor_total_recebido),
-            "saldo_pendente": float(d.saldo_pendente),
-            "data_ultimo_pagamento": d.data_ultimo_pagamento.isoformat() if d.data_ultimo_pagamento else None,
-            "data_primeiro_emprestimo": d.data_primeiro_emprestimo.isoformat() if d.data_primeiro_emprestimo else None,
-            "data_ultimo_contato": d.data_ultimo_contato.isoformat() if d.data_ultimo_contato else None
-        } for d in debtors])
+        results = query.all()
+        
+        debtor_list = []
+        for d, emprestado, recebido, first_loan, last_pay, last_loan in results:
+            def safe_isoformat(val):
+                if not val:
+                    return None
+                if isinstance(val, (datetime, date)):
+                    return val.isoformat()
+                return str(val)
+
+            # Calcula data_ultimo_contato (a maior entre o último empréstimo e o último pagamento)
+            dates_list = []
+            if last_loan:
+                dates_list.append(last_loan)
+            if last_pay:
+                dates_list.append(last_pay)
+            last_contact = max(dates_list) if dates_list else None
+
+            debtor_list.append({
+                "id": d.id,
+                "nome": d.nome,
+                "foto_url": d.foto_url,
+                "telefone": d.telefone,
+                "observacoes": d.observacoes,
+                "valor_total_emprestado": float(emprestado),
+                "valor_total_recebido": float(recebido),
+                "saldo_pendente": float(Decimal(str(emprestado)) - Decimal(str(recebido))),
+                "data_ultimo_pagamento": safe_isoformat(last_pay),
+                "data_primeiro_emprestimo": safe_isoformat(first_loan),
+                "data_ultimo_contato": safe_isoformat(last_contact)
+            })
+            
+        return jsonify(debtor_list)
 
 @refunds_bp.route('/debtors/<int:id>', methods=['DELETE'])
 def delete_debtor(id):

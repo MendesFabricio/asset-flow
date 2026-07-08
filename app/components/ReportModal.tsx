@@ -7,8 +7,8 @@ import {
     BarChart3, PieChart, Coins
 } from 'lucide-react';
 import { formatMoney } from '../utils';
-import { usePrivacy } from '../context/PrivacyContext';
 import { Asset } from '../types'; // 🛡️ Importa a interface unificada de ativos
+import { PrivateValue } from './ui/PrivateValue';
 
 // Interface atualizada para incluir FCL e EBITDA nos tipos
 interface FundamentalistData {
@@ -48,16 +48,11 @@ interface ReportModalProps {
     ativo: Asset | null; // 🛡️ Ativo tipado de forma estrita
 }
 
-const PrivateValue = ({ value, isHidden, className = "" }: { value: string | number, isHidden: boolean, className?: string }) => (
-    <span className={className}>{isHidden ? '••••••' : value}</span>
-);
-
 const ReportModal = ({ isOpen, onClose, ativo }: ReportModalProps) => {
     const [mounted, setMounted] = useState(false);
     const [activeTab, setActiveTab] = useState<'docs' | 'saude'>('docs');
     const [subTab, setSubTab] = useState<'eficiencia' | 'divida' | 'rentabilidade'>('eficiencia');
     const [hoveredBar, setHoveredBar] = useState<number | null>(null);
-    const { isHidden } = usePrivacy() as { isHidden: boolean };
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -217,7 +212,6 @@ const ReportModal = ({ isOpen, onClose, ativo }: ReportModalProps) => {
                                                             <p className="text-sm text-slate-100 font-bold font-mono">
                                                                 <PrivateValue
                                                                     value={card.valor_formatado || formatMoney(card.valor || 0)}
-                                                                    isHidden={isHidden}
                                                                 />
                                                             </p>
                                                             {card.subtitulo && <p className="text-[9px] text-slate-500 font-medium italic">{card.subtitulo}</p>}

@@ -48,20 +48,22 @@ def cleanup_trash():
 @maintenance_bp.route('/api/maintenance/backup', methods=['POST', 'GET'])
 def backup_database():
     import os
-    # Obter token de autorização
+    import hmac
+
+    # Obter token de autorização via cabeçalhos apenas (evita vazamento em logs via query param)
     auth_header = request.headers.get("Authorization")
     token = None
     if auth_header and auth_header.startswith("Bearer "):
         token = auth_header.split(" ")[1]
     else:
-        token = request.headers.get("X-Backup-Token") or request.args.get("token")
+        token = request.headers.get("X-Backup-Token")
 
     expected_token = os.environ.get("BACKUP_TOKEN") or os.environ.get("BASIC_AUTH_PASSWORD")
     if not expected_token:
         logging.warning("⚠️ BACKUP NEGADO: BACKUP_TOKEN ou BASIC_AUTH_PASSWORD não configurado.")
         return jsonify({"status": "Erro", "msg": "Serviço de backup desabilitado por ausência de segredo no ambiente."}), 403
     
-    if not token or token != expected_token:
+    if not token or not hmac.compare_digest(token, expected_token):
         logging.warning("⚠️ TENTATIVA DE BACKUP REJEITADA: Token inválido ou ausente.")
         return jsonify({"status": "Erro", "msg": "Não autorizado. Token de backup inválido ou ausente."}), 401
 

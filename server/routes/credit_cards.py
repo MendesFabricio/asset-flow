@@ -9,31 +9,7 @@ from sqlalchemy.orm import joinedload
 
 cards_bp = Blueprint('credit_cards', __name__)
 
-def get_invoice_month_helper(purchase_date, closing_day):
-    y = purchase_date.year
-    m = purchase_date.month
-    if purchase_date.day > closing_day:
-        if m == 12:
-            m = 1
-            y += 1
-        else:
-            m += 1
-    return f"{y}-{m:02d}"
-
-def get_due_date_helper(invoice_month, due_day):
-    parts = invoice_month.split('-')
-    y = int(parts[0])
-    m = int(parts[1])
-    last_day = calendar.monthrange(y, m)[1]
-    day = min(due_day, last_day)
-    return datetime(y, m, day)
-
-def add_months_helper(sourcedate, months):
-    month = sourcedate.month - 1 + months
-    year = sourcedate.year + month // 12
-    month = month % 12 + 1
-    day = min(sourcedate.day, calendar.monthrange(year, month)[1])
-    return date(year, month, day)
+from utils.date_helper import get_invoice_month_helper, get_due_date_helper, add_months_helper
 
 @cards_bp.route('/api/credit-cards', methods=['GET', 'POST'])
 def handle_cards():

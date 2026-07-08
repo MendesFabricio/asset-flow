@@ -101,7 +101,7 @@ def dividends_forecast():
         logging.error(f"❌ Erro ao computar fluxo preditivo de dividendos: {e}", exc_info=True)
         return jsonify({"status": "Erro", "msg": str(e)}), 500
 
-@simulation_bp.route('/api/market/brief', methods=['GET'])
+@simulation_bp.route('/api/ai/morning-brief', methods=['GET', 'POST'])
 def morning_brief():
     """
     ☕ Rota de Briefing Matinal: Combina dados de fechamento, Selic e portfólio real,
@@ -109,9 +109,14 @@ def morning_brief():
     """
     session = Session()
     try:
-        # 1. Retorna do cache se estiver válido (expiração de 4 horas)
         from flask import request
-        force_reanalyze = request.args.get("force", "false").lower() == "true"
+        # Suporta corpo JSON se for POST e query strings para GET
+        force_reanalyze = False
+        if request.method == 'POST':
+            req_data = request.get_json(silent=True) or {}
+            force_reanalyze = req_data.get("force", False)
+        else:
+            force_reanalyze = request.args.get("force", "false").lower() == "true"
         
         from datetime import datetime, timedelta
         cache_key = f"morning_brief_{g.user_id}"

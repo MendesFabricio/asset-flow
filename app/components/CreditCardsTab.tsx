@@ -7,6 +7,7 @@ import {
   Clock, CheckSquare
 } from 'lucide-react';
 import { formatMoney } from '../utils';
+import { apiCall } from '../utils/apiClient';
 
 interface CardItem {
   id: number;
@@ -63,15 +64,13 @@ export default function CreditCardsTab() {
 
   const loadAllData = async () => {
     try {
-      const resCards = await fetch('/api/credit-cards');
-      const dataCards = await resCards.json();
+      const dataCards = await apiCall<CardItem[]>('/api/credit-cards');
       setCards(dataCards);
       if (dataCards.length > 0 && !selectedCard) {
         setSelectedCard(dataCards[0]);
       }
 
-      const resDash = await fetch('/api/credit-cards/dashboard');
-      const dataDash = await resDash.json();
+      const dataDash = await apiCall<DashboardData>('/api/credit-cards/dashboard');
       setDashboard(dataDash);
     } catch (e) {
       console.error(e);
@@ -80,8 +79,7 @@ export default function CreditCardsTab() {
 
   const loadExpenses = async (cardId: number) => {
     try {
-      const res = await fetch(`/api/credit-cards/${cardId}/expenses`);
-      const data = await res.json();
+      const data = await apiCall<ExpenseItem[]>(`/api/credit-cards/${cardId}/expenses`);
       setExpenses(data);
     } catch (e) {
       console.error(e);
@@ -103,16 +101,13 @@ export default function CreditCardsTab() {
   const handleCreateCard = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch('/api/credit-cards', {
+      await apiCall('/api/credit-cards', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(cardForm)
       });
-      if (res.ok) {
-        setCardForm({ name: '', limit: '', closing_day: '5', due_day: '15' });
-        setShowAddCard(false);
-        loadAllData();
-      }
+      setCardForm({ name: '', limit: '', closing_day: '5', due_day: '15' });
+      setShowAddCard(false);
+      loadAllData();
     } catch (e) {
       console.error(e);
     }
@@ -122,20 +117,17 @@ export default function CreditCardsTab() {
     e.preventDefault();
     if (!selectedCard) return;
     try {
-      const res = await fetch(`/api/credit-cards/${selectedCard.id}/expenses`, {
+      await apiCall(`/api/credit-cards/${selectedCard.id}/expenses`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...expenseForm,
           date: expenseForm.date || new Date().toISOString()
         })
       });
-      if (res.ok) {
-        setExpenseForm({ description: '', total_value: '', installments_count: '1', date: '' });
-        setShowAddExpense(false);
-        loadAllData();
-        loadExpenses(selectedCard.id);
-      }
+      setExpenseForm({ description: '', total_value: '', installments_count: '1', date: '' });
+      setShowAddExpense(false);
+      loadAllData();
+      loadExpenses(selectedCard.id);
     } catch (e) {
       console.error(e);
     }
@@ -144,13 +136,11 @@ export default function CreditCardsTab() {
   const handleDeleteCard = async (cardId: number) => {
     if (!confirm('Deseja excluir este cartão e todas as despesas associadas?')) return;
     try {
-      const res = await fetch(`/api/credit-cards/${cardId}`, {
+      await apiCall(`/api/credit-cards/${cardId}`, {
         method: 'DELETE'
       });
-      if (res.ok) {
-        setSelectedCard(null);
-        loadAllData();
-      }
+      setSelectedCard(null);
+      loadAllData();
     } catch (e) {
       console.error(e);
     }
@@ -159,15 +149,12 @@ export default function CreditCardsTab() {
   const handleToggleInstallmentStatus = async (installmentId: number, currentStatus: string) => {
     const nextStatus = currentStatus === 'PAID' ? 'PENDING' : 'PAID';
     try {
-      const res = await fetch(`/api/credit-cards/installments/${installmentId}/pay`, {
+      await apiCall(`/api/credit-cards/installments/${installmentId}/pay`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: nextStatus })
       });
-      if (res.ok) {
-        loadAllData();
-        if (selectedCard) loadExpenses(selectedCard.id);
-      }
+      loadAllData();
+      if (selectedCard) loadExpenses(selectedCard.id);
     } catch (e) {
       console.error(e);
     }

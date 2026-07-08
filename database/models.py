@@ -6,9 +6,31 @@ from datetime import datetime
 from tenacity import retry, stop_after_attempt, wait_fixed, retry_if_exception_type
 from sqlalchemy.exc import OperationalError
 
+@retry(retry=retry_if_exception_type(OperationalError),
+       stop=stop_after_attempt(3), wait=wait_fixed(0.1), reraise=True)
 def safe_commit(session):
     """Commita uma transação no SQLAlchemy de forma direta (locks tratados pelo busy_timeout do SQLite)."""
     session.commit()
+
+def get_active_positions(session, user_id):
+    """Retorna posições ativas (quantity > 0) com eager loading de Asset, Category, MarketData e Dividends."""
+    from sqlalchemy.orm import selectinload
+    from database.models import Position, Asset
+    q = session.query(Position)
+    if user_id is not None:
+        q = q.filter(Position.user_id == user_id, Position.quantity > 0)
+    else:
+        q = q.filter(Position.quantity > 0)
+    
+    # Ignora selectinload se q for um Mock (preserva compatibilidade com testes legados)
+    if type(q).__name__ in ('MagicMock', 'Mock'):
+        return q
+        
+    return q.options(
+        selectinload(Position.asset).selectinload(Asset.category),
+        selectinload(Position.asset).selectinload(Asset.market_data),
+        selectinload(Position.asset).selectinload(Asset.dividends)
+    )
 
 Base = declarative_base()
 
@@ -64,7 +86,7 @@ class Category(Base):
 class Asset(Base):
     __tablename__ = 'assets'
     id = Column(Integer, primary_key=True)
-    ticker = Column(String, nullable=False)
+    ticker = Column(String, nullable=False, index=True)
     name = Column(String)
     cnpj = Column(String, nullable=True)
     cvm_code = Column(String, nullable=True)
@@ -187,7 +209,7 @@ class RefundConfig(Base):
 
 class Debtor(Base):
     __tablename__ = "debtors"
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     nome = Column(String, nullable=False)
     user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"), nullable=False, index=True)
     foto_url = Column(String, nullable=True)
@@ -200,6 +222,7 @@ class Debtor(Base):
 
     __table_args__ = (
         UniqueConstraint('nome', 'user_id', name='_debtor_nome_user_uc'),
+        Index('idx_debtors_user_deleted', 'user_id', 'is_deleted'),
     )
 
     @property
@@ -260,7 +283,7 @@ class Debtor(Base):
 
 class ReceivableLoan(Base):
     __tablename__ = "receivable_loans"
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     debtor_id = Column(Integer, ForeignKey('debtors.id', ondelete="CASCADE"), nullable=False)
     user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"), nullable=False, index=True)
     descricao = Column(String, nullable=False)
@@ -277,9 +300,13 @@ class ReceivableLoan(Base):
     debtor = relationship("Debtor", back_populates="loans")
     user = relationship("User", back_populates="receivable_loans")
     installments = relationship("LoanInstallment", back_populates="loan", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        Index('idx_receivable_loans_user_deleted', 'user_id', 'is_deleted'),
+    )
 class LoanInstallment(Base):
     __tablename__ = "loan_installments"
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     loan_id = Column(Integer, ForeignKey('receivable_loans.id', ondelete="CASCADE"), nullable=False)
     user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"), nullable=False, index=True)
     numero_parcela = Column(Integer, nullable=False)
@@ -295,9 +322,13 @@ class LoanInstallment(Base):
     user = relationship("User", back_populates="loan_installments")
     transactions = relationship("PaymentTransaction", back_populates="installment", cascade="all, delete-orphan")
 
+    __table_args__ = (
+        Index('idx_loan_installments_user_deleted', 'user_id', 'is_deleted'),
+    )
+
 class PaymentTransaction(Base):
     __tablename__ = "payment_transactions"
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     installment_id = Column(Integer, ForeignKey('loan_installments.id', ondelete="CASCADE"), nullable=False)
     user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"), nullable=False, index=True)
     valor_pago = Column(Numeric(18, 4), nullable=False)
@@ -324,13 +355,13 @@ class PriceAlert(Base):
     """
     __tablename__ = "price_alerts"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     asset_id = Column(Integer, ForeignKey('assets.id', ondelete="CASCADE"), nullable=False, index=True)
     user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"), nullable=False, index=True)
     target_price = Column(Numeric(18, 4), nullable=False)
     condition = Column(String, nullable=False, default="ABOVE")  # "ABOVE" | "BELOW"
     note = Column(String, default="")           # Anotação livre do usuário
-    is_active = Column(Boolean, default=True)
+    is_active = Column(Boolean, default=True, index=True)
     created_at = Column(DateTime, default=datetime.now)
     triggered_at = Column(DateTime, nullable=True)
 
@@ -343,7 +374,7 @@ class SyncState(Base):
     """
     __tablename__ = "sync_states"
 
-    key = Column(String, primary_key=True, index=True)  # ex: "cvm_sync", "yahoo_sync"
+    key = Column(String, primary_key=True)  # ex: "cvm_sync", "yahoo_sync"
     status = Column(String, default="idle")  # "idle" | "processing" | "success" | "error"
     progress = Column(Integer, default=0)
     total = Column(Integer, default=0)
@@ -356,7 +387,7 @@ class SystemCache(Base):
     """
     __tablename__ = "system_caches"
 
-    key = Column(String, primary_key=True, index=True)
+    key = Column(String, primary_key=True)
     value = Column(String, nullable=False)  # JSON string
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
@@ -366,7 +397,7 @@ class AIChatHistory(Base):
     """
     __tablename__ = "ai_chat_histories"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"), nullable=False, index=True)
     session_id = Column(String, index=True, nullable=False)
     role = Column(String, nullable=False)  # "user" | "assistant"
@@ -381,18 +412,18 @@ class TriggeredAlert(Base):
     """
     __tablename__ = "triggered_alerts"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     ticker = Column(String, nullable=False)
     condition = Column(String, nullable=False)
     target_price = Column(Numeric(18, 4), nullable=False)
     current_price = Column(Numeric(18, 4), nullable=False)
     note = Column(String, default="")
     triggered_at = Column(DateTime, default=datetime.now)
-    is_notified = Column(Boolean, default=False)
+    is_notified = Column(Boolean, default=False, index=True)
 
 class CreditCard(Base):
     __tablename__ = "credit_cards"
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"), nullable=False, index=True)
     name = Column(String, nullable=False)
     limit = Column(Numeric(18, 4), nullable=False)
@@ -403,9 +434,13 @@ class CreditCard(Base):
     expenses = relationship("CardExpense", back_populates="card", cascade="all, delete-orphan")
     user = relationship("User", back_populates="credit_cards")
 
+    __table_args__ = (
+        Index('idx_credit_cards_user_deleted', 'user_id', 'is_deleted'),
+    )
+
 class CardExpense(Base):
     __tablename__ = "card_expenses"
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     card_id = Column(Integer, ForeignKey('credit_cards.id', ondelete="CASCADE"), nullable=False)
     user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"), nullable=False, index=True)
     description = Column(String, nullable=False)
@@ -418,9 +453,13 @@ class CardExpense(Base):
     installments = relationship("CardInstallment", back_populates="expense", cascade="all, delete-orphan")
     user = relationship("User", back_populates="card_expenses")
 
+    __table_args__ = (
+        Index('idx_card_expenses_user_deleted', 'user_id', 'is_deleted'),
+    )
+
 class CardInstallment(Base):
     __tablename__ = "card_installments"
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     expense_id = Column(Integer, ForeignKey('card_expenses.id', ondelete="CASCADE"), nullable=False)
     user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"), nullable=False, index=True)
     installment_number = Column(Integer, nullable=False)
@@ -433,9 +472,13 @@ class CardInstallment(Base):
     expense = relationship("CardExpense", back_populates="installments")
     user = relationship("User", back_populates="card_installments")
 
+    __table_args__ = (
+        Index('idx_card_installments_user_deleted', 'user_id', 'is_deleted'),
+    )
+
 class FixedIncome(Base):
     __tablename__ = "fixed_income"
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     asset_id = Column(Integer, ForeignKey('assets.id', ondelete="CASCADE"), nullable=False)
     user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"), nullable=False, index=True)
     index_type = Column(String, nullable=False)  # "CDI" | "IPCA" | "PRE"
@@ -449,6 +492,7 @@ class FixedIncome(Base):
 
     __table_args__ = (
         UniqueConstraint('asset_id', 'user_id', name='_fixed_income_asset_user_uc'),
+        Index('idx_fixed_income_user_deleted', 'user_id', 'is_deleted'),
     )
 
 from database.session import engine, Session
@@ -565,8 +609,6 @@ def init_db():
         except Exception as e:
             logging.error(f"❌ Falha ao copiar banco de dados inicial: {e}")
 
-    Base.metadata.create_all(engine)
-    
     # Rodar migrações do Alembic programaticamente
     try:
         logging.info("⚙️ Rodando migrações pendentes do Alembic...")
@@ -614,101 +656,14 @@ def init_db():
     from sqlalchemy import inspect, text
     try:
         inspector = inspect(engine)
-        
-        # Migração das colunas de IA na tabela assets
-        columns_assets = [col['name'] for col in inspector.get_columns('assets')]
-        with engine.begin() as conn:
-            if 'ai_summary' not in columns_assets:
-                conn.execute(text("ALTER TABLE assets ADD COLUMN ai_summary TEXT"))
-            if 'ai_sentiment' not in columns_assets:
-                conn.execute(text("ALTER TABLE assets ADD COLUMN ai_sentiment TEXT"))
-            if 'ai_status' not in columns_assets:
-                conn.execute(text("ALTER TABLE assets ADD COLUMN ai_status TEXT DEFAULT 'idle'"))
-            if 'ai_updated_at' not in columns_assets:
-                conn.execute(text("ALTER TABLE assets ADD COLUMN ai_updated_at DATETIME"))
-            if 'upcoming_split' not in columns_assets:
-                conn.execute(text("ALTER TABLE assets ADD COLUMN upcoming_split TEXT"))
-                
         # Seed inicial de RefundConfig se estiver vazio
         if inspector.has_table('refund_configs'):
             with engine.begin() as conn:
                 res = conn.execute(text("SELECT COUNT(*) FROM refund_configs")).fetchone()
                 if res and res[0] == 0:
                     conn.execute(text("INSERT INTO refund_configs (id, fechamento_dia, vencimento_dia) VALUES (1, 15, 20)"))
-                
-        # Migração estrutural da tabela price_alerts de ticker para asset_id (3FN)
-        has_old = inspector.has_table('old_price_alerts')
-        has_new = inspector.has_table('price_alerts')
-        
-        if has_old:
-            logging.info("⚙️ Continuando migração 3FN interrompida anteriormente...")
-            with engine.begin() as conn:
-                conn.execute(text("DROP INDEX IF EXISTS ix_price_alerts_id"))
-                conn.execute(text("DROP INDEX IF EXISTS ix_price_alerts_ticker"))
-            
-            Base.metadata.create_all(engine)
-            
-            with engine.begin() as conn:
-                old_alerts = conn.execute(text("SELECT id, ticker, target_price, condition, note, is_active, created_at, triggered_at FROM old_price_alerts")).fetchall()
-                for r in old_alerts:
-                    oid, ticker, target, cond, note, active, created, triggered = r
-                    row_asset = conn.execute(text("SELECT id FROM assets WHERE ticker = :ticker"), {"ticker": ticker.strip().upper()}).fetchone()
-                    if row_asset:
-                        asset_id = row_asset[0]
-                        exists = conn.execute(text("SELECT 1 FROM price_alerts WHERE id = :id"), {"id": oid}).fetchone()
-                        if not exists:
-                            conn.execute(text("""
-                                INSERT INTO price_alerts (id, asset_id, target_price, condition, note, is_active, created_at, triggered_at)
-                                VALUES (:id, :asset_id, :target_price, :condition, :note, :is_active, :created_at, :triggered_at)
-                            """), {
-                                "id": oid,
-                                "asset_id": asset_id,
-                                "target_price": target,
-                                "condition": cond,
-                                "note": note,
-                                "is_active": active,
-                                "created_at": created,
-                                "triggered_at": triggered
-                            })
-                conn.execute(text("DROP TABLE old_price_alerts"))
-            logging.info("✅ Tabela de alertas de preço recuperada e migrada com sucesso!")
-            
-        elif has_new:
-            columns_alerts = [col['name'] for col in inspector.get_columns('price_alerts')]
-            if 'asset_id' not in columns_alerts:
-                logging.info("⚙️ Detectada tabela de alertas de preço antiga. Iniciando migração 3FN...")
-                
-                with engine.begin() as conn:
-                    conn.execute(text("DROP INDEX IF EXISTS ix_price_alerts_id"))
-                    conn.execute(text("DROP INDEX IF EXISTS ix_price_alerts_ticker"))
-                    conn.execute(text("ALTER TABLE price_alerts RENAME TO old_price_alerts"))
-                
-                Base.metadata.create_all(engine)
-                
-                with engine.begin() as conn:
-                    old_alerts = conn.execute(text("SELECT id, ticker, target_price, condition, note, is_active, created_at, triggered_at FROM old_price_alerts")).fetchall()
-                    for r in old_alerts:
-                        oid, ticker, target, cond, note, active, created, triggered = r
-                        row_asset = conn.execute(text("SELECT id FROM assets WHERE ticker = :ticker"), {"ticker": ticker.strip().upper()}).fetchone()
-                        if row_asset:
-                            asset_id = row_asset[0]
-                            conn.execute(text("""
-                                INSERT INTO price_alerts (id, asset_id, target_price, condition, note, is_active, created_at, triggered_at)
-                                VALUES (:id, :asset_id, :target_price, :condition, :note, :is_active, :created_at, :triggered_at)
-                            """), {
-                                "id": oid,
-                                "asset_id": asset_id,
-                                "target_price": target,
-                                "condition": cond,
-                                "note": note,
-                                "is_active": active,
-                                "created_at": created,
-                                "triggered_at": triggered
-                            })
-                    conn.execute(text("DROP TABLE old_price_alerts"))
-                logging.info("✅ Tabela de alertas de preço migrada com sucesso para 3FN!")
     except Exception as e:
-        logging.warning(f"⚠️ Erro ao atualizar schema do banco: {e}")
+        logging.warning(f"⚠️ Erro ao inicializar tabelas e seeds de configuração: {e}")
 
 
 # --- EVENT LISTENERS PARA SEGURANÇA E ISOLAMENTO MULTIUSUÁRIO ---

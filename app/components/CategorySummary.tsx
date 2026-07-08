@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { formatMoney } from '../utils';
 import { Asset } from '../types';
-import { usePrivacy } from '../context/PrivacyContext';
+import { PrivateValue } from './ui/PrivateValue';
 import { PieChart, Pencil, X, Save, AlertCircle, AlertTriangle, TrendingUp, TrendingDown, Ban, CheckCircle2, DollarSign } from 'lucide-react'; // 🧼 Removido 'Lock' que não era usado
 import { Card } from './ui/Card';
 import { apiCall } from '../utils/apiClient';
@@ -131,15 +131,7 @@ const MetaAnalysisTooltip = ({ x, y, data }: { x: number, y: number, data: MetaT
   </div>
 );
 
-// ==========================================
-// 3. COMPONENTE PRINCIPAL
-// ==========================================
-const PrivateValue = ({ value, isHidden, className = "" }: { value: string | number, isHidden: boolean, className?: string }) => (
-  <span className={className}>{isHidden ? '••••••' : value}</span>
-);
-
 export const CategorySummary = ({ ativos, categorias = [], onUpdate }: CategorySummaryProps) => {
-  const { isHidden } = usePrivacy() as { isHidden: boolean };
   const [editingCat, setEditingCat] = useState<EditingCategory | null>(null);
   const [newMeta, setNewMeta] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -313,11 +305,11 @@ export const CategorySummary = ({ ativos, categorias = [], onUpdate }: CategoryS
                     </td>
 
                     <td className="px-4 py-3 text-right text-slate-500 font-mono align-middle">
-                      <PrivateValue value={formatMoney(item.investido)} isHidden={isHidden} />
+                      <PrivateValue value={formatMoney(item.investido)} />
                     </td>
 
                     <td className="px-4 py-3 text-right text-white font-mono font-bold align-middle">
-                      <PrivateValue value={formatMoney(item.atual)} isHidden={isHidden} />
+                      <PrivateValue value={formatMoney(item.atual)} />
                     </td>
 
                     <td className="px-4 py-3 align-middle">
@@ -383,7 +375,6 @@ export const CategorySummary = ({ ativos, categorias = [], onUpdate }: CategoryS
             <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest leading-none">Patrimônio Atual</p>
             <PrivateValue
               value={formatMoney(totalAtualGeral)}
-              isHidden={isHidden}
               className="text-lg font-bold text-emerald-400 font-mono"
             />
           </div>
@@ -391,7 +382,6 @@ export const CategorySummary = ({ ativos, categorias = [], onUpdate }: CategoryS
             <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest leading-none">Custo Total</p>
             <PrivateValue
               value={formatMoney(totalInvestidoGeral)}
-              isHidden={isHidden}
               className="text-sm font-bold text-slate-300 font-mono"
             />
           </div>

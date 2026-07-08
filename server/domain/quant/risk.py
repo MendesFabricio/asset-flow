@@ -3,17 +3,8 @@ import logging
 import numpy as np
 import json
 from datetime import datetime, timedelta
-from database.models import Position, SystemCache, safe_commit
-from domain.quant.helpers import _to_yf_ticker, _align_prices_to_b3, get_risk_free_rate
-
-def _get_current_user_id():
-    try:
-        from flask import has_request_context, g
-        if has_request_context() and hasattr(g, 'user_id'):
-            return g.user_id
-    except Exception:
-        pass
-    return 1
+from database.models import Position, SystemCache, safe_commit, get_active_positions
+from domain.quant.helpers import _to_yf_ticker, _align_prices_to_b3, get_risk_free_rate, _get_current_user_id, _extract_close_prices, _calculate_ewma_covariance, classify_asset_sector
 
 def calculate_risk_metrics(session, fetch_prices) -> dict:
     uid = _get_current_user_id()
@@ -31,11 +22,7 @@ def calculate_risk_metrics(session, fetch_prices) -> dict:
     logging.info("📐 Calculando métricas de risco...")
     import pandas as pd
 
-    query = session.query(Position)
-    if uid is not None:
-        positions = query.filter(Position.user_id == uid, Position.quantity > 0).all()
-    else:
-        positions = query.filter(Position.quantity > 0).all()
+    positions = get_active_positions(session, uid).all()
     tickers_yf, weights_val, total_value = [], [], 0.0
 
     for pos in positions:
@@ -61,27 +48,18 @@ def calculate_risk_metrics(session, fetch_prices) -> dict:
     rf_daily = RISK_FREE / 252
 
     raw = fetch_prices(list(set(tickers_yf)) + [BENCHMARK], period="1y")
-    prices = (
-        raw.xs("Close", axis=1, level=1)
-        if isinstance(raw.columns, pd.MultiIndex)
-        else (raw["Close"] if "Close" in raw.columns else raw)
-    )
+    prices = _extract_close_prices(raw)
     prices = _align_prices_to_b3(prices)
     prices = prices[[c for c in prices.columns if prices[c].count() >= 30]]
 
     for col in prices.columns:
         if col == BENCHMARK:
             continue
-        vals = prices[col].tolist()
-        for idx in range(1, len(vals)):
-            prev = vals[idx - 1]
-            curr = vals[idx]
-            if prev is None or pd.isna(prev) or prev <= 0 or curr is None or pd.isna(curr):
-                continue
-            ratio = curr / prev
-            if ratio < 0.5 or ratio > 2.0:
-                vals[idx] = prev
-        prices[col] = vals
+        # Vetorização do clip de outliers usando Pandas
+        ratio = prices[col] / prices[col].shift(1)
+        bad_mask = (ratio < 0.5) | (ratio > 2.0)
+        prices.loc[bad_mask, col] = np.nan
+        prices[col] = prices[col].ffill()
 
     if BENCHMARK not in prices.columns:
         return {"status": "Erro", "msg": "IBOVESPA indisponível."}
@@ -111,7 +89,7 @@ def calculate_risk_metrics(session, fetch_prices) -> dict:
     ann_p = float(ewma_mean["portfolio"] * 252)
     ann_b = float(ewma_mean["benchmark"] * 252)
 
-    ewma_cov = aligned.ewm(alpha=alpha_ewma).cov().xs(aligned.index[-1])
+    ewma_cov = _calculate_ewma_covariance(aligned, decay=decay_factor)
     cov_portfolio_bench = float(ewma_cov.loc["portfolio", "benchmark"])
     var_bench = float(ewma_cov.loc["benchmark", "benchmark"])
     var_portfolio = float(ewma_cov.loc["portfolio", "portfolio"])
@@ -196,29 +174,7 @@ def calculate_risk_metrics(session, fetch_prices) -> dict:
         total_assets_value += val
         ticker = pos.asset.ticker.upper().strip()
         
-        sector = "Outros"
-        if cat in ["Renda Fixa", "Reserva"]:
-            sector = "Reserva & Renda Fixa"
-        elif cat == "Cripto" or any(x in ticker for x in ["BTC", "ETH", "SOL"]):
-            sector = "Tecnologia & Cripto"
-        else:
-            if any(x in ticker for x in ["ITUB", "BBDC", "BBAS", "SANB", "ITSA", "BPAC", "BBPO", "BBRC", "KNCR", "HGCR", "MXRF"]):
-                sector = "Financeiro"
-            elif any(x in ticker for x in ["EGIE", "EQTL", "CPLE", "TAEE", "TRPL", "ENGI", "CPFE", "ELET", "CMIG", "ALUP"]):
-                sector = "Utilidades / Energia"
-            elif any(x in ticker for x in ["PETR", "PRIO", "RECV", "ENAT", "RRRP", "CSAN", "VALE", "CSNA", "USIM", "GGBR"]):
-                sector = "Commodities & Materiais"
-            elif any(x in ticker for x in ["AAPL", "MSFT", "GOOG", "META", "AMZN", "NVDA", "TSLA", "TOTS", "WEGE"]):
-                sector = "Tecnologia & Inovação"
-            elif any(x in ticker for x in ["HGBS", "VISC", "HGLG", "BTLG", "XPLG", "HGRE", "BRCO", "KNIP", "CPTS"]):
-                sector = "Imobiliário"
-            elif any(x in ticker for x in ["LREN", "MGLU", "SMTO", "SLCE", "BEEF", "JBSS", "MRFG", "ABEV"]):
-                sector = "Consumo & Agronegócio"
-            else:
-                if cat == "FII":
-                    sector = "Imobiliário"
-                else:
-                    sector = "Outros / Diversificados"
+        sector = classify_asset_sector(ticker, cat)
                     
         sectors_alloc[sector] = sectors_alloc.get(sector, 0.0) + val
 

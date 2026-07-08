@@ -37,8 +37,9 @@ def update_prices(session, invalidate_cache_callback):
         batch_data = yf.download(download_list, period="6mo", group_by='ticker', threads=True, progress=False, auto_adjust=True)
 
         count_ok = 0
+        asset_ids = [asset.id for asset in assets]
         existing_mdata = {
-            m.asset_id: m for m in session.query(MarketData).all()
+            m.asset_id: m for m in session.query(MarketData).filter(MarketData.asset_id.in_(asset_ids)).all()
         }
 
         for symbol, asset in tickers_map.items():
@@ -327,7 +328,7 @@ def sync_reports_with_fnet(session):
                     datas = [f"{k[0].upper()}: {v['ref_date']}" for k, v in doc_package.items() if 'ref_date' in v]
                     pos.last_report_at = " | ".join(datas)
                     count_fii += 1
-                time.sleep(0.5)
+                time.sleep(0.05)
 
             elif not is_fii and asset.cvm_code:
                 try:

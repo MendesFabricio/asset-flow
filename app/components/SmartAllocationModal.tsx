@@ -30,15 +30,6 @@ interface ServerRebalanceResult {
   sugestoes: ServerSuggestion[];
 }
 
-interface AllocationItem extends Asset {
-  qtd_compra: number;
-  custo_total: number;
-  impacto_meta: number | null;
-  motivo_texto: string;
-  tipo_acao: 'REBALANCE' | 'EXPANSION';
-  justificativas: string[];
-}
-
 interface SmartAllocationModalProps {
   isOpen: boolean;
   onClose: () => void;

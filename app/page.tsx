@@ -1,12 +1,7 @@
 'use client';
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { apiCall } from './utils/apiClient';
-import {
-  TrendingUp, Wallet, Target, Layers, RefreshCw, PiggyBank, BarChart3, LineChart, PlusCircle,
-  Brain, Calendar, Eye, EyeOff, Percent, Grip, Building2, Globe, Landmark, Bitcoin,
-  CheckCircle, AlertTriangle, X, Search, CreditCard
-} from 'lucide-react';
 import { usePrivacy } from './context/PrivacyContext';
 import { formatMoney } from './utils';
 import { StatCard } from './components/StatCard';
@@ -17,6 +12,27 @@ import { Asset } from './types';
 import { useModalStore } from './store/modalStore';
 import { MorningBriefing } from './components/MorningBriefing';
 import { SkeletonLoading } from './components/SkeletonLoading';
+import {
+  BarChart3,
+  Bitcoin,
+  Brain,
+  Building2,
+  CheckCircle,
+  CreditCard,
+  Globe,
+  Grip,
+  Landmark,
+  Layers,
+  LineChart,
+  RefreshCw,
+  TrendingUp,
+  Wallet,
+  X,
+  Percent,
+  PiggyBank,
+  Target,
+  AlertTriangle
+} from 'lucide-react';
 
 const RiskRadar = dynamic(() => import('./components/RiskRadar').then(mod => mod.RiskRadar), { ssr: false, loading: () => <SkeletonLoading /> });
 const HistoryChart = dynamic(() => import('./components/HistoryChart').then(mod => mod.HistoryChart), { ssr: false, loading: () => <SkeletonLoading /> });
@@ -54,20 +70,20 @@ export default function Home() {
   const { isHidden } = usePrivacy() as { isHidden: boolean };
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
   const [tab, setTab] = useState('Resumo');
-  const {
-    isAddModalOpen,
-    isSmartModalOpen,
-    isIfModalOpen,
-    editingAsset,
-    selectedDetailsAsset,
-    newsTicker,
-    setAddModalOpen,
-    setSmartModalOpen,
-    setIfModalOpen,
-    setEditingAsset,
-    setSelectedDetailsAsset,
-    setNewsTicker,
-  } = useModalStore();
+
+  const isAddModalOpen = useModalStore(state => state.isAddModalOpen);
+  const isSmartModalOpen = useModalStore(state => state.isSmartModalOpen);
+  const isIfModalOpen = useModalStore(state => state.isIfModalOpen);
+  const editingAsset = useModalStore(state => state.editingAsset);
+  const selectedDetailsAsset = useModalStore(state => state.selectedDetailsAsset);
+  const newsTicker = useModalStore(state => state.newsTicker);
+  
+  const setAddModalOpen = useModalStore(state => state.setAddModalOpen);
+  const setSmartModalOpen = useModalStore(state => state.setSmartModalOpen);
+  const setIfModalOpen = useModalStore(state => state.setIfModalOpen);
+  const setEditingAsset = useModalStore(state => state.setEditingAsset);
+  const setSelectedDetailsAsset = useModalStore(state => state.setSelectedDetailsAsset);
+  const setNewsTicker = useModalStore(state => state.setNewsTicker);
 
   const [showRefreshSuccess, setShowRefreshSuccess] = useState(false);
   const [isRefetching, setIsRefetching] = useState(false);
@@ -131,7 +147,7 @@ export default function Home() {
     }, 0) || 0;
   }, [data?.ativos]);
 
-  const money = (val: number) => isHidden ? '••••••' : formatMoney(val);
+  const money = useCallback((val: number) => isHidden ? '••••••' : formatMoney(val), [isHidden]);
 
   // Monitora alterações nos canais SSE de sincronismo para notificar erros/sucessos ao usuário via Toast
   useEffect(() => {
@@ -146,9 +162,9 @@ export default function Home() {
     }
   }, [fundamentalsStatus.status]);
 
-  const handleSyncReports = async () => {
+  const handleSyncReports = useCallback(async () => {
     // Força o estado local para processando imediatamente (Optimistic UI)
-    mutateSync({ status: 'processing', message: 'Iniciando barramento de sincronia...' }, false);
+    mutateSync({ status: 'processing', message: 'Iniciando barramento de sincronia...' });
     try {
       const result = await apiCall<{ status: string; msg: string }>('/api/sync-reports', { method: 'POST' });
       notify(result.msg, 'success');
@@ -163,14 +179,14 @@ export default function Home() {
       } else {
         // Se for um erro de rede ou queda do backend, aí sim joga para idle
         notify("Falha ao conectar com o servidor para sincronizar relatórios.", 'error');
-        mutateSync({ status: 'idle', message: '' }, false);
+        mutateSync({ status: 'idle', message: '' });
       }
     }
-  };
+  }, [mutateSync]);
 
-  const handleUpdateFundamentals = async () => {
+  const handleUpdateFundamentals = useCallback(async () => {
     // Força o estado local para processando imediatamente (Optimistic UI)
-    mutateFundamentals({ status: 'processing', message: 'Iniciando esteira de múltiplos...' }, false);
+    mutateFundamentals({ status: 'processing', message: 'Iniciando esteira de múltiplos...' });
     try {
       const result = await apiCall<{ status: string; msg: string }>('/api/update-fundamentals', { method: 'POST' });
       notify(result.msg, 'success');
@@ -185,12 +201,12 @@ export default function Home() {
       } else {
         // Erro físico de conexão externa
         notify("Falha ao conectar com o servidor de fundamentos.", 'error');
-        mutateFundamentals({ status: 'idle', message: '' }, false);
+        mutateFundamentals({ status: 'idle', message: '' });
       }
     }
-  };
+  }, [mutateFundamentals]);
 
-  const handleManualRefresh = async () => {
+  const handleManualRefresh = useCallback(async () => {
     setIsRefetching(true);
     try {
       await apiCall('/api/refresh_prices', { method: 'POST' });
@@ -203,12 +219,16 @@ export default function Home() {
     } finally {
       setIsRefetching(false);
     }
-  };
+  }, [refetch]);
 
-  const handleFixAsset = (assetId: number) => {
+  const handleFixAsset = useCallback((assetId: number) => {
     const assetToEdit = data?.ativos.find((a: Asset) => (a as Asset & { id?: number }).id === assetId);
     if (assetToEdit) setEditingAsset(assetToEdit);
-  };
+  }, [data?.ativos, setEditingAsset]);
+
+  const handleOpenIfModal = useCallback(() => setIfModalOpen(true), [setIfModalOpen]);
+  const handleOpenSmartModal = useCallback(() => setSmartModalOpen(true), [setSmartModalOpen]);
+  const handleOpenAddModal = useCallback(() => setAddModalOpen(true), [setAddModalOpen]);
 
   if (loading) {
     return (
@@ -216,15 +236,15 @@ export default function Home() {
         <Header
           total={0}
           ativos={[]}
-          money={(v: number) => '••••••'}
+          money={money}
           syncStatus={{ status: 'idle', message: '' }}
           fundamentalsStatus={{ status: 'idle', message: '' }}
           onSyncReports={handleSyncReports}
           onUpdateFundamentals={handleUpdateFundamentals}
           onManualRefresh={handleManualRefresh}
-          onOpenIfModal={() => setIfModalOpen(true)}
-          onOpenSmartModal={() => setSmartModalOpen(true)}
-          onOpenAddModal={() => setAddModalOpen(true)}
+          onOpenIfModal={handleOpenIfModal}
+          onOpenSmartModal={handleOpenSmartModal}
+          onOpenAddModal={handleOpenAddModal}
           onFixAsset={handleFixAsset}
           loading={true}
           isRefetching={false}
@@ -247,9 +267,9 @@ export default function Home() {
         onSyncReports={handleSyncReports}
         onUpdateFundamentals={handleUpdateFundamentals}
         onManualRefresh={handleManualRefresh}
-        onOpenIfModal={() => setIfModalOpen(true)}
-        onOpenSmartModal={() => setSmartModalOpen(true)}
-        onOpenAddModal={() => setAddModalOpen(true)}
+        onOpenIfModal={handleOpenIfModal}
+        onOpenSmartModal={handleOpenSmartModal}
+        onOpenAddModal={handleOpenAddModal}
         onFixAsset={handleFixAsset}
         loading={loading}
         isRefetching={isRefetching}

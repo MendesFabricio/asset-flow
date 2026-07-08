@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { API_BASE_URL } from '../../config/api';
+import { apiCall } from '../../utils/apiClient';
 
 interface IndexData {
   price: number;
@@ -26,12 +26,9 @@ export const MarketTicker = React.memo(() => {
   useEffect(() => {
     async function fetchIndices() {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/market/indices`);
-        if (res.ok) {
-          const data = await res.json();
-          setIndices(data);
-          setLastUpdate(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
-        }
+        const data = await apiCall<MarketIndices>('/api/market/indices');
+        setIndices(data);
+        setLastUpdate(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
       } catch (e) {
         console.error("Erro ao buscar índices de mercado:", e);
       } finally {

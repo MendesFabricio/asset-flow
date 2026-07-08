@@ -19,8 +19,20 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 2. Se não estiver logado, redireciona para a página de login
+  // 2. Se não estiver logado
   if (!token) {
+    // Se for rota de API, retorna 401 JSON em vez de redirect HTML
+    if (pathname.startsWith('/api/')) {
+      return new NextResponse(
+        JSON.stringify({ status: 'Erro', message: 'Sessão expirada ou não autorizada.' }),
+        {
+          status: 401,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
+    // Redireciona páginas normais para a tela de login
     const loginUrl = new URL('/login', request.url);
     // Preserva a página que o usuário tentou acessar antes
     if (pathname !== '/') {

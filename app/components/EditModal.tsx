@@ -25,33 +25,55 @@ interface InputControlProps {
   onChange: (field: EditFormField, value: number) => void;
 }
 
-const InputControl = ({ label, value, field, step, precision, color = "blue", onAdjust, onChange }: InputControlProps) => (
-  <div className="space-y-1.5">
-    <label className="text-[10px] uppercase font-bold text-slate-500 tracking-widest ml-1">{label}</label>
-    <div className={`flex items-center bg-slate-950 border border-slate-800 rounded-lg overflow-hidden focus-within:ring-1 focus-within:ring-${color}-500/50 transition-all shadow-inner`}>
-      <button
-        type="button"
-        onClick={() => onAdjust(field, -step, precision)}
-        className={`p-2.5 text-${color}-500 hover:bg-${color}-500/10 transition-colors`}
-      >
-        <Minus size={14} />
-      </button>
-      <input
-        type="number"
-        value={value}
-        onChange={(e) => onChange(field, Number(e.target.value))}
-        className="w-full bg-transparent p-2 text-white outline-none font-mono text-center text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-      />
-      <button
-        type="button"
-        onClick={() => onAdjust(field, step, precision)}
-        className={`p-2.5 text-${color}-500 hover:bg-${color}-500/10 transition-colors`}
-      >
-        <Plus size={14} />
-      </button>
+const InputControl = ({ label, value, field, step, precision, color = "blue", onAdjust, onChange }: InputControlProps) => {
+  const colorClasses = {
+    blue: {
+      ring: "focus-within:ring-blue-500/50",
+      text: "text-blue-500",
+      hoverBg: "hover:bg-blue-500/10"
+    },
+    purple: {
+      ring: "focus-within:ring-purple-500/50",
+      text: "text-purple-500",
+      hoverBg: "hover:bg-purple-500/10"
+    },
+    emerald: {
+      ring: "focus-within:ring-emerald-500/50",
+      text: "text-emerald-500",
+      hoverBg: "hover:bg-emerald-500/10"
+    }
+  };
+
+  const style = colorClasses[color as keyof typeof colorClasses] || colorClasses.blue;
+
+  return (
+    <div className="space-y-1.5">
+      <label className="text-[10px] uppercase font-bold text-slate-500 tracking-widest ml-1">{label}</label>
+      <div className={`flex items-center bg-slate-950 border border-slate-800 rounded-lg overflow-hidden focus-within:ring-1 ${style.ring} transition-all shadow-inner`}>
+        <button
+          type="button"
+          onClick={() => onAdjust(field, -step, precision)}
+          className={`p-2.5 ${style.text} ${style.hoverBg} transition-colors`}
+        >
+          <Minus size={14} />
+        </button>
+        <input
+          type="number"
+          value={value}
+          onChange={(e) => onChange(field, Number(e.target.value))}
+          className="w-full bg-transparent p-2 text-white outline-none font-mono text-center text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+        />
+        <button
+          type="button"
+          onClick={() => onAdjust(field, step, precision)}
+          className={`p-2.5 ${style.text} ${style.hoverBg} transition-colors`}
+        >
+          <Plus size={14} />
+        </button>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 export const EditModal = ({ isOpen, onClose, onSave, ativo, allAssets = [] }: EditModalProps) => {
   const [formData, setFormData] = useState({

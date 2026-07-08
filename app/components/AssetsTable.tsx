@@ -134,8 +134,6 @@ export function AssetsTable({ assets, tab, onEdit, onViewNews, onViewDetails }: 
                       onEdit={onEdit}
                       onViewNews={onViewNews}
                       onViewDetails={onViewDetails}
-                      index={virtualRow.index}
-                      total={filteredAssets.length}
                     />
                   );
                 })}

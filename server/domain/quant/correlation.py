@@ -1,27 +1,15 @@
 # server/domain/quant/correlation.py
 import logging
 import numpy as np
-from database.models import Position
-from domain.quant.helpers import _to_yf_ticker, _align_prices_to_b3
-
-def _get_current_user_id():
-    try:
-        from flask import has_request_context, g
-        if has_request_context() and hasattr(g, 'user_id'):
-            return g.user_id
-    except Exception:
-        pass
-    return 1
+from database.models import Position, get_active_positions
+from domain.quant.helpers import _to_yf_ticker, _align_prices_to_b3, _get_current_user_id, _extract_close_prices
 
 def get_correlation_matrix(session, fetch_prices) -> dict:
     logging.info("🧮 Calculando matriz de correlação...")
     import pandas as pd
 
     uid = _get_current_user_id()
-    query = session.query(Position)
-    if uid is not None:
-        query = query.filter_by(user_id=uid)
-    positions = query.filter(Position.quantity > 0).all()
+    positions = get_active_positions(session, uid).all()
     tickers_map, download_list = {}, []
 
     for pos in positions:
@@ -40,10 +28,7 @@ def get_correlation_matrix(session, fetch_prices) -> dict:
         return {"status": "Erro", "msg": "Mínimo 2 ativos de renda variável."}
 
     raw = fetch_prices(unique, period="1y")
-    if isinstance(raw.columns, pd.MultiIndex):
-        prices = raw.xs("Close", axis=1, level=1)
-    else:
-        prices = raw[["Close"]] if "Close" in raw.columns else raw
+    prices = _extract_close_prices(raw)
 
     prices = prices.dropna(axis=1, how="all")
     prices = _align_prices_to_b3(prices)
@@ -80,10 +65,7 @@ def calculate_sector_correlation(session, fetch_prices) -> dict:
     logging.info("🧮 Calculando Matriz de Correlação Setorial...")
     
     uid = _get_current_user_id()
-    query = session.query(Position)
-    if uid is not None:
-        query = query.filter_by(user_id=uid)
-    positions = query.filter(Position.quantity > 0).all()
+    positions = get_active_positions(session, uid).all()
     tickers_yf, tickers_clean, categories = [], [], []
     for pos in positions:
         if not pos.asset:
@@ -105,11 +87,7 @@ def calculate_sector_correlation(session, fetch_prices) -> dict:
         }
         
     raw = fetch_prices(list(set(tickers_yf)), period="1y")
-    prices = (
-        raw.xs("Close", axis=1, level=1)
-        if isinstance(raw.columns, pd.MultiIndex)
-        else (raw["Close"] if "Close" in raw.columns else raw)
-    )
+    prices = _extract_close_prices(raw)
     prices = _align_prices_to_b3(prices)
     prices = prices[[c for c in prices.columns if prices[c].count() >= 30]]
     

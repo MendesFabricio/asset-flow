@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import { Menu, X } from 'lucide-react';
 import { Logo } from './Logo';
 import { MarketStatus } from './MarketStatus';
@@ -31,7 +31,7 @@ interface HeaderProps {
   showRefreshSuccess: boolean;
 }
 
-export function Header({
+export const Header = memo(({
   total,
   ativos,
   money,
@@ -47,7 +47,7 @@ export function Header({
   loading,
   isRefetching,
   showRefreshSuccess
-}: HeaderProps) {
+}: HeaderProps) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [username, setUsername] = useState('');
 
@@ -247,4 +247,6 @@ export function Header({
       )}
     </header>
   );
-}
+});
+
+Header.displayName = 'Header';

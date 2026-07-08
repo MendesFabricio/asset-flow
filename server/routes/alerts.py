@@ -1,9 +1,8 @@
 # server/routes/alerts.py
 from flask import Blueprint, jsonify, g
-from database.models import Asset, Position, Category, Session # ⚡ Importado a fábrica central controlada
+from database.models import Asset, Position, Session # ⚡ Importado a fábrica central controlada
 from datetime import datetime
 import logging # ⚡ Substituição de prints genéricos por logs estruturados
-import re
 
 alerts_bp = Blueprint('alerts', __name__)
 

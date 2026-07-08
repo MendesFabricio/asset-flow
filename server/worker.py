@@ -69,7 +69,7 @@ def scheduled_quant_warm():
 def scheduled_morning_brief_generation():
     try:
         logging.info("☕ JOB 07:00: Iniciando geração proativa do Morning Briefing...")
-        url = "http://backend:5328/api/market/brief?force=true"
+        url = "http://backend:5328/api/ai/morning-brief?force=true"
         try:
             res = requests.get(url, timeout=240)
             if res.status_code == 200:
@@ -78,7 +78,7 @@ def scheduled_morning_brief_generation():
                 logging.warning(f"⚠️ Resposta inesperada do backend na geração do Briefing (Status {res.status_code})")
         except Exception as conn_err:
             logging.warning(f"Tentando rota local alternativa: {conn_err}")
-            url_local = "http://localhost:5328/api/market/brief?force=true"
+            url_local = "http://localhost:5328/api/ai/morning-brief?force=true"
             res_local = requests.get(url_local, timeout=240)
             if res_local.status_code == 200:
                 logging.info("✅ Morning Briefing proativo gerado (local)!")

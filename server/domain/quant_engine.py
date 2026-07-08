@@ -6,7 +6,7 @@ Exposto de forma modularizada no subpacote quant/
 """
 
 # Re-exposição direta para compatibilidade de API de importações
-from domain.quant.helpers import _align_prices_to_b3, _to_yf_ticker, get_risk_free_rate
+from domain.quant.helpers import _to_yf_ticker, get_risk_free_rate
 from domain.quant.monte_carlo import run_monte_carlo
 from domain.quant.risk import calculate_risk_metrics
 from domain.quant.correlation import get_correlation_matrix, calculate_sector_correlation

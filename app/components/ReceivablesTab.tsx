@@ -12,7 +12,7 @@ import {
   Tooltip, BarChart, Bar, Cell, PieChart, Pie, Legend
 } from 'recharts';
 import { formatMoney } from '../utils';
-import { API_BASE_URL } from '../config/api';
+import { apiCall } from '../utils/apiClient';
 
 interface DebtorItem {
   id: number;
@@ -139,21 +139,18 @@ export const ReceivablesTab = () => {
   // Fetch Logic
   const refreshAll = async () => {
     try {
-      const [resDash, resDebtors, resLoans, resConfig] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/refunds/dashboard`),
-        fetch(`${API_BASE_URL}/api/refunds/debtors`),
-        fetch(`${API_BASE_URL}/api/refunds/loans`),
-        fetch(`${API_BASE_URL}/api/refunds/config`)
+      const [dashData, debtorsData, loansData, configData] = await Promise.all([
+        apiCall<any>('/api/refunds/dashboard'),
+        apiCall<any>('/api/refunds/debtors'),
+        apiCall<any>('/api/refunds/loans'),
+        apiCall<any>('/api/refunds/config')
       ]);
       
-      if (resDash.ok) setDashboard(await resDash.json());
-      if (resDebtors.ok) setDebtors(await resDebtors.json());
-      if (resLoans.ok) setLoans(await resLoans.json());
-      if (resConfig.ok) {
-        const config = await resConfig.json();
-        setFechamentoDia(config.fechamento_dia.toString());
-        setVencimentoDia(config.vencimento_dia.toString());
-      }
+      setDashboard(dashData);
+      setDebtors(debtorsData);
+      setLoans(loansData);
+      setFechamentoDia(configData.fechamento_dia.toString());
+      setVencimentoDia(configData.vencimento_dia.toString());
     } catch (err) {
       console.error("Erro ao carregar dados do módulo de reembolsos:", err);
     }
@@ -173,20 +170,18 @@ export const ReceivablesTab = () => {
 
   // Mutators
   const handleSaveConfig = async () => {
-    const res = await fetch(`${API_BASE_URL}/api/refunds/config`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        fechamento_dia: parseInt(fechamentoDia),
-        vencimento_dia: parseInt(vencimentoDia)
-      })
-    });
-    if (res.ok) {
+    try {
+      await apiCall('/api/refunds/config', {
+        method: 'POST',
+        body: JSON.stringify({
+          fechamento_dia: parseInt(fechamentoDia),
+          vencimento_dia: parseInt(vencimentoDia)
+        })
+      });
       setIsConfigOpen(false);
       refreshAll();
-    } else {
-      const data = await res.json();
-      alert(data.msg || "Erro ao salvar configuração.");
+    } catch (err: any) {
+      alert(err.message || "Erro ao salvar configuração.");
     }
   };
 
@@ -197,26 +192,24 @@ export const ReceivablesTab = () => {
       telefone: newDebtorTelefone,
       observacoes: newDebtorObs
     };
-    const url = editingDebtorId 
-      ? `${API_BASE_URL}/api/refunds/debtors/${editingDebtorId}` 
-      : `${API_BASE_URL}/api/refunds/debtors`;
+    const endpoint = editingDebtorId 
+      ? `/api/refunds/debtors/${editingDebtorId}` 
+      : `/api/refunds/debtors`;
     const method = editingDebtorId ? 'PUT' : 'POST';
 
-    const res = await fetch(url, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    if (res.ok) {
+    try {
+      await apiCall(endpoint, {
+        method,
+        body: JSON.stringify(payload)
+      });
       setNewDebtorNome('');
       setNewDebtorTelefone('');
       setNewDebtorObs('');
       setEditingDebtorId(null);
       setIsDebtorModalOpen(false);
       refreshAll();
-    } else {
-      const data = await res.json();
-      alert(data.msg || "Erro ao cadastrar/editar devedor.");
+    } catch (err: any) {
+      alert(err.message || "Erro ao cadastrar/editar devedor.");
     }
   };
 
@@ -239,17 +232,16 @@ export const ReceivablesTab = () => {
       observacoes: newLoanObs
     };
     
-    const url = editingLoanId 
-      ? `${API_BASE_URL}/api/refunds/loans/${editingLoanId}` 
-      : `${API_BASE_URL}/api/refunds/loans`;
+    const endpoint = editingLoanId 
+      ? `/api/refunds/loans/${editingLoanId}` 
+      : `/api/refunds/loans`;
     const method = editingLoanId ? 'PUT' : 'POST';
 
-    const res = await fetch(url, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    if (res.ok) {
+    try {
+      await apiCall(endpoint, {
+        method,
+        body: JSON.stringify(payload)
+      });
       setNewLoanDebtorId('');
       setNewLoanDesc('');
       setNewLoanCat('Geral');
@@ -260,9 +252,8 @@ export const ReceivablesTab = () => {
       setEditingLoanId(null);
       setIsLoanModalOpen(false);
       refreshAll();
-    } else {
-      const data = await res.json();
-      alert(data.msg || "Erro ao cadastrar/editar empréstimo.");
+    } catch (err: any) {
+      alert(err.message || "Erro ao cadastrar/editar empréstimo.");
     }
   };
 
@@ -278,21 +269,19 @@ export const ReceivablesTab = () => {
 
   const handlePayInstallment = async () => {
     if (!payingInstallment) return;
-    const res = await fetch(`${API_BASE_URL}/api/refunds/installments/${payingInstallment.id}/pay`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        valor_pago: parseFloat(payingValue),
-        forma_pagamento: payingMethod
-      })
-    });
-    if (res.ok) {
+    try {
+      await apiCall(`/api/refunds/installments/${payingInstallment.id}/pay`, {
+        method: 'POST',
+        body: JSON.stringify({
+          valor_pago: parseFloat(payingValue),
+          forma_pagamento: payingMethod
+        })
+      });
       setIsPaymentModalOpen(false);
       setPayingInstallment(null);
       refreshAll();
-    } else {
-      const data = await res.json();
-      alert(data.msg || "Erro ao efetuar pagamento.");
+    } catch (err: any) {
+      alert(err.message || "Erro ao efetuar pagamento.");
     }
   };
 
@@ -305,63 +294,60 @@ export const ReceivablesTab = () => {
 
   const handlePayGlobalDebtor = async () => {
     if (!globalPayDebtor) return;
-    const res = await fetch(`${API_BASE_URL}/api/refunds/debtors/${globalPayDebtor.id}/pay-global`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        valor_pago: parseFloat(globalPayValue),
-        forma_pagamento: globalPayMethod
-      })
-    });
-    if (res.ok) {
+    try {
+      await apiCall(`/api/refunds/debtors/${globalPayDebtor.id}/pay-global`, {
+        method: 'POST',
+        body: JSON.stringify({
+          valor_pago: parseFloat(globalPayValue),
+          forma_pagamento: globalPayMethod
+        })
+      });
       setIsGlobalPayModalOpen(false);
       setGlobalPayDebtor(null);
       setGlobalPayValue('');
       refreshAll();
-    } else {
-      const data = await res.json();
-      alert(data.msg || "Erro ao processar recebimento global.");
+    } catch (err: any) {
+      alert(err.message || "Erro ao processar recebimento global.");
     }
   };
 
   const handlePayBatch = async () => {
     if (selectedInstallments.length === 0) return;
     if (!confirm(`Confirmar liquidação das ${selectedInstallments.length} parcelas selecionadas?`)) return;
-    const res = await fetch(`${API_BASE_URL}/api/refunds/installments/pay-batch`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ids: selectedInstallments
-      })
-    });
-    if (res.ok) {
+    try {
+      await apiCall('/api/refunds/installments/pay-batch', {
+        method: 'POST',
+        body: JSON.stringify({
+          ids: selectedInstallments
+        })
+      });
       setSelectedInstallments([]);
       refreshAll();
-    } else {
+    } catch (err) {
       alert("Erro ao liquidar parcelas selecionadas.");
     }
   };
 
   const handleDeleteLoan = async (id: number, desc: string) => {
     if (!confirm(`Deseja excluir permanentemente o empréstimo "${desc}" e todas as suas parcelas?`)) return;
-    const res = await fetch(`${API_BASE_URL}/api/refunds/loans/${id}`, {
-      method: 'DELETE'
-    });
-    if (res.ok) {
+    try {
+      await apiCall(`/api/refunds/loans/${id}`, {
+        method: 'DELETE'
+      });
       refreshAll();
-    } else {
+    } catch (err) {
       alert("Erro ao excluir empréstimo.");
     }
   };
 
   const handleDeleteDebtor = async (id: number, nome: string) => {
     if (!confirm(`Deseja excluir o perfil de "${nome}"? Todos os empréstimos ativos dele serão arquivados.`)) return;
-    const res = await fetch(`${API_BASE_URL}/api/refunds/debtors/${id}`, {
-      method: 'DELETE'
-    });
-    if (res.ok) {
+    try {
+      await apiCall(`/api/refunds/debtors/${id}`, {
+        method: 'DELETE'
+      });
       refreshAll();
-    } else {
+    } catch (err) {
       alert("Erro ao excluir devedor.");
     }
   };

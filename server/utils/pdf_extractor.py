@@ -16,6 +16,25 @@ def extract_kpis_from_pdf(pdf_path_or_url: str, is_fii: bool = True) -> dict:
     try:
         # 1. Se for uma URL, baixa o arquivo em um arquivo temporário local
         if pdf_path_or_url.startswith("http"):
+            from urllib.parse import urlparse
+            parsed_url = urlparse(pdf_path_or_url)
+            hostname = parsed_url.hostname or ""
+            
+            allowed_domains = [
+                ".fnet.otc.br",
+                ".b3.com.br",
+                ".cvm.gov.br",
+                "fnet.otc.br",
+                "b3.com.br",
+                "cvm.gov.br",
+                "dados.cvm.gov.br",
+                "conteudo.cvm.gov.br"
+            ]
+            
+            is_allowed = any(hostname == domain or hostname.endswith(domain) for domain in allowed_domains)
+            if not is_allowed:
+                raise Exception(f"Domínio não autorizado para download de PDF: {hostname}")
+
             logging.info(f"📥 Baixando PDF de RI para análise: {pdf_path_or_url}...")
             r = requests.get(pdf_path_or_url, timeout=45)
             if r.status_code != 200:

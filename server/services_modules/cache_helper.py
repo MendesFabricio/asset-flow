@@ -1,15 +1,11 @@
 # server/services_modules/cache_helper.py
 import logging
-import json
 from datetime import datetime, timedelta
-from decimal import Decimal
 from database.models import SystemCache, safe_commit
 from database.session import Session
 from infrastructure.price_cache import fetch_price_history as _fetch_price_history_fn, invalidate as _invalidate_cache
 
 class CacheHelperService:
-    def _fetch_price_history(self, tickers: list, period: str = "1y"):
-        return _fetch_price_history_fn(tickers, period)
 
     def _invalidate_price_cache(self, session=None):
         _invalidate_cache()
@@ -30,7 +26,15 @@ class CacheHelperService:
     def _invalidate_quant_cache(self, session):
         try:
             user_id = getattr(self, "current_user_id", None)
-            keys = ["risk_metrics_cache", "correlation_matrix_cache", "efficient_frontier"]
+            keys = [
+                "risk_metrics", 
+                "risk_metrics_cache", 
+                "correlation_matrix_cache", 
+                "efficient_frontier",
+                "optimize_portfolio",
+                "risk_parity",
+                "morning_brief"
+            ]
             if user_id:
                 keys_to_del = keys + [f"{k}_{user_id}" for k in keys]
             else:
@@ -42,7 +46,15 @@ class CacheHelperService:
     def _get_cached_value(self, session, key, ttl_seconds=3600):
         try:
             user_id = getattr(self, "current_user_id", None)
-            if user_id and key in ["risk_metrics_cache", "correlation_matrix_cache", "efficient_frontier"]:
+            if user_id and key in [
+                "risk_metrics", 
+                "risk_metrics_cache", 
+                "correlation_matrix_cache", 
+                "efficient_frontier",
+                "optimize_portfolio",
+                "risk_parity",
+                "morning_brief"
+            ]:
                 key = f"{key}_{user_id}"
             cache = session.query(SystemCache).filter_by(key=key).first()
             if cache and datetime.now() - cache.updated_at < timedelta(seconds=ttl_seconds):
@@ -54,7 +66,15 @@ class CacheHelperService:
     def _set_cached_value(self, session, key, value):
         try:
             user_id = getattr(self, "current_user_id", None)
-            if user_id and key in ["risk_metrics_cache", "correlation_matrix_cache", "efficient_frontier"]:
+            if user_id and key in [
+                "risk_metrics", 
+                "risk_metrics_cache", 
+                "correlation_matrix_cache", 
+                "efficient_frontier",
+                "optimize_portfolio",
+                "risk_parity",
+                "morning_brief"
+            ]:
                 key = f"{key}_{user_id}"
             cache = session.query(SystemCache).filter_by(key=key).first()
             if not cache:

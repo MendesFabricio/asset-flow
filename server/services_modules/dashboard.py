@@ -4,7 +4,7 @@ import math
 import traceback
 from decimal import Decimal
 from sqlalchemy.orm import joinedload
-from database.models import Position, Asset, Category, safe_commit
+from database.models import Position, Asset, Category, safe_commit, get_active_positions
 from database.session import Session
 
 class DashboardService:
@@ -136,17 +136,7 @@ class DashboardService:
         user_id = self.current_user_id
         session = Session()
         try:
-            positions = (
-                session.query(Position)
-                .filter_by(user_id=user_id)
-                .options(
-                    joinedload(Position.asset)
-                    .joinedload(Asset.category),
-                    joinedload(Position.asset)
-                    .selectinload(Asset.market_data),
-                )
-                .all()
-            )
+            positions = get_active_positions(session, user_id).all()
             categories = session.query(Category).all()
             dolar_rate = self.get_usd_rate()
             

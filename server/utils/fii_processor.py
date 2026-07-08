@@ -12,14 +12,9 @@ class FIIProcessor:
         Baixa e processa o XML do Informe Mensal Estruturado da B3.
         """
         try:
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-                'Accept-Encoding': 'gzip, deflate, br',
-                'Connection': 'keep-alive'
-            }
-            
-            response = requests.get(url, headers=headers, timeout=20)
+            from utils.http_client import get_secure_session
+            session = get_secure_session()
+            response = session.get(url, timeout=20)
             if response.status_code != 200: return None
 
             content = response.content
@@ -143,5 +138,5 @@ class FIIProcessor:
             return dashboard_data
 
         except Exception as e:
-            print(f"Erro parser FII: {e}")
+            logging.error(f"Erro parser FII: {e}")
             return None

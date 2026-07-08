@@ -43,12 +43,6 @@ def async_fundamentals_worker(flask_app):
         finally:
             if service._fundamentals_lock.locked():
                 service._fundamentals_lock.release()
-            time.sleep(5)
-            if FUNDAMENTALS_STATE.get("status") in ["success", "error"]:
-                FUNDAMENTALS_STATE.update({
-                    "status": "idle",
-                    "message": "Sistema pronto."
-                })
 
 @dashboard_bp.route('/api/index', methods=['GET'])
 def get_data():

@@ -23,7 +23,7 @@ export function MorningBriefing() {
     setLoading(true);
     setError(null);
     try {
-      const endpoint = force ? '/api/market/brief?force=true' : '/api/market/brief';
+      const endpoint = force ? '/api/ai/morning-brief?force=true' : '/api/ai/morning-brief';
       const result = await apiCall<BriefData>(endpoint, { timeout: 180000 });
       if (result.status === 'Sucesso') {
         setData(result);

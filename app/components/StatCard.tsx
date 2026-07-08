@@ -50,6 +50,21 @@ export const StatCard = React.memo(({
     theme = { gradient: "from-indigo-500/10 to-slate-900/80", iconBg: "bg-indigo-500/10 border-indigo-500/20 text-indigo-400", glow: "bg-indigo-500", shadow: "shadow-indigo-900/20" };
   }
 
+  // Lógica de Cores Estáticas para Tailwind v4 JIT Compiler
+  const colorMap: Record<string, { badgeBg: string, badgeText: string, marqueeText: string }> = {
+    purple: { badgeBg: "bg-purple-500/20", badgeText: "text-purple-200", marqueeText: "text-purple-200" },
+    blue: { badgeBg: "bg-blue-500/20", badgeText: "text-blue-200", marqueeText: "text-blue-200" },
+    cyan: { badgeBg: "bg-cyan-500/20", badgeText: "text-cyan-200", marqueeText: "text-cyan-200" },
+    green: { badgeBg: "bg-emerald-500/20", badgeText: "text-emerald-200", marqueeText: "text-emerald-200" },
+    emerald: { badgeBg: "bg-emerald-500/20", badgeText: "text-emerald-200", marqueeText: "text-emerald-200" },
+    red: { badgeBg: "bg-rose-500/20", badgeText: "text-rose-200", marqueeText: "text-rose-200" },
+    rose: { badgeBg: "bg-rose-500/20", badgeText: "text-rose-200", marqueeText: "text-rose-200" },
+    indigo: { badgeBg: "bg-indigo-500/20", badgeText: "text-indigo-200", marqueeText: "text-indigo-200" }
+  };
+
+  const colorKey = Object.keys(colorMap).find(k => colorClass.includes(k)) || "blue";
+  const colors = colorMap[colorKey];
+
   // Lógica Visual do Daily Result
   const hasDaily = dailyResult !== undefined;
   const isPositiveDaily = hasDaily && dailyResult >= 0;
@@ -69,7 +84,7 @@ export const StatCard = React.memo(({
             <div className="flex items-center gap-2 mt-0.5">
               <h3 className="text-2xl font-bold font-mono tracking-tight text-white leading-none">{value}</h3>
               {badge && (
-                <span className={`text-[9px] font-bold flex items-center gap-1 uppercase px-2 py-0.5 rounded-md bg-opacity-20 ${colorClass.replace('text', 'bg').replace('400', '500')} ${colorClass.replace('400', '200')}`}>
+                <span className={`text-[9px] font-bold flex items-center gap-1 uppercase px-2 py-0.5 rounded-md ${colors.badgeBg} ${colors.badgeText}`}>
                   <ArrowUpRight size={10} /> {badge}
                 </span>
               )}
@@ -92,7 +107,7 @@ export const StatCard = React.memo(({
           marquee ? (
             <div className="relative flex items-center">
               <div className="absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-[#0f172a] to-transparent z-10" />
-              <p className={`text-[10px] font-bold uppercase tracking-tight italic whitespace-nowrap animate-marquee group-hover:pause ${colorClass.replace('400', '200')} opacity-70`}>
+              <p className={`text-[10px] font-bold uppercase tracking-tight italic whitespace-nowrap animate-marquee group-hover:pause ${colors.marqueeText} opacity-70`}>
                 {marquee}
               </p>
             </div>

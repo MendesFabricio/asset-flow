@@ -15,12 +15,16 @@ services:
       - ./backups:/app/backups
       - ./database:/app/database
     environment:
-      - FLASK_ENV=development
       - FLASK_DEBUG=0
       - OLLAMA_MODEL=llama3.2:3b
       - OLLAMA_BASE_URL=http://ollama:11434
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - SECRET_KEY=9e827103a85b9b71a2e3cd8f110a174f8c9b2d35eb7b3d9f1025a1bfe1f8d4bc
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:5328/api/health')\" > /dev/null 2>&1 || (echo 'Backend healthcheck failed!' && exit 1)"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
     # 🔒 LIMITES
     mem_limit: 2g
@@ -45,9 +49,7 @@ services:
       - PYTHONPATH=/app
       - OLLAMA_MODEL=llama3.2:3b
       - OLLAMA_BASE_URL=http://ollama:11434
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-
+      - SECRET_KEY=9e827103a85b9b71a2e3cd8f110a174f8c9b2d35eb7b3d9f1025a1bfe1f8d4bc
     depends_on:
       - backend
 
@@ -68,7 +70,13 @@ services:
     volumes:
       - .:/app
       - /app/node_modules
-    command: sh -c "npm run build && npm start"
+    command: npm start
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3000', (res) => res.statusCode === 200 ? process.exit(0) : process.exit(1))\" > /dev/null 2>&1 || (echo 'Frontend healthcheck failed!' && exit 1)"]
+      interval: 20s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
     depends_on:
       - backend
 
@@ -88,6 +96,12 @@ services:
       - "11434:11434"
     environment:
       - OLLAMA_NUM_PARALLEL=1
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     # deploy:
     #   resources:
     #     reservations:

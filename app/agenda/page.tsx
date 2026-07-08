@@ -1,28 +1,12 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { 
-  Calendar as CalIcon, 
-  ArrowLeft, 
-  Clock, 
-  CalendarCheck, 
-  History, 
-  TrendingUp, 
-  Award, 
-  Percent, 
-  Sliders, 
-  AlertTriangle, 
-  Info,
-  ChevronLeft,
-  ChevronRight,
-  HelpCircle,
-  Table
-} from 'lucide-react';
 import Link from 'next/link';
 import { formatMoney } from '../utils';
 import { Skeleton } from '../components/ui/Skeleton';
 import { apiCall } from '../utils/apiClient';
-import { 
+import { ArrowLeft, Calendar, Percent, TrendingUp, Table, History, ChevronLeft, ChevronRight, Clock, Award, CalendarCheck } from 'lucide-react';
+import {
   ResponsiveContainer, 
   BarChart, 
   Bar, 
@@ -215,7 +199,7 @@ export default function ProventosPage() {
               activeTab === 'calendar' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            <CalIcon size={13} /> Calendário
+            <Calendar size={13} /> Calendário
           </button>
           
           <button

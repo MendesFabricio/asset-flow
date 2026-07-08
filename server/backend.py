@@ -58,7 +58,8 @@ if not app.config["SECRET_KEY"]:
     app.config["SECRET_KEY"] = secrets.token_hex(32)
 
 app.json = CustomJSONProvider(app)
-CORS(app)
+allowed_origins = os.environ.get("ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",")
+CORS(app, resources={r"/api/*": {"origins": allowed_origins}})
 
 # 🧠 MÁQUINA DE ESTADO PERSISTENTE: Controla o progresso real da sincronia em SQLite (stateless)
 SYNC_STATE = DatabaseStateProxy("cvm_sync")
@@ -104,8 +105,7 @@ def handle_global_exception(e):
     logging.error(f"💥 Erro crítico global interceptado em {request.method} {request.url}: {str(e)}", exc_info=True)
     return jsonify({
         "status": "Erro",
-        "msg": "Ocorreu um erro interno no servidor de dados do AssetFlow.",
-        "details": str(e)
+        "msg": "Ocorreu um erro interno no servidor de dados do AssetFlow."
     }), 500
 
 # Registro de Blueprints
@@ -224,19 +224,9 @@ def async_sync_worker(flask_app):
         )
         logging.info("🏁 [BACKGROUND TASK] Sincronia paralela finalizada com sucesso total!")
 
-        # Aguarda 5 segundos no estado de sucesso para o usuário ver a mensagem e limpa para "idle"
-        time.sleep(5)
-        if SYNC_STATE.get("status") == "success":
-            SYNC_STATE.update({
-                "status": "idle",
-                "message": "Sistema pronto."
-            })
-
     except Exception as e:
         logging.error(f"❌ Erro catastrófico na esteira em background: {str(e)}", exc_info=True)
         _update_sync_state(status="error", message=f"Falha na sincronização: {str(e)}")
-        time.sleep(5)
-        _update_sync_state(status="idle", message="Sistema pronto.")
 
 
 # --- ROTAS DE SINCRONIZAÇÃO E LONG-POLLING ---

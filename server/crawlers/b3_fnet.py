@@ -1,10 +1,8 @@
 # server/crawlers/b3_fnet.py
-import requests
-from requests.adapters import HTTPAdapter
-from urllib3.util import Retry
 from datetime import datetime
 import threading
 import logging
+from utils.http_client import get_secure_session
 
 class B3FnetCrawler:
     URL_API = "https://fnet.bmfbovespa.com.br/fnet/publico/pesquisarGerenciadorDocumentosDados"
@@ -18,22 +16,7 @@ class B3FnetCrawler:
         """Inicializa e retorna uma sessão HTTP persistente com Pool expandido de Sockets"""
         with cls._lock:
             if cls._session is None:
-                cls._session = requests.Session()
-                
-                # 🛡️ RESILIÊNCIA DE REDE: Política de retentativas automáticas com Backoff Exponencial
-                # Se o servidor da B3 retornar lag, o robô aguarda 1s, depois 2s, depois 4s antes de desistir.
-                retry_strategy = Retry(
-                    total=3,
-                    backoff_factor=1,
-                    status_forcelist=[429, 500, 502, 503, 504],
-                    raise_on_status=False
-                )
-                
-                # Configura o adaptador com capacidade para gerenciar conexões concorrentes em threads paralelas
-                adapter = HTTPAdapter(max_retries=retry_strategy, pool_connections=10, pool_maxsize=20)
-                cls._session.mount("https://", adapter)
-                cls._session.mount("http://", adapter)
-                
+                cls._session = get_secure_session()
         return cls._session
 
     @staticmethod

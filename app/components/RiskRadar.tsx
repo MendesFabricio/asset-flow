@@ -11,7 +11,7 @@ import {
 import { Badge } from './ui/Badge';
 import { Card } from './ui/Card';
 
-export interface Alerta {
+interface Alerta {
   titulo: string;
   significado: string;
   acao: string;

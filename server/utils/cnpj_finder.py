@@ -1,5 +1,6 @@
 import requests
 import re
+import logging
 
 class CNPJFinder:
     @staticmethod
@@ -12,15 +13,17 @@ class CNPJFinder:
         for cat in categorias:
             url = f"https://statusinvest.com.br/{cat}/{ticker}"
             try:
-                response = requests.get(url, headers=headers, timeout=10)
+                from utils.http_client import get_secure_session
+                session = get_secure_session()
+                response = session.get(url, timeout=10)
                 if response.status_code == 200:
                     # Regex para pegar o CNPJ formatado 00.000.000/0000-00
                     match = re.search(r"\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}", response.text)
                     if match:
                         cnpj_limpo = re.sub(r"\D", "", match.group(0))
-                        print(f"✅ CNPJ {cnpj_limpo} encontrado para {ticker.upper()} em /{cat}/")
+                        logging.info(f"✅ CNPJ {cnpj_limpo} encontrado para {ticker.upper()} em /{cat}/")
                         return cnpj_limpo
             except:
                 continue
-        print(f"❌ Não foi possível encontrar CNPJ para {ticker.upper()} em nenhuma categoria.")
+        logging.warning(f"❌ Não foi possível encontrar CNPJ para {ticker.upper()} em nenhuma categoria.")
         return None

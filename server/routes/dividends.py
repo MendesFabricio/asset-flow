@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, g
-from database.models import Dividend, Asset, Session, Position # ⚡ Importada a factory controlada thread-safe
+from database.models import Dividend, Asset, Session, Position, get_active_positions # ⚡ Importada a factory controlada thread-safe
 import logging
 from services import PortfolioService
 
@@ -46,7 +46,7 @@ def get_dividend_yoc():
                 projected_map[t] = projected_map.get(t, 0.0) + f["amount"]
                 
             # 2. Busca posições do usuário logado
-            positions = session.query(Position).filter_by(user_id=g.user_id).filter(Position.quantity > 0).all()
+            positions = get_active_positions(session, g.user_id).all()
             
             yoc_list = []
             for pos in positions:
@@ -96,7 +96,7 @@ def get_dividend_analytics():
                 t = f["ticker"]
                 projected_map[t] = projected_map.get(t, 0.0) + f["amount"]
                 
-            positions = session.query(Position).filter_by(user_id=g.user_id).filter(Position.quantity > 0).all()
+            positions = get_active_positions(session, g.user_id).all()
             analytics = []
             
             for pos in positions:
@@ -166,7 +166,7 @@ def get_yoc_history():
     """Retorna a série histórica de Yield on Cost por ativo"""
     with Session() as session:
         try:
-            positions = session.query(Position).filter_by(user_id=g.user_id).filter(Position.quantity > 0).all()
+            positions = get_active_positions(session, g.user_id).all()
             results = {}
             
             for pos in positions:

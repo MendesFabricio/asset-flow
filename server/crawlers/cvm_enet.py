@@ -1,14 +1,10 @@
 # server/crawlers/cvm_enet.py
-import requests
-from requests.adapters import HTTPAdapter
-# server/crawlers/cvm_enet.py
-import requests
-from requests.adapters import HTTPAdapter
-from urllib3.util import Retry
 import json
 import logging
 import threading
+import re
 from datetime import datetime
+from utils.http_client import get_secure_session
 
 class CVMEnetCrawler:
     URL_LISTA = "https://www.rad.cvm.gov.br/ENET/frmConsultaExternaCVM.aspx/ListarDocumentos"
@@ -22,22 +18,7 @@ class CVMEnetCrawler:
         """Inicializa e retorna uma sessão HTTP persistente com Pool expandido de Sockets"""
         with cls._lock:
             if cls._session is None:
-                cls._session = requests.Session()
-                
-                # 🛡️ RESILIÊNCIA DE REDE: Política de retentativas automáticas com Backoff Exponencial
-                # Se o servidor da CVM apresentar instabilidade, o robô aguarda e tenta novamente de forma inteligente.
-                retry_strategy = Retry(
-                    total=3,
-                    backoff_factor=1,
-                    status_forcelist=[429, 500, 502, 503, 504],
-                    raise_on_status=False
-                )
-                
-                # Configura o adaptador com capacidade para gerenciar conexões concorrentes em threads paralelas
-                adapter = HTTPAdapter(max_retries=retry_strategy, pool_connections=10, pool_maxsize=20)
-                cls._session.mount("https://", adapter)
-                cls._session.mount("http://", adapter)
-                
+                cls._session = get_secure_session()
         return cls._session
 
     @classmethod
@@ -116,7 +97,6 @@ class CVMEnetCrawler:
                         for row in rows:
                             fields = row.split('$&')
                             if len(fields) >= 11:
-                                import re
                                 match = re.search(r"OpenDownloadDocumentos\('(\d+)','(\d+)','([^']+)','([^']+)'\)", fields[10])
                                 if match:
                                     numSeq, numVer, numProt, descT = match.groups()

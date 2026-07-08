@@ -1,27 +1,14 @@
 # server/domain/quant/analysis.py
 import numpy as np
 import pandas as pd
-from database.models import Position
-from domain.quant.helpers import _to_yf_ticker, _align_prices_to_b3, get_risk_free_rate
-
-def _get_current_user_id():
-    try:
-        from flask import has_request_context, g
-        if has_request_context() and hasattr(g, 'user_id'):
-            return g.user_id
-    except Exception:
-        pass
-    return 1
+from database.models import Position, get_active_positions
+from domain.quant.helpers import _to_yf_ticker, _align_prices_to_b3, get_risk_free_rate, _get_current_user_id, _extract_close_prices, _calculate_ewma_covariance
 
 def calculate_kelly_criterion(session, fetch_prices) -> dict:
     uid = _get_current_user_id()
     if uid is None:
         return {"status": "Erro", "msg": "Usuário não autenticado."}
-    query = session.query(Position)
-    if uid is not None:
-        positions = query.filter(Position.user_id == uid, Position.quantity > 0).all()
-    else:
-        positions = query.filter(Position.quantity > 0).all()
+    positions = get_active_positions(session, uid).all()
     tickers_yf, tickers_clean, categories = [], [], []
     for pos in positions:
         if not pos.asset:
@@ -37,11 +24,7 @@ def calculate_kelly_criterion(session, fetch_prices) -> dict:
         return {"status": "Erro", "msg": "Sem ativos de renda variável ativos na carteira."}
         
     raw = fetch_prices(list(set(tickers_yf)), period="1y")
-    prices = (
-        raw.xs("Close", axis=1, level=1)
-        if isinstance(raw.columns, pd.MultiIndex)
-        else (raw["Close"] if "Close" in raw.columns else raw)
-    )
+    prices = _extract_close_prices(raw)
     prices = _align_prices_to_b3(prices)
     prices = prices[[c for c in prices.columns if prices[c].count() >= 30]]
     
@@ -97,11 +80,7 @@ def calculate_alpha_attribution(session, fetch_prices) -> dict:
     uid = _get_current_user_id()
     if uid is None:
         return {"status": "Erro", "msg": "Usuário não autenticado."}
-    query = session.query(Position)
-    if uid is not None:
-        positions = query.filter(Position.user_id == uid, Position.quantity > 0).all()
-    else:
-        positions = query.filter(Position.quantity > 0).all()
+    positions = get_active_positions(session, uid).all()
     tickers_yf, tickers_clean, categories, weights_val = [], [], [], []
     total_val = 0.0
     
@@ -127,11 +106,7 @@ def calculate_alpha_attribution(session, fetch_prices) -> dict:
         
     BENCHMARK = "^BVSP"
     raw = fetch_prices(list(set(tickers_yf)) + [BENCHMARK], period="1y")
-    prices = (
-        raw.xs("Close", axis=1, level=1)
-        if hasattr(raw.columns, "levels")
-        else (raw["Close"] if "Close" in raw.columns else raw)
-    )
+    prices = _extract_close_prices(raw)
     prices = _align_prices_to_b3(prices)
     prices = prices[[c for c in prices.columns if prices[c].count() >= 30]]
     
@@ -143,9 +118,8 @@ def calculate_alpha_attribution(session, fetch_prices) -> dict:
     
     decay_factor = 0.94
     alpha_ewma = 1.0 - decay_factor
-    
     ewma_mean = log_ret.ewm(alpha=alpha_ewma).mean().iloc[-1]
-    ewma_cov_df = log_ret.ewm(alpha=alpha_ewma).cov().xs(log_ret.index[-1])
+    ewma_cov_df = _calculate_ewma_covariance(log_ret, decay=decay_factor)
     
     rf = get_risk_free_rate()
     ann_b = float(ewma_mean[BENCHMARK] * 252)
@@ -201,11 +175,7 @@ def calculate_alpha_attribution(session, fetch_prices) -> dict:
 
 def calculate_rolling_sharpe(session, fetch_prices) -> dict:
     uid = _get_current_user_id()
-    query = session.query(Position)
-    if uid is not None:
-        positions = query.filter(Position.user_id == uid, Position.quantity > 0).all()
-    else:
-        positions = query.filter(Position.quantity > 0).all()
+    positions = get_active_positions(session, uid).all()
     tickers_yf, tickers_clean, weights_val = [], [], []
     total_val = 0.0
     
@@ -228,11 +198,7 @@ def calculate_rolling_sharpe(session, fetch_prices) -> dict:
         return {"status": "Erro", "msg": "Sem ativos de renda variável ativos na carteira."}
         
     raw = fetch_prices(list(set(tickers_yf)), period="1y")
-    prices = (
-        raw.xs("Close", axis=1, level=1)
-        if hasattr(raw.columns, "levels")
-        else (raw["Close"] if "Close" in raw.columns else raw)
-    )
+    prices = _extract_close_prices(raw)
     prices = _align_prices_to_b3(prices)
     prices = prices[[c for c in prices.columns if prices[c].count() >= 95]]
     
@@ -263,18 +229,14 @@ def calculate_rolling_sharpe(session, fetch_prices) -> dict:
     series_data = {}
     for col in df_returns.columns:
         col_name = ticker_clean_map.get(col, "portfolio")
-        sharpe_series = []
-        for idx in range(window - 1, len(df_returns)):
-            mean_val = rolling_means[col].iloc[idx]
-            std_val = rolling_stds[col].iloc[idx]
-            
-            ann_ret = mean_val * 252
-            ann_vol = std_val * np.sqrt(252)
-            
-            sharpe = (ann_ret - rf) / ann_vol if ann_vol > 0 else 0.0
-            sharpe_series.append(round(float(sharpe), 3))
-            
-        series_data[col_name] = sharpe_series
+        ann_ret = rolling_means[col] * 252
+        ann_vol = rolling_stds[col] * np.sqrt(252)
+        
+        # Sharpe vetorizado lidando com vol=0
+        sharpe = (ann_ret - rf) / ann_vol
+        sharpe = sharpe.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+        
+        series_data[col_name] = sharpe.iloc[window - 1:].round(3).tolist()
         
     return {
         "status": "Sucesso",
@@ -284,11 +246,7 @@ def calculate_rolling_sharpe(session, fetch_prices) -> dict:
 
 def calculate_momentum_ranking(session, fetch_prices) -> dict:
     uid = _get_current_user_id()
-    query = session.query(Position)
-    if uid is not None:
-        positions = query.filter(Position.user_id == uid, Position.quantity > 0).all()
-    else:
-        positions = query.filter(Position.quantity > 0).all()
+    positions = get_active_positions(session, uid).all()
     tickers_yf, tickers_clean = [], []
     
     for pos in positions:
@@ -304,11 +262,7 @@ def calculate_momentum_ranking(session, fetch_prices) -> dict:
         return {"status": "Erro", "msg": "Sem ativos de renda variável ativos na carteira."}
         
     raw = fetch_prices(list(set(tickers_yf)), period="1y")
-    prices = (
-        raw.xs("Close", axis=1, level=1)
-        if hasattr(raw.columns, "levels")
-        else (raw["Close"] if "Close" in raw.columns else raw)
-    )
+    prices = _extract_close_prices(raw)
     prices = _align_prices_to_b3(prices)
     
     results = []

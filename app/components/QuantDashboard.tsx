@@ -3,6 +3,22 @@
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { SkeletonLoading } from './SkeletonLoading';
+import {
+  BarChart3,
+  AlertTriangle,
+  Info,
+  Sliders,
+  Target,
+  Award,
+  Sparkles,
+  TrendingUp,
+  Play,
+  DollarSign,
+  Compass,
+  FileText,
+  Download,
+  Activity
+} from 'lucide-react';
 
 const MonteCarloChart = dynamic(() => import('./MonteCarloChart').then(mod => mod.MonteCarloChart), { ssr: false, loading: () => <SkeletonLoading /> });
 const RiskMetricsPanel = dynamic(() => import('./RiskMetricsPanel').then(mod => mod.RiskMetricsPanel), { ssr: false, loading: () => <SkeletonLoading /> });
@@ -23,31 +39,13 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import {
-  BarChart3,
-  TrendingUp,
-  Target,
-  Percent,
-  DollarSign,
-  Activity,
-  Award,
-  AlertTriangle,
-  Info,
-  Sliders,
-  Play,
-  RotateCcw,
-  Sparkles,
-  FileText,
-  Download,
-  Compass
-} from 'lucide-react';
-import {
-  KellyData,
   AlphaAttributionData,
   RebalanceBandsData,
-  DCASimulationData,
   EfficientFrontierData,
-  SharpeRollingData,
+  KellyData,
   MomentumRankingData,
+  SharpeRollingData,
+  DCASimulationData,
   FrontierPoint
 } from '../types';
 

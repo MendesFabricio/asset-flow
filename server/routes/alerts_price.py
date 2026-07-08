@@ -11,14 +11,8 @@ Job (chamado pelo APScheduler a cada 5 minutos):
   check_price_alerts()              Verifica se algum alerta foi atingido
 """
 import logging
-import sys
-import os
 from flask import Blueprint, jsonify, request
 from datetime import datetime
-
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
-
 from services import Session
 from database.models import PriceAlert, MarketData, Asset, TriggeredAlert, safe_commit
 from sqlalchemy.orm import joinedload

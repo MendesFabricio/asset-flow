@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useRef, useMemo } from 'react';
 import { Snowflake, TrendingUp, TrendingDown, Pencil, FileText, Info, Layers, Search } from 'lucide-react';
-import { formatMoney, getStatusBg, getStatusColor } from '../utils';
+import { formatMoney, getStatusBg } from '../utils';
 import { Asset } from '../types';
 import { usePrivacy } from '../context/PrivacyContext';
 import ReportModal from './ReportModal';
@@ -14,8 +14,6 @@ interface AssetRowProps {
   onEdit: (ativo: Asset) => void;
   onViewNews?: (ticker: string) => void;
   onViewDetails: (ativo: Asset) => void;
-  index: number;
-  total: number;
 }
 
 type ExtendedAsset = Asset & {
@@ -26,11 +24,9 @@ type ExtendedAsset = Asset & {
   last_report_type?: string;
 };
 
-const PrivateValue = ({ value, isHidden, className = "" }: { value: string | number, isHidden: boolean, className?: string }) => (
-  <span className={className}>{isHidden ? (className.includes('pct') ? '•••%' : '••••••') : value}</span>
-);
+import { PrivateValue } from './ui/PrivateValue';
 
-export const AssetRow = React.memo(({ ativo, tab, onEdit, onViewNews, onViewDetails, index: _index, total: _total }: AssetRowProps) => {
+export const AssetRow = React.memo(({ ativo, tab, onEdit, onViewNews, onViewDetails }: AssetRowProps) => {
   const { isHidden } = usePrivacy() as { isHidden: boolean };
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [tooltip, setTooltip] = useState<{ x: number; y: number; position: 'top' | 'bottom'; type: 'rec' | 'fin' } | null>(null);
@@ -163,7 +159,7 @@ export const AssetRow = React.memo(({ ativo, tab, onEdit, onViewNews, onViewDeta
                 </div>
               </div>
               <div className="text-[10px] text-slate-500 uppercase font-medium tracking-wide">
-                {ativo.tipo} • <PrivateValue value={`${ativo.qtd} UN`} isHidden={isHidden} className="tabular-nums" />
+                {ativo.tipo} • <PrivateValue value={`${ativo.qtd} UN`} className="tabular-nums" />
               </div>
             </div>
           </div>
@@ -172,8 +168,8 @@ export const AssetRow = React.memo(({ ativo, tab, onEdit, onViewNews, onViewDeta
         {/* COLUNA 2: VALOR TOTAL */}
         <td className="p-4 text-right">
           <div className="flex flex-col items-end">
-            <PrivateValue value={formatMoney(ativo.total_atual)} isHidden={isHidden} className="text-slate-200 font-bold tabular-nums" />
-            <PrivateValue value={`Investido: ${formatMoney(ativo.total_investido)}`} isHidden={isHidden} className="text-[10px] text-slate-500 tabular-nums" />
+            <PrivateValue value={formatMoney(ativo.total_atual)} className="text-slate-200 font-bold tabular-nums" />
+            <PrivateValue value={`Investido: ${formatMoney(ativo.total_investido)}`} className="text-[10px] text-slate-500 tabular-nums" />
           </div>
         </td>
 
@@ -191,18 +187,18 @@ export const AssetRow = React.memo(({ ativo, tab, onEdit, onViewNews, onViewDeta
                   <span className="tabular-nums">{stats.isPositiveIntraday ? '+' : ''}{Number(stats.variacaoIntraday).toFixed(2)}%</span>
                 </div>
               )}
-              <PrivateValue value={stats.displayPrice} isHidden={isHidden} className="text-slate-300 font-mono text-sm tabular-nums" />
+              <PrivateValue value={stats.displayPrice} className="text-slate-300 font-mono text-sm tabular-nums" />
             </div>
-            <PrivateValue value={`PM: ${stats.displayPM}`} isHidden={isHidden} className="text-[10px] text-slate-600 tabular-nums" />
+            <PrivateValue value={`PM: ${stats.displayPM}`} className="text-[10px] text-slate-600 tabular-nums" />
           </div>
         </td>
 
         {/* COLUNA 4: RESULTADO GERAL */}
         <td className="p-4 text-right">
           <div className="flex flex-col items-end">
-            <PrivateValue value={(lucroPositivo ? '+' : '') + formatMoney(ativo.lucro_valor)} isHidden={isHidden} className={`font-bold font-mono tabular-nums ${lucroPositivo ? 'text-emerald-400' : 'text-rose-400'}`} />
+            <PrivateValue value={(lucroPositivo ? '+' : '') + formatMoney(ativo.lucro_valor)} className={`font-bold font-mono tabular-nums ${lucroPositivo ? 'text-emerald-400' : 'text-rose-400'}`} />
             <div className={`text-[10px] flex items-center gap-1 ${lucroPositivo ? 'text-emerald-500/70' : 'text-rose-500/70'}`}>
-              <PrivateValue value={`${lucroPositivo ? '+' : ''}${ativo.lucro_pct.toFixed(2)}%`} isHidden={isHidden} className="pct tabular-nums" />
+              <PrivateValue value={`${lucroPositivo ? '+' : ''}${ativo.lucro_pct.toFixed(2)}%`} className="pct tabular-nums" />
               {!isHidden && (lucroPositivo ? <TrendingUp size={10} /> : <TrendingDown size={10} />)}
             </div>
           </div>
@@ -225,7 +221,7 @@ export const AssetRow = React.memo(({ ativo, tab, onEdit, onViewNews, onViewDeta
         <td className="p-4 text-right">
           <div className="flex flex-col items-end gap-1.5">
             {ativo.falta_comprar > 1 ? (
-              <PrivateValue value={`+${formatMoney(ativo.falta_comprar)}`} isHidden={isHidden} className="text-blue-300 font-bold bg-blue-500/10 px-2 py-1 rounded border border-blue-500/20 text-xs whitespace-nowrap shadow-sm shadow-blue-900/20 tabular-nums" />
+              <PrivateValue value={`+${formatMoney(ativo.falta_comprar)}`} className="text-blue-300 font-bold bg-blue-500/10 px-2 py-1 rounded border border-blue-500/20 text-xs whitespace-nowrap shadow-sm shadow-blue-900/20 tabular-nums" />
             ) : <span className="text-slate-700 text-[10px] font-medium">-</span>}
 
             <div
@@ -275,7 +271,7 @@ export const AssetRow = React.memo(({ ativo, tab, onEdit, onViewNews, onViewDeta
                     className="text-[10px] flex items-center gap-1 justify-end w-full px-1 text-cyan-400 font-bold cursor-help"
                   >
                     <Snowflake size={10} className="animate-pulse" />
-                    <PrivateValue value={`${ativo.qtd}/${ativo.magic_number}`} isHidden={isHidden} className="tabular-nums" />
+                    <PrivateValue value={`${ativo.qtd}/${ativo.magic_number}`} className="tabular-nums" />
                   </div>
                 )}
               </div>
@@ -291,7 +287,7 @@ export const AssetRow = React.memo(({ ativo, tab, onEdit, onViewNews, onViewDeta
                   title="V.I. (Valor Intrínseco): Valor justo teórico calculado pela fórmula clássica de Benjamin Graham."
                   className="text-[9px] text-slate-600 font-medium uppercase tracking-tighter cursor-help"
                 >
-                  V.I: <PrivateValue value={formatMoney(ativo.vi_graham || 0)} isHidden={isHidden} className="tabular-nums" />
+                  V.I: <PrivateValue value={formatMoney(ativo.vi_graham || 0)} className="tabular-nums" />
                 </span>
               </div>
             ) : <span className="text-slate-800">-</span>}
