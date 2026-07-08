@@ -1,11 +1,10 @@
 # server/domain/quant/rebalance.py
 import logging
-from database.models import Position, get_active_positions
+from database.models import get_active_positions
 from domain.quant.helpers import _to_yf_ticker, _align_prices_to_b3, _get_current_user_id, _extract_close_prices
 
 def calculate_smart_rebalance(session, fetch_prices, monthly_contribution: float = 0.0) -> dict:
     logging.info(f"⚖️ Smart Rebalance (aporte R$ {monthly_contribution:.2f})...")
-    import pandas as pd
 
     uid = _get_current_user_id()
     positions = get_active_positions(session, uid).all()

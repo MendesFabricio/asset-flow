@@ -4,6 +4,7 @@ import numpy as np
 import json
 from datetime import datetime, timedelta
 from database.models import Position, SystemCache, safe_commit, get_active_positions
+from database.session import Session
 from domain.quant.helpers import _to_yf_ticker, _align_prices_to_b3, get_risk_free_rate, _get_current_user_id, _extract_close_prices, _calculate_ewma_covariance, classify_asset_sector
 
 def calculate_risk_metrics(session, fetch_prices) -> dict:
@@ -55,7 +56,6 @@ def calculate_risk_metrics(session, fetch_prices) -> dict:
     for col in prices.columns:
         if col == BENCHMARK:
             continue
-        # Vetorização do clip de outliers usando Pandas
         ratio = prices[col] / prices[col].shift(1)
         bad_mask = (ratio < 0.5) | (ratio > 2.0)
         prices.loc[bad_mask, col] = np.nan
@@ -175,7 +175,6 @@ def calculate_risk_metrics(session, fetch_prices) -> dict:
         ticker = pos.asset.ticker.upper().strip()
         
         sector = classify_asset_sector(ticker, cat)
-                    
         sectors_alloc[sector] = sectors_alloc.get(sector, 0.0) + val
 
     sectors_list = []
@@ -339,6 +338,7 @@ def calculate_risk_metrics(session, fetch_prices) -> dict:
         cache_record.updated_at = datetime.now()
         safe_commit(session)
     except Exception as e:
-        logging.warning(f"⚠️ Erro ao salvar cache de métricas de risco: {e}")
+        session.rollback()  # 💡 CORREÇÃO CRÍTICA: Efetua o rollback para não envenenar a sessão HTTP com erros de concorrência de chave única
+        logging.warning(f"⚠️ Concorrência interceptada ao salvar cache de risco (tratada com rollback): {e}")
 
     return result

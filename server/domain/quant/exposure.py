@@ -1,5 +1,5 @@
 from flask import g
-from database.models import Position, get_active_positions
+from database.models import get_active_positions
 from domain.quant.helpers import classify_asset_sector
 
 def calculate_sector_exposure(session):

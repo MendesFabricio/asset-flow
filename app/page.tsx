@@ -77,7 +77,7 @@ export default function Home() {
   const editingAsset = useModalStore(state => state.editingAsset);
   const selectedDetailsAsset = useModalStore(state => state.selectedDetailsAsset);
   const newsTicker = useModalStore(state => state.newsTicker);
-  
+
   const setAddModalOpen = useModalStore(state => state.setAddModalOpen);
   const setSmartModalOpen = useModalStore(state => state.setSmartModalOpen);
   const setIfModalOpen = useModalStore(state => state.setIfModalOpen);
@@ -288,8 +288,8 @@ export default function Home() {
                 key={c.id}
                 onClick={() => setTab(c.id)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-300 border ${tab === c.id
-                    ? 'bg-blue-500/15 text-blue-400 border-blue-500/40 shadow-[0_0_12px_rgba(59,130,246,0.15)]'
-                    : 'bg-slate-900/45 text-slate-400 border-slate-800/80 hover:text-slate-200 hover:border-slate-700/50'
+                  ? 'bg-blue-500/15 text-blue-400 border-blue-500/40 shadow-[0_0_12px_rgba(59,130,246,0.15)]'
+                  : 'bg-slate-900/45 text-slate-400 border-slate-800/80 hover:text-slate-200 hover:border-slate-700/50'
                   }`}
               >
                 {c.icon}
@@ -301,7 +301,7 @@ export default function Home() {
 
         {/* Análises e Inteligência */}
         <div className="flex flex-col md:flex-row md:items-center gap-3 pt-2 border-t border-slate-900/50">
-          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest min-w-[125px]">Análises & Jarvis:</span>
+          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest min-w-[125px]">Análises & IA:</span>
           <div className="flex gap-1.5 overflow-x-auto no-scrollbar w-full pb-1 md:pb-0">
             {analyticsTabs.map((c) => (
               <button
@@ -309,8 +309,8 @@ export default function Home() {
                 key={c.id}
                 onClick={() => setTab(c.id)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-300 border ${tab === c.id
-                    ? 'bg-indigo-500/15 text-indigo-400 border-indigo-500/40 shadow-[0_0_12px_rgba(99,102,241,0.15)]'
-                    : 'bg-slate-900/45 text-slate-400 border-slate-800/80 hover:text-slate-200 hover:border-slate-700/50'
+                  ? 'bg-indigo-500/15 text-indigo-400 border-indigo-500/40 shadow-[0_0_12px_rgba(99,102,241,0.15)]'
+                  : 'bg-slate-900/45 text-slate-400 border-slate-800/80 hover:text-slate-200 hover:border-slate-700/50'
                   }`}
               >
                 {c.icon}

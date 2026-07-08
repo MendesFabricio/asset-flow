@@ -1,7 +1,6 @@
 # server/domain/quant/analysis.py
 import numpy as np
-import pandas as pd
-from database.models import Position, get_active_positions
+from database.models import get_active_positions
 from domain.quant.helpers import _to_yf_ticker, _align_prices_to_b3, get_risk_free_rate, _get_current_user_id, _extract_close_prices, _calculate_ewma_covariance
 
 def calculate_kelly_criterion(session, fetch_prices) -> dict:

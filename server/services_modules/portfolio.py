@@ -103,7 +103,7 @@ class PortfolioCrudService:
             self._invalidate_quant_cache(session)
             safe_commit(session)
             return "Ativo e dados vinculados excluídos!"
-        except Exception as e:
+        except Exception:
             session.rollback()
             raise
         finally: 

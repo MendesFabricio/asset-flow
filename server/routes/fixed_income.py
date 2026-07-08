@@ -3,7 +3,6 @@ from flask import Blueprint, jsonify, request, g
 from database.models import Session, Asset, Position, Category, FixedIncome, safe_commit
 from datetime import datetime
 from decimal import Decimal
-import logging
 from sqlalchemy.orm import joinedload
 
 fixed_income_bp = Blueprint('fixed_income', __name__)
@@ -78,7 +77,7 @@ def handle_fixed_income():
                 average_price = Decimal(str(data.get('average_price', 0)))
                 issue_date = datetime.fromisoformat(data.get('issue_date', '').replace('Z', ''))
                 due_date = datetime.fromisoformat(data.get('due_date', '').replace('Z', ''))
-            except Exception as e:
+            except Exception:
                 return jsonify({"status": "Erro", "msg": "Campos numéricos ou datas inválidas"}), 400
                 
             if not ticker or not name or index_type not in ['CDI', 'IPCA', 'PRE'] or quantity <= 0 or average_price <= 0:

@@ -47,7 +47,7 @@ export const SmartAllocationModal = ({ isOpen, onClose, ativos }: SmartAllocatio
     const clean = v.replace(/[^\d,.]/g, '');
     const hasComma = clean.includes(',');
     const hasDot = clean.includes('.');
-    
+
     if (hasComma && hasDot) {
       const lastComma = clean.lastIndexOf(',');
       const lastDot = clean.lastIndexOf('.');
@@ -57,7 +57,7 @@ export const SmartAllocationModal = ({ isOpen, onClose, ativos }: SmartAllocatio
         return Number(clean.replace(/,/g, '')) || 0;
       }
     }
-    
+
     if (hasComma) {
       const parts = clean.split(',');
       if (parts.length > 2 || (parts.length === 2 && parts[1].length !== 2)) {
@@ -65,7 +65,7 @@ export const SmartAllocationModal = ({ isOpen, onClose, ativos }: SmartAllocatio
       }
       return Number(clean.replace(',', '.')) || 0;
     }
-    
+
     if (hasDot) {
       const parts = clean.split('.');
       if (parts.length > 2 || (parts.length === 2 && parts[1].length !== 2)) {
@@ -73,7 +73,7 @@ export const SmartAllocationModal = ({ isOpen, onClose, ativos }: SmartAllocatio
       }
       return Number(clean) || 0;
     }
-    
+
     const n = Number(clean);
     return Number.isFinite(n) ? n : 0;
   };

@@ -2,9 +2,7 @@
 from flask import Blueprint, jsonify, request, g
 from database.models import Session, CreditCard, CardExpense, CardInstallment, safe_commit
 from datetime import datetime, date
-import calendar
 from decimal import Decimal
-import logging
 from sqlalchemy.orm import joinedload
 
 cards_bp = Blueprint('credit_cards', __name__)

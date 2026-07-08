@@ -64,6 +64,7 @@ docker-data/
 *.db-wal
 server/backups/
 .aider*
+.kilo
 
 SECURITY_ANALYSIS.md
 server/data/

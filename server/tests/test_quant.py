@@ -1,7 +1,7 @@
 import pytest
 import math
 from decimal import Decimal
-from domain.quant_engine import _to_yf_ticker
+from domain.quant.analysis import _to_yf_ticker
 
 def test_to_yf_ticker_domestic():
     # Ativos nacionais (sem terminação de BDR/Internacional) devem receber .SA

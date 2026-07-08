@@ -3,9 +3,7 @@ from flask import Blueprint, jsonify, request, g
 from database.models import Session, RefundConfig, Debtor, ReceivableLoan, LoanInstallment, PaymentTransaction, AuditLog, safe_commit
 from sqlalchemy.orm import joinedload
 from datetime import datetime, date
-import calendar
 from decimal import Decimal
-import logging
 
 refunds_bp = Blueprint('refunds', __name__)
 
@@ -97,7 +95,6 @@ def handle_debtors():
         
         q = request.args.get('q', '').strip()
         
-        # Subquery para valor_total_emprestado
         loan_sub = db.query(func.coalesce(func.sum(ReceivableLoan.valor_total), 0.0)).filter(
             ReceivableLoan.debtor_id == Debtor.id,
             ReceivableLoan.is_deleted == False
@@ -110,9 +107,8 @@ def handle_debtors():
             .filter(
                 ReceivableLoan.debtor_id == Debtor.id,
                 ReceivableLoan.is_deleted == False,
-                LoanInstallment.is_deleted == False,
-                PaymentTransaction.is_deleted == False
-            ).correlate(Debtor).as_scalar()
+                LoanInstallment.is_deleted == False
+            ).correlate(Debtor).as_scalar() # 💡 CORREÇÃO: Removido PaymentTransaction.is_deleted
 
         # Subquery para data_primeiro_emprestimo
         first_loan_sub = db.query(func.min(ReceivableLoan.data_emprestimo)).filter(
@@ -127,8 +123,7 @@ def handle_debtors():
             .filter(
                 ReceivableLoan.debtor_id == Debtor.id,
                 ReceivableLoan.is_deleted == False,
-                LoanInstallment.is_deleted == False,
-                PaymentTransaction.is_deleted == False
+                LoanInstallment.is_deleted == False
             ).correlate(Debtor).as_scalar()
 
         # Subquery para data_ultimo_emprestimo

@@ -1,9 +1,10 @@
 # server/services_modules/cache_helper.py
+import json
 import logging
 from datetime import datetime, timedelta
 from database.models import SystemCache, safe_commit
 from database.session import Session
-from infrastructure.price_cache import fetch_price_history as _fetch_price_history_fn, invalidate as _invalidate_cache
+from infrastructure.price_cache import invalidate as _invalidate_cache
 
 class CacheHelperService:
 

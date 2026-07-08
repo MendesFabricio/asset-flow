@@ -1,9 +1,7 @@
-import requests
 import xml.etree.ElementTree as ET
 import logging
 import zipfile
 import io
-from datetime import datetime
 
 class FIIProcessor:
     @staticmethod

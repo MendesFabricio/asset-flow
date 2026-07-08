@@ -1,12 +1,10 @@
 # server/domain/quant/optimization.py
 import logging
 import numpy as np
-from datetime import datetime
-from database.models import Position, SystemCache, safe_commit, get_active_positions
+from database.models import get_active_positions
 from domain.quant.helpers import _to_yf_ticker, _align_prices_to_b3, get_risk_free_rate, _get_current_user_id, _extract_close_prices, _calculate_ewma_covariance
 
 def calculate_risk_parity(session, fetch_prices) -> dict:
-    import pandas as pd
     logging.info("⚖️ Calculando Paridade de Risco do Portfólio...")
     
     uid = _get_current_user_id()
@@ -57,7 +55,6 @@ def calculate_risk_parity(session, fetch_prices) -> dict:
     }
 
 def calculate_markowitz_optimization(session, fetch_prices) -> dict:
-    import pandas as pd
     logging.info("📈 Calculando Otimização de Markowitz ( Sharpe Máximo)...")
     
     uid = _get_current_user_id()
@@ -121,7 +118,6 @@ def calculate_markowitz_optimization(session, fetch_prices) -> dict:
     }
 
 def calculate_efficient_frontier_points(session, fetch_prices) -> dict:
-    import pandas as pd
     
     uid = _get_current_user_id()
     if uid is None:

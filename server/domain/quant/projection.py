@@ -1,6 +1,6 @@
 # server/domain/quant/projection.py
 import logging
-from database.models import Position, Dividend, get_active_positions
+from database.models import Dividend, get_active_positions
 
 from domain.quant.helpers import _get_current_user_id
 

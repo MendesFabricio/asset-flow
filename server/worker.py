@@ -5,7 +5,6 @@ Processo worker isolado executando tarefas agendadas via APScheduler.
 import os
 import sys
 import logging
-import time
 import requests
 
 # Garante que o diretório pai esteja no sys.path para importações absolutas

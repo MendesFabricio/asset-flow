@@ -65,16 +65,16 @@ export const AssetRow = React.memo(({ ativo, tab, onEdit, onViewNews, onViewDeta
 
   const tooltipStyle = useMemo(() => {
     if (!tooltip) return {};
-    
+
     // Calcula largura estimada do tooltip
     const width = tooltip.type === 'rec' ? 256 : 180;
-    
+
     // Evita transbordamento na esquerda
     let left = tooltip.x - width;
     if (left < 12) {
       left = 12;
     }
-    
+
     // Evita transbordamento na direita
     if (typeof window !== 'undefined' && left + width > window.innerWidth - 12) {
       left = window.innerWidth - width - 12;
@@ -113,7 +113,7 @@ export const AssetRow = React.memo(({ ativo, tab, onEdit, onViewNews, onViewDeta
   return (
     <>
       <tr className="hover:bg-slate-800/20 transition-all duration-300 border-b border-slate-800/30 last:border-0 group text-xs sm:text-sm">
-        
+
         {/* COLUNA 1: IDENTIFICAÇÃO */}
         <td className="p-4 pl-6">
           <div className="flex items-center gap-3">

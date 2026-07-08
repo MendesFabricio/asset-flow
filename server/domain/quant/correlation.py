@@ -1,7 +1,7 @@
 # server/domain/quant/correlation.py
 import logging
 import numpy as np
-from database.models import Position, get_active_positions
+from database.models import get_active_positions
 from domain.quant.helpers import _to_yf_ticker, _align_prices_to_b3, _get_current_user_id, _extract_close_prices
 
 def get_correlation_matrix(session, fetch_prices) -> dict:
@@ -61,7 +61,6 @@ def get_correlation_matrix(session, fetch_prices) -> dict:
     return {"status": "Sucesso", "labels": labels, "matrix": matrix}
 
 def calculate_sector_correlation(session, fetch_prices) -> dict:
-    import pandas as pd
     logging.info("🧮 Calculando Matriz de Correlação Setorial...")
     
     uid = _get_current_user_id()

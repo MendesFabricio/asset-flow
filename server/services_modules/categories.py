@@ -13,7 +13,7 @@ class CategoryService:
             cat.target_percent = Decimal(str(new_meta))
             safe_commit(session)
             return "Meta atualizada!"
-        except Exception as e:
+        except Exception:
             session.rollback()
             raise
         finally: 

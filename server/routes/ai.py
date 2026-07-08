@@ -2,9 +2,9 @@ import logging
 import requests
 import json
 from flask import Blueprint, request, Response, stream_with_context, jsonify, g
-from database.models import Session, Asset, Position, LoanInstallment, ReceivableLoan
+from database.models import Session, Asset, Position, LoanInstallment
 from infrastructure.ollama_service import OLLAMA_CHAT_URL, MODEL_NAME, get_ollama_tools
-from domain.quant_engine import calculate_risk_metrics
+from domain.quant.risk import calculate_risk_metrics
 from infrastructure.price_cache import fetch_price_history as _fetch_price_history_fn
 
 ai_bp = Blueprint('ai', __name__)

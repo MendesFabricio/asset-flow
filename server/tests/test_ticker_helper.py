@@ -1,4 +1,3 @@
-import pytest
 from utils.ticker_helper import to_yf_ticker
 
 def test_to_yf_ticker_domestic():

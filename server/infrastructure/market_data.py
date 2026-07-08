@@ -124,7 +124,6 @@ def update_fundamentals(dolar_rate_callback, state_dict=None):
     session = Session()
     assets_info = []
     try:
-        from sqlalchemy.orm import joinedload
         assets = (
             session.query(Asset)
             .join(Category)

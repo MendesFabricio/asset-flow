@@ -4,7 +4,6 @@ import sys
 import os
 import logging 
 import threading
-import time
 
 # Ajuste para importar services da pasta pai
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
@@ -16,6 +15,15 @@ service = PortfolioService()
 
 # 🧠 MÁQUINA DE ESTADO PERSISTENTE: Monitora o progresso ativo por ativo no Yahoo Finance via SQLite (stateless)
 FUNDAMENTALS_STATE = DatabaseStateProxy("yahoo_sync")
+
+# 🚀 STARTUP RECOVERY: Reseta estado "processing" órfão se não houver lock ativo (ex: após reinício do container)
+try:
+    from database.models import update_sync_state_db, get_sync_state_db as _get_yahoo_state
+    if _get_yahoo_state("yahoo_sync").get("status") == "processing":
+        logging.warning("⚠️ [STARTUP] Estado orphão 'yahoo_sync' detectado como 'processing'. Resetando para idle.")
+        update_sync_state_db("yahoo_sync", status="idle", progress=0, total=0, message="Sistema pronto.")
+except Exception as _e:
+    logging.warning(f"⚠️ [STARTUP] Falha ao resetar yahoo_sync: {_e}")
 
 def async_fundamentals_worker(flask_app):
     """🛠️ Thread Mestre: Executa a esteira pesada do Yahoo sem prender a requisição HTTP do usuário"""

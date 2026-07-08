@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { 
-  ChevronDown, User, Settings, History, LogOut, Eye, EyeOff 
+import {
+  ChevronDown, User, Settings, History, LogOut, Eye, EyeOff
 } from 'lucide-react';
 import { usePrivacy } from '../../context/PrivacyContext';
 
@@ -14,7 +14,7 @@ export function UserMenu({ showName = false }: UserMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [username, setUsername] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
-  
+
   const { isHidden, togglePrivacy } = usePrivacy() as { isHidden: boolean; togglePrivacy: () => void };
 
   useEffect(() => {
@@ -44,7 +44,6 @@ export function UserMenu({ showName = false }: UserMenuProps) {
   };
 
   const initials = username ? username.substring(0, 2).toUpperCase() : 'US';
-  const email = username ? `${username.toLowerCase()}@assetflow.com` : 'user@assetflow.com';
 
   return (
     <div className="relative select-none" ref={dropdownRef}>
@@ -66,9 +65,8 @@ export function UserMenu({ showName = false }: UserMenuProps) {
           <div className="px-2.5 py-2 border-b border-slate-900 mb-1.5 flex flex-col min-w-0">
             <p className="text-[8px] text-slate-500 font-extrabold uppercase tracking-widest leading-none">Conta Ativa</p>
             <p className="text-xs text-white font-bold truncate mt-1">{username || 'Investidor'}</p>
-            <p className="text-[9px] text-slate-500 truncate leading-none mt-0.5">{email}</p>
           </div>
-          
+
           {/* MENU ACTIONS */}
           <button
             type="button"

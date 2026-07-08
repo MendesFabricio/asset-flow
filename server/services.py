@@ -1,3 +1,4 @@
+# server/services.py
 """
 services.py
 Serviço unificado de Portfólio (Facade/Orchestrator).
@@ -113,8 +114,5 @@ class PortfolioService(
                     return Decimal(str(db_record.value))
             except Exception:
                 pass
-        finally:
-            Session.remove()
-        
-        with USD_LOCK:
-            return USD_CACHE["rate"]
+        # 💡 CORREÇÃO CRÍTICA: Removido o encerramento forçado de sessão para preservar o contexto do chamador
+        return USD_CACHE["rate"]

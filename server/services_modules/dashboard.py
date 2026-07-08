@@ -4,8 +4,12 @@ import math
 import traceback
 from decimal import Decimal
 from sqlalchemy.orm import joinedload
-from database.models import Position, Asset, Category, safe_commit, get_active_positions
+from database.models import Position, Asset, Category, get_active_positions
 from database.session import Session
+
+from domain.quant.correlation import get_correlation_matrix
+from domain.quant.risk import calculate_risk_metrics
+from infrastructure.price_cache import fetch_price_history as _fetch_price_history_fn
 
 class DashboardService:
     def _prioridade_alerta(self, item):
@@ -266,6 +270,10 @@ class DashboardService:
                     "motivo": motivo,
                     "status_order": status_order,
                     "rsi": rsi,
+                    # --- Metadados Yahoo Finance (LPA, VPA, DY) para EditModal e AssetRow ---
+                    "manual_lpa": float(pos.manual_lpa) if pos.manual_lpa is not None else 0.0,
+                    "manual_vpa": float(pos.manual_vpa) if pos.manual_vpa is not None else 0.0,
+                    "manual_dy": float(pos.manual_dy) if pos.manual_dy is not None else 0.0,
                     "last_report_url": pos.last_report_url,
                     "last_report_at": pos.last_report_at,
                     "last_report_type": pos.last_report_type,
@@ -320,7 +328,7 @@ class DashboardService:
                         })
 
             try:
-                corr_data = self.get_correlation_matrix(session)
+                corr_data = get_correlation_matrix(session, _fetch_price_history_fn)
                 if corr_data.get("status") == "Sucesso":
                     pairs_reported = set()
                     for cell in corr_data.get("matrix", []):
@@ -338,7 +346,7 @@ class DashboardService:
                 logging.warning(f"⚠️ Falha ao computar alertas de correlação no Dashboard: {e}")
 
             try:
-                risk_data = self.calculate_risk_metrics(session)
+                risk_data = calculate_risk_metrics(session, _fetch_price_history_fn)
                 if risk_data.get("status") == "Sucesso":
                     beta = risk_data.get("beta", 1.0)
                     sharpe = risk_data.get("sharpe_12m", 0.0)
@@ -367,7 +375,7 @@ class DashboardService:
                     elif sharpe < 0.0:
                         alertas.append({
                             "titulo": "📉 DESEMPENHO: Sharpe Abaixo da Selic",
-                            "significado": f"O retorno da carteira de renda variável foi inferior à taxa livre de risco nos últimos 12 meses.",
+                            "significado": "O retorno da carteira de renda variável foi inferior à taxa livre de risco nos últimos 12 meses.",
                             "acao": "Não venda ativos em pânico. Aproveite para focar seus novos aportes em ativos com margem de segurança (Desconto Graham)."
                         })
 

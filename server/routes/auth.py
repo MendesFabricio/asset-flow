@@ -1,6 +1,5 @@
 # server/routes/auth.py
 import logging
-from datetime import datetime
 from flask import Blueprint, request, jsonify, current_app
 from database.models import User, RefundConfig, safe_commit
 from database.session import Session

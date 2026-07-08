@@ -7,7 +7,7 @@ import os
 # Adiciona o diretório server ao path para importação
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from domain.quant_engine import (
+from domain.quant.analysis import (
     calculate_kelly_criterion,
     calculate_alpha_attribution,
     calculate_rolling_sharpe,

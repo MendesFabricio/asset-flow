@@ -115,7 +115,7 @@ def _run_sentiment_analysis(asset_id: int, ticker: str, news_titles: list, posit
             prompt += f"=== CONTEXTO ADICIONAL DE EVENTOS CVM ===\n{cvm_context}\n\n"
 
         prompt += (
-            f"Notícias recentes coletadas:\n"
+            "Notícias recentes coletadas:\n"
             + "\n".join(f"- {title}" for title in news_titles) + "\n\n"
             f"Regras estritas de comportamento:\n"
             f"1. A análise do raciocínio técnico ('rationale') deve focar exclusivamente em {ticker} e ponderar as notícias frente à quantidade e custo médio do investidor.\n"

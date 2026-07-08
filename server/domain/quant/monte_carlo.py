@@ -1,7 +1,7 @@
 # server/domain/quant/monte_carlo.py
 import logging
 import numpy as np
-from database.models import Position, get_active_positions
+from database.models import get_active_positions
 from domain.quant.helpers import _to_yf_ticker, _align_prices_to_b3, _get_current_user_id
 
 def run_monte_carlo(session, fetch_prices, simulations=1000, days=252) -> dict:

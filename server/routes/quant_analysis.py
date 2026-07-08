@@ -9,7 +9,7 @@ from datetime import datetime
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from services import PortfolioService
 from database.session import Session
-from database.models import SystemCache, Position
+from database.models import SystemCache, Position, Asset
 
 quant_bp = Blueprint('quant', __name__)
 service = PortfolioService()
@@ -120,14 +120,13 @@ def get_dca_lump_sum():
 
     try:
         from infrastructure.price_cache import fetch_price_history
-        from domain.quant_engine import _to_yf_ticker
+        from domain.quant.analysis import _to_yf_ticker
         
         # Resolve ticker YF
         yf_ticker = _to_yf_ticker(ticker, "Ação")
         raw = fetch_price_history([yf_ticker], period="1y")
         
         import pandas as pd
-        import numpy as np
         
         prices_df = (
             raw.xs("Close", axis=1, level=1)
@@ -248,7 +247,7 @@ def get_momentum_ranking():
 
 
 def calculate_local_fear_greed(session, user_id=None):
-    from database.models import Position, Asset, Category, MarketData
+    from database.models import Position, Asset
     from sqlalchemy.orm import joinedload
     from flask import has_request_context, g
     
@@ -401,7 +400,7 @@ def generate_report():
         dash_data["fear_greed_score"] = fg_data["score"]
         dash_data["fear_greed_label"] = fg_data["label"]
         
-        from domain.quant_engine import calculate_risk_metrics
+        from domain.quant.risk import calculate_risk_metrics
         from infrastructure.price_cache import fetch_price_history as _fetch_price_history_fn
         risk = calculate_risk_metrics(session, _fetch_price_history_fn)
         if risk.get("status") == "Sucesso":

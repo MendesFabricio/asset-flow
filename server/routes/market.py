@@ -268,3 +268,28 @@ def update_market_cache():
 def get_market_indices():
     load_market_cache_from_db()
     return jsonify(MARKET_CACHE["data"])
+
+@market_bp.route('/brief', methods=['GET'])
+def get_market_brief():
+    """Provides a quick institutional summary statement for the executive headers."""
+    load_market_cache_from_db()
+    ibov_change = MARKET_CACHE["data"].get("ibov", {}).get("change", 0.0)
+    sp500_change = MARKET_CACHE["data"].get("sp500", {}).get("change", 0.0)
+    
+    # Heurística rápida de sentimento macro baseada no IBOV e S&P500
+    if ibov_change > 0.5 and sp500_change > 0.5:
+        sentiment = "BULLISH"
+        summary = "Mercados operando em forte alta coordenada globalmente."
+    elif ibov_change < -0.5 and sp500_change < -0.5:
+        sentiment = "BEARISH"
+        summary = "Aversão a risco severa derruba índices macro globais."
+    else:
+        sentiment = "NEUTRAL"
+        summary = "Índices operando dentro das margens normais de volatilidade diária."
+        
+    return jsonify({
+        "status": "Sucesso",
+        "sentiment": sentiment,
+        "summary": summary,
+        "last_update": MARKET_CACHE.get("last_update", 0)
+    })

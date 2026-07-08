@@ -2,7 +2,6 @@ import unittest
 from unittest.mock import MagicMock, patch
 import sys
 import os
-import json
 
 # Adiciona o diretório server ao path para importação
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
@@ -68,9 +67,7 @@ class TestAIAutomationAndSentiment(unittest.TestCase):
     def test_record_confirmed_dividends(self, mock_ticker):
         print("Running test_record_confirmed_dividends...")
         from services import PortfolioService
-        from database.models import Position, Asset, Dividend
         import pandas as pd
-        from datetime import datetime
         
         service = PortfolioService()
         
@@ -124,8 +121,7 @@ class TestAIAutomationAndSentiment(unittest.TestCase):
         print("Running test_advanced_risk_metrics_structure...")
         import numpy as np
         import pandas as pd
-        from datetime import datetime
-        from domain.quant_engine import calculate_risk_metrics
+        from domain.quant.risk import calculate_risk_metrics
         
         session_mock = MagicMock()
         # Mock do Cache de Risco expirado ou ausente
@@ -161,7 +157,7 @@ class TestAIAutomationAndSentiment(unittest.TestCase):
         
         fetch_mock = MagicMock(return_value=mock_prices)
         
-        with patch('domain.quant_engine.get_risk_free_rate', return_value=0.105):
+        with patch('domain.quant.risk.get_risk_free_rate', return_value=0.105):
             res = calculate_risk_metrics(session_mock, fetch_mock)
             
             self.assertEqual(res["status"], "Sucesso")

@@ -1,7 +1,6 @@
 import os
 import atexit
 import threading
-import time
 import logging
 from flask import Flask, jsonify
 from flask_cors import CORS
@@ -19,8 +18,8 @@ from routes.maintenance import maintenance_bp
 from services import PortfolioService
 from utils.cvm_processor import CVMProcessor
 from routes.refunds import refunds_bp
-from routes.market import market_bp, update_market_cache
-from routes.alerts_price import price_alerts_bp, check_price_alerts
+from routes.market import market_bp
+from routes.alerts_price import price_alerts_bp
 from routes.health import health_bp
 from routes.sync_stream import sync_stream_bp
 from routes.simulation import simulation_bp
@@ -65,6 +64,23 @@ CORS(app, resources={r"/api/*": {"origins": allowed_origins}})
 SYNC_STATE = DatabaseStateProxy("cvm_sync")
 _SYNC_LOCK = threading.Lock()
 
+# 🚀 STARTUP RECOVERY: Reseta estados "processing" órfãos do banco que ficaram presos após reinício do container.
+# Sem esse reset, o frontend fica com o spinner girando para sempre após um restart, porque não há lock ativo
+# mas o banco ainda lembra o estado "processing" da sessão anterior.
+def _reset_orphaned_sync_states():
+    from database.models import update_sync_state_db
+    idle_state = {"status": "idle", "progress": 0, "total": 0, "message": "Sistema pronto."}
+    for key in ("cvm_sync", "yahoo_sync"):
+        try:
+            current = get_sync_state_db(key)
+            if current.get("status") == "processing":
+                logging.warning(f"⚠️ [STARTUP] Estado órfão '{key}' detectado como 'processing' sem lock ativo. Resetando para idle.")
+                update_sync_state_db(key, **idle_state)
+        except Exception as e:
+            logging.warning(f"⚠️ [STARTUP] Falha ao checar/resetar estado orphão '{key}': {e}")
+
+_reset_orphaned_sync_states()
+
 def _update_sync_state(**kwargs):
     """Atualiza o SYNC_STATE de forma persistente."""
     SYNC_STATE.update(kwargs)
@@ -75,7 +91,7 @@ def _get_sync_state() -> dict:
 
 @app.before_request
 def require_authentication():
-    from flask import request, Response, g
+    from flask import request, g
     # Bypasses OPTIONS preflight, health check and auth endpoints
     if request.method == "OPTIONS" or request.path in ["/api/health", "/api/auth/login", "/api/auth/register", "/api/auth/logout"]:
         return

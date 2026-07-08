@@ -3,16 +3,15 @@ routes/simulation.py
 Endpoints para simulações financeiras institucionais, otimizações quantitativas
 (Markowitz, Paridade de Risco), exposição setorial e relatórios analíticos de IA (Morning Brief).
 """
-import time
 import logging
 import requests
 import json
 from flask import Blueprint, jsonify, g
 from services import PortfolioService
 from database.models import Session, Asset, Position, SystemCache, safe_commit
-from domain.quant_engine import get_risk_free_rate
+from domain.quant.helpers import get_risk_free_rate
 from infrastructure.ollama_service import OLLAMA_URL, MODEL_NAME
-from sqlalchemy.orm import joinedload, selectinload
+from sqlalchemy.orm import joinedload
 
 simulation_bp = Blueprint('simulation', __name__)
 service = PortfolioService()
@@ -118,7 +117,7 @@ def morning_brief():
         else:
             force_reanalyze = request.args.get("force", "false").lower() == "true"
         
-        from datetime import datetime, timedelta
+        from datetime import datetime
         cache_key = f"morning_brief_{g.user_id}"
         cache_record = session.query(SystemCache).filter_by(key=cache_key).first()
         if cache_record and not force_reanalyze:
