@@ -32,6 +32,8 @@ class IntegrationService:
         finally:
             Session.remove()
 
+        from utils.http_client import get_secure_session
+        secure_session = get_secure_session(timeout=10.0)
         today = datetime.now().date()
         for pos_item in positions_info:
             ticker_raw = pos_item["ticker"]
@@ -42,7 +44,7 @@ class IntegrationService:
             
             ticker_yahoo = to_yf_ticker(ticker_raw, category_name)
             try:
-                stock = yf.Ticker(ticker_yahoo)
+                stock = yf.Ticker(ticker_yahoo, session=secure_session)
                 divs = stock.dividends
                 if not divs.empty:
                     cutoff = today - timedelta(days=180)

@@ -51,9 +51,12 @@ def fetch_price_history(tickers: list, period: str = "1y"):
                 return entry[0]
 
         logging.info(f"🌐 Cache MISS: baixando {len(tickers)} tickers ({period})...")
+        from utils.http_client import get_secure_session
+        secure_session = get_secure_session(timeout=15.0)
         data = yf.download(
             tickers, period=period, group_by="ticker",
-            progress=False, auto_adjust=True, threads=True
+            progress=False, auto_adjust=True, threads=True,
+            session=secure_session
         )
         with _CACHE_LOCK:
             _CACHE[cache_key] = (data, time.monotonic() + PRICE_CACHE_TTL)

@@ -1,4 +1,5 @@
 # server/routes/dashboard.py
+import time
 from flask import Blueprint, jsonify, request, current_app # ⚡ Injetado current_app para escopo de thread
 import sys
 import os
@@ -51,6 +52,17 @@ def async_fundamentals_worker(flask_app):
         finally:
             if service._fundamentals_lock.locked():
                 service._fundamentals_lock.release()
+            
+            # 🔄 RESET AUTOMÁTICO: Agenda a volta ao estado 'idle' após 5 segundos
+            def auto_reset():
+                time.sleep(5.0)
+                FUNDAMENTALS_STATE.update({
+                    "status": "idle",
+                    "progress": 0,
+                    "total": 0,
+                    "message": "Sistema pronto."
+                })
+            threading.Thread(target=auto_reset, daemon=True).start()
 
 @dashboard_bp.route('/api/index', methods=['GET'])
 def get_data():

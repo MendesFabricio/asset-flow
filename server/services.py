@@ -81,7 +81,9 @@ class PortfolioService(
                     return rate
 
             logging.info("🌐 Cache MISS (USD Rate): buscando cotação de BRL=X...")
-            ticker = yf.Ticker("BRL=X")
+            from utils.http_client import get_secure_session
+            secure_session = get_secure_session(timeout=10.0)
+            ticker = yf.Ticker("BRL=X", session=secure_session)
             data = ticker.history(period="1d")
             if not data.empty: 
                 rate_val = float(data['Close'].iloc[-1])

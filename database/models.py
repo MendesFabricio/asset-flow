@@ -526,32 +526,40 @@ def update_sync_state_db(key: str, **kwargs):
             session.close()
 
 def get_sync_state_db(key: str) -> dict:
-    session = _local_session_factory()
-    try:
-        state = session.query(SyncState).filter_by(key=key).first()
-        if not state:
+    import time
+    max_retries = 5
+    for attempt in range(max_retries):
+        session = _local_session_factory()
+        try:
+            state = session.query(SyncState).filter_by(key=key).first()
+            if not state:
+                return {
+                    "status": "idle",
+                    "progress": 0,
+                    "total": 0,
+                    "message": "Sistema pronto."
+                }
             return {
-                "status": "idle",
+                "status": state.status,
+                "progress": state.progress,
+                "total": state.total,
+                "message": state.message
+            }
+        except Exception as e:
+            session.rollback()
+            err_msg = str(e)
+            if "database is locked" in err_msg and attempt < max_retries - 1:
+                time.sleep(0.5 * (attempt + 1))  # backoff linear: 0.5s, 1s, 1.5s...
+                continue
+            logging.error(f"❌ Erro ao buscar SyncState {key} no banco: {e}")
+            return {
+                "status": "error",
                 "progress": 0,
                 "total": 0,
-                "message": "Sistema pronto."
+                "message": f"Erro: {e}"
             }
-        return {
-            "status": state.status,
-            "progress": state.progress,
-            "total": state.total,
-            "message": state.message
-        }
-    except Exception as e:
-        logging.error(f"❌ Erro ao buscar SyncState {key} no banco: {e}")
-        return {
-            "status": "error",
-            "progress": 0,
-            "total": 0,
-            "message": f"Erro: {e}"
-        }
-    finally:
-        session.close()
+        finally:
+            session.close()
 
 class DatabaseStateProxy:
     def __init__(self, key):

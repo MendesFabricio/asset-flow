@@ -1,4 +1,5 @@
 import os
+import time
 import atexit
 import threading
 import logging
@@ -245,9 +246,21 @@ def async_sync_worker(flask_app):
         )
         logging.info("🏁 [BACKGROUND TASK] Sincronia paralela finalizada com sucesso total!")
 
+        # 🔄 RESET AUTOMÁTICO: Agenda a volta ao estado 'idle' após 5 segundos
+        def auto_reset():
+            time.sleep(5.0)
+            _update_sync_state(status="idle", progress=0, total=0, message="Sistema pronto.")
+        threading.Thread(target=auto_reset, daemon=True).start()
+
     except Exception as e:
         logging.error(f"❌ Erro catastrófico na esteira em background: {str(e)}", exc_info=True)
         _update_sync_state(status="error", message=f"Falha na sincronização: {str(e)}")
+
+        # 🔄 RESET AUTOMÁTICO EM CASO DE ERRO: Agenda a volta ao estado 'idle' após 5 segundos
+        def auto_reset_err():
+            time.sleep(5.0)
+            _update_sync_state(status="idle", progress=0, total=0, message="Sistema pronto.")
+        threading.Thread(target=auto_reset_err, daemon=True).start()
 
 
 # --- ROTAS DE SINCRONIZAÇÃO E LONG-POLLING ---

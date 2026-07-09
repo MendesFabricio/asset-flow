@@ -14,8 +14,10 @@ from utils.ticker_helper import to_yf_ticker
 
 def update_prices(session, invalidate_cache_callback):
     import pandas as pd
+    from utils.http_client import get_secure_session
     logging.info(" odds 🔄 JOB: Iniciando atualização automática de cotações...")
     try:
+        secure_session = get_secure_session(timeout=10.0)
         assets = session.query(Asset).filter(Asset.ticker != 'Nubank Caixinha').all()
         tickers_map = {}
         download_list = []
@@ -34,7 +36,7 @@ def update_prices(session, invalidate_cache_callback):
         if not download_list:
             return
 
-        batch_data = yf.download(download_list, period="6mo", group_by='ticker', threads=True, progress=False, auto_adjust=True)
+        batch_data = yf.download(download_list, period="6mo", group_by='ticker', threads=True, progress=False, auto_adjust=True, session=secure_session)
 
         count_ok = 0
         asset_ids = [asset.id for asset in assets]
@@ -56,7 +58,7 @@ def update_prices(session, invalidate_cache_callback):
 
                 if hist.empty or 'Close' not in hist.columns:
                     logging.info(f"🔄 Fallback individual para {symbol}...")
-                    hist = yf.Ticker(symbol).history(period="6mo")
+                    hist = yf.Ticker(symbol, session=secure_session).history(period="6mo")
 
                 if hist.empty:
                     continue
@@ -97,15 +99,17 @@ def update_prices(session, invalidate_cache_callback):
         logging.error(f"❌ Erro ao atualizar cotações no banco: {e}")
 
 def validate_ticker_on_yahoo(ticker):
+    from utils.http_client import get_secure_session
+    secure_session = get_secure_session(timeout=10.0)
     try:
         ticker = ticker.upper().strip() 
-        stock = yf.Ticker(ticker)
+        stock = yf.Ticker(ticker, session=secure_session)
         hist = stock.history(period="1d")
         if not hist.empty: return {"valid": True, "ticker": ticker}
         
         if not ticker.endswith('.SA'):
             ticker_sa = f"{ticker}.SA"
-            stock_sa = yf.Ticker(ticker_sa)
+            stock_sa = yf.Ticker(ticker_sa, session=secure_session)
             hist_sa = stock_sa.history(period="1d")
             if not hist_sa.empty: return {"valid": True, "ticker": ticker} 
         
@@ -117,6 +121,7 @@ def validate_ticker_on_yahoo(ticker):
 def update_fundamentals(dolar_rate_callback, state_dict=None):
     from database.session import Session
     from database.models import safe_commit
+    from utils.http_client import get_secure_session
     
     logging.info("📊 JOB: Calculando Fundamentos via Yahoo Finance...")
     
@@ -150,6 +155,7 @@ def update_fundamentals(dolar_rate_callback, state_dict=None):
     dolar_rate = dolar_rate_callback()
     consecutive_failures = 0
     count = 0
+    secure_session = get_secure_session(timeout=15.0)
 
     for asset_data in assets_info:
         asset_id = asset_data["id"]
@@ -167,33 +173,53 @@ def update_fundamentals(dolar_rate_callback, state_dict=None):
                 state_dict["message"] = f"Analisando {ticker_raw} ({count + 1}/{total})"
 
             # Chamadas de rede fora da transação de banco de dados
-            y_asset = yf.Ticker(ticker_symbol)
+            start_ticker_time = time.monotonic()
+            y_asset = yf.Ticker(ticker_symbol, session=secure_session)
             
             current_price = 0
-            if hasattr(y_asset, 'fast_info') and y_asset.fast_info.last_price:
-                current_price = y_asset.fast_info.last_price
-            else:
-                hist = y_asset.history(period="1d")
-                if not hist.empty: current_price = hist['Close'].iloc[-1]
+            try:
+                if hasattr(y_asset, 'fast_info') and y_asset.fast_info.last_price:
+                    current_price = y_asset.fast_info.last_price
+            except Exception as e:
+                logging.warning(f"⚠️ Erro ao obter fast_info para {ticker_raw}: {e}")
+
+            if current_price <= 0:
+                try:
+                    hist = y_asset.history(period="1d")
+                    if not hist.empty: current_price = hist['Close'].iloc[-1]
+                except Exception as e:
+                    logging.warning(f"⚠️ Erro ao obter history para {ticker_raw}: {e}")
 
             if current_price <= 0:
                 count += 1
                 if state_dict is not None: state_dict["progress"] = count
                 continue
 
-            divs = y_asset.dividends
+            divs = None
+            try:
+                divs = y_asset.dividends
+            except Exception as e:
+                logging.warning(f"⚠️ Erro ao obter dividendos para {ticker_raw}: {e}")
+
             total_divs_val = 0.0
-            
-            if not divs.empty:
-                divs.index = divs.index.tz_localize(None)
-                divs_last_12m = divs[divs.index >= cutoff_date]
-                total_divs_val = float(divs_last_12m.sum())
+            if divs is not None and not divs.empty:
+                try:
+                    divs.index = divs.index.tz_localize(None)
+                    divs_last_12m = divs[divs.index >= cutoff_date]
+                    total_divs_val = float(divs_last_12m.sum())
+                except Exception as e:
+                    logging.warning(f"⚠️ Erro ao computar soma de dividendos para {ticker_raw}: {e}")
 
             dy_calculated = total_divs_val / current_price if current_price > 0 else 0
             
-            info = y_asset.info
-            lpa = info.get('trailingEps') or info.get('forwardEps') or 0
-            vpa = info.get('bookValue') or 0
+            lpa = 0
+            vpa = 0
+            try:
+                info = y_asset.info
+                lpa = info.get('trailingEps') or info.get('forwardEps') or 0
+                vpa = info.get('bookValue') or 0
+            except Exception as e:
+                logging.warning(f"⚠️ Erro ao obter info para {ticker_raw}: {e}")
 
             if is_intl and not ticker_symbol.endswith('.SA'):
                 lpa *= dolar_rate
@@ -212,6 +238,9 @@ def update_fundamentals(dolar_rate_callback, state_dict=None):
                         upcoming_split_val = f"{fut_date}:{fut_ratio}"
             except Exception as split_err:
                 logging.warning(f"Erro ao verificar splits para {ticker_raw}: {split_err}")
+
+            duration_ticker = time.monotonic() - start_ticker_time
+            logging.info(f"⏱️ Chamadas yfinance para {ticker_raw} processadas em {duration_ticker:.2f}s")
 
             # 2. Agora com os dados obtidos, abre uma sessão rápida apenas para atualizar o ativo no banco
             session = Session()
@@ -327,7 +356,7 @@ def sync_reports_with_fnet(session):
                     datas = [f"{k[0].upper()}: {v['ref_date']}" for k, v in doc_package.items() if 'ref_date' in v]
                     pos.last_report_at = " | ".join(datas)
                     count_fii += 1
-                time.sleep(0.05)
+                time.sleep(0.3)
 
             elif not is_fii and asset.cvm_code:
                 try:
