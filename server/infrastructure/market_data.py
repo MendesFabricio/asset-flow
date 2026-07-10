@@ -280,7 +280,7 @@ def update_fundamentals(dolar_rate_callback, state_dict=None):
     logging.info(f"🏁 Varredura fundamentalista concluída: {count} registros atualizados.")
     return {"status": "Sucesso", "msg": f"Sucesso! {total} ativos reavaliados via Yahoo Finance."}
 
-def sync_reports_with_fnet(session):
+def sync_reports_with_fnet(session, state_dict=None):
     from crawlers.b3_fnet import B3FnetCrawler
     from utils.cnpj_finder import CNPJFinder
     from utils.cvm_finder import CVMFinder 
@@ -292,13 +292,28 @@ def sync_reports_with_fnet(session):
             Category.name.in_(["FII", "Ação"])
         ).all()
 
+        total_assets = len(assets_to_sync)
+        if state_dict is not None:
+            state_dict.update({
+                "status": "processing",
+                "total": total_assets,
+                "progress": 0,
+                "message": f"Iniciando sincronização de {total_assets} ativos..."
+            })
+
         count_fii = 0
         count_acao = 0
 
-        for pos in assets_to_sync:
+        for index, pos in enumerate(assets_to_sync):
             asset = pos.asset
             ticker = asset.ticker.replace(".SA", "").strip().upper()
             is_fii = asset.category.name == "FII"
+            
+            if state_dict is not None:
+                state_dict.update({
+                    "progress": index + 1,
+                    "message": f"Sincronizando {ticker} ({index + 1}/{total_assets})..."
+                })
             
             if not asset.cnpj or len(str(asset.cnpj)) < 14:
                 cnpj_encontrado = CNPJFinder.find_by_ticker(ticker)
@@ -387,7 +402,14 @@ def sync_reports_with_fnet(session):
                 except Exception as e:
                     logging.warning(f"⚠️ Falha no motor CVM para o papel {ticker}: {e}")
 
-        session.commit()
+            # 🔒 COMMIT INCREMENTAL: Salva e libera o lock de escrita do SQLite a cada ativo
+            try:
+                from database.models import safe_commit
+                safe_commit(session)
+            except Exception as commit_err:
+                logging.error(f"❌ Erro ao commitar sincronização de {ticker}: {commit_err}")
+                session.rollback()
+
         return {
             "status": "Sucesso", 
             "msg": f"FIIs: {count_fii} ativos. Ações: {count_acao} fundamentadas."

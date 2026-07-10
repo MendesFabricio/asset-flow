@@ -6,11 +6,13 @@ from datetime import datetime
 from tenacity import retry, stop_after_attempt, wait_fixed, retry_if_exception_type
 from sqlalchemy.exc import OperationalError
 
-@retry(retry=retry_if_exception_type(OperationalError),
-       stop=stop_after_attempt(3), wait=wait_fixed(0.1), reraise=True)
 def safe_commit(session):
     """Commita uma transação no SQLAlchemy de forma direta (locks tratados pelo busy_timeout do SQLite)."""
-    session.commit()
+    try:
+        session.commit()
+    except OperationalError as e:
+        session.rollback()
+        raise e
 
 def get_active_positions(session, user_id):
     """Retorna posições ativas (quantity > 0) com eager loading de Asset, Category, MarketData e Dividends."""

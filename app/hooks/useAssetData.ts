@@ -64,7 +64,7 @@ export function useAssetData() {
   mutateDashboardRef.current = mutateDashboard;
 
   useEffect(() => {
-    // Estabelece canal SSE de streaming de progresso em tempo real com o backend
+    // 📡 TELEMETRIA SSE: Conecta no canal SSE local que faz proxy para o backend em tempo real
     const eventSource = new EventSource('/api/sync/stream');
 
     eventSource.onmessage = (event) => {

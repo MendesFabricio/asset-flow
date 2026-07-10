@@ -94,7 +94,7 @@ def _get_sync_state() -> dict:
 def require_authentication():
     from flask import request, g
     # Bypasses OPTIONS preflight, health check and auth endpoints
-    if request.method == "OPTIONS" or request.path in ["/api/health", "/api/auth/login", "/api/auth/register", "/api/auth/logout"]:
+    if request.method == "OPTIONS" or request.path in ["/api/health", "/api/auth/login", "/api/auth/register", "/api/auth/logout", "/api/sync/stream"]:
         return
         
     auth_header = request.headers.get("Authorization")
@@ -184,7 +184,7 @@ def async_sync_worker(flask_app):
         # 🔒 CORREÇÃO CRÍTICA: Abre a sessão thread-safe exigida pelo método do processador
         from services import Session as ScopedSession
         with ScopedSession() as db_session:
-            fnet_result = service.sync_reports_with_fnet(db_session)
+            fnet_result = service.sync_reports_with_fnet(db_session, SYNC_STATE)
             
         logging.info(f"📊 [BACKGROUND TASK] FNET concluído: {fnet_result.get('msg')}")
 
