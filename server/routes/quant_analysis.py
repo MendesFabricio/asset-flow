@@ -10,6 +10,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from services import PortfolioService
 from database.session import Session
 from database.models import SystemCache, Position, Asset
+from sqlalchemy.orm import selectinload
 
 quant_bp = Blueprint('quant', __name__)
 service = PortfolioService()
@@ -34,64 +35,71 @@ def get_attribution_analysis():
 
 @quant_bp.route('/api/quant/rebalance-bands', methods=['GET'])
 def get_rebalance_bands():
-    session = Session()
-    try:
-        # Busca posições ativas do usuário logado
-        positions = session.query(Position).filter_by(user_id=g.user_id).filter(Position.quantity > 0).all()
-        if not positions:
-            return jsonify({"status": "Sucesso", "data": []})
+    with Session() as session:
+        try:
+            positions = (
+                session.query(Position)
+                .options(
+                    selectinload(Position.asset)
+                    .selectinload(Asset.category),
+                    selectinload(Position.asset)
+                    .selectinload(Asset.market_data),
+                )
+                .filter_by(user_id=g.user_id, quantity=Position.quantity > 0)
+                .all()
+            )
+            if not positions:
+                return jsonify({"status": "Sucesso", "data": []})
 
-        entire_portfolio_value = 0.0
-        for pos in positions:
-            price = float(pos.asset.market_data[0].price or 0.0) if pos.asset and pos.asset.market_data else 0.0
-            entire_portfolio_value += float(pos.quantity) * price
+            entire_portfolio_value = 0.0
+            for pos in positions:
+                price = float(pos.asset.market_data[0].price or 0.0) if pos.asset and pos.asset.market_data else 0.0
+                entire_portfolio_value += float(pos.quantity) * price
 
-        data = []
-        for pos in positions:
-            if not pos.asset:
-                continue
-            cat = pos.asset.category.name if pos.asset.category else ""
-            if cat in ["Reserva"]:
-                continue
+            data = []
+            for pos in positions:
+                if not pos.asset:
+                    continue
+                cat = pos.asset.category.name if pos.asset.category else ""
+                if cat in ["Reserva"]:
+                    continue
+                    
+                price = float(pos.asset.market_data[0].price or 0.0) if pos.asset.market_data else 0.0
+                val = float(pos.quantity) * price
                 
-            price = float(pos.asset.market_data[0].price or 0.0) if pos.asset.market_data else 0.0
-            val = float(pos.quantity) * price
-            
-            weight_pct = (val / entire_portfolio_value * 100) if entire_portfolio_value > 0 else 0.0
-            
-            cat_target = float(pos.asset.category.target_percent or 0.0)
-            asset_target = float(pos.target_percent or 0.0)
-            target_pct = (cat_target / 100.0) * asset_target
-            
-            dev = weight_pct - target_pct
-            
-            if abs(dev) > 2.0:
-                status = "EXCEDENTE" if dev > 0 else "SUBALOCADO"
-                if dev > 0:
-                    action_note = f"Vender R$ {abs(dev/100 * entire_portfolio_value):.2f}"
+                weight_pct = (val / entire_portfolio_value * 100) if entire_portfolio_value > 0 else 0.0
+                
+                cat_target = float(pos.asset.category.target_percent or 0.0)
+                asset_target = float(pos.target_percent or 0.0)
+                target_pct = (cat_target / 100.0) * asset_target
+                
+                dev = weight_pct - target_pct
+                
+                if abs(dev) > 2.0:
+                    status = "EXCEDENTE" if dev > 0 else "SUBALOCADO"
+                    if dev > 0:
+                        action_note = f"Vender R$ {abs(dev/100 * entire_portfolio_value):.2f}"
+                    else:
+                        action_note = f"Comprar R$ {abs(dev/100 * entire_portfolio_value):.2f}"
                 else:
-                    action_note = f"Comprar R$ {abs(dev/100 * entire_portfolio_value):.2f}"
-            else:
-                status = "NORMAL"
-                action_note = "Em conformidade"
+                    status = "NORMAL"
+                    action_note = "Em conformidade"
 
-            data.append({
-                "ticker": pos.asset.ticker.upper(),
-                "weight_pct": round(weight_pct, 2),
-                "target_pct": round(target_pct, 2),
-                "deviation_pct": round(dev, 2),
-                "status": status,
-                "action_note": action_note
-            })
+                data.append({
+                    "ticker": pos.asset.ticker.upper(),
+                    "weight_pct": round(weight_pct, 2),
+                    "target_pct": round(target_pct, 2),
+                    "deviation_pct": round(dev, 2),
+                    "status": status,
+                    "action_note": action_note
+                })
 
-        # Ordena pelo desvio absoluto decrescente
-        data.sort(key=lambda x: abs(x["deviation_pct"]), reverse=True)
-        return jsonify({"status": "Sucesso", "data": data})
-    except Exception as e:
-        logging.error(f"❌ Erro ao calcular bandas de rebalanceamento: {e}", exc_info=True)
-        return jsonify({"status": "Erro", "msg": str(e)}), 500
-    finally:
-        Session.remove()
+            # Ordena pelo desvio absoluto decrescente
+            data.sort(key=lambda x: abs(x["deviation_pct"]), reverse=True)
+            return jsonify({"status": "Sucesso", "data": data})
+        except Exception as e:
+            logging.error(f"❌ Erro ao calcular bandas de rebalanceamento: {e}", exc_info=True)
+            return jsonify({"status": "Erro", "msg": str(e)}), 500
 
 @quant_bp.route('/api/quant/dca-lump-sum', methods=['GET'])
 def get_dca_lump_sum():
@@ -106,17 +114,22 @@ def get_dca_lump_sum():
         return jsonify({"status": "Erro", "msg": "Valores numéricos inválidos para simulação."}), 400
 
     if not ticker:
-        # Fallback: pega a maior posição de renda variável ou IBOV se não houver ativos
-        session = Session()
-        try:
-            positions = session.query(Position).filter_by(user_id=g.user_id).filter(Position.quantity > 0).all()
+        with Session() as session:
+            positions = (
+                session.query(Position)
+                .options(
+                    selectinload(Position.asset)
+                    .selectinload(Asset.category),
+                )
+                .filter_by(user_id=g.user_id)
+                .filter(Position.quantity > 0)
+                .all()
+            )
             active_tickers = [p.asset.ticker.upper() for p in positions if p.asset and p.asset.category and p.asset.category.name not in ["Renda Fixa", "Reserva"]]
             if active_tickers:
                 ticker = active_tickers[0]
             else:
                 ticker = "BOVA11"
-        finally:
-            Session.remove()
 
     try:
         from infrastructure.price_cache import fetch_price_history
@@ -203,29 +216,27 @@ def get_dca_lump_sum():
 
 @quant_bp.route('/api/quant/efficient-frontier', methods=['GET'])
 def get_efficient_frontier():
-    session = Session()
-    try:
-        cache_key = f"efficient_frontier_{g.user_id}"
-        cache_record = session.query(SystemCache).filter_by(key=cache_key).first()
-        if cache_record:
-            return jsonify(json.loads(cache_record.value))
-            
-        logging.info("📈 Cache de Fronteira Eficiente frio. Calculando síncrono...")
-        res = service.calculate_efficient_frontier_points()
-        if res.get("status") == "Sucesso" or "status" not in res:
-            if not cache_record:
-                cache_record = SystemCache(key=cache_key)
-                session.add(cache_record)
-            cache_record.value = json.dumps(res)
-            cache_record.updated_at = datetime.now()
-            from database.models import safe_commit
-            safe_commit(session)
-        return jsonify(res)
-    except Exception as e:
-        logging.error(f"❌ Erro ao buscar Fronteira Eficiente: {e}", exc_info=True)
-        return jsonify({"status": "Erro", "msg": str(e)}), 500
-    finally:
-        Session.remove()
+    with Session() as session:
+        try:
+            cache_key = f"efficient_frontier_{g.user_id}"
+            cache_record = session.query(SystemCache).filter_by(key=cache_key).first()
+            if cache_record:
+                return jsonify(json.loads(cache_record.value))
+                
+            logging.info("📈 Cache de Fronteira Eficiente frio. Calculando síncrono...")
+            res = service.calculate_efficient_frontier_points()
+            if res.get("status") == "Sucesso" or "status" not in res:
+                if not cache_record:
+                    cache_record = SystemCache(key=cache_key)
+                    session.add(cache_record)
+                cache_record.value = json.dumps(res)
+                cache_record.updated_at = datetime.now()
+                from database.models import safe_commit
+                safe_commit(session)
+            return jsonify(res)
+        except Exception as e:
+            logging.error(f"❌ Erro ao buscar Fronteira Eficiente: {e}", exc_info=True)
+            return jsonify({"status": "Erro", "msg": str(e)}), 500
 
 @quant_bp.route('/api/quant/sharpe-rolling', methods=['GET'])
 def get_sharpe_rolling():
@@ -333,15 +344,13 @@ def calculate_local_fear_greed(session, user_id=None):
 
 @quant_bp.route('/api/quant/fear-greed', methods=['GET'])
 def get_fear_greed():
-    session = Session()
-    try:
-        res = calculate_local_fear_greed(session)
-        return jsonify({"status": "Sucesso", "data": res})
-    except Exception as e:
-        logging.error(f"Erro ao calcular Fear & Greed Local: {e}", exc_info=True)
-        return jsonify({"status": "Erro", "msg": str(e)}), 500
-    finally:
-        Session.remove()
+    with Session() as session:
+        try:
+            res = calculate_local_fear_greed(session)
+            return jsonify({"status": "Sucesso", "data": res})
+        except Exception as e:
+            logging.error(f"Erro ao calcular Fear & Greed Local: {e}", exc_info=True)
+            return jsonify({"status": "Erro", "msg": str(e)}), 500
 
 
 @quant_bp.route('/api/quant/reports', methods=['GET'])
@@ -390,59 +399,57 @@ def download_report():
 
 @quant_bp.route('/api/quant/generate-report', methods=['POST'])
 def generate_report():
-    session = Session()
-    try:
-        from utils.pdf_generator import generate_monthly_report_pdf
-        
-        dash_data = service.get_dashboard_data()
-        fg_data = calculate_local_fear_greed(session)
-        
-        dash_data["fear_greed_score"] = fg_data["score"]
-        dash_data["fear_greed_label"] = fg_data["label"]
-        
-        from domain.quant.risk import calculate_risk_metrics
-        from infrastructure.price_cache import fetch_price_history as _fetch_price_history_fn
-        risk = calculate_risk_metrics(session, _fetch_price_history_fn)
-        if risk.get("status") == "Sucesso":
-            dash_data["beta"] = risk.get("beta")
-            dash_data["sharpe"] = risk.get("sharpe_12m")
-            dash_data["var_95"] = risk.get("var_95_monthly_pct")
+    with Session() as session:
+        try:
+            from utils.pdf_generator import generate_monthly_report_pdf
             
-        # Consulta de Recebíveis Ativos do usuário logado
-        receivables_list = []
-        from database.models import LoanInstallment
-        installments = session.query(LoanInstallment).filter(LoanInstallment.user_id == g.user_id, LoanInstallment.status.in_(["ABERTA", "ATRASADA"]), LoanInstallment.is_deleted == False).all()
-        for inst in installments:
-            receivables_list.append({
-                "descricao": inst.loan.descricao,
-                "devedor": inst.loan.debtor.nome if inst.loan.debtor else "Desconhecido",
-                "valor_parcela": float(inst.valor_parcela),
-                "status": inst.status,
-                "parcela_atual": int(inst.numero_parcela),
-                "total_parcelas": int(inst.loan.total_parcelas),
-                "vencimento_dia": int(inst.data_vencimento.day)
-            })
-        dash_data["recebiveis"] = receivables_list
+            dash_data = service.get_dashboard_data()
+            fg_data = calculate_local_fear_greed(session)
+            
+            dash_data["fear_greed_score"] = fg_data["score"]
+            dash_data["fear_greed_label"] = fg_data["label"]
+            
+            from domain.quant.risk import calculate_risk_metrics
+            from infrastructure.price_cache import fetch_price_history as _fetch_price_history_fn
+            risk = calculate_risk_metrics(session, _fetch_price_history_fn)
+            if risk.get("status") == "Sucesso":
+                dash_data["beta"] = risk.get("beta")
+                dash_data["sharpe"] = risk.get("sharpe_12m")
+                dash_data["var_95"] = risk.get("var_95_monthly_pct")
+                
+            # Consulta de Recebíveis Ativos do usuário logado
+            receivables_list = []
+            from database.models import LoanInstallment
+            installments = session.query(LoanInstallment).filter(LoanInstallment.user_id == g.user_id, LoanInstallment.status.in_(["ABERTA", "ATRASADA"]), LoanInstallment.is_deleted == False).all()
+            for inst in installments:
+                receivables_list.append({
+                    "descricao": inst.loan.descricao,
+                    "devedor": inst.loan.debtor.nome if inst.loan.debtor else "Desconhecido",
+                    "valor_parcela": float(inst.valor_parcela),
+                    "status": inst.status,
+                    "parcela_atual": int(inst.numero_parcela),
+                    "total_parcelas": int(inst.loan.total_parcelas),
+                    "vencimento_dia": int(inst.data_vencimento.day)
+                })
+            dash_data["recebiveis"] = receivables_list
 
-        dash_data["comentario_ia"] = "Sua carteira está bem distribuída. Recomendamos verificar os ativos com recomendação de COMPRAR na aba 'Análise Quant' e ajustar os desvios."
-        
-        date_str = datetime.now().strftime("%Y-%m-%d_%H-%M")
-        filename = f"relatorio_patrimonial_{date_str}.pdf"
-        
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        reports_dir = os.path.join(base_dir, '..', 'data', 'reports', str(g.user_id))
-        filepath = os.path.join(reports_dir, filename)
-        
-        success = generate_monthly_report_pdf(filepath, dash_data)
-        if success:
-            return jsonify({"status": "Sucesso", "filename": filename, "msg": "Relatório patrimonial gerado com sucesso!"})
-        else:
-            return jsonify({"status": "Erro", "msg": "Erro ao compilar PDF do relatório."}), 500
-    except Exception as e:
-        logging.error(f"Erro ao gerar relatório patrimonial PDF: {e}", exc_info=True)
-        return jsonify({"status": "Erro", "msg": str(e)}), 500
-    finally:
-        Session.remove()
+            dash_data["comentario_ia"] = "Sua carteira está bem distribuída. Recomendamos verificar os ativos com recomendação de COMPRAR na aba 'Análise Quant' e ajustar os desvios."
+            
+            date_str = datetime.now().strftime("%Y-%m-%d_%H-%M")
+            filename = f"relatorio_patrimonial_{date_str}.pdf"
+            
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            reports_dir = os.path.join(base_dir, '..', 'data', 'reports', str(g.user_id))
+            filepath = os.path.join(reports_dir, filename)
+            
+            success = generate_monthly_report_pdf(filepath, dash_data)
+            if success:
+                return jsonify({"status": "Sucesso", "filename": filename, "msg": "Relatório patrimonial gerado com sucesso!"})
+            else:
+                return jsonify({"status": "Erro", "msg": "Erro ao compilar PDF do relatório."}), 500
+        except Exception as e:
+            logging.error(f"Erro ao gerar relatório patrimonial PDF: {e}", exc_info=True)
+            return jsonify({"status": "Erro", "msg": str(e)}), 500
 
 
 @quant_bp.route('/api/ai/analyze-pdf', methods=['POST'])
@@ -452,20 +459,18 @@ def analyze_pdf_endpoint():
     if not ticker:
         return jsonify({"status": "Erro", "msg": "Ticker do ativo é obrigatório."}), 400
         
-    session = Session()
-    try:
-        position = session.query(Position).join(Position.asset).filter(Position.user_id == g.user_id, Asset.ticker == ticker).first()
-        if not position or not position.last_report_url:
-            return jsonify({"status": "Erro", "msg": f"Nenhum link de relatório de RI disponível para o ativo {ticker}."}), 404
+    with Session() as session:
+        try:
+            position = session.query(Position).join(Position.asset).filter(Position.user_id == g.user_id, Asset.ticker == ticker).first()
+            if not position or not position.last_report_url:
+                return jsonify({"status": "Erro", "msg": f"Nenhum link de relatório de RI disponível para o ativo {ticker}."}), 404
+                
+            url = position.last_report_url
+            is_fii = position.asset.category.name == "FII"
             
-        url = position.last_report_url
-        is_fii = position.asset.category.name == "FII"
-        
-        from utils.pdf_extractor import extract_kpis_from_pdf
-        res = extract_kpis_from_pdf(url, is_fii)
-        return jsonify(res)
-    except Exception as e:
-        logging.error(f"Erro ao processar relatório RI PDF de {ticker}: {e}", exc_info=True)
-        return jsonify({"status": "Erro", "msg": str(e)}), 500
-    finally:
-        Session.remove()
+            from utils.pdf_extractor import extract_kpis_from_pdf
+            res = extract_kpis_from_pdf(url, is_fii)
+            return jsonify(res)
+        except Exception as e:
+            logging.error(f"Erro ao processar relatório RI PDF de {ticker}: {e}", exc_info=True)
+            return jsonify({"status": "Erro", "msg": str(e)}), 500

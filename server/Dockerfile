@@ -25,7 +25,7 @@ WORKDIR /app/server
 # Estágio Backend: Executa o servidor Gunicorn exposto
 FROM base AS backend
 EXPOSE 5328
-CMD ["gunicorn", "--bind", "0.0.0.0:5328", "--workers", "1", "--threads", "4", "--timeout", "120", "backend:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:5328", "--workers", "2", "--threads", "4", "--timeout", "120", "backend:app"]
 
 
 # Estágio Worker: Executa o processo de tarefas em background de forma isolada

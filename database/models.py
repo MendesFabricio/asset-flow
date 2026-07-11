@@ -497,6 +497,22 @@ class FixedIncome(Base):
         Index('idx_fixed_income_user_deleted', 'user_id', 'is_deleted'),
     )
 
+
+class ScheduledJob(Base):
+    __tablename__ = "scheduled_jobs"
+    id = Column(Integer, primary_key=True)
+    name = Column(String(100), unique=True, nullable=False)
+    description = Column(String(255))
+    job_type = Column(String(50), nullable=False)
+    cron_expression = Column(String(100))
+    interval_minutes = Column(Integer)
+    is_active = Column(Boolean, default=True)
+    last_run_at = Column(DateTime)
+    last_run_status = Column(String(20))
+    last_run_message = Column(String(255))
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
 from database.session import engine, Session
 from sqlalchemy.orm import sessionmaker
 _local_session_factory = sessionmaker(bind=engine)
@@ -582,8 +598,8 @@ def init_db():
     import logging
     import sqlite3
     
-    db_path = '/app/data/assetflow.db'
-    init_src = '/app/server/assetflow.db'
+    db_path = os.environ.get("DATABASE_PATH", "/app/data/assetflow.db")
+    init_src = os.environ.get("INIT_DB_SRC", "/app/server/assetflow.db")
     
     db_vazia = True
     if os.path.exists(db_path) and os.path.getsize(db_path) > 100:
@@ -602,7 +618,7 @@ def init_db():
             pass
 
     if db_vazia and os.path.exists(init_src):
-        logging.info("🚚 Banco de dados no volume nomeado vazio ou inexistente. Restaurando do backup populado em /app/server...")
+        logging.info(f"🚚 Banco de dados no volume nomeado vazio ou inexistente. Restaurando do backup populado em {init_src}...")
         try:
             os.makedirs(os.path.dirname(db_path), exist_ok=True)
             for ext in ['', '-shm', '-wal']:
@@ -624,13 +640,13 @@ def init_db():
         logging.info("⚙️ Rodando migrações pendentes do Alembic...")
         from alembic.config import Config
         from alembic import command
-        alembic_ini_path = '/app/server/alembic.ini'
+        alembic_ini_path = os.environ.get("ALEMBIC_INI_PATH", "/app/server/alembic.ini")
         if not os.path.exists(alembic_ini_path):
             alembic_ini_path = 'server/alembic.ini'
             
         alembic_cfg = Config(alembic_ini_path)
         
-        script_loc = '/app/server/alembic'
+        script_loc = os.environ.get("ALEMBIC_SCRIPT_LOCATION", "/app/server/alembic")
         if not os.path.exists(script_loc):
             script_loc = 'server/alembic'
             
@@ -660,6 +676,76 @@ def init_db():
     except Exception as seed_err:
         db_session.rollback()
         logging.warning(f"⚠️ Erro ao inserir categorias padrão: {seed_err}")
+    
+    # Seed inicial de ScheduledJob (inserção individual de jobs ausentes)
+    try:
+        default_jobs_data = [
+            {
+                "name": "scheduled_update_indices",
+                "description": "Atualiza índices de mercado e verifica alertas de preço",
+                "job_type": "interval",
+                "interval_minutes": 5,
+                "cron_expression": None,
+                "is_active": True,
+            },
+            {
+                "name": "scheduled_update_prices",
+                "description": "Atualiza preços de ativos e gera snapshot diário",
+                "job_type": "interval",
+                "interval_minutes": 10,
+                "cron_expression": None,
+                "is_active": True,
+            },
+            {
+                "name": "scheduled_quant_warm",
+                "description": "Aquece cache quantitativo: USD rate, Monte Carlo, correlação, risco, fronteira eficiente",
+                "job_type": "interval",
+                "interval_minutes": 30,
+                "cron_expression": None,
+                "is_active": True,
+            },
+            {
+                "name": "scheduled_dividends_check",
+                "description": "Registra dividendos confirmados do dia",
+                "job_type": "cron",
+                "interval_minutes": None,
+                "cron_expression": "0 8 * * *",
+                "is_active": True,
+            },
+            {
+                "name": "scheduled_morning_brief_generation",
+                "description": "Gera Morning Briefing proativo",
+                "job_type": "cron",
+                "interval_minutes": None,
+                "cron_expression": "0 7 * * *",
+                "is_active": True,
+            },
+        ]
+        
+        seeded_any = False
+        for job_data in default_jobs_data:
+            existing = db_session.query(ScheduledJob).filter_by(name=job_data["name"]).first()
+            if not existing:
+                new_job = ScheduledJob(
+                    name=job_data["name"],
+                    description=job_data["description"],
+                    job_type=job_data["job_type"],
+                    interval_minutes=job_data["interval_minutes"],
+                    cron_expression=job_data["cron_expression"],
+                    is_active=job_data["is_active"],
+                    last_run_at=datetime.utcnow(),
+                    last_run_status="idle",
+                    last_run_message="Aguardando primeira execução"
+                )
+                db_session.add(new_job)
+                seeded_any = True
+                
+        if seeded_any:
+            db_session.commit()
+            logging.info("✅ Novos scheduled jobs padrão cadastrados com sucesso!")
+    except Exception as seed_err:
+        db_session.rollback()
+        logging.warning(f"⚠️ Erro ao inserir scheduled jobs: {seed_err}")
     finally:
         db_session.close()
 

@@ -5,6 +5,14 @@ Cache TTL de 1h para histórico de preços do Yahoo Finance.
 Correção de race condition: per-key lock impede que dois threads
 baixem o mesmo conjunto de tickers simultaneamente.
 O lock global (_CACHE_LOCK) protege apenas leituras/escritas no dict.
+
+LIMITAÇÕES DO CACHE EM MEMÓRIA:
+- Cache volátil: perdido em restart do processo/worker.
+- Multi-workers não compartilham cache (cada processo tem seu próprio dict).
+- Adequado para 1 worker. Se escalar para N workers, considerar Redis.
+
+Para migrar para Redis no futuro, substitua _CACHE por redis-py client
+mantendo a mesma interface fetch_price_history/invalidate.
 """
 import threading
 import time

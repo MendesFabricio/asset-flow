@@ -25,37 +25,33 @@ def load_market_cache_from_db():
     """Recupera os índices macro do banco de dados (SystemCache) compartilhado"""
     import json
     from database.models import Session, SystemCache
-    session = Session()
-    try:
-        record = session.query(SystemCache).filter_by(key="market_indices").first()
-        if record:
-            cached = json.loads(record.value)
-            MARKET_CACHE["data"] = cached.get("data", MARKET_CACHE["data"])
-            MARKET_CACHE["last_update"] = cached.get("last_update", 0)
-    except Exception as e:
-        logging.warning(f"⚠️ Falha ao ler índices de mercado do banco de dados: {e}")
-    finally:
-        session.close()
+    with Session() as session:
+        try:
+            record = session.query(SystemCache).filter_by(key="market_indices").first()
+            if record:
+                cached = json.loads(record.value)
+                MARKET_CACHE["data"] = cached.get("data", MARKET_CACHE["data"])
+                MARKET_CACHE["last_update"] = cached.get("last_update", 0)
+        except Exception as e:
+            logging.warning(f"⚠️ Falha ao ler índices de mercado do banco de dados: {e}")
 
 def save_market_cache_to_db():
     """Persiste os índices macro no banco de dados (SystemCache) compartilhado"""
     import json
     from database.models import Session, SystemCache, safe_commit
     from datetime import datetime
-    session = Session()
-    try:
-        record = session.query(SystemCache).filter_by(key="market_indices").first()
-        if not record:
-            record = SystemCache(key="market_indices")
-            session.add(record)
-        record.value = json.dumps(MARKET_CACHE)
-        record.updated_at = datetime.now()
-        safe_commit(session)
-    except Exception as e:
-        session.rollback()
-        logging.warning(f"⚠️ Falha ao persistir índices de mercado no banco de dados: {e}")
-    finally:
-        session.close()
+    with Session() as session:
+        try:
+            record = session.query(SystemCache).filter_by(key="market_indices").first()
+            if not record:
+                record = SystemCache(key="market_indices")
+                session.add(record)
+            record.value = json.dumps(MARKET_CACHE)
+            record.updated_at = datetime.now()
+            safe_commit(session)
+        except Exception as e:
+            session.rollback()
+            logging.warning(f"⚠️ Falha ao persistir índices de mercado no banco de dados: {e}")
 
 def get_secure_session():
     """🛡️ Cria uma sessão HTTP disfarçada de navegador real com política de Timeout"""

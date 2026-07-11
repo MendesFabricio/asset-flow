@@ -1,6 +1,6 @@
 # server/routes/alerts.py
 import re
-from flask import Blueprint, jsonify, g
+from flask import Blueprint, jsonify, g, request
 from database.models import Asset, Position, Category
 from services import Session
 from datetime import datetime
@@ -23,12 +23,12 @@ def make_alert(asset, field, type_alert, msg, severity, action=None):
 
 @alerts_bp.route('/api/alerts', methods=['GET'])
 def get_alerts():
+    page = request.args.get('page', 1, type=int)
+    page_size = request.args.get('page_size', 50, type=int)
     alerts = []
     
-    # ⚡ Gerenciador de Contexto: Thread-safe nativo que abre, gerencia e fecha a sessão sem riscos
     with Session() as session:
         try:
-            # Busca apenas ativos que você tem em carteira (qtd > 0) do usuário logado
             positions = session.query(Position).filter_by(user_id=g.user_id).join(Asset).join(Category).filter(Position.quantity > 0).all()
             today = datetime.now()
 
@@ -39,7 +39,6 @@ def get_alerts():
                     
                 category = asset.category.name if asset.category else "Outros"
                 
-                # --- Market Data Seguro (Ordenado por data decrescente) ---
                 mdata = None
                 if asset.market_data and len(asset.market_data) > 0:
                     sorted_mdata = sorted(asset.market_data, key=lambda x: x.date, reverse=True)
@@ -48,9 +47,6 @@ def get_alerts():
                 current_price = float(mdata.price) if mdata and mdata.price else 0.0
                 change_percent = float(mdata.change_percent) if mdata and mdata.change_percent else 0.0
 
-                # =========================================================
-                # 1. ALERTAS DE CADASTRO E SISTEMA (Configuração)
-                # =========================================================
                 if current_price <= 0:
                     alerts.append(make_alert(asset, "price", "CRÍTICO", "Preço zerado. Verifique conexão/ticker.", 5, "refresh"))
 
@@ -162,8 +158,17 @@ def get_alerts():
 
             # Ordena: Críticos > Risco > Config > Novidade > Alerta > Info
             alerts.sort(key=lambda x: x["severity"], reverse=True)
-            return jsonify(alerts)
+            total = len(alerts)
+            start = (page - 1) * page_size
+            end = start + page_size
+            page_items = alerts[start:end]
+            return jsonify({
+                "items": page_items,
+                "total": total,
+                "page": page,
+                "page_size": page_size
+            })
         
         except Exception as e:
             logging.error(f"❌ Erro crítico no pipeline da API de Alertas: {e}")
-            return jsonify([])
+            return jsonify({"items": [], "total": 0, "page": page, "page_size": page_size})

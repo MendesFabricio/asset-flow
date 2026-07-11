@@ -15,46 +15,35 @@ from domain.quant.exposure import calculate_sector_exposure
 class FacadeService:
     def run_monte_carlo_simulation(self, days: int = 252, simulations: int = 1000) -> dict:
         """Façade → quant_engine.run_monte_carlo"""
-        session = Session()
-        try:
+        with Session() as session:
             return run_monte_carlo(session, _fetch_price_history_fn, days, simulations)
-        finally:
-            Session.remove()
 
     def get_correlation_matrix(self, session=None):
         """Façade → quant_engine.get_correlation_matrix com Cache"""
-        self_close = False
-        if session is None:
-            session = Session()
-            self_close = True
-        try:
+        if session is not None:
             cached = self._get_cached_unwrap(f"correlation_matrix_cache_{g.user_id}" if 'g' in globals() and hasattr(g, 'user_id') else "correlation_matrix_cache")
             if cached:
                 return cached
             return get_correlation_matrix(session, _fetch_price_history_fn)
-        finally:
-            if self_close:
-                Session.remove()
+        
+        with Session() as session:
+            cached = self._get_cached_unwrap(f"correlation_matrix_cache_{g.user_id}" if 'g' in globals() and hasattr(g, 'user_id') else "correlation_matrix_cache")
+            if cached:
+                return cached
+            return get_correlation_matrix(session, _fetch_price_history_fn)
 
     def calculate_risk_metrics(self, session=None) -> dict:
         """Façade → quant_engine.calculate_risk_metrics com Cache"""
-        self_close = False
-        if session is None:
-            session = Session()
-            self_close = True
-        try:
+        if session is not None:
             return calculate_risk_metrics(session, _fetch_price_history_fn)
-        finally:
-            if self_close:
-                Session.remove()
+        
+        with Session() as session:
+            return calculate_risk_metrics(session, _fetch_price_history_fn)
 
     def calculate_smart_rebalance(self, monthly_contribution: float = 0.0) -> dict:
         """Façade → quant_engine.calculate_smart_rebalance"""
-        session = Session()
-        try:
+        with Session() as session:
             return calculate_smart_rebalance(session, _fetch_price_history_fn, monthly_contribution)
-        finally:
-            Session.remove()
 
     def calculate_income_projection(
         self,
@@ -64,8 +53,7 @@ class FacadeService:
         annual_dividend_yield_pct: float = 6.0,
     ) -> dict:
         """Façade → quant_engine.calculate_income_projection"""
-        session = Session()
-        try:
+        with Session() as session:
             return calculate_income_projection(
                 session,
                 monthly_contribution,
@@ -73,88 +61,56 @@ class FacadeService:
                 annual_return_pct,
                 annual_dividend_yield_pct,
             )
-        finally:
-            Session.remove()
 
     def calculate_risk_parity(self) -> dict:
         """Façade → quant_engine.calculate_risk_parity"""
-        session = Session()
-        try:
+        with Session() as session:
             return calculate_risk_parity(session, _fetch_price_history_fn)
-        finally:
-            Session.remove()
 
     def calculate_markowitz_optimization(self) -> dict:
         """Façade → quant_engine.calculate_markowitz_optimization"""
-        session = Session()
-        try:
+        with Session() as session:
             return calculate_markowitz_optimization(session, _fetch_price_history_fn)
-        finally:
-            Session.remove()
 
     def calculate_sector_exposure(self) -> dict:
         """Façade → quant_engine.calculate_sector_exposure"""
-        session = Session()
-        try:
+        with Session() as session:
             return calculate_sector_exposure(session)
-        finally:
-            Session.remove()
 
     def calculate_dividend_forecast(self) -> dict:
         """Façade → quant_engine.calculate_dividend_forecast"""
-        session = Session()
-        try:
+        with Session() as session:
             return calculate_dividend_forecast(session)
-        finally:
-            Session.remove()
 
     def calculate_sector_correlation(self) -> dict:
         """Façade → quant_engine.calculate_sector_correlation"""
-        session = Session()
-        try:
+        with Session() as session:
             return calculate_sector_correlation(session, _fetch_price_history_fn)
-        finally:
-            Session.remove()
 
     def calculate_kelly_criterion(self) -> dict:
         """Façade → quant_engine.calculate_kelly_criterion"""
-        session = Session()
-        try:
+        with Session() as session:
             return calculate_kelly_criterion(session, _fetch_price_history_fn)
-        finally:
-            Session.remove()
 
     def calculate_alpha_attribution(self) -> dict:
         """Façade → quant_engine.calculate_alpha_attribution"""
-        session = Session()
-        try:
+        with Session() as session:
             return calculate_alpha_attribution(session, _fetch_price_history_fn)
-        finally:
-            Session.remove()
 
     def calculate_rolling_sharpe(self) -> dict:
         """Façade → quant_engine.calculate_rolling_sharpe"""
-        session = Session()
-        try:
+        with Session() as session:
             return calculate_rolling_sharpe(session, _fetch_price_history_fn)
-        finally:
-            Session.remove()
 
     def calculate_momentum_ranking(self) -> dict:
         """Façade → quant_engine.calculate_momentum_ranking"""
-        session = Session()
-        try:
+        with Session() as session:
             return calculate_momentum_ranking(session, _fetch_price_history_fn)
-        finally:
-            Session.remove()
 
     def calculate_efficient_frontier_points(self) -> dict:
         """Façade → quant_engine.calculate_efficient_frontier_points"""
-        session = Session()
-        try:
+        with Session() as session:
             return calculate_efficient_frontier_points(session, _fetch_price_history_fn)
-        finally:
-            Session.remove()
 
     def _get_cached_unwrap(self, key, ttl_seconds=3600):
         try:

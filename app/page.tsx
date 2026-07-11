@@ -1,17 +1,18 @@
 'use client';
-import { useState, useMemo, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
-import { apiCall } from './utils/apiClient';
+import { useState, useEffect } from 'react';
 import { usePrivacy } from './context/PrivacyContext';
 import { formatMoney } from './utils';
 import { StatCard } from './components/StatCard';
-import { useAssetData } from './hooks/useAssetData';
 import { Header } from './components/Header';
 import { AssetsTable } from './components/AssetsTable';
 import { Asset } from './types';
 import { useModalStore } from './store/modalStore';
 import { MorningBriefing } from './components/MorningBriefing';
 import { SkeletonLoading } from './components/SkeletonLoading';
+import { useAssetData } from './hooks/useAssetData';
+import { usePortfolioHandlers } from './hooks/usePortfolioHandlers';
+import { usePortfolioMetrics } from './hooks/usePortfolioMetrics';
 import {
   BarChart3,
   Bitcoin,
@@ -40,36 +41,23 @@ const CategorySummary = dynamic(() => import('./components/CategorySummary').the
 const EditModal = dynamic(() => import('./components/EditModal').then(mod => mod.EditModal), { ssr: false, loading: () => <SkeletonLoading /> });
 const AddAssetModal = dynamic(() => import('./components/AddAssetModal').then(mod => mod.AddAssetModal), { ssr: false, loading: () => <SkeletonLoading /> });
 const AssetNewsPanel = dynamic(() => import('./components/AssetNewsPanel').then(mod => mod.AssetNewsPanel), { ssr: false, loading: () => <SkeletonLoading /> });
-
 const ReceivablesTab = dynamic(() => import('./components/ReceivablesTab').then(mod => mod.ReceivablesTab), { ssr: false, loading: () => <SkeletonLoading /> });
 const CreditCardsTab = dynamic(() => import('./components/CreditCardsTab'), { ssr: false, loading: () => <SkeletonLoading /> });
 const FixedIncomeTab = dynamic(() => import('./components/FixedIncomeTab'), { ssr: false, loading: () => <SkeletonLoading /> });
 const AssetDetailsModal = dynamic(() => import('./components/AssetDetailsModal').then(mod => mod.AssetDetailsModal), { ssr: false, loading: () => <SkeletonLoading /> });
-
-
 const CorrelationHeatmap = dynamic(() => import('./components/CorrelationHeatmap').then(mod => mod.CorrelationHeatmap), { ssr: false, loading: () => <SkeletonLoading /> });
-
 const SmartAllocationModal = dynamic(() => import('./components/SmartAllocationModal').then(mod => mod.SmartAllocationModal), { ssr: false, loading: () => <SkeletonLoading /> });
 const IncomeProjectionModal = dynamic(() => import('./components/IncomeProjectionModal').then(mod => mod.IncomeProjectionModal), { ssr: false, loading: () => <SkeletonLoading /> });
 const JarvisChat = dynamic(() => import('./components/JarvisChat').then(mod => mod.JarvisChat), { ssr: false, loading: () => <SkeletonLoading /> });
 const QuantDashboard = dynamic(() => import('./components/QuantDashboard').then(mod => mod.QuantDashboard), { ssr: false, loading: () => <SkeletonLoading /> });
 
-
 export default function Home() {
-  const {
-    data,
-    history,
-    loading,
-    refetch,
-    syncStatus,
-    fundamentalsStatus,
-    mutateSync,
-    mutateFundamentals
-  } = useAssetData();
-
+  const { data, history, loading, refetch, syncStatus, fundamentalsStatus, mutateSync, mutateFundamentals } = useAssetData();
   const { isHidden } = usePrivacy() as { isHidden: boolean };
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
   const [tab, setTab] = useState('Resumo');
+  const [isRefetching, setIsRefetching] = useState(false);
+  const [showRefreshSuccess, setShowRefreshSuccess] = useState(false);
 
   const isAddModalOpen = useModalStore(state => state.isAddModalOpen);
   const isSmartModalOpen = useModalStore(state => state.isSmartModalOpen);
@@ -77,7 +65,6 @@ export default function Home() {
   const editingAsset = useModalStore(state => state.editingAsset);
   const selectedDetailsAsset = useModalStore(state => state.selectedDetailsAsset);
   const newsTicker = useModalStore(state => state.newsTicker);
-
   const setAddModalOpen = useModalStore(state => state.setAddModalOpen);
   const setSmartModalOpen = useModalStore(state => state.setSmartModalOpen);
   const setIfModalOpen = useModalStore(state => state.setIfModalOpen);
@@ -85,17 +72,13 @@ export default function Home() {
   const setSelectedDetailsAsset = useModalStore(state => state.setSelectedDetailsAsset);
   const setNewsTicker = useModalStore(state => state.setNewsTicker);
 
-  const [showRefreshSuccess, setShowRefreshSuccess] = useState(false);
-  const [isRefetching, setIsRefetching] = useState(false);
-
-
-  const syncingReports = syncStatus.status === 'processing';
-  const updatingFundamentals = fundamentalsStatus.status === 'processing';
-
   const notify = (msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3000);
   };
+
+  const handlers = usePortfolioHandlers(mutateSync, mutateFundamentals, refetch, notify);
+  const metrics = usePortfolioMetrics(data, isHidden, formatMoney);
 
   const portfolioTabs = [
     { id: 'Resumo', icon: <Layers size={14} />, label: 'Resumo' },
@@ -116,119 +99,17 @@ export default function Home() {
     { id: 'Jarvis', icon: <Brain size={14} />, label: 'Jarvis AI' },
   ];
 
-
-
-  const topCompras = useMemo(() => {
-    return data?.ativos?.filter((a) => a.falta_comprar > 0).sort((a, b) => b.score - a.score).slice(0, 3) || [];
-  }, [data?.ativos]);
-
-  const lucroTotal = useMemo(() => {
-    return data?.resumo?.LucroTotal || 0;
-  }, [data?.resumo?.LucroTotal]);
-
-  const totalInvestido = useMemo(() => {
-    return data?.resumo?.TotalInvestido ?? 0;
-  }, [data?.resumo?.TotalInvestido]);
-
-  const rendaMensal = useMemo(() => {
-    return data?.resumo?.RendaMensal ?? 0;
-  }, [data?.resumo?.RendaMensal]);
-
-  const yocMedio = useMemo(() => {
-    return totalInvestido > 0 ? ((rendaMensal * 12) / totalInvestido) * 100 : 0;
-  }, [totalInvestido, rendaMensal]);
-
-  const variacaoDiariaTotal = useMemo(() => {
-    return data?.ativos?.reduce((acc: number, asset: Asset) => {
-      const variacaoPct = (asset as Asset & { change_percent?: number }).change_percent || 0;
-      const totalAtual = asset.total_atual || 0;
-      const valOntem = totalAtual / (1 + variacaoPct / 100);
-      return acc + (totalAtual - valOntem);
-    }, 0) || 0;
-  }, [data?.ativos]);
-
-  const money = useCallback((val: number) => isHidden ? '••••••' : formatMoney(val), [isHidden]);
-
-  // Monitora alterações nos canais SSE de sincronismo para notificar erros/sucessos ao usuário via Toast
   useEffect(() => {
     if (syncStatus.status === 'error') {
       notify(syncStatus.message || "Erro na sincronização de relatórios CVM.", 'error');
     }
-  }, [syncStatus.status]);
+  }, [syncStatus.status, syncStatus.message, notify]);
 
   useEffect(() => {
     if (fundamentalsStatus.status === 'error') {
       notify(fundamentalsStatus.message || "Erro ao atualizar múltiplos do Yahoo.", 'error');
     }
-  }, [fundamentalsStatus.status]);
-
-  const handleSyncReports = useCallback(async () => {
-    // Força o estado local para processando imediatamente (Optimistic UI)
-    mutateSync({ status: 'processing', message: 'Iniciando barramento de sincronia...' });
-    try {
-      const result = await apiCall<{ status: string; msg: string }>('/api/sync-reports', { method: 'POST' });
-      notify(result.msg, 'success');
-      mutateSync();
-    } catch (e: any) {
-      console.error(e);
-
-      // ✅ SE FOR CONFLITO (409): Avisa o usuário e revalida para pegar o progresso real ativo
-      if (e.message?.includes('409')) {
-        notify("Uma sincronização já está em andamento em segundo plano. Conectando ao canal...", 'error');
-        mutateSync(); // Força a busca do estado real de processamento do backend
-      } else {
-        // Se for um erro de rede ou queda do backend, aí sim joga para idle
-        notify("Falha ao conectar com o servidor para sincronizar relatórios.", 'error');
-        mutateSync({ status: 'idle', message: '' });
-      }
-    }
-  }, [mutateSync]);
-
-  const handleUpdateFundamentals = useCallback(async () => {
-    // Força o estado local para processando imediatamente (Optimistic UI)
-    mutateFundamentals({ status: 'processing', message: 'Iniciando esteira de múltiplos...' });
-    try {
-      const result = await apiCall<{ status: string; msg: string }>('/api/update-fundamentals', { method: 'POST' });
-      notify(result.msg, 'success');
-      mutateFundamentals();
-    } catch (e: any) {
-      console.error(e);
-
-      // ✅ SE FOR CONFLITO (409): Avisa o usuário e sincroniza com o lote em andamento
-      if (e.message?.includes('409')) {
-        notify("A esteira de múltiplos do Yahoo já está rodando. Sincronizando com o lote...", 'error');
-        mutateFundamentals(); // Revalida para trazer o status e mensagem corretos do backend
-      } else {
-        // Erro físico de conexão externa
-        notify("Falha ao conectar com o servidor de fundamentos.", 'error');
-        mutateFundamentals({ status: 'idle', message: '' });
-      }
-    }
-  }, [mutateFundamentals]);
-
-  const handleManualRefresh = useCallback(async () => {
-    setIsRefetching(true);
-    try {
-      await apiCall('/api/refresh_prices', { method: 'POST' });
-      await refetch();
-      setShowRefreshSuccess(true);
-      setTimeout(() => setShowRefreshSuccess(false), 2000);
-    } catch (e) {
-      console.error("Erro ao atualizar:", e);
-      notify("Erro ao atualizar preços. Verifique se o backend está rodando na porta 5328.", 'error');
-    } finally {
-      setIsRefetching(false);
-    }
-  }, [refetch]);
-
-  const handleFixAsset = useCallback((assetId: number) => {
-    const assetToEdit = data?.ativos.find((a: Asset) => (a as Asset & { id?: number }).id === assetId);
-    if (assetToEdit) setEditingAsset(assetToEdit);
-  }, [data?.ativos, setEditingAsset]);
-
-  const handleOpenIfModal = useCallback(() => setIfModalOpen(true), [setIfModalOpen]);
-  const handleOpenSmartModal = useCallback(() => setSmartModalOpen(true), [setSmartModalOpen]);
-  const handleOpenAddModal = useCallback(() => setAddModalOpen(true), [setAddModalOpen]);
+  }, [fundamentalsStatus.status, fundamentalsStatus.message, notify]);
 
   if (loading) {
     return (
@@ -236,16 +117,16 @@ export default function Home() {
         <Header
           total={0}
           ativos={[]}
-          money={money}
+          money={metrics.money}
           syncStatus={{ status: 'idle', message: '' }}
           fundamentalsStatus={{ status: 'idle', message: '' }}
-          onSyncReports={handleSyncReports}
-          onUpdateFundamentals={handleUpdateFundamentals}
-          onManualRefresh={handleManualRefresh}
-          onOpenIfModal={handleOpenIfModal}
-          onOpenSmartModal={handleOpenSmartModal}
-          onOpenAddModal={handleOpenAddModal}
-          onFixAsset={handleFixAsset}
+          onSyncReports={handlers.handleSyncReports}
+          onUpdateFundamentals={handlers.handleUpdateFundamentals}
+          onManualRefresh={() => {}}
+          onOpenIfModal={handlers.handleOpenIfModal}
+          onOpenSmartModal={handlers.handleOpenSmartModal}
+          onOpenAddModal={handlers.handleOpenAddModal}
+          onFixAsset={() => {}}
           loading={true}
           isRefetching={false}
           showRefreshSuccess={false}
@@ -257,28 +138,25 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-[#0b0f19] text-slate-200 font-sans selection:bg-blue-500/30 pb-20 relative">
-      {/* HEADER PRINCIPAL EXTRAÍDO */}
       <Header
         total={data?.resumo?.Total || 0}
         ativos={data?.ativos || []}
-        money={money}
+        money={metrics.money}
         syncStatus={syncStatus}
         fundamentalsStatus={fundamentalsStatus}
-        onSyncReports={handleSyncReports}
-        onUpdateFundamentals={handleUpdateFundamentals}
-        onManualRefresh={handleManualRefresh}
-        onOpenIfModal={handleOpenIfModal}
-        onOpenSmartModal={handleOpenSmartModal}
-        onOpenAddModal={handleOpenAddModal}
-        onFixAsset={handleFixAsset}
+        onSyncReports={handlers.handleSyncReports}
+        onUpdateFundamentals={handlers.handleUpdateFundamentals}
+        onManualRefresh={() => handlers.handleManualRefresh(setIsRefetching, setShowRefreshSuccess)}
+        onOpenIfModal={handlers.handleOpenIfModal}
+        onOpenSmartModal={handlers.handleOpenSmartModal}
+        onOpenAddModal={handlers.handleOpenAddModal}
+        onFixAsset={(assetId) => handlers.handleFixAsset(assetId, data?.ativos || [])}
         loading={loading}
         isRefetching={isRefetching}
         showRefreshSuccess={showRefreshSuccess}
       />
 
-      {/* TABS DE CATEGORIAS E BUSCA */}
       <div className="max-w-7xl mx-auto px-4 py-4 space-y-3">
-        {/* Ativos e Carteira */}
         <div className="flex flex-col md:flex-row md:items-center gap-3">
           <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest min-w-[125px]">Minha Carteira:</span>
           <div className="flex gap-1.5 overflow-x-auto no-scrollbar w-full pb-1 md:pb-0">
@@ -299,7 +177,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Análises e Inteligência */}
         <div className="flex flex-col md:flex-row md:items-center gap-3 pt-2 border-t border-slate-900/50">
           <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest min-w-[125px]">Análises & IA:</span>
           <div className="flex gap-1.5 overflow-x-auto no-scrollbar w-full pb-1 md:pb-0">
@@ -325,42 +202,40 @@ export default function Home() {
         {tab === 'Resumo' && (
           <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-2">
             <MorningBriefing />
-            {/* KPI CARDS */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <StatCard
                 title="Yield on Cost Médio"
-                value={isHidden ? '•••' : yocMedio.toFixed(2) + '%'}
+                value={isHidden ? '•••' : metrics.yocMedio.toFixed(2) + '%'}
                 subtext="Anual Est."
                 icon={Percent}
                 colorClass="text-purple-400"
               />
               <StatCard
                 title="Total Investido"
-                value={money(totalInvestido)}
+                value={metrics.money(metrics.totalInvestido)}
                 subtext="Custo de Aquisição"
                 icon={PiggyBank}
                 colorClass="text-blue-400"
               />
               <StatCard
                 title="Lucro / Prejuízo"
-                value={isHidden ? '••••••' : (lucroTotal > 0 ? '+' : '') + formatMoney(lucroTotal)}
+                value={isHidden ? '••••••' : (metrics.lucroTotal > 0 ? '+' : '') + formatMoney(metrics.lucroTotal)}
                 subtext="Total Histórico"
                 icon={BarChart3}
-                colorClass={lucroTotal >= 0 ? "text-green-400" : "text-red-400"}
-                dailyResult={variacaoDiariaTotal}
+                colorClass={metrics.lucroTotal >= 0 ? "text-green-400" : "text-red-400"}
+                dailyResult={metrics.variacaoDiariaTotal}
               />
               <StatCard
                 title="Top Insight"
                 type="insight"
                 colorClass="text-indigo-400"
                 icon={Target}
-                value={topCompras.length > 0 ? topCompras[0].ticker : "--"}
-                badge={topCompras.length > 0 ? topCompras[0].recomendacao : undefined}
-                marquee={topCompras.length > 0 ? `${topCompras[0].motivo} • Potencial Identificado •` : undefined}
+                value={metrics.topCompras.length > 0 ? metrics.topCompras[0].ticker : "--"}
+                badge={metrics.topCompras.length > 0 ? metrics.topCompras[0].recomendacao : undefined}
+                marquee={metrics.topCompras.length > 0 ? `${metrics.topCompras[0].motivo} • Potencial Identificado •` : undefined}
               />
             </div>
 
-            {/* GRID PRINCIPAL */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-[525px]">
               <div className="h-full">
                 <RiskRadar alertas={data?.alertas || []} />
@@ -414,8 +289,6 @@ export default function Home() {
           </div>
         )}
 
-
-        {/* TABELA DE ATIVOS EXTRAÍDA */}
         <AssetsTable
           assets={data?.ativos || []}
           tab={tab}
@@ -427,21 +300,18 @@ export default function Home() {
         <EditModal isOpen={!!editingAsset} onClose={() => setEditingAsset(null)} onSave={() => refetch()} ativo={editingAsset} allAssets={data?.ativos || []} />
         <AddAssetModal isOpen={isAddModalOpen} onClose={() => setAddModalOpen(false)} onSuccess={() => refetch()} />
         <AssetNewsPanel ticker={newsTicker} onClose={() => setNewsTicker(null)} />
-
         <SmartAllocationModal
           isOpen={isSmartModalOpen}
           onClose={() => setSmartModalOpen(false)}
           ativos={data?.ativos || []}
         />
-
         <AssetDetailsModal
           isOpen={!!selectedDetailsAsset}
           onClose={() => setSelectedDetailsAsset(null)}
           asset={selectedDetailsAsset}
         />
 
-        {/* WIDGET FLUTUANTE DE PROGRESSO REAL-TIME CVM */}
-        {syncingReports && (
+        {syncStatus.status === 'processing' && (
           <div className="fixed bottom-5 left-5 z-50 flex items-center gap-3 px-4 py-3 rounded-xl bg-purple-950/90 border border-purple-500/50 text-purple-200 shadow-[0_0_25px_rgba(147,51,234,0.3)] transition-all duration-300 animate-in slide-in-from-left-10 fade-in backdrop-blur-sm">
             <RefreshCw size={18} className="text-purple-400 animate-spin" />
             <div className="flex flex-col">
@@ -451,9 +321,8 @@ export default function Home() {
           </div>
         )}
 
-        {/* WIDGET FLUTUANTE DE FUNDAMENTOS REAL-TIME YAHOO */}
-        {updatingFundamentals && (
-          <div className={`fixed ${syncingReports ? 'bottom-24' : 'bottom-5'} left-5 z-50 flex items-center gap-3 px-4 py-3 rounded-xl bg-emerald-950/90 border border-emerald-500/50 text-emerald-200 shadow-[0_0_25px_rgba(16,185,129,0.3)] transition-all duration-300 animate-in slide-in-from-left-10 fade-in backdrop-blur-sm`}>
+        {fundamentalsStatus.status === 'processing' && (
+          <div className={`fixed ${syncStatus.status === 'processing' ? 'bottom-24' : 'bottom-5'} left-5 z-50 flex items-center gap-3 px-4 py-3 rounded-xl bg-emerald-950/90 border border-emerald-500/50 text-emerald-200 shadow-[0_0_25px_rgba(16,185,129,0.3)] transition-all duration-300 animate-in slide-in-from-left-10 fade-in backdrop-blur-sm`}>
             <Brain size={18} className="text-emerald-400 animate-pulse" />
             <div className="flex flex-col">
               <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Valuation & Múltiplos</span>
@@ -462,7 +331,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* TOAST NOTIFICATIONS */}
         {toast && (
           <div className={`fixed bottom-5 right-5 z-50 flex items-center gap-3 px-4 py-3 rounded-xl shadow-[0_0_20px_rgba(0,0,0,0.5)] border transition-all duration-300 animate-in slide-in-from-right-10 fade-in ${toast.type === 'success'
             ? 'bg-emerald-950/90 border-emerald-500/50 text-emerald-200 shadow-[0_0_20px_rgba(16,185,129,0.2)]'

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import Link from 'next/link';
 import {
   ChevronDown, User, Settings, History, LogOut, Eye, EyeOff
 } from 'lucide-react';
@@ -104,17 +105,14 @@ export function UserMenu({ showName = false }: UserMenuProps) {
             <span>Logs de Auditoria</span>
           </button>
 
-          <button
-            type="button"
+          <Link
+            href="/avancado"
             className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-slate-900 text-slate-400 hover:text-slate-200 transition-colors flex items-center gap-2.5 text-xs"
-            onClick={() => {
-              alert('Funcionalidade "Avançado" em desenvolvimento. Em breve no AssetFlow Pro!');
-              setIsOpen(false);
-            }}
+            onClick={() => setIsOpen(false)}
           >
             <Settings size={13} />
             <span>Avançado</span>
-          </button>
+          </Link>
 
           <div className="h-px bg-slate-900 my-1" />
 

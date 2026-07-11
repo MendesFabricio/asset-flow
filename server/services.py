@@ -36,12 +36,15 @@ class PortfolioService(
     CategoryService
 ):
     _instance = None
+    _instance_lock = threading.Lock()
     _price_lock = threading.Lock()
     _fundamentals_lock = threading.Lock()
 
     def __new__(cls, *args, **kwargs):
-        if not cls._instance:
-            cls._instance = super(PortfolioService, cls).__new__(cls)
+        if cls._instance is None:
+            with cls._instance_lock:
+                if cls._instance is None:
+                    cls._instance = super(PortfolioService, cls).__new__(cls)
         return cls._instance
 
     def __init__(self):

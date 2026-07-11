@@ -9,17 +9,13 @@ import infrastructure.market_data as _market
 
 class IntegrationService:
     def update_prices(self):
-        session = Session()
-        try:
+        with Session() as session:
             _market.update_prices(session, self._invalidate_price_cache)
-        finally:
-            Session.remove()
 
     def record_confirmed_dividends(self):
         logging.info("📅 [SERVICE] Iniciando verificação automática de novos dividendos...")
-        session = Session()
         positions_info = []
-        try:
+        with Session() as session:
             positions = session.query(Position).filter(Position.quantity > 0).all()
             for pos in positions:
                 positions_info.append({
@@ -29,8 +25,6 @@ class IntegrationService:
                     "category_name": pos.asset.category.name if pos.asset.category else '',
                     "quantity": float(pos.quantity)
                 })
-        finally:
-            Session.remove()
 
         from utils.http_client import get_secure_session
         secure_session = get_secure_session(timeout=10.0)
@@ -90,11 +84,8 @@ class IntegrationService:
         if session is not None:
             return _market.sync_reports_with_fnet(session, state_dict)
             
-        session = Session()
-        try:
+        with Session() as session:
             return _market.sync_reports_with_fnet(session, state_dict)
-        finally:
-            Session.remove()
 
     def update_fundamentals(self, state_dict=None):
         return _market.update_fundamentals(self.get_usd_rate, state_dict)

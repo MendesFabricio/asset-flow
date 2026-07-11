@@ -15,10 +15,11 @@ services:
       - ./backups:/app/backups
       - ./database:/app/database
     environment:
-      - FLASK_DEBUG=0
-      - OLLAMA_MODEL=llama3.2:3b
-      - OLLAMA_BASE_URL=http://ollama:11434
-      - SECRET_KEY=9e827103a85b9b71a2e3cd8f110a174f8c9b2d35eb7b3d9f1025a1bfe1f8d4bc
+      - FLASK_DEBUG=${FLASK_DEBUG:-0}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2:3b}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama:11434}
+      - SECRET_KEY=${SECRET_KEY}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:5328/api/health')\" > /dev/null 2>&1 || (echo 'Backend healthcheck failed!' && exit 1)"]
       interval: 15s
@@ -47,11 +48,19 @@ services:
       - ./database:/app/database
     environment:
       - PYTHONPATH=/app
-      - OLLAMA_MODEL=llama3.2:3b
-      - OLLAMA_BASE_URL=http://ollama:11434
-      - SECRET_KEY=9e827103a85b9b71a2e3cd8f110a174f8c9b2d35eb7b3d9f1025a1bfe1f8d4bc
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2:3b}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama:11434}
+      - SECRET_KEY=${SECRET_KEY}
+      - WORKER_HEARTBEAT_PATH=/app/data/worker_heartbeat.txt
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import os, time; p='/app/data/worker_heartbeat.txt'; ok=os.path.exists(p) and (time.time()-os.path.getmtime(p))<120; exit(0 if ok else 1)\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
     # 🔒 LIMITES
     mem_limit: 1.5g
@@ -65,11 +74,12 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=""
-      - WATCHPACK_POLLING=true
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:5328}
+      - WATCHPACK_POLLING=${WATCHPACK_POLLING:-true}
     volumes:
       - .:/app
       - /app/node_modules
+      - /app/.next
     command: npm start
     healthcheck:
       test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3000', (res) => res.statusCode === 200 ? process.exit(0) : process.exit(1))\" > /dev/null 2>&1 || (echo 'Frontend healthcheck failed!' && exit 1)"]

@@ -1,9 +1,12 @@
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session
 
-# Configuração do Banco de Dados SQLite em WAL Mode
+DATABASE_PATH = os.environ.get("DATABASE_PATH", "/app/data/assetflow.db")
+DATABASE_URL = f"sqlite:///{DATABASE_PATH}"
+
 engine = create_engine(
-    'sqlite:////app/data/assetflow.db',
+    DATABASE_URL,
     echo=False,
     connect_args={
         "check_same_thread": False,
@@ -12,6 +15,5 @@ engine = create_engine(
     pool_pre_ping=True,
 )
 
-# SessionFactory controlada thread-safe (scoped_session)
 session_factory = sessionmaker(bind=engine)
 Session = scoped_session(session_factory)

@@ -4,6 +4,7 @@ from database.models import Session, Asset, Position, Category, FixedIncome, saf
 from datetime import datetime
 from decimal import Decimal
 from sqlalchemy.orm import joinedload
+from schemas import FixedIncomeCreate
 
 fixed_income_bp = Blueprint('fixed_income', __name__)
 
@@ -66,22 +67,17 @@ def calculate_fixed_income_metrics(fi, quantity, average_price):
 def handle_fixed_income():
     with Session() as db:
         if request.method == 'POST':
-            data = request.json or {}
-            ticker = data.get('ticker', '').strip().upper()
-            name = data.get('name', '').strip()
-            index_type = data.get('index_type', 'CDI').strip().upper()
-            
             try:
-                interest_rate = Decimal(str(data.get('interest_rate', 0)))
-                quantity = Decimal(str(data.get('quantity', 0)))
-                average_price = Decimal(str(data.get('average_price', 0)))
-                issue_date = datetime.fromisoformat(data.get('issue_date', '').replace('Z', ''))
-                due_date = datetime.fromisoformat(data.get('due_date', '').replace('Z', ''))
-            except Exception:
-                return jsonify({"status": "Erro", "msg": "Campos numéricos ou datas inválidas"}), 400
-                
-            if not ticker or not name or index_type not in ['CDI', 'IPCA', 'PRE'] or quantity <= 0 or average_price <= 0:
-                return jsonify({"status": "Erro", "msg": "Parâmetros obrigatórios inválidos"}), 400
+                body = FixedIncomeCreate(**request.json or {})
+            except Exception as e:
+                return jsonify({"status": "Erro", "msg": str(e)}), 400
+
+            ticker = body.ticker.strip().upper()
+            name = body.name.strip()
+            index_type = body.index_type.strip().upper()
+            interest_rate = Decimal(str(body.interest_rate))
+            quantity = Decimal(str(body.quantity))
+            average_price = Decimal(str(body.average_price))
                 
             # Verifica ou cria Categoria 'Renda Fixa'
             cat = db.query(Category).filter_by(name='Renda Fixa').first()

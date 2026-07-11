@@ -25,17 +25,15 @@ def healthcheck():
     
     # 1. Banco de Dados SQLite (WAL)
     try:
-        session = Session()
-        start = time.perf_counter()
-        session.execute(text("SELECT 1")).fetchone()
-        db_time = (time.perf_counter() - start) * 1000
-        detail_db = f"SQLite operando sob modo WAL. Latência: {db_time:.2f}ms"
+        with Session() as session:
+            start = time.perf_counter()
+            session.execute(text("SELECT 1")).fetchone()
+            db_time = (time.perf_counter() - start) * 1000
+            detail_db = f"SQLite operando sob modo WAL. Latência: {db_time:.2f}ms"
     except Exception as e:
         status_db = "offline"
         detail_db = f"Falha ao conectar no SQLite: {str(e)}"
         logging.error(f"❌ [HEALTH] Erro SQLite: {e}")
-    finally:
-        Session.remove()  # 🔒 Fechamento determinístico para liberar conexões do pool
 
     # 2. Yahoo Finance API Connectivity
     status_yf = "online"

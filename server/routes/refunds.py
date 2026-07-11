@@ -1,6 +1,7 @@
 # server/routes/refunds.py
 from flask import Blueprint, jsonify, request, g
 from database.models import Session, RefundConfig, Debtor, ReceivableLoan, LoanInstallment, PaymentTransaction, AuditLog, safe_commit
+from schemas import RefundConfigUpdate
 from sqlalchemy.orm import joinedload
 from datetime import datetime, date
 from decimal import Decimal
@@ -34,12 +35,13 @@ def handle_config():
     with Session() as db:
         config = get_config(db)
         if request.method == 'POST':
-            data = request.json or {}
-            fechamento = int(data.get('fechamento_dia', config.fechamento_dia))
-            vencimento = int(data.get('vencimento_dia', config.vencimento_dia))
-            
-            if not (1 <= fechamento <= 31) or not (1 <= vencimento <= 31):
-                return jsonify({"status": "Erro", "msg": "Os dias devem estar entre 1 e 31"}), 400
+            try:
+                body = RefundConfigUpdate(**request.json or {})
+            except Exception as e:
+                return jsonify({"status": "Erro", "msg": str(e)}), 400
+
+            fechamento = body.fechamento_dia
+            vencimento = body.vencimento_dia
                 
             log_audit(db, "refund_configs", config.id, "fechamento_dia", config.fechamento_dia, fechamento)
             log_audit(db, "refund_configs", config.id, "vencimento_dia", config.vencimento_dia, vencimento)

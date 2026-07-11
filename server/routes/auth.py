@@ -75,26 +75,24 @@ def login():
     if not username or not password:
         return jsonify({"status": "Erro", "msg": "Usuário e senha são obrigatórios."}), 400
 
-    session = Session()
-    try:
-        user = session.query(User).filter(User.username.ilike(username)).first()
-        if user and check_password_hash(user.password_hash, password):
-            token = generate_session_token(user.id, user.username)
-            return jsonify({
-                "status": "Sucesso",
-                "token": token,
-                "user": {
-                    "id": user.id,
-                    "username": user.username
-                }
-            })
-        
-        return jsonify({"status": "Erro", "msg": "Usuário ou senha incorretos."}), 401
-    except Exception as e:
-        logging.error(f"Erro no login: {e}")
-        return jsonify({"status": "Erro", "msg": "Erro interno do servidor."}), 500
-    finally:
-        Session.remove()
+    with Session() as session:
+        try:
+            user = session.query(User).filter(User.username.ilike(username)).first()
+            if user and check_password_hash(user.password_hash, password):
+                token = generate_session_token(user.id, user.username)
+                return jsonify({
+                    "status": "Sucesso",
+                    "token": token,
+                    "user": {
+                        "id": user.id,
+                        "username": user.username
+                    }
+                })
+            
+            return jsonify({"status": "Erro", "msg": "Usuário ou senha incorretos."}), 401
+        except Exception as e:
+            logging.error(f"Erro no login: {e}")
+            return jsonify({"status": "Erro", "msg": "Erro interno do servidor."}), 500
 
 @auth_bp.route('/api/auth/register', methods=['POST'])
 def register():
@@ -121,39 +119,37 @@ def register():
             "msg": "Senha fraca. A senha deve conter pelo menos 8 caracteres, contendo pelo menos 1 número, 1 letra maiúscula e 1 caractere especial."
         }), 400
 
-    session = Session()
-    try:
-        # Verifica se usuário existe
-        exists = session.query(User).filter(User.username.ilike(username)).first()
-        if exists:
-            return jsonify({"status": "Erro", "msg": "Este nome de usuário já está sendo utilizado."}), 409
+    with Session() as session:
+        try:
+            # Verifica se usuário existe
+            exists = session.query(User).filter(User.username.ilike(username)).first()
+            if exists:
+                return jsonify({"status": "Erro", "msg": "Este nome de usuário já está sendo utilizado."}), 409
 
-        # Cria usuário
-        hashed_pw = generate_password_hash(password)
-        new_user = User(
-            username=username,
-            password_hash=hashed_pw
-        )
-        session.add(new_user)
-        session.flush() # Atribui o id ao novo usuário antes do commit
+            # Cria usuário
+            hashed_pw = generate_password_hash(password)
+            new_user = User(
+                username=username,
+                password_hash=hashed_pw
+            )
+            session.add(new_user)
+            session.flush() # Atribui o id ao novo usuário antes do commit
 
-        # Cria a configuração padrão de cartões/reembolsos para o novo usuário
-        new_config = RefundConfig(
-            user_id=new_user.id,
-            fechamento_dia=15,
-            vencimento_dia=20
-        )
-        session.add(new_config)
+            # Cria a configuração padrão de cartões/reembolsos para o novo usuário
+            new_config = RefundConfig(
+                user_id=new_user.id,
+                fechamento_dia=15,
+                vencimento_dia=20
+            )
+            session.add(new_config)
 
-        safe_commit(session)
-        logging.info(f"👤 Novo usuário registrado com sucesso: {username} (ID: {new_user.id})")
-        return jsonify({"status": "Sucesso", "msg": "Usuário registrado com sucesso."}), 201
-    except Exception as e:
-        session.rollback()
-        logging.error(f"Erro no registro de usuário: {e}")
-        return jsonify({"status": "Erro", "msg": "Erro interno do servidor ao criar conta."}), 500
-    finally:
-        Session.remove()
+            safe_commit(session)
+            logging.info(f"👤 Novo usuário registrado com sucesso: {username} (ID: {new_user.id})")
+            return jsonify({"status": "Sucesso", "msg": "Usuário registrado com sucesso."}), 201
+        except Exception as e:
+            session.rollback()
+            logging.error(f"Erro no registro de usuário: {e}")
+            return jsonify({"status": "Erro", "msg": "Erro interno do servidor ao criar conta."}), 500
 
 @auth_bp.route('/api/auth/logout', methods=['POST'])
 def logout():

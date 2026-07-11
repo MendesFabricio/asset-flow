@@ -64,48 +64,68 @@ export function useAssetData() {
   mutateDashboardRef.current = mutateDashboard;
 
   useEffect(() => {
-    // 📡 TELEMETRIA SSE: Conecta no canal SSE local que faz proxy para o backend em tempo real
-    const eventSource = new EventSource('/api/sync/stream');
+    let eventSource: EventSource | null = null;
+    let retryCount = 0;
+    let retryTimer: NodeJS.Timeout | null = null;
+    const MAX_RETRY_DELAY = 30000;
 
-    eventSource.onmessage = (event) => {
-      try {
-        const payload = JSON.parse(event.data);
+    const connect = () => {
+      eventSource = new EventSource('/api/sync/stream');
+
+      eventSource.onmessage = (event) => {
+        try {
+          const payload = JSON.parse(event.data);
+          
+          if (payload.cvm_sync) {
+            setSyncStatus((prev) => {
+              const next = payload.cvm_sync;
+              if (prev.status === 'processing' && next.status === 'success') {
+                mutateDashboardRef.current();
+              }
+              return next;
+            });
+          }
+
+          if (payload.yahoo_sync) {
+            setFundamentalsStatus((prev) => {
+              const next = payload.yahoo_sync;
+              if (prev.status === 'processing' && next.status === 'success') {
+                mutateDashboardRef.current();
+              }
+              return next;
+            });
+          }
+        } catch (err) {
+          console.error('❌ [SSE] Erro ao processar dados de stream de progresso:', err);
+        }
+      };
+
+      eventSource.onerror = () => {
+        if (eventSource) {
+          eventSource.close();
+          eventSource = null;
+        }
         
-        // Verifica se houve atualização de CVM Sync
-        if (payload.cvm_sync) {
-          setSyncStatus((prev) => {
-            const next = payload.cvm_sync;
-            // Se transitou de processando para sucesso, invalida e revalida os dados da carteira
-            if (prev.status === 'processing' && next.status === 'success') {
-              mutateDashboardRef.current();
-            }
-            return next;
-          });
-        }
+        const delay = Math.min(1000 * Math.pow(2, retryCount), MAX_RETRY_DELAY);
+        retryCount += 1;
+        
+        console.warn(`⚠️ [SSE] Conexão perdida. Reconectando em ${delay}ms (tentativa ${retryCount})...`);
+        
+        retryTimer = setTimeout(() => {
+          connect();
+        }, delay);
+      };
 
-        // Verifica se houve atualização de Yahoo Fundamentals Sync
-        if (payload.yahoo_sync) {
-          setFundamentalsStatus((prev) => {
-            const next = payload.yahoo_sync;
-            // Se transitou de processando para sucesso, invalida e revalida os dados da carteira
-            if (prev.status === 'processing' && next.status === 'success') {
-              mutateDashboardRef.current();
-            }
-            return next;
-          });
-        }
-      } catch (err) {
-        console.error('❌ [SSE] Erro ao processar dados de stream de progresso:', err);
-      }
+      eventSource.onopen = () => {
+        retryCount = 0;
+      };
     };
 
-    eventSource.onerror = (err) => {
-      console.warn('⚠️ [SSE] Erro de rede ou desconexão no canal de telemetria de progresso.');
-    };
+    connect();
 
     return () => {
-      // 🔒 Fechamento gracioso de socket ao desmontar hook
-      eventSource.close();
+      if (retryTimer) clearTimeout(retryTimer);
+      if (eventSource) eventSource.close();
     };
   }, []);
 

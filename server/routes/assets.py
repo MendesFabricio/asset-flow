@@ -8,6 +8,14 @@ from concurrent.futures import ThreadPoolExecutor, as_completed # ⚡ Injetado o
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from services import PortfolioService
+
+
+def _paginate(query, page: int = 1, page_size: int = 50):
+    page = max(page, 1)
+    page_size = max(min(page_size, 200), 1)
+    total = query.count()
+    items = query.limit(page_size).offset((page - 1) * page_size).all()
+    return items, total
 from utils.cvm_processor import CVMProcessor
 
 assets_bp = Blueprint('assets', __name__)

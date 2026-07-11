@@ -29,6 +29,7 @@ from routes.quant_analysis import quant_bp
 from routes.credit_cards import cards_bp
 from routes.fixed_income import fixed_income_bp
 from routes.auth import auth_bp
+from routes.scheduler import scheduler_bp
 
 
 
@@ -39,7 +40,11 @@ logging.basicConfig(
 )
 
 from database.models import init_db, DatabaseStateProxy, get_sync_state_db
-init_db()
+try:
+    init_db()
+    logging.info("✅ Banco de dados inicializado com sucesso.")
+except Exception as e:
+    logging.error(f"❌ Falha crítica na inicialização do banco de dados: {e}", exc_info=True)
 
 import decimal
 from flask.json.provider import DefaultJSONProvider
@@ -63,7 +68,8 @@ CORS(app, resources={r"/api/*": {"origins": allowed_origins}})
 
 # 🧠 MÁQUINA DE ESTADO PERSISTENTE: Controla o progresso real da sincronia em SQLite (stateless)
 SYNC_STATE = DatabaseStateProxy("cvm_sync")
-_SYNC_LOCK = threading.Lock()
+from database.lock import DistributedLock
+_SYNC_LOCK = DistributedLock("cvm_sync", timeout=300)
 
 # 🚀 STARTUP RECOVERY: Reseta estados "processing" órfãos do banco que ficaram presos após reinício do container.
 # Sem esse reset, o frontend fica com o spinner girando para sempre após um restart, porque não há lock ativo
@@ -93,6 +99,7 @@ def _get_sync_state() -> dict:
 @app.before_request
 def require_authentication():
     from flask import request, g
+    logging.info(f"📥 {request.method} {request.path} - IP: {request.remote_addr}")
     # Bypasses OPTIONS preflight, health check and auth endpoints
     if request.method == "OPTIONS" or request.path in ["/api/health", "/api/auth/login", "/api/auth/register", "/api/auth/logout", "/api/sync/stream"]:
         return
@@ -120,12 +127,15 @@ def require_authentication():
 def handle_global_exception(e):
     from flask import request
     logging.error(f"💥 Erro crítico global interceptado em {request.method} {request.url}: {str(e)}", exc_info=True)
+    import traceback
+    traceback.print_exc()
     return jsonify({
         "status": "Erro",
         "msg": "Ocorreu um erro interno no servidor de dados do AssetFlow."
     }), 500
 
 # Registro de Blueprints
+logging.info("🔧 Registrando blueprints...")
 app.register_blueprint(auth_bp)
 app.register_blueprint(dashboard_bp)
 app.register_blueprint(assets_bp)
@@ -144,6 +154,8 @@ app.register_blueprint(ai_bp)
 app.register_blueprint(quant_bp)
 app.register_blueprint(cards_bp)
 app.register_blueprint(fixed_income_bp)
+app.register_blueprint(scheduler_bp, url_prefix='/api/scheduler')
+logging.info("✅ Todos os blueprints registrados com sucesso.")
 
 
 
@@ -191,7 +203,6 @@ def async_sync_worker(flask_app):
         # 2. Coleta de Ativos (Ações CVM)
         # 🔒 FIX 1.3: Importa o scoped_session do services (thread-safe via threading.local)
         # em vez do sessionmaker simples de database.models que era compartilhado entre threads.
-        from services import Session as ScopedSession
         from database.models import Asset
         tickers_para_processar = []
 

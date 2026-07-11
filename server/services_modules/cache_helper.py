@@ -10,19 +10,22 @@ class CacheHelperService:
 
     def _invalidate_price_cache(self, session=None):
         _invalidate_cache()
-        self_close = False
-        if session is None:
-            session = Session()
-            self_close = True
-        try:
-            self._invalidate_quant_cache(session)
-            safe_commit(session)
-        except Exception as e:
-            session.rollback()
-            logging.warning(f"Falha ao invalidar cache quant no banco: {e}")
-        finally:
-            if self_close:
-                Session.remove()
+        if session is not None:
+            try:
+                self._invalidate_quant_cache(session)
+                safe_commit(session)
+            except Exception as e:
+                session.rollback()
+                logging.warning(f"Falha ao invalidar cache quant no banco: {e}")
+            return
+        
+        with Session() as session:
+            try:
+                self._invalidate_quant_cache(session)
+                safe_commit(session)
+            except Exception as e:
+                session.rollback()
+                logging.warning(f"Falha ao invalidar cache quant no banco: {e}")
 
     def _invalidate_quant_cache(self, session):
         try:

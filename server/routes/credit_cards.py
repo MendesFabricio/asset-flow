@@ -4,6 +4,7 @@ from database.models import Session, CreditCard, CardExpense, CardInstallment, s
 from datetime import datetime, date
 from decimal import Decimal
 from sqlalchemy.orm import joinedload
+from schemas import CreditCardCreate, CardExpenseCreate
 
 cards_bp = Blueprint('credit_cards', __name__)
 
@@ -13,17 +14,15 @@ from utils.date_helper import get_invoice_month_helper, get_due_date_helper, add
 def handle_cards():
     with Session() as db:
         if request.method == 'POST':
-            data = request.json or {}
-            name = data.get('name', '').strip()
             try:
-                limit = Decimal(str(data.get('limit', 0)))
-                closing_day = int(data.get('closing_day', 5))
-                due_day = int(data.get('due_day', 15))
-            except Exception:
-                return jsonify({"status": "Erro", "msg": "Valores numéricos inválidos"}), 400
-                
-            if not name or limit <= 0 or not (1 <= closing_day <= 31) or not (1 <= due_day <= 31):
-                return jsonify({"status": "Erro", "msg": "Campos obrigatórios inválidos"}), 400
+                body = CreditCardCreate(**request.json or {})
+            except Exception as e:
+                return jsonify({"status": "Erro", "msg": str(e)}), 400
+
+            name = body.name.strip()
+            limit = Decimal(str(body.limit))
+            closing_day = body.closing_day
+            due_day = body.due_day
                 
             card = CreditCard(
                 name=name,
@@ -144,15 +143,20 @@ def handle_expenses(card_id):
             return jsonify({"msg": "Despesa de cartão registrada com sucesso!"}), 201
             
         # GET
-        expenses = (
+        page = request.args.get('page', 1, type=int)
+        page_size = request.args.get('page_size', 50, type=int)
+        page = max(page, 1)
+        page_size = max(min(page_size, 200), 1)
+
+        base_query = (
             db.query(CardExpense)
             .options(joinedload(CardExpense.installments))
             .filter_by(card_id=card_id, user_id=g.user_id, is_deleted=False)
-            .order_by(CardExpense.id.desc())
-            .all()
         )
+        total = base_query.count()
+        expenses = base_query.order_by(CardExpense.id.desc()).limit(page_size).offset((page - 1) * page_size).all()
         
-        return jsonify([{
+        result = [{
             "id": e.id,
             "description": e.description,
             "total_value": float(e.total_value),
@@ -166,7 +170,13 @@ def handle_expenses(card_id):
                 "status": inst.status,
                 "invoice_month": inst.invoice_month
             } for inst in e.installments if not inst.is_deleted]
-        } for e in expenses])
+        } for e in expenses]
+        return jsonify({
+            "items": result,
+            "total": total,
+            "page": page,
+            "page_size": page_size
+        })
 
 @cards_bp.route('/api/credit-cards/installments/<int:id>/pay', methods=['POST'])
 def pay_installment(id):
