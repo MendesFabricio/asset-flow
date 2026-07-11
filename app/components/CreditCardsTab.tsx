@@ -79,8 +79,8 @@ export default function CreditCardsTab() {
 
   const loadExpenses = async (cardId: number) => {
     try {
-      const data = await apiCall<ExpenseItem[]>(`/api/credit-cards/${cardId}/expenses`);
-      setExpenses(data);
+      const data = await apiCall<{ items: ExpenseItem[] }>(`/api/credit-cards/${cardId}/expenses`);
+      setExpenses(data.items || []);
     } catch (e) {
       console.error(e);
     }
