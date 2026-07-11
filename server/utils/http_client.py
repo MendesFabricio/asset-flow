@@ -34,7 +34,7 @@ def get_secure_session(timeout: float = 10.0) -> requests.Session:
         status_forcelist=[429, 500, 502, 503, 504],
         raise_on_status=False
     )
-    adapter = TimeoutHTTPAdapter(max_retries=retries, timeout=timeout)
+    adapter = TimeoutHTTPAdapter(max_retries=retries, timeout=timeout, pool_connections=100, pool_maxsize=100)
     session.mount("http://", adapter)
     session.mount("https://", adapter)
     return session

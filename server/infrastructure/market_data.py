@@ -36,7 +36,7 @@ def update_prices(session, invalidate_cache_callback):
         if not download_list:
             return
 
-        batch_data = yf.download(download_list, period="6mo", group_by='ticker', threads=True, progress=False, auto_adjust=True, session=secure_session)
+        batch_data = yf.download(download_list, period="6mo", group_by='ticker', threads=False, progress=False, auto_adjust=True, session=secure_session)
 
         count_ok = 0
         asset_ids = [asset.id for asset in assets]

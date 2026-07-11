@@ -88,6 +88,11 @@ def _reset_orphaned_sync_states():
 
 _reset_orphaned_sync_states()
 
+@app.teardown_appcontext
+def shutdown_session(exception=None):
+    from database.session import Session
+    Session.remove()
+
 def _update_sync_state(**kwargs):
     """Atualiza o SYNC_STATE de forma persistente."""
     SYNC_STATE.update(kwargs)
