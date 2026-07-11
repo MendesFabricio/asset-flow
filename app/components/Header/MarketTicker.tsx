@@ -36,9 +36,14 @@ export const MarketTicker = React.memo(() => {
       }
     }
 
-    fetchIndices();
-    const intervalFetch = setInterval(fetchIndices, 60000); // Atualiza a cada 1m
-    return () => clearInterval(intervalFetch);
+    // Atraso de 3s para escalonar os pollings iniciais do header
+    const initialTimer = setTimeout(fetchIndices, 3000);
+    // Índices são atualizados pelo worker a cada 3min; polling a cada 2min é suficiente
+    const intervalFetch = setInterval(fetchIndices, 120000);
+    return () => {
+      clearTimeout(initialTimer);
+      clearInterval(intervalFetch);
+    };
   }, []);
 
   const activeTickers = [

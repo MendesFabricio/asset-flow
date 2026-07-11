@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Coffee, ChevronDown, ChevronUp, Brain, RefreshCw, AlertCircle } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Coffee, ChevronDown, ChevronUp, Brain, RefreshCw, AlertCircle, Loader2 } from 'lucide-react';
 import { apiCall } from '../utils/apiClient';
 import { Markdown } from './ui/Markdown';
 
@@ -18,17 +18,19 @@ export function MorningBriefing() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCoT, setShowCoT] = useState(false);
+  const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchBrief = async (force = false) => {
     setLoading(true);
     setError(null);
+    if (pollRef.current) clearTimeout(pollRef.current);
     try {
       const endpoint = force ? '/api/ai/morning-brief?force=true' : '/api/ai/morning-brief';
-      const result = await apiCall<BriefData>(endpoint, { timeout: 180000 });
-      if (result.status === 'Sucesso') {
-        setData(result);
-      } else {
-        setError('Não foi possível carregar o briefing matinal.');
+      const result = await apiCall<BriefData>(endpoint, { timeout: 30000 });
+      setData(result);
+      // Se IA ainda processando, sonda novamente em 20s (menos agressivo)
+      if (result.status === 'Processando') {
+        pollRef.current = setTimeout(() => fetchBrief(false), 20000);
       }
     } catch (e: any) {
       console.error(e);
@@ -39,8 +41,14 @@ export function MorningBriefing() {
   };
 
   useEffect(() => {
-    fetchBrief();
+    // Atraso de 5s para não disparar junto com MarketTicker (3s) e outros componentes do header
+    const init = setTimeout(() => fetchBrief(), 5000);
+    return () => {
+      clearTimeout(init);
+      if (pollRef.current) clearTimeout(pollRef.current);
+    };
   }, []);
+
 
   if (loading) {
     return (
@@ -92,12 +100,21 @@ export function MorningBriefing() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-slate-900 text-slate-400 border border-slate-800">
-            Selic: <span className="font-mono text-blue-400">{data.selic_rate}</span>
-          </span>
-          <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-slate-900 text-slate-400 border border-slate-800">
-            Dólar: <span className="font-mono text-emerald-400">{data.dolar_rate}</span>
-          </span>
+          {data.selic_rate && (
+            <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-slate-900 text-slate-400 border border-slate-800">
+              Selic: <span className="font-mono text-blue-400">{data.selic_rate}</span>
+            </span>
+          )}
+          {data.dolar_rate && (
+            <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-slate-900 text-slate-400 border border-slate-800">
+              Dólar: <span className="font-mono text-emerald-400">{data.dolar_rate}</span>
+            </span>
+          )}
+          {data.status === 'Processando' && (
+            <span className="flex items-center gap-1 text-[10px] font-bold text-amber-400">
+              <Loader2 size={11} className="animate-spin" /> Gerando IA...
+            </span>
+          )}
           <button
             onClick={() => fetchBrief(true)}
             title="Reanalisar com IA (forçar recálculo)"
@@ -112,6 +129,7 @@ export function MorningBriefing() {
       <div className="text-xs text-slate-300 leading-relaxed font-normal">
         <Markdown text={data.brief_text} />
       </div>
+
 
       {data.rationale && (
         <div className="mt-3 border-t border-slate-800/40 pt-3">

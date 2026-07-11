@@ -149,11 +149,13 @@ export function Notifications({ onFixAsset }: NotificationsProps) {
   };
 
   useEffect(() => {
+    // Atraso inicial de 8s para escalonar os pollings e evitar thundering herd
     const timer = setTimeout(() => {
       fetchAlerts();
-    }, 0);
+    }, 8000);
 
-    const interval = setInterval(fetchAlerts, 60000);
+    // 90s de intervalo para não colidir com o MarketTicker (60s)
+    const interval = setInterval(fetchAlerts, 90000);
     return () => {
       clearTimeout(timer);
       clearInterval(interval);

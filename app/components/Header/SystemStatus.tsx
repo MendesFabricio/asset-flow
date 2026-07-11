@@ -31,7 +31,7 @@ export function SystemStatus() {
   const { data, error, isLoading } = useSWR<HealthResponse>(
     '/api/health',
     fetcher,
-    { refreshInterval: 15000, revalidateOnFocus: true }
+    { refreshInterval: 60000, revalidateOnFocus: false }
   );
 
   useEffect(() => {
