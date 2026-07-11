@@ -28,3 +28,10 @@ class CardExpenseCreate(BaseModel):
 class RefundConfigUpdate(BaseModel):
     fechamento_dia: int = Field(..., ge=1, le=31)
     vencimento_dia: int = Field(..., ge=1, le=31)
+
+class ProfileUpdateSchema(BaseModel):
+    username: str = Field(..., min_length=3, max_length=50)
+
+class PasswordChangeSchema(BaseModel):
+    current_password: str = Field(..., min_length=1)
+    new_password: str = Field(..., min_length=8)

@@ -138,7 +138,7 @@ def get_calendar():
                     pass
 
                 bg_events = []
-                with ThreadPoolExecutor(max_workers=4) as executor:
+                with ThreadPoolExecutor(max_workers=2) as executor:
                     futures = [executor.submit(fetch_single_asset_proventos, item, secure_session) for item in items_to_process]
                     for future in as_completed(futures):
                         try:

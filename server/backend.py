@@ -232,8 +232,8 @@ def async_sync_worker(flask_app):
             return ticker
 
         count_cvm = 0
-        # Dispara até 4 workers simultâneos (equilíbrio perfeito para não travar o disco do Docker)
-        with ThreadPoolExecutor(max_workers=4) as executor:
+        # Dispara até 2 workers simultâneos (evita contenção no SQLite)
+        with ThreadPoolExecutor(max_workers=2) as executor:
             futures = {executor.submit(process_single_cvm_item, t, c): t for t, c in tickers_para_processar}
 
             for future in as_completed(futures):

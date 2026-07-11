@@ -1,10 +1,11 @@
 # server/routes/auth.py
 import logging
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, g
 from database.models import User, RefundConfig, safe_commit
 from database.session import Session
 from werkzeug.security import check_password_hash, generate_password_hash
 from itsdangerous import URLSafeTimedSerializer
+from schemas import ProfileUpdateSchema, PasswordChangeSchema
 
 import time
 import re
@@ -156,3 +157,110 @@ def logout():
     response = jsonify({"status": "Sucesso", "msg": "Logout efetuado com sucesso."})
     response.delete_cookie("assetflow_session")
     return response
+
+@auth_bp.route('/api/auth/profile', methods=['GET'])
+def get_profile():
+    try:
+        user_id = getattr(g, "user_id", None)
+        if not user_id:
+            return jsonify({"status": "Erro", "msg": "Não autenticado."}), 401
+        
+        with Session() as session:
+            user = session.query(User).filter_by(id=int(user_id)).first()
+            if not user:
+                return jsonify({"status": "Erro", "msg": "Usuário não encontrado."}), 404
+            
+            return jsonify({
+                "status": "Sucesso",
+                "data": {
+                    "id": user.id,
+                    "username": user.username,
+                    "created_at": user.created_at.isoformat() if user.created_at else None,
+                }
+            })
+    except Exception as e:
+        logging.error(f"Erro ao buscar perfil: {e}")
+        return jsonify({"status": "Erro", "msg": "Erro interno do servidor."}), 500
+
+@auth_bp.route('/api/auth/profile', methods=['PUT'])
+def update_profile():
+    try:
+        user_id = getattr(g, "user_id", None)
+        if not user_id:
+            return jsonify({"status": "Erro", "msg": "Não autenticado."}), 401
+        
+        data = request.get_json() or {}
+        
+        with Session() as session:
+            user = session.query(User).filter_by(id=int(user_id)).first()
+            if not user:
+                return jsonify({"status": "Erro", "msg": "Usuário não encontrado."}), 404
+            
+            if "username" in data:
+                new_username = data["username"].strip()
+                if not new_username or len(new_username) < 3:
+                    return jsonify({"status": "Erro", "msg": "Nome de usuário deve ter pelo menos 3 caracteres."}), 400
+                
+                exists = session.query(User).filter(User.username.ilike(new_username)).filter(User.id != user.id).first()
+                if exists:
+                    return jsonify({"status": "Erro", "msg": "Este nome de usuário já está sendo utilizado."}), 409
+                
+                user.username = new_username
+            
+            safe_commit(session)
+            logging.info(f"👤 Perfil atualizado para usuário ID {user.id}")
+            
+            return jsonify({
+                "status": "Sucesso",
+                "msg": "Perfil atualizado com sucesso.",
+                "data": {
+                    "id": user.id,
+                    "username": user.username,
+                    "created_at": user.created_at.isoformat() if user.created_at else None,
+                }
+            })
+    except Exception as e:
+        session.rollback()
+        logging.error(f"Erro ao atualizar perfil: {e}")
+        return jsonify({"status": "Erro", "msg": "Erro interno do servidor."}), 500
+
+@auth_bp.route('/api/auth/profile/password', methods=['PUT'])
+def change_password():
+    try:
+        user_id = getattr(g, "user_id", None)
+        if not user_id:
+            return jsonify({"status": "Erro", "msg": "Não autenticado."}), 401
+        
+        data = request.get_json() or {}
+        current_password = data.get("current_password", "")
+        new_password = data.get("new_password", "")
+        
+        if not current_password or not new_password:
+            return jsonify({"status": "Erro", "msg": "Senha atual e nova senha são obrigatórias."}), 400
+        
+        if not validate_password_complexity(new_password):
+            return jsonify({
+                "status": "Erro", 
+                "msg": "Nova senha fraca. A senha deve conter pelo menos 8 caracteres, contendo pelo menos 1 número, 1 letra maiúscula e 1 caractere especial."
+            }), 400
+        
+        with Session() as session:
+            user = session.query(User).filter_by(id=int(user_id)).first()
+            if not user:
+                return jsonify({"status": "Erro", "msg": "Usuário não encontrado."}), 404
+            
+            if not check_password_hash(user.password_hash, current_password):
+                return jsonify({"status": "Erro", "msg": "Senha atual incorreta."}), 401
+            
+            user.password_hash = generate_password_hash(new_password)
+            safe_commit(session)
+            logging.info(f"🔐 Senha alterada para usuário ID {user.id}")
+            
+            return jsonify({
+                "status": "Sucesso",
+                "msg": "Senha alterada com sucesso."
+            })
+    except Exception as e:
+        session.rollback()
+        logging.error(f"Erro ao alterar senha: {e}")
+        return jsonify({"status": "Erro", "msg": "Erro interno do servidor."}), 500

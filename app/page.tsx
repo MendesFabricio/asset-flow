@@ -10,6 +10,19 @@ import { Asset } from './types';
 import { useModalStore } from './store/modalStore';
 import { MorningBriefing } from './components/MorningBriefing';
 import { SkeletonLoading } from './components/SkeletonLoading';
+import {
+  RiskRadarSkeleton,
+  HistoryChartSkeleton,
+  CategorySummarySkeleton,
+  ModalSkeleton,
+  ChatSkeleton,
+  NewsPanelSkeleton,
+  ReceivablesSkeleton,
+  CreditCardsSkeleton,
+  FixedIncomeSkeleton,
+  CorrelationSkeleton,
+  QuantSkeleton
+} from './components/Skeletons';
 import { useAssetData } from './hooks/useAssetData';
 import { usePortfolioHandlers } from './hooks/usePortfolioHandlers';
 import { usePortfolioMetrics } from './hooks/usePortfolioMetrics';
@@ -35,21 +48,21 @@ import {
   AlertTriangle
 } from 'lucide-react';
 
-const RiskRadar = dynamic(() => import('./components/RiskRadar').then(mod => mod.RiskRadar), { ssr: false, loading: () => <SkeletonLoading /> });
-const HistoryChart = dynamic(() => import('./components/HistoryChart').then(mod => mod.HistoryChart), { ssr: false, loading: () => <SkeletonLoading /> });
-const CategorySummary = dynamic(() => import('./components/CategorySummary').then(mod => mod.CategorySummary), { ssr: false, loading: () => <SkeletonLoading /> });
-const EditModal = dynamic(() => import('./components/EditModal').then(mod => mod.EditModal), { ssr: false, loading: () => <SkeletonLoading /> });
-const AddAssetModal = dynamic(() => import('./components/AddAssetModal').then(mod => mod.AddAssetModal), { ssr: false, loading: () => <SkeletonLoading /> });
-const AssetNewsPanel = dynamic(() => import('./components/AssetNewsPanel').then(mod => mod.AssetNewsPanel), { ssr: false, loading: () => <SkeletonLoading /> });
-const ReceivablesTab = dynamic(() => import('./components/ReceivablesTab').then(mod => mod.ReceivablesTab), { ssr: false, loading: () => <SkeletonLoading /> });
-const CreditCardsTab = dynamic(() => import('./components/CreditCardsTab'), { ssr: false, loading: () => <SkeletonLoading /> });
-const FixedIncomeTab = dynamic(() => import('./components/FixedIncomeTab'), { ssr: false, loading: () => <SkeletonLoading /> });
-const AssetDetailsModal = dynamic(() => import('./components/AssetDetailsModal').then(mod => mod.AssetDetailsModal), { ssr: false, loading: () => <SkeletonLoading /> });
-const CorrelationHeatmap = dynamic(() => import('./components/CorrelationHeatmap').then(mod => mod.CorrelationHeatmap), { ssr: false, loading: () => <SkeletonLoading /> });
-const SmartAllocationModal = dynamic(() => import('./components/SmartAllocationModal').then(mod => mod.SmartAllocationModal), { ssr: false, loading: () => <SkeletonLoading /> });
-const IncomeProjectionModal = dynamic(() => import('./components/IncomeProjectionModal').then(mod => mod.IncomeProjectionModal), { ssr: false, loading: () => <SkeletonLoading /> });
-const JarvisChat = dynamic(() => import('./components/JarvisChat').then(mod => mod.JarvisChat), { ssr: false, loading: () => <SkeletonLoading /> });
-const QuantDashboard = dynamic(() => import('./components/QuantDashboard').then(mod => mod.QuantDashboard), { ssr: false, loading: () => <SkeletonLoading /> });
+const RiskRadar = dynamic(() => import('./components/RiskRadar').then(mod => mod.RiskRadar), { ssr: false, loading: () => <RiskRadarSkeleton /> }) as React.FC<any>;
+const HistoryChart = dynamic(() => import('./components/HistoryChart').then(mod => mod.HistoryChart), { ssr: false, loading: () => <HistoryChartSkeleton /> }) as React.FC<any>;
+const CategorySummary = dynamic(() => import('./components/CategorySummary').then(mod => mod.CategorySummary), { ssr: false, loading: () => <CategorySummarySkeleton /> }) as React.FC<any>;
+const EditModal = dynamic(() => import('./components/EditModal').then(mod => mod.EditModal), { ssr: false, loading: () => <ModalSkeleton /> }) as React.FC<any>;
+const AddAssetModal = dynamic(() => import('./components/AddAssetModal').then(mod => mod.AddAssetModal), { ssr: false, loading: () => <ModalSkeleton /> }) as React.FC<any>;
+const AssetNewsPanel = dynamic(() => import('./components/AssetNewsPanel').then(mod => mod.AssetNewsPanel), { ssr: false, loading: () => <NewsPanelSkeleton /> }) as React.FC<any>;
+const ReceivablesTab = dynamic(() => import('./components/ReceivablesTab').then(mod => mod.ReceivablesTab), { ssr: false, loading: () => <ReceivablesSkeleton /> }) as React.FC<any>;
+const CreditCardsTab = dynamic(() => import('./components/CreditCardsTab'), { ssr: false, loading: () => <CreditCardsSkeleton /> }) as React.FC<any>;
+const FixedIncomeTab = dynamic(() => import('./components/FixedIncomeTab'), { ssr: false, loading: () => <FixedIncomeSkeleton /> }) as React.FC<any>;
+const AssetDetailsModal = dynamic(() => import('./components/AssetDetailsModal').then(mod => mod.AssetDetailsModal), { ssr: false, loading: () => <ModalSkeleton /> }) as React.FC<any>;
+const CorrelationHeatmap = dynamic(() => import('./components/CorrelationHeatmap').then(mod => mod.CorrelationHeatmap), { ssr: false, loading: () => <CorrelationSkeleton /> }) as React.FC<any>;
+const SmartAllocationModal = dynamic(() => import('./components/SmartAllocationModal').then(mod => mod.SmartAllocationModal), { ssr: false, loading: () => <ModalSkeleton /> }) as React.FC<any>;
+const IncomeProjectionModal = dynamic(() => import('./components/IncomeProjectionModal').then(mod => mod.IncomeProjectionModal), { ssr: false, loading: () => <ModalSkeleton /> }) as React.FC<any>;
+const JarvisChat = dynamic(() => import('./components/JarvisChat').then(mod => mod.JarvisChat), { ssr: false, loading: () => <ChatSkeleton /> }) as React.FC<any>;
+const QuantDashboard = dynamic(() => import('./components/QuantDashboard').then(mod => mod.QuantDashboard), { ssr: false, loading: () => <QuantSkeleton /> }) as React.FC<any>;
 
 export default function Home() {
   const { data, history, loading, refetch, syncStatus, fundamentalsStatus, mutateSync, mutateFundamentals } = useAssetData();

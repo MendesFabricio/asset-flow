@@ -92,7 +92,7 @@ def calculate_markowitz_optimization(session, fetch_prices) -> dict:
     N = len(avail_tickers)
     risk_free = get_risk_free_rate()
     
-    num_portfolios = 5000
+    num_portfolios = 2000
     weights_matrix = np.random.random((num_portfolios, N))
     weights_matrix = weights_matrix / np.sum(weights_matrix, axis=1, keepdims=True)
     
@@ -130,7 +130,8 @@ def calculate_efficient_frontier_points(session, fetch_prices) -> dict:
         cat = pos.asset.category.name if pos.asset.category else ""
         if cat in ["Renda Fixa", "Reserva"]:
             continue
-        tickers_yf.append(_to_yf_ticker(pos.asset.ticker, cat))
+        ticker_yf = _to_yf_ticker(pos.asset.ticker, cat)
+        tickers_yf.append(ticker_yf)
         tickers_clean.append(pos.asset.ticker.upper())
         
     if len(tickers_yf) < 2:
@@ -154,7 +155,7 @@ def calculate_efficient_frontier_points(session, fetch_prices) -> dict:
     risk_free = get_risk_free_rate()
     ticker_clean_map = dict(zip(tickers_yf, tickers_clean))
     
-    num_portfolios = 5000
+    num_portfolios = 2000
     weights_matrix = np.random.random((num_portfolios, N))
     weights_matrix = weights_matrix / np.sum(weights_matrix, axis=1, keepdims=True)
     

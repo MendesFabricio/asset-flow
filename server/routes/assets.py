@@ -170,8 +170,8 @@ def get_assets():
             
         results = []
         
-        # ⚡ Divide o processamento síncrono pesado em um Pool de até 10 Workers paralelos
-        with ThreadPoolExecutor(max_workers=10) as executor:
+        # Divide o processamento síncrono pesado em um Pool de até 2 Workers paralelos
+        with ThreadPoolExecutor(max_workers=2) as executor:
             futures = [executor.submit(_worker_process_fundamentalist_data, asset) for asset in assets]
             
             for future in as_completed(futures):
