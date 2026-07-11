@@ -68,18 +68,14 @@ export function UserMenu({ showName = false }: UserMenuProps) {
             <p className="text-xs text-white font-bold truncate mt-1">{username || 'Investidor'}</p>
           </div>
 
-          {/* MENU ACTIONS */}
-          <button
-            type="button"
+          <Link
+            href="/perfil"
             className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-slate-900 text-slate-400 hover:text-slate-200 transition-colors flex items-center gap-2.5 text-xs"
-            onClick={() => {
-              alert('Funcionalidade "Meu Perfil" em desenvolvimento. Em breve no AssetFlow Pro!');
-              setIsOpen(false);
-            }}
+            onClick={() => setIsOpen(false)}
           >
             <User size={13} />
             <span>Meu Perfil</span>
-          </button>
+          </Link>
 
           <button
             type="button"
@@ -113,6 +109,8 @@ export function UserMenu({ showName = false }: UserMenuProps) {
             <Settings size={13} />
             <span>Avançado</span>
           </Link>
+
+
 
           <div className="h-px bg-slate-900 my-1" />
 
