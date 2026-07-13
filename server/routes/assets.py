@@ -81,11 +81,15 @@ def add_asset():
             body.meta
         )
         
-        try: 
-            service.update_prices()
-            service.take_daily_snapshot()
-        except Exception as e: 
-            logging.warning(f"⚠️ Falha ao computar pós-inclusão de ativo: {e}")
+        def _background_tasks():
+            try:
+                service.update_prices()
+                service.take_daily_snapshot()
+            except Exception as e:
+                logging.warning(f"⚠️ Falha ao computar pós-inclusão de ativo em background: {e}")
+                
+        from services import background_task_executor
+        background_task_executor.submit(_background_tasks)
              
         return jsonify({"status": "Sucesso", "msg": msg})
         
@@ -112,7 +116,14 @@ def update_asset():
             current_price=body.current_price
         )
         
-        service.take_daily_snapshot() 
+        def _background_update():
+            try:
+                service.take_daily_snapshot() 
+            except Exception as e:
+                logging.warning(f"⚠️ Falha ao computar snapshot pós-atualização em background: {e}")
+                
+        from services import background_task_executor
+        background_task_executor.submit(_background_update)
              
         return jsonify({"status": "Sucesso", "msg": msg})
     except ValueError as e:
@@ -150,6 +161,16 @@ def delete_asset():
     
     try:
         msg = service.delete_asset(asset_id)
+        
+        def _background_delete():
+            try:
+                service.take_daily_snapshot() 
+            except Exception as e:
+                logging.warning(f"⚠️ Falha ao computar snapshot pós-exclusão em background: {e}")
+                
+        from services import background_task_executor
+        background_task_executor.submit(_background_delete)
+        
         return jsonify({"status": "Sucesso", "msg": msg})
     except ValueError as e:
         return jsonify({"status": "Erro", "msg": str(e)}), 404
@@ -170,14 +191,12 @@ def get_assets():
             
         results = []
         
-        # Divide o processamento síncrono pesado em um Pool de até 2 Workers paralelos
-        with ThreadPoolExecutor(max_workers=2) as executor:
-            futures = [executor.submit(_worker_process_fundamentalist_data, asset) for asset in assets]
-            
-            for future in as_completed(futures):
-                res = future.result()
-                if res is not None:
-                    results.append(res)
+        # Removemos o ThreadPoolExecutor para evitar 'database is locked' com SQLite.
+        # Em SQLite, o paralelismo pesado dentro de uma rota trava o Gunicorn.
+        for asset in assets:
+            res = _worker_process_fundamentalist_data(asset)
+            if res is not None:
+                results.append(res)
         
         # Mantém a ordenação alfabética por Ticker estável para o front-end
         results.sort(key=lambda x: x.get('ticker', ''))
@@ -194,17 +213,21 @@ def correlation():
 
 @assets_bp.route('/api/refresh_prices', methods=['POST'])
 def refresh_prices():
-    if not service._price_lock.acquire(blocking=False):
-        return jsonify({"status": "Aviso", "msg": "Uma atualização de preços já está em andamento. Aguarde."}), 409
-    try:
-        logging.info("⚡ Recebido comando de atualização manual via Dashboard.")
-        service.update_prices()
-        service.take_daily_snapshot()
-        return jsonify({"status": "Sucesso", "msg": "Preços e Variações atualizados!"})
-    except Exception as e:
-        return jsonify({"status": "Erro", "msg": str(e)}), 500
-    finally:
-        service._price_lock.release()
+    def _bg_refresh():
+        if service._price_lock.acquire(blocking=False):
+            try:
+                logging.info("⚡ Executando atualização manual de preços em background...")
+                service.update_prices()
+                service.take_daily_snapshot()
+            except Exception as e:
+                logging.error(f"⚠️ Erro no background de refresh_prices: {e}")
+            finally:
+                service._price_lock.release()
+                
+    from services import background_task_executor
+    background_task_executor.submit(_bg_refresh)
+    
+    return jsonify({"status": "Processando", "msg": "Atualização iniciada em background."}), 202
 
 @assets_bp.route('/api/risk-metrics', methods=['GET'])
 def risk_metrics():

@@ -137,13 +137,12 @@ def get_calendar():
                     pass
 
                 bg_events = []
-                with ThreadPoolExecutor(max_workers=2) as executor:
-                    futures = [executor.submit(fetch_single_asset_proventos, item, secure_session) for item in items_to_process]
-                    for future in as_completed(futures):
-                        try:
-                            bg_events.extend(future.result())
-                        except Exception as thread_err:
-                            logging.warning(f"Erro em thread de busca de provento: {thread_err}")
+                for item in items_to_process:
+                    try:
+                        res = fetch_single_asset_proventos(item, secure_session)
+                        bg_events.extend(res)
+                    except Exception as thread_err:
+                        logging.warning(f"Erro na busca de provento: {thread_err}")
 
                 bg_events.sort(key=lambda x: x['date'])
                 CALENDAR_CACHE[user_id] = {

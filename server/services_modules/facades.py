@@ -19,7 +19,7 @@ class FacadeService:
         with Session() as session:
             return run_monte_carlo(session, _fetch_price_history_fn, days, simulations)
 
-    def get_correlation_matrix(self, session=None):
+    def get_correlation_matrix(self, session=None, allow_compute=True):
         """Façade → quant_engine.get_correlation_matrix com Cache"""
         uid = getattr(self, 'current_user_id', None)
         cache_key = f"correlation_matrix_{uid}" if uid else "correlation_matrix"
@@ -28,7 +28,9 @@ class FacadeService:
             cached = self._get_cached_unwrap(cache_key)
             if cached:
                 return cached
-            result = get_correlation_matrix(session, _fetch_price_history_fn)
+            if not allow_compute:
+                return {"status": "Erro", "msg": "Cache MISS and allow_compute is False."}
+            result = get_correlation_matrix(session, _fetch_price_history_fn, allow_compute)
             self._set_cached_value(session, cache_key, result)
             return result
         
@@ -36,11 +38,13 @@ class FacadeService:
             cached = self._get_cached_unwrap(cache_key)
             if cached:
                 return cached
-            result = get_correlation_matrix(session, _fetch_price_history_fn)
+            if not allow_compute:
+                return {"status": "Erro", "msg": "Cache MISS and allow_compute is False."}
+            result = get_correlation_matrix(session, _fetch_price_history_fn, allow_compute)
             self._set_cached_value(session, cache_key, result)
             return result
 
-    def calculate_risk_metrics(self, session=None) -> dict:
+    def calculate_risk_metrics(self, session=None, allow_compute=True) -> dict:
         """Façade → quant_engine.calculate_risk_metrics com Cache"""
         uid = getattr(self, 'current_user_id', None)
         cache_key = f"risk_metrics_{uid}" if uid else "risk_metrics"
@@ -49,15 +53,19 @@ class FacadeService:
             cached = self._get_cached_unwrap(cache_key)
             if cached:
                 return cached
-            result = calculate_risk_metrics(session, _fetch_price_history_fn)
+            if not allow_compute:
+                return {"status": "Erro", "msg": "Cache MISS and allow_compute is False."}
+            result = calculate_risk_metrics(session, _fetch_price_history_fn, allow_compute)
             self._set_cached_value(session, cache_key, result)
             return result
-        
+            
         with Session() as session:
             cached = self._get_cached_unwrap(cache_key)
             if cached:
                 return cached
-            result = calculate_risk_metrics(session, _fetch_price_history_fn)
+            if not allow_compute:
+                return {"status": "Erro", "msg": "Cache MISS and allow_compute is False."}
+            result = calculate_risk_metrics(session, _fetch_price_history_fn, allow_compute)
             self._set_cached_value(session, cache_key, result)
             return result
 

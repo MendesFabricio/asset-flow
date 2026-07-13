@@ -4,7 +4,7 @@ import "./globals.css";
 // 👇 IMPORTANTE: Importar o Provider que vamos criar
 import { PrivacyProvider } from "./context/PrivacyContext";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ subsets: ["latin"], display: "swap" });
 
 export const metadata: Metadata = {
   title: 'AssetFlow Pro | Gestão Inteligente',

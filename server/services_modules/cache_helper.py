@@ -47,6 +47,27 @@ class CacheHelperService:
         except Exception as e:
             logging.warning(f"Falha ao invalidar cache quant: {e}")
 
+        if user_id:
+            def background_recalculate(uid):
+                import time
+                import logging
+                import threading
+                from database.connection import Session
+                time.sleep(1.0) # Wait for parent transaction to commit
+                try:
+                    from services import PortfolioService
+                    with Session() as bg_session:
+                        svc = PortfolioService()
+                        svc.current_user_id = uid
+                        logging.info(f"🔄 Recomputando cache quant para usuário {uid} em background...")
+                        svc.get_correlation_matrix(session=bg_session, allow_compute=True)
+                        svc.calculate_risk_metrics(session=bg_session, allow_compute=True)
+                except Exception as bg_e:
+                    logging.warning(f"⚠️ Erro ao pré-computar cache: {bg_e}")
+                    
+            import threading
+            threading.Thread(target=background_recalculate, args=(user_id,), daemon=True).start()
+
     def _get_cached_value(self, session, key, ttl_seconds=3600):
         try:
             user_id = getattr(self, "current_user_id", None)

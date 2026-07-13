@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 import { Asset } from '../types';
 
 export function usePortfolioMetrics(data: any, isHidden: boolean, formatMoney: (v: number) => string) {
@@ -33,7 +33,7 @@ export function usePortfolioMetrics(data: any, isHidden: boolean, formatMoney: (
     }, 0) || 0;
   }, [data?.ativos]);
 
-  const money = (val: number) => isHidden ? '••••••' : formatMoney(val);
+  const money = useCallback((val: number) => isHidden ? '••••••' : formatMoney(val), [isHidden, formatMoney]);
 
   return {
     topCompras,

@@ -5,7 +5,7 @@ import numpy as np
 from database.models import get_active_positions
 from domain.quant.helpers import _to_yf_ticker, _align_prices_to_b3, _get_current_user_id, _extract_close_prices
 
-def get_correlation_matrix(session, fetch_prices) -> dict:
+def get_correlation_matrix(session, fetch_prices, allow_compute=True) -> dict:
     logging.info("🧮 Calculando matriz de correlação...")
     import pandas as pd
 
@@ -38,6 +38,9 @@ def get_correlation_matrix(session, fetch_prices) -> dict:
             return json.loads(rec.value)
     except Exception:
         pass
+
+    if not allow_compute:
+        return {"status": "Erro", "msg": "Cache MISS and allow_compute is False."}
 
     raw = fetch_prices(unique, period="1y")
     prices = _extract_close_prices(raw)

@@ -11,7 +11,7 @@ class PortfolioCrudService:
         user_id = self.current_user_id
         with Session() as session:
             try:
-                asset = session.query(Asset).filter_by(ticker=ticker, user_id=user_id).first()
+                asset = session.query(Asset).filter_by(ticker=ticker).first()
                 if not asset: 
                     raise ValueError(f"Ativo {ticker} não encontrado")
                 

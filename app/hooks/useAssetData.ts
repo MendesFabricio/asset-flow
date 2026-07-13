@@ -130,8 +130,7 @@ export function useAssetData() {
   }, []);
 
   const refreshAll = async () => {
-    await fetch('/api/index?force=true');
-    mutateDashboard();
+    await mutateDashboard();
   };
 
   // Funções stub mantidas para compatibilidade com o resto do sistema

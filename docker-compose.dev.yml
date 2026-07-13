@@ -66,8 +66,9 @@ services:
     working_dir: /app
     volumes:
       - .:/app
+      - node_modules:/app/node_modules
     # Evita conflitos com node_modules local em sistemas Windows
-    command: sh -c "npm install && npm run dev"
+    command: npm run dev
     environment:
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:5328}
       - WATCHPACK_POLLING=true
@@ -88,3 +89,4 @@ services:
 volumes:
   sqlite_data:
   ollama_data:
+  node_modules:

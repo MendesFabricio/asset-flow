@@ -1,6 +1,6 @@
 'use client';
 import dynamic from 'next/dynamic';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { usePrivacy } from './context/PrivacyContext';
 import { formatMoney } from './utils';
 import { StatCard } from './components/StatCard';
@@ -124,6 +124,14 @@ export default function Home() {
     }
   }, [fundamentalsStatus.status, fundamentalsStatus.message, notify]);
 
+  const handleManualRefresh = useCallback(() => {
+    handlers.handleManualRefresh(setIsRefetching, setShowRefreshSuccess);
+  }, [handlers]);
+
+  const handleFixAsset = useCallback((assetId: number) => {
+    handlers.handleFixAsset(assetId, data?.ativos || []);
+  }, [handlers, data?.ativos]);
+
   if (loading) {
     return (
       <main className="min-h-screen bg-[#0b0f19] text-slate-200 font-sans selection:bg-blue-500/30 pb-20 relative">
@@ -135,11 +143,11 @@ export default function Home() {
           fundamentalsStatus={{ status: 'idle', message: '' }}
           onSyncReports={handlers.handleSyncReports}
           onUpdateFundamentals={handlers.handleUpdateFundamentals}
-          onManualRefresh={() => {}}
+          onManualRefresh={handleManualRefresh}
           onOpenIfModal={handlers.handleOpenIfModal}
           onOpenSmartModal={handlers.handleOpenSmartModal}
           onOpenAddModal={handlers.handleOpenAddModal}
-          onFixAsset={() => {}}
+          onFixAsset={handleFixAsset}
           loading={true}
           isRefetching={false}
           showRefreshSuccess={false}
@@ -159,11 +167,11 @@ export default function Home() {
         fundamentalsStatus={fundamentalsStatus}
         onSyncReports={handlers.handleSyncReports}
         onUpdateFundamentals={handlers.handleUpdateFundamentals}
-        onManualRefresh={() => handlers.handleManualRefresh(setIsRefetching, setShowRefreshSuccess)}
+        onManualRefresh={handleManualRefresh}
         onOpenIfModal={handlers.handleOpenIfModal}
         onOpenSmartModal={handlers.handleOpenSmartModal}
         onOpenAddModal={handlers.handleOpenAddModal}
-        onFixAsset={(assetId) => handlers.handleFixAsset(assetId, data?.ativos || [])}
+        onFixAsset={handleFixAsset}
         loading={loading}
         isRefetching={isRefetching}
         showRefreshSuccess={showRefreshSuccess}

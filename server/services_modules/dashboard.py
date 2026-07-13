@@ -328,7 +328,7 @@ class DashboardService:
                             })
 
                 try:
-                    corr_data = get_correlation_matrix(session, _fetch_price_history_fn)
+                    corr_data = self.get_correlation_matrix(session, allow_compute=False)
                     if corr_data.get("status") == "Sucesso":
                         pairs_reported = set()
                         for cell in corr_data.get("matrix", []):
@@ -346,7 +346,7 @@ class DashboardService:
                     logging.warning(f"⚠️ Falha ao computar alertas de correlação no Dashboard: {e}")
 
                 try:
-                    risk_data = calculate_risk_metrics(session, _fetch_price_history_fn)
+                    risk_data = self.calculate_risk_metrics(session, allow_compute=False)
                     if risk_data.get("status") == "Sucesso":
                         beta = risk_data.get("beta", 1.0)
                         sharpe = risk_data.get("sharpe_12m", 0.0)

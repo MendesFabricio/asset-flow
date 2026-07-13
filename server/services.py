@@ -10,6 +10,10 @@ import logging
 import yfinance as yf
 from datetime import datetime, timedelta
 from decimal import Decimal
+from concurrent.futures import ThreadPoolExecutor
+
+# Fila global para tarefas de background pesadas (evita exaustão de SQLite / GIL)
+background_task_executor = ThreadPoolExecutor(max_workers=1)
 
 # Sub-módulos refatorados do novo pacote
 from services_modules.cache_helper import CacheHelperService

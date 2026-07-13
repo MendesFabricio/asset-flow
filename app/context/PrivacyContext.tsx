@@ -1,5 +1,5 @@
 'use client';
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react';
 
 interface PrivacyContextType {
   isHidden: boolean;
@@ -57,8 +57,10 @@ export const PrivacyProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
+  const value = useMemo(() => ({ isHidden, togglePrivacy }), [isHidden]);
+
   return (
-    <PrivacyContext.Provider value={{ isHidden, togglePrivacy }}>
+    <PrivacyContext.Provider value={value}>
       {children}
     </PrivacyContext.Provider>
   );

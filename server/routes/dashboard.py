@@ -68,17 +68,21 @@ def async_fundamentals_worker(flask_app):
 def get_data():
     force = request.args.get('force') == 'true'
     if force:
-        if service._price_lock.acquire(blocking=False):
-            try:
-                logging.info("⚡ Forçando atualização síncrona de preços via requisição do usuário...")
-                service.update_prices()
-                service.take_daily_snapshot()
-            except Exception as e:
-                logging.error(f"⚠️ Falha ao forçar atualização síncrona de preços: {e}")
-            finally:
-                service._price_lock.release()
-        else:
-            logging.info("⚡ Ignorando force update de preços pois já existe uma atualização em andamento.")
+        def _bg_update():
+            if service._price_lock.acquire(blocking=False):
+                try:
+                    logging.info("⚡ Atualizando preços em background via requisição force=true...")
+                    service.update_prices()
+                    service.take_daily_snapshot()
+                except Exception as e:
+                    logging.error(f"⚠️ Falha na atualização de preços: {e}")
+                finally:
+                    service._price_lock.release()
+            else:
+                logging.info("⚡ Ignorando update de preços pois já existe uma atualização em andamento.")
+
+        from services import background_task_executor
+        background_task_executor.submit(_bg_update)
         
     try:
         data = service.get_dashboard_data()

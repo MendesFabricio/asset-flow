@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from database.models import SystemCache, safe_commit, get_active_positions
 from domain.quant.helpers import _to_yf_ticker, _align_prices_to_b3, get_risk_free_rate, _get_current_user_id, _extract_close_prices, _calculate_ewma_covariance, classify_asset_sector
 
-def calculate_risk_metrics(session, fetch_prices) -> dict:
+def calculate_risk_metrics(session, fetch_prices, allow_compute=True) -> dict:
     uid = _get_current_user_id()
     cache_key = f"risk_metrics_{uid}" if uid is not None else "risk_metrics"
     try:
@@ -18,6 +18,9 @@ def calculate_risk_metrics(session, fetch_prices) -> dict:
                 return json.loads(cache_record.value)
     except Exception as e:
         logging.warning(f"⚠️ Erro ao ler cache de métricas de risco: {e}")
+
+    if not allow_compute:
+        return {"status": "Erro", "msg": "Cache MISS and allow_compute is False."}
 
     logging.info("📐 Calculando métricas de risco...")
     import pandas as pd

@@ -23,7 +23,7 @@ SYSTEM_PROMPT = (
 )
 
 def execute_query_portfolio_metrics(session):
-    assets = session.query(Asset).filter_by(user_id=g.user_id).outerjoin(Position).all()
+    positions = session.query(Position).filter_by(user_id=g.user_id).options(joinedload(Position.asset)).all()
     portfolio_summary = []
     dolar_rate = 5.80
     try:
@@ -32,12 +32,12 @@ def execute_query_portfolio_metrics(session):
     except Exception:
         pass
         
-    for asset in assets:
-        pos = asset.position
-        if pos and pos.quantity > 0:
+    for pos in positions:
+        asset = pos.asset
+        if asset and pos.quantity > 0:
             mdata = asset.market_data[0] if asset.market_data else None
             price = float(mdata.price or pos.average_price or 0) if mdata else float(pos.average_price or 0)
-            fator = dolar_rate if asset.currency == 'USD' else 1.0
+            fator = float(dolar_rate) if asset.currency == 'USD' else 1.0
             val = float(pos.quantity) * price * fator
             portfolio_summary.append(
                 f"- {asset.ticker}: Categoria={asset.category.name if asset.category else 'Outros'}, Moeda={asset.currency}, Qtd={pos.quantity:.2f}, PM=R${pos.average_price:.2f}, Preço Atual=R${price:.2f}, Valor Total=R${val:.2f}, Meta={pos.target_percent:.1f}%"
