@@ -1,0 +1,90 @@
+services:
+  # --- BACKEND DEV (Flask) ---
+  backend:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+      target: backend
+    container_name: assetflow_backend_dev
+    # Usamos o script de dev do flask para auto-reload
+    command: sh -c "alembic upgrade head && flask --app backend run --host=0.0.0.0 --port=5328 --debug"
+    restart: unless-stopped
+    ports:
+      - "5328:5328"
+    volumes:
+      - ./server:/app/server
+      - sqlite_data:/app/data
+      - ./backups:/app/backups
+      - ./database:/app/database
+    environment:
+      - FLASK_DEBUG=1
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2:3b}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama:11434}
+      - SECRET_KEY=${SECRET_KEY:-dev_secret}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+      - ENVIRONMENT=development
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:5328/api/health || exit 1" ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # --- WORKER DEV (APScheduler) ---
+  worker:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+      target: worker
+    container_name: assetflow_worker_dev
+    restart: unless-stopped
+    volumes:
+      - ./server:/app/server
+      - sqlite_data:/app/data
+      - ./backups:/app/backups
+      - ./database:/app/database
+    environment:
+      - PYTHONPATH=/app
+      - FLASK_DEBUG=1
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2:3b}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama:11434}
+      - SECRET_KEY=${SECRET_KEY:-dev_secret}
+      - WORKER_HEARTBEAT_PATH=/app/data/worker_heartbeat.txt
+      - ENVIRONMENT=development
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  # --- FRONTEND DEV (Next.js) ---
+  frontend:
+    # Usamos node_modules locais se instalados, ou montamos a pasta
+    image: node:20-alpine
+    container_name: assetflow_frontend_dev
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    working_dir: /app
+    volumes:
+      - .:/app
+    # Evita conflitos com node_modules local em sistemas Windows
+    command: sh -c "npm install && npm run dev"
+    environment:
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:5328}
+      - WATCHPACK_POLLING=true
+      - ENVIRONMENT=development
+
+  # --- OLLAMA (Opcional no Dev, mantido por consistência) ---
+  ollama:
+    image: ollama/ollama:latest
+    container_name: assetflow_ollama_dev
+    restart: unless-stopped
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "11434:11434"
+    environment:
+      - OLLAMA_NUM_PARALLEL=2
+
+volumes:
+  sqlite_data:
+  ollama_data:

@@ -7,6 +7,7 @@ import logging
 import requests
 import json
 import threading
+import time
 from datetime import datetime, timedelta
 from flask import Blueprint, jsonify, g, request
 from services import PortfolioService
@@ -20,7 +21,7 @@ simulation_bp = Blueprint('simulation', __name__)
 service = PortfolioService()
 
 # Constantes de timeout (reduzidas de 300s/240s/180s para valores seguros)
-OLLAMA_TIMEOUT_BRIEF = 90
+OLLAMA_TIMEOUT_BRIEF = 180
 OLLAMA_TIMEOUT_DEFAULT = 60
 
 

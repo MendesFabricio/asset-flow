@@ -1,27 +1,47 @@
 # -------------------------------------------
-# ARQUIVO: ./Dockerfile (Na pasta Raiz)
+# ARQUIVO: ./Dockerfile (Frontend Next.js)
 # -------------------------------------------
 
-# Usa imagem Node.js
-FROM node:20-alpine
-
-# Diretório de trabalho
+# Estágio 1: Dependências
+FROM node:20-alpine AS deps
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
-
-# Copia os arquivos de dependência
-COPY package*.json ./
-
-# Instala as dependências
+COPY package.json package-lock.json* ./
 RUN npm ci
 
-# Copia o resto do código fonte
+# Estágio 2: Builder
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-
-# Gera o build de produção
+ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
-# Expõe a porta 3000
-EXPOSE 3000
+# Estágio 3: Produção/Runner
+FROM node:20-alpine AS runner
+WORKDIR /app
 
-# Inicia o servidor Next.js
-CMD ["npm", "start"]
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+# Set correct permissions for nextjs user
+RUN mkdir .next
+RUN chown nextjs:nodejs .next
+
+# Automatically leverage output traces to reduce image size
+# https://nextjs.org/docs/advanced-features/output-file-tracing
+COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+USER nextjs
+
+EXPOSE 3000
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+# Executa o servidor standalone nativo do Node em vez do wrapper "next start"
+CMD ["node", "server.js"]

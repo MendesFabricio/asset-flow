@@ -197,6 +197,9 @@ class PortfolioSnapshot(Base):
     total_equity = Column(Numeric(18, 4))      
     total_invested = Column(Numeric(18, 4))    
     profit = Column(Numeric(18, 4))   
+    
+    # Detalhamento do patrimônio por classe de ativo (JSON stringificado)
+    breakdown = Column(String, nullable=True)
 
     user = relationship("User", back_populates="portfolio_snapshots")
 

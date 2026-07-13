@@ -5,12 +5,21 @@ import threading
 import logging
 import sentry_sdk
 
+from sentry_sdk.integrations.logging import LoggingIntegration
+from sentry_sdk.integrations.flask import FlaskIntegration
+
+sentry_logging = LoggingIntegration(
+    level=logging.INFO,        # Capture info and above as breadcrumbs
+    event_level=logging.ERROR  # Send ONLY errors and above as events
+)
+
 _sentry_dsn = os.environ.get("SENTRY_DSN")
 if _sentry_dsn:
     sentry_sdk.init(
         dsn=_sentry_dsn,
         traces_sample_rate=0.01,
         auto_session_tracking=False,
+        integrations=[sentry_logging, FlaskIntegration()],
     )
 
 from flask import Flask, jsonify
@@ -144,6 +153,11 @@ def handle_global_exception(e):
     logging.error(f"💥 Erro crítico global interceptado em {request.method} {request.url}: {str(e)}", exc_info=True)
     import traceback
     traceback.print_exc()
+    try:
+        import sentry_sdk
+        sentry_sdk.capture_exception(e)
+    except Exception:
+        pass
     return jsonify({
         "status": "Erro",
         "msg": "Ocorreu um erro interno no servidor de dados do AssetFlow."

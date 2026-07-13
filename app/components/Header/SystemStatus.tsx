@@ -157,20 +157,20 @@ export function SystemStatus() {
           <div className="space-y-2">
             {renderServiceRow(
               'API Financeira', 
-              data?.services.yahoo_finance.status, 
-              data?.services.yahoo_finance.message || 'Verificando rate limit e conectividade...',
+              data?.services?.yahoo_finance?.status, 
+              data?.services?.yahoo_finance?.message || 'Verificando rate limit e conectividade...',
               TrendingUp
             )}
             {renderServiceRow(
               'Banco de Dados SQLite', 
-              data?.services.database.status, 
-              data?.services.database.message || 'Checando integridade das tabelas e do WAL...',
+              data?.services?.database?.status, 
+              data?.services?.database?.message || 'Checando integridade das tabelas e do WAL...',
               Database
             )}
             {renderServiceRow(
               'IA Jarvis (Ollama)', 
-              data?.services.ollama.status, 
-              data?.services.ollama.message || 'Pingando daemon de inteligência artificial...',
+              data?.services?.ollama?.status, 
+              data?.services?.ollama?.message || 'Pingando daemon de inteligência artificial...',
               Brain
             )}
           </div>

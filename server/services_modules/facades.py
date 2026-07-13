@@ -1,5 +1,5 @@
 # server/services_modules/facades.py
-from flask import g
+
 from database.session import Session
 from infrastructure.price_cache import fetch_price_history as _fetch_price_history_fn
 
@@ -21,7 +21,7 @@ class FacadeService:
 
     def get_correlation_matrix(self, session=None):
         """Façade → quant_engine.get_correlation_matrix com Cache"""
-        uid = getattr(g, 'user_id', None) if 'g' in globals() else None
+        uid = getattr(self, 'current_user_id', None)
         cache_key = f"correlation_matrix_{uid}" if uid else "correlation_matrix"
         
         if session is not None:
@@ -42,7 +42,7 @@ class FacadeService:
 
     def calculate_risk_metrics(self, session=None) -> dict:
         """Façade → quant_engine.calculate_risk_metrics com Cache"""
-        uid = getattr(g, 'user_id', None) if 'g' in globals() else None
+        uid = getattr(self, 'current_user_id', None)
         cache_key = f"risk_metrics_{uid}" if uid else "risk_metrics"
         
         if session is not None:

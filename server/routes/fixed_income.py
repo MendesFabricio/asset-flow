@@ -78,6 +78,9 @@ def handle_fixed_income():
             interest_rate = Decimal(str(body.interest_rate))
             quantity = Decimal(str(body.quantity))
             average_price = Decimal(str(body.average_price))
+            
+            issue_date = datetime.strptime(body.issue_date, '%Y-%m-%d').date() if body.issue_date else datetime.now().date()
+            due_date = datetime.strptime(body.due_date, '%Y-%m-%d').date() if body.due_date else datetime.now().date()
                 
             # Verifica ou cria Categoria 'Renda Fixa'
             cat = db.query(Category).filter_by(name='Renda Fixa').first()

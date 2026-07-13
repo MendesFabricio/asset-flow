@@ -12,6 +12,7 @@ export async function apiCall<T>(endpoint: string, options?: RequestInit & { tim
             signal: controller.signal,
             headers: {
                 'Content-Type': 'application/json',
+                'ngrok-skip-browser-warning': 'true',
                 ...options?.headers,
             },
         });

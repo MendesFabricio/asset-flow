@@ -103,16 +103,19 @@ def validate_ticker_on_yahoo(ticker):
     secure_session = get_secure_session(timeout=10.0)
     try:
         ticker = ticker.upper().strip() 
-        stock = yf.Ticker(ticker, session=secure_session)
-        hist = stock.history(period="1d")
-        if not hist.empty: return {"valid": True, "ticker": ticker}
-        
+        try:
+            stock = yf.Ticker(ticker, session=secure_session)
+            hist = stock.history(period="1d")
+            if not hist.empty: return {"valid": True, "ticker": ticker}
+        except Exception:
+            pass # Ignora erro inicial para testar o fallback .SA
+            
         if not ticker.endswith('.SA'):
             ticker_sa = f"{ticker}.SA"
             stock_sa = yf.Ticker(ticker_sa, session=secure_session)
             hist_sa = stock_sa.history(period="1d")
             if not hist_sa.empty: return {"valid": True, "ticker": ticker} 
-        
+            
         return {"valid": False, "ticker": None}
     except Exception as e:
         logging.error(f"Erro ao validar existência do ticker {ticker} no Yahoo: {e}")

@@ -96,7 +96,6 @@ def fetch_single_asset_proventos(item, secure_session):
 
 @calendar_bp.route('/api/calendar', methods=['GET'])
 def get_calendar():
-    global IS_UPDATING_CALENDAR
     now = time.time()
     user_id = g.user_id
     user_cache = CALENDAR_CACHE.get(user_id, {"data": None, "last_update": 0})

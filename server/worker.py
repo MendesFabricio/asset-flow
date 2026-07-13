@@ -11,12 +11,22 @@ import threading
 from datetime import datetime
 import sentry_sdk
 
+from sentry_sdk.integrations.logging import LoggingIntegration
+
+sentry_logging = LoggingIntegration(
+    level=logging.INFO,        # Captura INFO e superior como breadcrumbs
+    event_level=logging.ERROR  # Envia APENAS ERROS como eventos para o GlitchTip
+)
+
 _sentry_dsn = os.environ.get("SENTRY_DSN")
 if _sentry_dsn:
     sentry_sdk.init(
         dsn=_sentry_dsn,
         traces_sample_rate=0.01,
         auto_session_tracking=False,
+        environment=os.environ.get("ENVIRONMENT", "production"),
+        release=os.environ.get("APP_RELEASE", "assetflow-worker@1.0.0"),
+        integrations=[sentry_logging],
     )
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
