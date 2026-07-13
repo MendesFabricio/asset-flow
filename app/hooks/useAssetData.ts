@@ -35,8 +35,8 @@ export function useAssetData() {
     isLoading: loadingDashboard,
     mutate: mutateDashboard
   } = useSWR<DashboardData>('/api/index', fetcher, {
-    refreshInterval: 60000,
-    revalidateOnFocus: true
+    refreshInterval: 0,
+    revalidateOnFocus: false
   });
 
   const {

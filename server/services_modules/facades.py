@@ -1,4 +1,5 @@
 # server/services_modules/facades.py
+from flask import g
 from database.session import Session
 from infrastructure.price_cache import fetch_price_history as _fetch_price_history_fn
 
@@ -20,25 +21,45 @@ class FacadeService:
 
     def get_correlation_matrix(self, session=None):
         """Façade → quant_engine.get_correlation_matrix com Cache"""
+        uid = getattr(g, 'user_id', None) if 'g' in globals() else None
+        cache_key = f"correlation_matrix_{uid}" if uid else "correlation_matrix"
+        
         if session is not None:
-            cached = self._get_cached_unwrap(f"correlation_matrix_cache_{g.user_id}" if 'g' in globals() and hasattr(g, 'user_id') else "correlation_matrix_cache")
+            cached = self._get_cached_unwrap(cache_key)
             if cached:
                 return cached
-            return get_correlation_matrix(session, _fetch_price_history_fn)
+            result = get_correlation_matrix(session, _fetch_price_history_fn)
+            self._set_cached_value(session, cache_key, result)
+            return result
         
         with Session() as session:
-            cached = self._get_cached_unwrap(f"correlation_matrix_cache_{g.user_id}" if 'g' in globals() and hasattr(g, 'user_id') else "correlation_matrix_cache")
+            cached = self._get_cached_unwrap(cache_key)
             if cached:
                 return cached
-            return get_correlation_matrix(session, _fetch_price_history_fn)
+            result = get_correlation_matrix(session, _fetch_price_history_fn)
+            self._set_cached_value(session, cache_key, result)
+            return result
 
     def calculate_risk_metrics(self, session=None) -> dict:
         """Façade → quant_engine.calculate_risk_metrics com Cache"""
+        uid = getattr(g, 'user_id', None) if 'g' in globals() else None
+        cache_key = f"risk_metrics_{uid}" if uid else "risk_metrics"
+        
         if session is not None:
-            return calculate_risk_metrics(session, _fetch_price_history_fn)
+            cached = self._get_cached_unwrap(cache_key)
+            if cached:
+                return cached
+            result = calculate_risk_metrics(session, _fetch_price_history_fn)
+            self._set_cached_value(session, cache_key, result)
+            return result
         
         with Session() as session:
-            return calculate_risk_metrics(session, _fetch_price_history_fn)
+            cached = self._get_cached_unwrap(cache_key)
+            if cached:
+                return cached
+            result = calculate_risk_metrics(session, _fetch_price_history_fn)
+            self._set_cached_value(session, cache_key, result)
+            return result
 
     def calculate_smart_rebalance(self, monthly_contribution: float = 0.0) -> dict:
         """Façade → quant_engine.calculate_smart_rebalance"""
@@ -125,3 +146,19 @@ class FacadeService:
             return None
         except Exception:
             return None
+
+    def _set_cached_value(self, session, key, value):
+        try:
+            import json
+            from database.models import SystemCache, safe_commit
+            from datetime import datetime
+            
+            rec = session.query(SystemCache).filter_by(key=key).first()
+            if not rec:
+                rec = SystemCache(key=key)
+                session.add(rec)
+            rec.value = json.dumps(value)
+            rec.updated_at = datetime.now()
+            safe_commit(session)
+        except Exception:
+            pass

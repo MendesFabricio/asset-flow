@@ -9,18 +9,24 @@ import requests
 import time
 import threading
 from datetime import datetime
+import sentry_sdk
 
-# Garante que o diretório pai esteja no sys.path para importações absolutas
+_sentry_dsn = os.environ.get("SENTRY_DSN")
+if _sentry_dsn:
+    sentry_sdk.init(
+        dsn=_sentry_dsn,
+        traces_sample_rate=0.01,
+        auto_session_tracking=False,
+    )
+
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-# Configuração de Logs
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] (Worker) %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 
-# Inicializa o banco de dados
 from database.models import init_db
 try:
     init_db()
@@ -31,11 +37,12 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 from services import PortfolioService
 from routes.market import update_market_cache
 from routes.alerts_price import check_price_alerts
-from database.models import Session as DBSession, ScheduledJob, safe_commit
+from database.models import Session as DBSession, ScheduledJob, safe_commit, Position
+from routes.simulation import _run_morning_brief_bg, _build_morning_brief_context
+from domain.quant.helpers import get_risk_free_rate
 
 service = PortfolioService()
 
-# Heartbeat para healthcheck do Docker
 HEARTBEAT_PATH = os.environ.get("WORKER_HEARTBEAT_PATH", "/app/data/worker_heartbeat.txt")
 HEARTBEAT_INTERVAL = 30
 
@@ -83,8 +90,18 @@ def scheduled_update_prices():
     _run_with_tracking("scheduled_update_prices", _do_update_prices)
 
 def _do_update_prices():
-    logging.info("🕒 JOB 10m: Atualizando preços dos ativos e salvando snapshot...")
+    logging.info("🕒 JOB 10m: Atualizando preços dos ativos...")
     service.update_prices()
+
+def _do_daily_snapshot():
+    logging.info("📸 JOB DIÁRIO: Salvando snapshot do portfólio...")
+    service.take_daily_snapshot()
+
+def scheduled_daily_snapshot():
+    _run_with_tracking("scheduled_daily_snapshot", _do_daily_snapshot)
+
+def _do_daily_snapshot():
+    logging.info("📸 JOB DIÁRIO: Salvando snapshot do portfólio...")
     service.take_daily_snapshot()
 
 def scheduled_update_indices():
@@ -120,21 +137,25 @@ def scheduled_morning_brief_generation():
 
 def _do_morning_brief():
     logging.info("☕ JOB 07:00: Gerando Morning Briefing...")
-    url = "http://backend:5328/api/ai/morning-brief?force=true"
     try:
-        res = requests.get(url, timeout=240)
-        if res.status_code == 200:
-            logging.info("✅ Morning Briefing gerado com sucesso!")
-        else:
-            logging.warning(f"⚠️ Resposta inesperada do backend (Status {res.status_code})")
-    except Exception as conn_err:
-        logging.warning(f"Tentando rota local alternativa: {conn_err}")
-        url_local = "http://localhost:5328/api/ai/morning-brief?force=true"
-        res_local = requests.get(url_local, timeout=240)
-        if res_local.status_code == 200:
-            logging.info("✅ Morning Briefing gerado (local)!")
-
-# --- JOB REGISTRY ---
+        from flask import Flask
+        from database.models import Session as DBSession
+        app = Flask(__name__)
+        with app.app_context():
+            from flask import g
+            with DBSession() as session:
+                user_ids = [r[0] for r in session.query(Position.user_id).distinct().all()]
+                for uid in user_ids:
+                    try:
+                        cache_key = f"morning_brief_{uid}"
+                        selic = get_risk_free_rate()
+                        dolar_rate = service.get_usd_rate()
+                        context = _build_morning_brief_context(uid, dolar_rate, selic)
+                        _run_morning_brief_bg(uid, context, cache_key)
+                    except Exception as e:
+                        logging.warning(f"⚠️ [BRIEF] Falha ao gerar brief para usuário {uid}: {e}")
+    except Exception as e:
+        logging.error(f"❌ [BRIEF] Falha geral no job de Morning Brief: {e}", exc_info=True)
 
 JOB_REGISTRY = {
     "scheduled_update_indices": {
@@ -145,9 +166,15 @@ JOB_REGISTRY = {
     },
     "scheduled_update_prices": {
         "func": scheduled_update_prices,
-        "description": "Atualiza preços de ativos e gera snapshot diário",
+        "description": "Atualiza preços de ativos",
         "default_type": "interval",
         "default_interval": 10,
+    },
+    "scheduled_daily_snapshot": {
+        "func": scheduled_daily_snapshot,
+        "description": "Salva snapshot diário do portfólio",
+        "default_type": "cron",
+        "default_cron": "0 23 * * *",
     },
     "scheduled_quant_warm": {
         "func": scheduled_quant_warm,

@@ -7,15 +7,95 @@ import logging
 import requests
 import json
 import threading
+from datetime import datetime, timedelta
 from flask import Blueprint, jsonify, g, request
 from services import PortfolioService
 from database.models import Session, Asset, Position, SystemCache, safe_commit
 from domain.quant.helpers import get_risk_free_rate
 from infrastructure.ollama_service import OLLAMA_URL, MODEL_NAME
 from sqlalchemy.orm import joinedload
+from routes.news import get_daily_sector_summary
 
 simulation_bp = Blueprint('simulation', __name__)
 service = PortfolioService()
+
+# Constantes de timeout (reduzidas de 300s/240s/180s para valores seguros)
+OLLAMA_TIMEOUT_BRIEF = 90
+OLLAMA_TIMEOUT_DEFAULT = 60
+
+
+def _build_morning_brief_context(user_id: int, dolar_rate: float, selic: float) -> dict:
+    """Constrói contexto enriquecido para o Morning Brief (compartilhado entre rota e worker)."""
+    from database.models import Session as DBSession
+    from sqlalchemy.orm import joinedload, selectinload
+    from domain.quant.helpers import get_risk_free_rate as _get_rf
+    
+    with DBSession() as session:
+        positions = (
+            session.query(Position)
+            .options(
+                joinedload(Position.asset).joinedload(Asset.category),
+                joinedload(Position.asset).selectinload(Asset.market_data)
+            )
+            .filter(Position.user_id == user_id, Position.quantity > 0)
+            .all()
+        )
+
+        total_portfolio_val = 0.0
+        holdings_details = []
+        for pos in positions:
+            if not pos.asset:
+                continue
+            mdata = pos.asset.market_data[0] if pos.asset.market_data else None
+            price = float(mdata.price or pos.average_price or 0.0) if mdata else float(pos.average_price or 0.0)
+            fator = float(dolar_rate or 1.0) if pos.asset.currency == 'USD' else 1.0
+            qty = float(pos.quantity or 0.0)
+            val = qty * price * fator
+            if val > 0:
+                total_portfolio_val += val
+                avg_price = float(pos.average_price or 0.0)
+                profit_loss_pct = ((price - avg_price) / avg_price * 100) if avg_price > 0 else 0.0
+                holdings_details.append({
+                    "ticker": pos.asset.ticker.upper(),
+                    "category": pos.asset.category.name if pos.asset.category else "Outros",
+                    "value": val,
+                    "target_pct": float(pos.target_percent or 0.0),
+                    "profit_loss_pct": profit_loss_pct,
+                    "price": price,
+                    "weight_pct": 0.0,
+                    "beta": "N/A",
+                    "var_95": "N/A"
+                })
+
+        holdings_details.sort(key=lambda x: x["value"], reverse=True)
+        for h in holdings_details:
+            h["weight_pct"] = (h["value"] / total_portfolio_val * 100) if total_portfolio_val > 0 else 0.0
+
+        # Risk metrics computados UMA VEZ (não 5x)
+        risk = None
+        try:
+            risk = service.calculate_risk_metrics(session=session)
+        except Exception:
+            pass
+
+        enriched_holdings = []
+        for h in holdings_details[:5]:
+            enriched = dict(h)
+            if risk and risk.get("status") == "Sucesso":
+                metrics = risk.get("metrics", {})
+                enriched["beta"] = f"{metrics.get('beta', 0):.2f}"
+                enriched["var_95"] = f"{metrics.get('var_95', 0):.2f}%"
+            enriched_holdings.append(enriched)
+
+    context = {
+        "selic": float(selic),
+        "dolar_rate": float(dolar_rate),
+        "selic_rate": f"{selic * 100:.2f}%",
+        "dolar_rate_str": f"R$ {float(dolar_rate):.2f}",
+        "holdings": enriched_holdings
+    }
+    return context
+
 
 @simulation_bp.route('/api/simulation/optimize', methods=['GET'])
 def optimize_portfolio():
@@ -97,60 +177,64 @@ def dividends_forecast():
         logging.error(f"❌ Erro ao computar fluxo preditivo de dividendos: {e}", exc_info=True)
         return jsonify({"status": "Erro", "msg": str(e)}), 500
 
-def _run_morning_brief_bg(user_id: int, holdings_text: str, selic: float, dolar_rate: float, cache_key: str):
+def _run_morning_brief_bg(user_id: int, context: dict, cache_key: str):
     """Executa a chamada ao Ollama em thread de background e salva o resultado no cache."""
     from database.models import Session as DBSession, SystemCache, safe_commit
-    from datetime import datetime
     try:
-        prompt = (
-            f"Você é um economista-chefe e gestor de portfólio senior.\n"
-            f"Elabore um briefing de mercado matinal de 1 parágrafo em português focado no risco destas 3 maiores posições da carteira do investidor:\n"
-            f"{holdings_text or 'Nenhuma posição ativa no momento.'}\n\n"
-            f"Cenário macroeconômico atual:\n"
-            f"- Taxa Básica de Juros (Selic): {selic * 100:.2f}%\n"
-            f"- Cotação do Dólar (USD/BRL): R$ {dolar_rate:.2f}\n\n"
-            f"Instruções estritas de comportamento de Engenharia Financeira:\n"
-            f"1. Você receberá o Ticker, a Categoria exata e a saúde financeira de cada ativo. Baseie-se estritamente nestes metadados estruturados. Nunca invente o perfil ou o setor de atuação de um ticker se ele contradisser a categoria informada.\n"
-            f"2. Pondere o impacto direto da taxa Selic atual de {selic * 100:.2f}% nas classes informadas.\n"
-            f"3. Foque a análise de alocação de risco exclusivamente no contexto destas posições.\n"
-            f"4. NUNCA mencione conselhos macro generalistas.\n"
-            f"5. Responda estritamente em formato JSON contendo as chaves exatas:\n"
-            f"   - 'rationale': Cadeia de raciocínio lógico (Chain of Thought) em português sobre o risco da carteira.\n"
-            f"   - 'brief_text': Resumo executivo matinal de 1 parágrafo em português focado e direto para exibição.\n"
-        )
-        payload = {"model": MODEL_NAME, "prompt": prompt, "format": "json", "stream": False, "keep_alive": "5m"}
-        response = requests.post(OLLAMA_URL, json=payload, timeout=300)
-
-        with DBSession() as session:
-            if response.status_code == 200:
-                res_data = response.json()
-                response_text = res_data.get("response", "").strip()
-                try:
-                    parsed = json.loads(response_text)
-                    brief_data = {
-                        "status": "Sucesso",
-                        "selic_rate": f"{selic * 100:.2f}%",
-                        "dolar_rate": f"R$ {dolar_rate:.2f}",
-                        "rationale": parsed.get("rationale", ""),
-                        "brief_text": parsed.get("brief_text", "Morning Brief indisponível.")
-                    }
-                except Exception:
-                    brief_data = {
-                        "status": "Aviso",
-                        "selic_rate": f"{selic * 100:.2f}%",
-                        "dolar_rate": f"R$ {dolar_rate:.2f}",
-                        "rationale": "",
-                        "brief_text": response_text
-                    }
-            else:
+        prompt = _build_enhanced_morning_brief_prompt(context)
+        payload = {"model": MODEL_NAME, "prompt": prompt, "format": "json", "stream": False, "keep_alive": "1m"}
+        
+        response = None
+        for attempt in range(2):
+            try:
+                response = requests.post(OLLAMA_URL, json=payload, timeout=OLLAMA_TIMEOUT_BRIEF)
+                break
+            except requests.exceptions.Timeout:
+                if attempt == 0:
+                    logging.warning(f"⚠️ [BRIEF] Timeout na tentativa 1/2 para usuário {user_id}. Retrying...")
+                    time.sleep(2)
+                else:
+                    raise
+        
+        brief_data = {
+            "status": "Erro",
+            "selic_rate": context.get("selic_rate", ""),
+            "dolar_rate": context.get("dolar_rate", ""),
+            "rationale": "",
+            "brief_text": "Ollama inativo ou respondendo com falha.",
+            "action": "",
+            "risk_metrics": {}
+        }
+        
+        if response and response.status_code == 200:
+            res_data = response.json()
+            response_text = res_data.get("response", "").strip()
+            try:
+                parsed = json.loads(response_text)
                 brief_data = {
-                    "status": "Erro",
-                    "selic_rate": f"{selic * 100:.2f}%",
-                    "dolar_rate": f"R$ {dolar_rate:.2f}",
+                    "status": "Sucesso",
+                    "selic_rate": context.get("selic_rate", ""),
+                    "dolar_rate": context.get("dolar_rate", ""),
+                    "rationale": parsed.get("rationale", "") or "",
+                    "brief_text": parsed.get("brief_text", "") or "Morning Brief indisponível.",
+                    "action": parsed.get("action", "") or "",
+                    "risk_metrics": parsed.get("risk_metrics", {}) or {}
+                }
+                if not brief_data["brief_text"]:
+                    brief_data["brief_text"] = "Morning Brief indisponível."
+            except Exception:
+                logging.warning(f"⚠️ [BRIEF] Falha ao parsear JSON estruturado do Ollama. Usando texto puro.")
+                brief_data = {
+                    "status": "Aviso",
+                    "selic_rate": context.get("selic_rate", ""),
+                    "dolar_rate": context.get("dolar_rate", ""),
                     "rationale": "",
-                    "brief_text": "Ollama inativo ou respondendo com falha."
+                    "brief_text": response_text,
+                    "action": "",
+                    "risk_metrics": {}
                 }
 
+        with DBSession() as session:
             cache_record = session.query(SystemCache).filter_by(key=cache_key).first()
             if not cache_record:
                 cache_record = SystemCache(key=cache_key)
@@ -161,6 +245,78 @@ def _run_morning_brief_bg(user_id: int, holdings_text: str, selic: float, dolar_
             logging.info(f"✅ [BRIEF] Morning Brief do usuário {user_id} atualizado com sucesso em background.")
     except Exception as e:
         logging.error(f"❌ [BRIEF] Falha no background thread do Morning Brief: {e}", exc_info=True)
+
+
+def _build_enhanced_morning_brief_prompt(context: dict) -> str:
+    """Constrói prompt enriquecido com CoT, risk metrics, notícias e sentimento."""
+    selic_pct = context.get("selic", 0.0) * 100
+    dolar = context.get("dolar_rate", 0.0)
+    date_str = datetime.now().strftime("%d/%m/%Y")
+    
+    holdings_lines = []
+    for h in context.get("holdings", []):
+        holdings_lines.append(
+            f"- {h['ticker']} ({h['category']}) | Peso: {h['weight_pct']:.1f}% | Meta: {h['target_pct']:.1f}% | "
+            f"P/L: {h['profit_loss_pct']:+.1f}% | Preço: R$ {h['price']:.2f} | Valor: R$ {h['value']:,.2f} | "
+            f"Beta: {h.get('beta', 'N/A')} | VaR 95%: {h.get('var_95', 'N/A')}"
+        )
+    holdings_text = "\n".join(holdings_lines) if holdings_lines else "Nenhuma posição ativa no momento."
+
+    news_lines = []
+    for n in context.get("news", []):
+        news_lines.append(f"- [{n.get('source', 'News')}] {n['title']}")
+    news_text = "\n".join(news_lines) if news_lines else "Sem notícias relevantes encontradas."
+
+    sentiment_lines = []
+    for s in context.get("sentiment", []):
+        sentiment_lines.append(f"- {s['ticker']}: {s['sentiment']} (score: {s.get('score', 'N/A')})")
+    sentiment_text = "\n".join(sentiment_lines) if sentiment_lines else "Sem análise de sentimento disponível."
+
+    prompt = f"""Você é um economista-chefe sênior especializado em gestão de portfólio de varejo.
+Elabore um briefing matinal de risco e alocação para o dia {date_str}.
+
+[CONTEXTO MACROECONÔMICO]
+- Taxa Básica de Juros (Selic): {selic_pct:.2f}%
+- Cotação do Dólar (USD/BRL): R$ {dolar:.2f}
+
+[CARTEIRA DO INVESTIDOR — Top posições por contribution to risk]
+{holdings_text}
+
+[NOTÍCIAS RECENTES (últimas 24h)]
+{news_text}
+
+[SENTIMENTO POR ATIVO (últimos 7d)]
+{sentiment_text}
+
+[CHAIN-OF-THOUGHT OBRIGATÓRIO — NÃO mostrar ao usuário final]
+Antes de escrever o briefing, raciocine internamente:
+Passo 1: Como a Selic atual impacta cada categoria presente na carteira (Renda Fixa, FIIs, Ações, Internacional)?
+Passo 2: Qual posição concentra mais risco? Calcule contribution to risk = peso × volatilidade × beta. Ordene por risco, não por valor.
+Passo 3: Identifique outliers: posições >20% acima da meta ou <50% abaixo da meta.
+Passo 4: Com base nos dados acima, qual ajuste de alocação traria melhor relação risco/retorno hoje?
+
+[TAREFA]
+Elabore o briefing em 3 seções, máximo 150 palavras no total:
+
+1. **Cenário** (1-2 frases): Como a Selic e o dólar afetam a carteira HOJE, citando números concretos.
+2. **Riscos & Oportunidades** (bullet points): Para cada posição top-3, cite:
+   - 1 dado quantitativo (peso, P/L, VaR, Beta)
+   - 1 evento recente relevante (notícia ou sentimento)
+   - 1 ação sugerida (ex: "Reduzir X% para alinhar com meta Y%")
+3. **Ação Recomendada** (1 frase): Qual ajuste de alocação traria mais risco/retorno hoje.
+
+[REGRAS ESTRITAS]
+- NÃO generalize: cite números concretos da carteira.
+- NÃO use tautologias ("aumenta o risco se o preço cair").
+- NÃO mencione ativos fora da carteira.
+- NÃO dê conselhos macro generalistas sem ligação com as posições.
+- Responda estritamente em JSON contendo as chaves exatas:
+  - 'brief_text': texto final formatado em Markdown simples
+  - 'rationale': cadeia de raciocínio interno (CoT) em português
+  - 'action': frase curta com a ação recomendada
+  - 'risk_metrics': objeto com métricas de risco agregadas da carteira
+"""
+    return prompt
 
 
 @simulation_bp.route('/api/ai/morning-brief', methods=['GET', 'POST'])
@@ -193,76 +349,30 @@ def morning_brief():
             # Coleta dados do portfólio (rápido, sem Ollama)
             selic = get_risk_free_rate()
             dolar_rate = service.get_usd_rate()
+            context = _build_morning_brief_context(g.user_id, dolar_rate, selic)
 
-            positions = (
-                session.query(Position)
-                .options(
-                    joinedload(Position.asset).joinedload(Asset.category),
-                    joinedload(Position.asset).selectinload(Asset.market_data)
-                )
-                .filter(Position.user_id == g.user_id, Position.quantity > 0)
-                .all()
-            )
-
-            total_portfolio_val = 0.0
-            holdings_details = []
-            for pos in positions:
-                if not pos.asset:
-                    continue
-                mdata = pos.asset.market_data[0] if pos.asset.market_data else None
-                price = float(mdata.price or pos.average_price or 0.0) if mdata else float(pos.average_price or 0.0)
-                fator = float(dolar_rate or 1.0) if pos.asset.currency == 'USD' else 1.0
-                qty = float(pos.quantity or 0.0)
-                val = qty * price * fator
-                if val > 0:
-                    total_portfolio_val += val
-                    avg_price = float(pos.average_price or 0.0)
-                    profit_loss_pct = ((price - avg_price) / avg_price * 100) if avg_price > 0 else 0.0
-                    if profit_loss_pct > 0.01:
-                        status_text = f"{profit_loss_pct:.1f}% de LUCRO"
-                    elif profit_loss_pct < -0.01:
-                        status_text = f"{abs(profit_loss_pct):.1f}% de PREJUÍZO"
-                    else:
-                        status_text = "0.0% de variação (no ponto de equilíbrio)"
-                    holdings_details.append({
-                        "ticker": pos.asset.ticker.upper(),
-                        "category": pos.asset.category.name if pos.asset.category else "Outros",
-                        "value": val,
-                        "target_pct": float(pos.target_percent or 0.0),
-                        "status_text": status_text
-                    })
-
-            holdings_details.sort(key=lambda x: x["value"], reverse=True)
-            top_holdings = holdings_details[:3]
-            holdings_text_lines = []
-            for h in top_holdings:
-                weight_pct = (h["value"] / total_portfolio_val * 100) if total_portfolio_val > 0 else 0.0
-                holdings_text_lines.append(
-                    f"- {h['ticker']} (Categoria: {h['category']}, Peso Atual: {weight_pct:.1f}% da carteira, "
-                    f"Meta: {h['target_pct']:.1f}%, Status: Posição atual com {h['status_text']} frente ao preço médio de aquisição)."
-                )
-            holdings_text = "\n".join(holdings_text_lines)
-
-            # Retorna o cache antigo enquanto processa (ou indicador de processamento)
+            # Retorna o cache antigo enquanto processa
             pending_response = {
                 "status": "Processando",
-                "selic_rate": f"{selic * 100:.2f}%",
-                "dolar_rate": f"R$ {float(dolar_rate):.2f}",
+                "selic_rate": context["selic_rate"],
+                "dolar_rate": context["dolar_rate_str"],
                 "rationale": "",
-                "brief_text": "Morning Brief sendo gerado pela IA... Aguarde alguns instantes e recarregue."
+                "brief_text": "Morning Brief sendo gerado pela IA... Aguarde alguns instantes e recarregue.",
+                "action": "",
+                "risk_metrics": {}
             }
             if cache_record:
                 try:
                     pending_response = json.loads(cache_record.value)
                     pending_response["status"] = "Processando"
-                    pending_response["brief_text"] += " (Atualizando...)"
+                    pending_response["brief_text"] = "Morning Brief sendo gerado pela IA... Aguarde alguns instantes e recarregue."
                 except Exception:
                     pass
 
             # Dispara Ollama em thread de background — não bloqueia o worker do Gunicorn
             t = threading.Thread(
                 target=_run_morning_brief_bg,
-                args=(g.user_id, holdings_text, float(selic), float(dolar_rate), cache_key),
+                args=(g.user_id, context, cache_key),
                 daemon=True
             )
             t.start()

@@ -78,7 +78,7 @@ export function AssetNewsPanel({ ticker, onClose }: Props) {
           .catch(err => {
             console.error("Erro no polling de sentimento da IA:", err);
           });
-      }, 3000);
+      }, 10000);
     }
 
     return () => {

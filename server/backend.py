@@ -3,6 +3,16 @@ import time
 import atexit
 import threading
 import logging
+import sentry_sdk
+
+_sentry_dsn = os.environ.get("SENTRY_DSN")
+if _sentry_dsn:
+    sentry_sdk.init(
+        dsn=_sentry_dsn,
+        traces_sample_rate=0.01,
+        auto_session_tracking=False,
+    )
+
 from flask import Flask, jsonify
 from flask_cors import CORS
 # O scheduler automático foi removido e isolado no worker.py

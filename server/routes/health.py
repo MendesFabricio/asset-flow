@@ -1,7 +1,7 @@
 """
 routes/health.py
 Barramento de telemetria e healthcheck de produção para monitoramento 24/7.
-Executa verificações atômicas de conectividade no SQLite, Yahoo Finance e Ollama local.
+Executa verificações atômicas de conectividade no SQLite e Ollama local.
 """
 import os
 import time
@@ -35,28 +35,10 @@ def healthcheck():
         detail_db = f"Falha ao conectar no SQLite: {str(e)}"
         logging.error(f"❌ [HEALTH] Erro SQLite: {e}")
 
-    # 2. Yahoo Finance API Connectivity
-    status_yf = "online"
-    detail_yf = "API de cotações disponível."
-    try:
-        # GET request leve para testar conectividade com Yahoo Finance com User-Agent legítimo
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
-        res = requests.get("https://finance.yahoo.com", headers=headers, timeout=3.0)
-        if res.status_code >= 500:
-            status_yf = "offline"
-            detail_yf = f"Serviço Yahoo Finance instável (Status: {res.status_code})"
-    except requests.exceptions.Timeout:
-        status_yf = "offline"
-        detail_yf = "Timeout de conexão (limite de 3.0s excedido)"
-    except Exception as e:
-        status_yf = "offline"
-        detail_yf = f"Falha de rede com Yahoo: {str(e)}"
-
-    # 3. Ollama Service (IA local daemon status)
+    # 2. Ollama Service (IA local daemon status)
     status_ollama = "online"
     detail_ollama = "Serviço de IA ativo e respondendo."
     try:
-        # Endpoint de tags retorna todos os modelos disponíveis sem processar prompts pesados
         ollama_base_url = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434").rstrip("/")
         res = requests.get(f"{ollama_base_url}/api/tags", timeout=3.0)
         if res.status_code == 200:
@@ -74,10 +56,10 @@ def healthcheck():
 
     # Status global: se algum serviço essencial falhar, o status passa a ser crítico
     global_status = "online"
-    if status_db == "offline" or status_yf == "offline":
-        global_status = "offline"  # Se BD ou Yahoo caírem, a carteira está inoperante
+    if status_db == "offline":
+        global_status = "offline"
     elif status_ollama == "offline":
-        global_status = "warning"  # Se apenas a IA cair, mantemos online com aviso
+        global_status = "warning"
 
     return jsonify({
         "status": global_status,
@@ -86,10 +68,6 @@ def healthcheck():
             "database": {
                 "status": status_db,
                 "message": detail_db
-            },
-            "yahoo_finance": {
-                "status": status_yf,
-                "message": detail_yf
             },
             "ollama": {
                 "status": status_ollama,

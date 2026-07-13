@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Coffee, ChevronDown, ChevronUp, Brain, RefreshCw, AlertCircle, Loader2 } from 'lucide-react';
+import { Coffee, ChevronDown, ChevronUp, Brain, RefreshCw, AlertCircle, Loader2, Target, BarChart3 } from 'lucide-react';
 import { apiCall } from '../utils/apiClient';
 import { Markdown } from './ui/Markdown';
 
@@ -11,6 +11,8 @@ interface BriefData {
   dolar_rate: string;
   rationale: string;
   brief_text: string;
+  action: string;
+  risk_metrics: Record<string, any>;
 }
 
 export function MorningBriefing() {
@@ -129,6 +131,33 @@ export function MorningBriefing() {
       <div className="text-xs text-slate-300 leading-relaxed font-normal">
         <Markdown text={data.brief_text} />
       </div>
+
+      {data.action && (
+        <div className="mt-3 p-3 rounded-xl bg-emerald-950/40 border border-emerald-500/30 text-emerald-300">
+          <div className="flex items-center gap-2 mb-1">
+            <Target size={14} />
+            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Ação Recomendada</span>
+          </div>
+          <p className="text-xs text-slate-200 leading-relaxed">{data.action}</p>
+        </div>
+      )}
+
+      {data.risk_metrics && Object.keys(data.risk_metrics).length > 0 && (
+        <div className="mt-3 p-3 rounded-xl bg-slate-950/60 border border-slate-850">
+          <div className="flex items-center gap-2 mb-2">
+            <BarChart3 size={14} className="text-indigo-400" />
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Métricas de Risco</span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {Object.entries(data.risk_metrics).map(([key, value]) => (
+              <div key={key} className="text-center">
+                <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-0.5">{key}</div>
+                <div className="text-xs font-mono font-semibold text-slate-200">{String(value)}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
 
       {data.rationale && (

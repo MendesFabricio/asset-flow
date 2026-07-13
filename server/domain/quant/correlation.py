@@ -1,4 +1,5 @@
 # server/domain/quant/correlation.py
+import json
 import logging
 import numpy as np
 from database.models import get_active_positions
@@ -26,6 +27,17 @@ def get_correlation_matrix(session, fetch_prices) -> dict:
     unique = list(set(download_list))
     if len(unique) < 2:
         return {"status": "Erro", "msg": "Mínimo 2 ativos de renda variável."}
+
+    cache_key = f"correlation_matrix_{uid}"
+    try:
+        from database.models import SystemCache
+        from datetime import datetime, timedelta
+        rec = session.query(SystemCache).filter_by(key=cache_key).first()
+        if rec and (datetime.now() - rec.updated_at) < timedelta(hours=1):
+            logging.info("📐 Retornando matriz de correlação do Cache...")
+            return json.loads(rec.value)
+    except Exception:
+        pass
 
     raw = fetch_prices(unique, period="1y")
     prices = _extract_close_prices(raw)
@@ -58,7 +70,21 @@ def get_correlation_matrix(session, fetch_prices) -> dict:
                 "value": round(float(v), 2),
             })
 
-    return {"status": "Sucesso", "labels": labels, "matrix": matrix}
+    result = {"status": "Sucesso", "labels": labels, "matrix": matrix}
+
+    try:
+        from database.models import SystemCache, safe_commit
+        rec = session.query(SystemCache).filter_by(key=cache_key).first()
+        if not rec:
+            rec = SystemCache(key=cache_key)
+            session.add(rec)
+        rec.value = json.dumps(result)
+        rec.updated_at = datetime.now()
+        safe_commit(session)
+    except Exception:
+        pass
+
+    return result
 
 def calculate_sector_correlation(session, fetch_prices) -> dict:
     logging.info("🧮 Calculando Matriz de Correlação Setorial...")
