@@ -21,7 +21,7 @@ export async function apiCall<T>(endpoint: string, options?: RequestInit & { tim
 
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.msg || errorData.message || `Erro HTTP! Status: ${response.status}`);
+            throw new Error(errorData.error || errorData.msg || errorData.message || `Erro HTTP! Status: ${response.status}`);
         }
 
         // Se a resposta for vazia (ex: status 204), retorna objeto vazio tipado

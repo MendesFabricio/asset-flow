@@ -78,7 +78,7 @@ def create_price_alert():
                 return jsonify({"status": "Erro", "msg": "Condition deve ser ABOVE ou BELOW."}), 400
 
             # Resolve o asset pelo ticker para manter 3FN no banco
-            asset = session.query(Asset).filter_by(ticker=ticker, user_id=g.user_id).first()
+            asset = session.query(Asset).filter_by(ticker=ticker).first()
             if not asset:
                 return jsonify({"status": "Erro", "msg": f"Ativo {ticker} não cadastrado na carteira."}), 400
 

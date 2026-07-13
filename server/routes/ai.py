@@ -83,7 +83,7 @@ def execute_query_portfolio_metrics(session):
 
 def execute_get_asset_fundamental_data(session, ticker: str):
     ticker = ticker.strip().upper()
-    asset = session.query(Asset).filter_by(ticker=ticker, user_id=g.user_id).first()
+    asset = session.query(Asset).filter_by(ticker=ticker).first()
     if not asset:
         return {"status": "Erro", "error": f"Ativo com ticker '{ticker}' não foi encontrado no banco de dados."}
         
@@ -300,7 +300,7 @@ def explain_score(ticker):
     ticker = ticker.strip().upper()
     session = Session()
     try:
-        asset = session.query(Asset).filter_by(ticker=ticker, user_id=g.user_id).first()
+        asset = session.query(Asset).filter_by(ticker=ticker).first()
         if not asset:
             return jsonify({"status": "Erro", "msg": f"Ativo '{ticker}' não encontrado."}), 404
         

@@ -21,6 +21,12 @@ const nextConfig: NextConfig = {
     ];
   },
   output: "standalone",
+  experimental: {
+    // Para aceitar qualquer subdomínio do ngrok no modo de desenvolvimento
+    allowedRevalidateHeaderKeys: ['x-vercel-protection-bypass'],
+  },
+  // Liberar o acesso de cross-origin resources do Ngrok para os assets carregarem
+  allowedDevOrigins: ['jorge-craftless-questionably.ngrok-free.dev'],
 };
 
 export default withSentryConfig(nextConfig, {

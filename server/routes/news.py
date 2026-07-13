@@ -19,7 +19,7 @@ def get_news(ticker):
     with Session() as session:
         try:
             # 1. Busca o Ativo no banco para vincular a IA
-            asset = session.query(Asset).filter_by(ticker=ticker_clean, user_id=g.user_id).first()
+            asset = session.query(Asset).filter_by(ticker=ticker_clean).first()
 
             # 2. Busca notícias no Google News RSS
             search_query = f"{ticker_clean} mercado financeiro"

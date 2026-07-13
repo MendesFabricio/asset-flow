@@ -109,7 +109,9 @@ export function MorningBriefing() {
           )}
           {data.dolar_rate && (
             <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-slate-900 text-slate-400 border border-slate-800">
-              Dólar: <span className="font-mono text-emerald-400">{data.dolar_rate}</span>
+              Dólar: <span className="font-mono text-emerald-400">
+                {String(data.dolar_rate).includes('R$') ? data.dolar_rate : `R$ ${Number(data.dolar_rate).toFixed(2)}`}
+              </span>
             </span>
           )}
           {data.status === 'Processando' && (

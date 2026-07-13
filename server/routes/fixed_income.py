@@ -90,9 +90,9 @@ def handle_fixed_income():
                 db.flush()
                 
             # Verifica ou cria Asset
-            asset = db.query(Asset).filter_by(ticker=ticker, user_id=g.user_id).first()
+            asset = db.query(Asset).filter_by(ticker=ticker).first()
             if not asset:
-                asset = Asset(ticker=ticker, name=name, category_id=cat.id, currency="BRL", user_id=g.user_id)
+                asset = Asset(ticker=ticker, name=name, category_id=cat.id, currency="BRL")
                 db.add(asset)
                 db.flush()
                 
@@ -121,18 +121,18 @@ def handle_fixed_income():
             return jsonify({"msg": "Título de Renda Fixa cadastrado com sucesso!"}), 201
             
         # GET
-        fixed_assets = (
-            db.query(FixedIncome)
-            .join(Asset)
-            .join(Position)
-            .options(joinedload(FixedIncome.asset).joinedload(Asset.position))
+        from sqlalchemy import and_
+        results = (
+            db.query(FixedIncome, Position)
+            .join(Asset, FixedIncome.asset_id == Asset.id)
+            .outerjoin(Position, and_(Position.asset_id == Asset.id, Position.user_id == g.user_id))
+            .options(joinedload(FixedIncome.asset))
             .filter(FixedIncome.is_deleted == False, FixedIncome.user_id == g.user_id)
             .all()
         )
         
         res_list = []
-        for fi in fixed_assets:
-            pos = fi.asset.position
+        for fi, pos in results:
             qty = pos.quantity if pos else Decimal('0')
             pm = pos.average_price if pos else Decimal('0')
             metrics = calculate_fixed_income_metrics(fi, qty, pm)

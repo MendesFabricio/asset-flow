@@ -46,7 +46,12 @@ export default function FixedIncomeTab() {
     try {
       const res = await fetch('/api/fixed-income');
       const data = await res.json();
-      setTitles(data);
+      if (res.ok) {
+        setTitles(Array.isArray(data) ? data : []);
+      } else {
+        console.error("API Error:", data);
+        setTitles([]);
+      }
     } catch (e) {
       console.error(e);
     }

@@ -43,7 +43,6 @@ class User(Base):
     password_hash = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    assets = relationship("Asset", back_populates="user", cascade="all, delete-orphan")
     positions = relationship("Position", back_populates="user", cascade="all, delete-orphan")
     dividends = relationship("Dividend", back_populates="user", cascade="all, delete-orphan")
     portfolio_snapshots = relationship("PortfolioSnapshot", back_populates="user", cascade="all, delete-orphan")
@@ -88,7 +87,7 @@ class Category(Base):
 class Asset(Base):
     __tablename__ = 'assets'
     id = Column(Integer, primary_key=True)
-    ticker = Column(String, nullable=False, index=True)
+    ticker = Column(String, unique=True, nullable=False, index=True)
     name = Column(String)
     cnpj = Column(String, nullable=True)
     cvm_code = Column(String, nullable=True)
@@ -96,14 +95,12 @@ class Asset(Base):
     
     # ⚡ ÍNDICE: Acelera o filtro de ativos pertencentes a uma mesma categoria na tabela
     category_id = Column(Integer, ForeignKey('categories.id'), nullable=False, index=True) 
-    user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"), nullable=False, index=True)
     
     category = relationship("Category", back_populates="assets")
-    user = relationship("User", back_populates="assets")
-    position = relationship("Position", uselist=False, back_populates="asset", cascade="all, delete-orphan")
+    positions = relationship("Position", back_populates="asset", cascade="all, delete-orphan")
     market_data = relationship("MarketData", back_populates="asset", cascade="all, delete-orphan")
     dividends = relationship("Dividend", back_populates="asset", cascade="all, delete-orphan")
-    fixed_income = relationship("FixedIncome", uselist=False, back_populates="asset", cascade="all, delete-orphan")
+    fixed_incomes = relationship("FixedIncome", back_populates="asset", cascade="all, delete-orphan")
 
     # ── Inteligência Artificial (Ollama background checks) ───────────────────
     ai_summary = Column(String, nullable=True)
@@ -112,9 +109,7 @@ class Asset(Base):
     ai_updated_at = Column(DateTime, nullable=True)
     upcoming_split = Column(String, nullable=True)
 
-    __table_args__ = (
-        UniqueConstraint('ticker', 'user_id', name='_ticker_user_uc'),
-    )
+    # Nenhuma UniqueConstraint necessária aqui pois ticker já é único globalmente
 
 class Position(Base):
     __tablename__ = 'positions'
@@ -133,7 +128,7 @@ class Position(Base):
     last_report_at = Column(String, nullable=True) 
     last_report_type = Column(String, nullable=True)
     
-    asset = relationship("Asset", back_populates="position")
+    asset = relationship("Asset", back_populates="positions")
     user = relationship("User", back_populates="positions")
 
     __table_args__ = (
@@ -492,7 +487,7 @@ class FixedIncome(Base):
     due_date = Column(DateTime, nullable=False)
     is_deleted = Column(Boolean, default=False)
 
-    asset = relationship("Asset", back_populates="fixed_income")
+    asset = relationship("Asset", back_populates="fixed_incomes")
     user = relationship("User", back_populates="fixed_incomes")
 
     __table_args__ = (

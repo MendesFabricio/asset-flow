@@ -56,20 +56,22 @@ class PortfolioCrudService:
         logging.info(f"🆕 JOB: Mapeando inclusão de novo ativo: {ticker}")
         with Session() as session:
             try:
-                exists = session.query(Asset).filter_by(ticker=ticker, user_id=user_id).first()
+                asset = session.query(Asset).filter_by(ticker=ticker).first()
+                if not asset:
+                    category = session.query(Category).filter_by(name=category_name).first()
+                    if not category: 
+                        category = session.query(Category).first()
+                    
+                    asset = Asset(ticker=ticker, category_id=category.id, currency=currency)
+                    session.add(asset)
+                    session.flush() 
+                
+                exists = session.query(Position).filter_by(asset_id=asset.id, user_id=user_id).first()
                 if exists: 
-                    raise ValueError("Ativo já existe!")
-                
-                category = session.query(Category).filter_by(name=category_name).first()
-                if not category: 
-                    category = session.query(Category).first()
-                
-                new_asset = Asset(ticker=ticker, category_id=category.id, currency=currency, user_id=user_id)
-                session.add(new_asset)
-                session.flush() 
+                    raise ValueError("Ativo já existe na sua carteira!")
                 
                 pos = Position(
-                    asset_id=new_asset.id, 
+                    asset_id=asset.id, 
                     user_id=user_id,
                     quantity=Decimal(str(qtd)), 
                     average_price=Decimal(str(pm)),
@@ -79,7 +81,7 @@ class PortfolioCrudService:
                 
                 self._invalidate_quant_cache(session)
                 safe_commit(session)
-                return f"Ativo {ticker} criado com sucesso!"
+                return f"Ativo {ticker} criado com sucesso na carteira!"
             except Exception as e:
                 session.rollback()
                 logging.error(f"❌ Falha ao injetar novo ativo no ecossistema: {e}")
@@ -89,16 +91,17 @@ class PortfolioCrudService:
         user_id = self.current_user_id
         with Session() as session:
             try:
-                asset = session.query(Asset).filter_by(id=asset_id, user_id=user_id).first()
-                if not asset: 
-                    raise ValueError("Ativo não encontrado")
+                pos = session.query(Position).filter_by(asset_id=asset_id, user_id=user_id).first()
+                if not pos: 
+                    raise ValueError("Ativo não encontrado na carteira")
                 
-                session.query(Position).filter_by(asset_id=asset_id, user_id=user_id).delete()
-                session.query(MarketData).filter_by(asset_id=asset_id).delete()
-                session.delete(asset)
+                session.delete(pos)
+                # O banco já cuida de deletar os históricos atrelados ao Position se houvesse relation delete-orphan em position
+                # Mas para garantir, limpamos caso exista algo avulso:
+                # Não deletamos MarketData nem o Asset, pois pertencem à base Global!
                 self._invalidate_quant_cache(session)
                 safe_commit(session)
-                return "Ativo e dados vinculados excluídos!"
+                return "Ativo removido da sua carteira!"
             except Exception:
                 session.rollback()
                 raise

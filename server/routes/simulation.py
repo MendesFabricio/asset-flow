@@ -90,7 +90,7 @@ def _build_morning_brief_context(user_id: int, dolar_rate: float, selic: float) 
 
     context = {
         "selic": float(selic),
-        "dolar_rate": float(dolar_rate),
+        "dolar_rate": round(float(dolar_rate), 2),
         "selic_rate": f"{selic * 100:.2f}%",
         "dolar_rate_str": f"R$ {float(dolar_rate):.2f}",
         "holdings": enriched_holdings

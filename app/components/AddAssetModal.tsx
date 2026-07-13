@@ -87,8 +87,8 @@ export const AddAssetModal = ({ isOpen, onClose, onSuccess }: AddAssetModalProps
         setError(saveData.msg || "Erro ao salvar o ativo.");
       }
 
-    } catch (err) {
-      setError("Erro de conexão com o servidor.");
+    } catch (err: any) {
+      setError(err.message || "Erro de conexão com o servidor.");
     } finally {
       setLoading(false);
       setValidating(false);
