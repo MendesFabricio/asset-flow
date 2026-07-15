@@ -197,6 +197,19 @@ class PortfolioSnapshot(Base):
     breakdown = Column(String, nullable=True)
 
     user = relationship("User", back_populates="portfolio_snapshots")
+    items = relationship("SnapshotItem", back_populates="snapshot", cascade="all, delete-orphan")
+
+class SnapshotItem(Base):
+    __tablename__ = 'snapshot_items'
+    id = Column(Integer, primary_key=True)
+    snapshot_id = Column(Integer, ForeignKey('snapshots.id', ondelete="CASCADE"), nullable=False, index=True)
+    category_id = Column(Integer, ForeignKey('categories.id', ondelete="CASCADE"), nullable=False, index=True)
+    
+    total_value = Column(Numeric(18, 4), nullable=False)
+    target_percent = Column(Numeric(18, 4), nullable=True)
+
+    snapshot = relationship("PortfolioSnapshot", back_populates="items")
+    category = relationship("Category")
 
 class RefundConfig(Base):
     __tablename__ = "refund_configs"
@@ -730,17 +743,7 @@ def init_db():
     finally:
         db_session.close()
 
-    from sqlalchemy import inspect, text
-    try:
-        inspector = inspect(engine)
-        # Seed inicial de RefundConfig se estiver vazio
-        if inspector.has_table('refund_configs'):
-            with engine.begin() as conn:
-                res = conn.execute(text("SELECT COUNT(*) FROM refund_configs")).fetchone()
-                if res and res[0] == 0:
-                    conn.execute(text("INSERT INTO refund_configs (id, fechamento_dia, vencimento_dia) VALUES (1, 15, 20)"))
-    except Exception as e:
-        logging.warning(f"⚠️ Erro ao inicializar tabelas e seeds de configuração: {e}")
+
 
 
 # --- EVENT LISTENERS PARA SEGURANÇA E ISOLAMENTO MULTIUSUÁRIO ---

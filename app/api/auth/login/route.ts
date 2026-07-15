@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-
+// Force Next.js rebuild
 const BACKEND_URL = process.env.BACKEND_URL || 'http://backend:5328';
 
 // 🔒 Rate Limiting em memória por IP

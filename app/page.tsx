@@ -157,8 +157,122 @@ export default function Home() {
     );
   }
 
+
+  // --- RENDER FUNCTIONS ---
+  
+  const renderNavigationTabs = () => (
+    <div className="max-w-7xl mx-auto px-4 py-4 space-y-3">
+      <div className="flex flex-col md:flex-row md:items-center gap-3">
+        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest min-w-[125px]">Minha Carteira:</span>
+        <div className="flex gap-1.5 overflow-x-auto no-scrollbar w-full pb-1 md:pb-0">
+          {portfolioTabs.map((c) => (
+            <button
+              type="button"
+              key={c.id}
+              onClick={() => setTab(c.id)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-300 border ${tab === c.id
+                ? 'bg-blue-500/15 text-blue-400 border-blue-500/40 shadow-[0_0_12px_rgba(59,130,246,0.15)]'
+                : 'bg-slate-900/45 text-slate-400 border-slate-800/80 hover:text-slate-200 hover:border-slate-700/50'
+                }`}
+            >
+              {c.icon}
+              <span>{c.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex flex-col md:flex-row md:items-center gap-3 pt-2 border-t border-slate-900/50">
+        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest min-w-[125px]">Análises & IA:</span>
+        <div className="flex gap-1.5 overflow-x-auto no-scrollbar w-full pb-1 md:pb-0">
+          {analyticsTabs.map((c) => (
+            <button
+              type="button"
+              key={c.id}
+              onClick={() => setTab(c.id)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-300 border ${tab === c.id
+                ? 'bg-indigo-500/15 text-indigo-400 border-indigo-500/40 shadow-[0_0_12px_rgba(99,102,241,0.15)]'
+                : 'bg-slate-900/45 text-slate-400 border-slate-800/80 hover:text-slate-200 hover:border-slate-700/50'
+                }`}
+            >
+              {c.icon}
+              <span>{c.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderSummaryDashboard = () => (
+    <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          title="Yield on Cost Médio"
+          value={isHidden ? '•••' : metrics.yocMedio.toFixed(2) + '%'}
+          subtext="Anual Est."
+          icon={Percent}
+          colorClass="text-purple-400"
+        />
+        <StatCard
+          title="Total Investido"
+          value={metrics.money(metrics.totalInvestido)}
+          subtext="Custo de Aquisição"
+          icon={PiggyBank}
+          colorClass="text-blue-400"
+        />
+        <StatCard
+          title="Lucro / Prejuízo"
+          value={isHidden ? '••••••' : (metrics.lucroTotal > 0 ? '+' : '') + formatMoney(metrics.lucroTotal)}
+          subtext="Total Histórico"
+          icon={BarChart3}
+          colorClass={metrics.lucroTotal >= 0 ? "text-green-400" : "text-red-400"}
+          dailyResult={metrics.variacaoDiariaTotal}
+        />
+        <StatCard
+          title="Top Insight"
+          type="insight"
+          colorClass="text-indigo-400"
+          icon={Target}
+          value={metrics.topCompras.length > 0 ? metrics.topCompras[0].ticker : "--"}
+          badge={metrics.topCompras.length > 0 ? metrics.topCompras[0].recomendacao : undefined}
+          marquee={metrics.topCompras.length > 0 ? `${metrics.topCompras[0].motivo} • Potencial Identificado •` : undefined}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 min-h-[525px]">
+        <div className="h-full w-full">
+          <RiskRadar alertas={data?.alertas || []} />
+        </div>
+        <div className="lg:col-span-2 h-full w-full">
+          <CategorySummary ativos={data?.ativos || []} categorias={(data as any)?.categorias || []} onUpdate={() => refetch()} />
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderDynamicTabContent = () => {
+    switch (tab) {
+      case 'Resumo': return renderSummaryDashboard();
+      case 'Evolução': return <div className="animate-in fade-in duration-500 min-h-[400px] w-full"><HistoryChart data={history} /></div>;
+      case 'Correlação': return <div className="animate-in fade-in duration-500 min-h-[400px] w-full"><CorrelationHeatmap /></div>;
+      case 'Quantitativo': return <div className="animate-in fade-in duration-500 w-full"><QuantDashboard /></div>;
+      case 'Renda Fixa': return <div className="animate-in fade-in duration-500 w-full"><FixedIncomeTab /></div>;
+      case 'Financeiro': return <div className="animate-in fade-in duration-500 w-full"><ReceivablesTab /></div>;
+      case 'Cartoes': return <div className="animate-in fade-in duration-500 w-full"><CreditCardsTab /></div>;
+      case 'Jarvis':
+        return (
+          <div className="animate-in fade-in duration-500 w-full grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-1"><MorningBriefing /></div>
+            <div className="lg:col-span-2"><JarvisChat /></div>
+          </div>
+        );
+      default: return null;
+    }
+  };
+
   return (
-    <main className="min-h-screen bg-[#0b0f19] text-slate-200 font-sans selection:bg-blue-500/30 pb-20 relative">
+    <main className="min-h-screen bg-[#0b0f19] text-slate-200 font-sans selection:bg-blue-500/30 pb-20 relative animate-in fade-in duration-500">
       <Header
         total={data?.resumo?.Total || 0}
         ativos={data?.ativos || []}
@@ -177,142 +291,10 @@ export default function Home() {
         showRefreshSuccess={showRefreshSuccess}
       />
 
-      <div className="max-w-7xl mx-auto px-4 py-4 space-y-3">
-        <div className="flex flex-col md:flex-row md:items-center gap-3">
-          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest min-w-[125px]">Minha Carteira:</span>
-          <div className="flex gap-1.5 overflow-x-auto no-scrollbar w-full pb-1 md:pb-0">
-            {portfolioTabs.map((c) => (
-              <button
-                type="button"
-                key={c.id}
-                onClick={() => setTab(c.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-300 border ${tab === c.id
-                  ? 'bg-blue-500/15 text-blue-400 border-blue-500/40 shadow-[0_0_12px_rgba(59,130,246,0.15)]'
-                  : 'bg-slate-900/45 text-slate-400 border-slate-800/80 hover:text-slate-200 hover:border-slate-700/50'
-                  }`}
-              >
-                {c.icon}
-                <span>{c.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="flex flex-col md:flex-row md:items-center gap-3 pt-2 border-t border-slate-900/50">
-          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest min-w-[125px]">Análises & IA:</span>
-          <div className="flex gap-1.5 overflow-x-auto no-scrollbar w-full pb-1 md:pb-0">
-            {analyticsTabs.map((c) => (
-              <button
-                type="button"
-                key={c.id}
-                onClick={() => setTab(c.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-300 border ${tab === c.id
-                  ? 'bg-indigo-500/15 text-indigo-400 border-indigo-500/40 shadow-[0_0_12px_rgba(99,102,241,0.15)]'
-                  : 'bg-slate-900/45 text-slate-400 border-slate-800/80 hover:text-slate-200 hover:border-slate-700/50'
-                  }`}
-              >
-                {c.icon}
-                <span>{c.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
+      {renderNavigationTabs()}
 
       <div className="max-w-7xl mx-auto p-4 md:p-6">
-        {tab === 'Resumo' && (
-          <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-2">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatCard
-                title="Yield on Cost Médio"
-                value={isHidden ? '•••' : metrics.yocMedio.toFixed(2) + '%'}
-                subtext="Anual Est."
-                icon={Percent}
-                colorClass="text-purple-400"
-              />
-              <StatCard
-                title="Total Investido"
-                value={metrics.money(metrics.totalInvestido)}
-                subtext="Custo de Aquisição"
-                icon={PiggyBank}
-                colorClass="text-blue-400"
-              />
-              <StatCard
-                title="Lucro / Prejuízo"
-                value={isHidden ? '••••••' : (metrics.lucroTotal > 0 ? '+' : '') + formatMoney(metrics.lucroTotal)}
-                subtext="Total Histórico"
-                icon={BarChart3}
-                colorClass={metrics.lucroTotal >= 0 ? "text-green-400" : "text-red-400"}
-                dailyResult={metrics.variacaoDiariaTotal}
-              />
-              <StatCard
-                title="Top Insight"
-                type="insight"
-                colorClass="text-indigo-400"
-                icon={Target}
-                value={metrics.topCompras.length > 0 ? metrics.topCompras[0].ticker : "--"}
-                badge={metrics.topCompras.length > 0 ? metrics.topCompras[0].recomendacao : undefined}
-                marquee={metrics.topCompras.length > 0 ? `${metrics.topCompras[0].motivo} • Potencial Identificado •` : undefined}
-              />
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-[525px]">
-              <div className="h-full">
-                <RiskRadar alertas={data?.alertas || []} />
-              </div>
-              <div className="lg:col-span-2 h-full">
-                <CategorySummary ativos={data?.ativos || []} categorias={(data as any)?.categorias || []} onUpdate={() => refetch()} />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {tab === 'Evolução' && (
-          <div className="animate-in fade-in h-[400px] w-full">
-            <HistoryChart data={history} />
-          </div>
-        )}
-
-        {tab === 'Correlação' && (
-          <div className="animate-in fade-in w-full">
-            <CorrelationHeatmap />
-          </div>
-        )}
-
-        {tab === 'Quantitativo' && (
-          <div className="animate-in fade-in w-full">
-            <QuantDashboard />
-          </div>
-        )}
-
-        {tab === 'Renda Fixa' && (
-          <div className="animate-in fade-in w-full">
-            <FixedIncomeTab />
-          </div>
-        )}
-
-        {tab === 'Financeiro' && (
-          <div className="animate-in fade-in w-full">
-            <ReceivablesTab />
-          </div>
-        )}
-
-        {tab === 'Cartoes' && (
-          <div className="animate-in fade-in w-full">
-            <CreditCardsTab />
-          </div>
-        )}
-
-        {tab === 'Jarvis' && (
-          <div className="animate-in fade-in w-full grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-1">
-              <MorningBriefing />
-            </div>
-            <div className="lg:col-span-2">
-              <JarvisChat />
-            </div>
-          </div>
-        )}
+        {renderDynamicTabContent()}
 
         <AssetsTable
           assets={data?.ativos || []}

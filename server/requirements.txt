@@ -17,3 +17,4 @@ pymupdf==1.28.0
 reportlab==5.0.0
 sentry-sdk[flask]  
  
+pytz

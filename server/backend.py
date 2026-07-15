@@ -48,6 +48,7 @@ from routes.quant_analysis import quant_bp
 from routes.credit_cards import cards_bp
 from routes.fixed_income import fixed_income_bp
 from routes.auth import auth_bp
+from routes.assets_icon import assets_icon_bp
 from routes.scheduler import scheduler_bp
 
 
@@ -127,6 +128,8 @@ def require_authentication():
     # Bypasses OPTIONS preflight, health check and auth endpoints
     if request.method == "OPTIONS" or request.path in ["/api/health", "/api/auth/login", "/api/auth/register", "/api/auth/logout", "/api/sync/stream"]:
         return
+    if request.method == "GET" and request.path.startswith("/api/assets/icon/"):
+        return
         
     auth_header = request.headers.get("Authorization")
     token = None
@@ -168,6 +171,7 @@ logging.info("🔧 Registrando blueprints...")
 app.register_blueprint(auth_bp)
 app.register_blueprint(dashboard_bp)
 app.register_blueprint(assets_bp)
+app.register_blueprint(assets_icon_bp)
 app.register_blueprint(news_bp)
 app.register_blueprint(calendar_bp)
 app.register_blueprint(alerts_bp)

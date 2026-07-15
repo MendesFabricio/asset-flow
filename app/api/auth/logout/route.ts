@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 
 export async function POST() {
+  console.log("LOGOUT ROUTE HIT!");
   const response = NextResponse.json({ success: true, message: 'Deslogado com sucesso.' });
   
   // Limpa o cookie de sessão setando a data de expiração no passado

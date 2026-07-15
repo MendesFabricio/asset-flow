@@ -1,5 +1,6 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
+// Force Next.js rebuild
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {

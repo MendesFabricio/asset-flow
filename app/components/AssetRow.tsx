@@ -112,18 +112,16 @@ export const AssetRow = React.memo(({ ativo, tab, onEdit, onViewNews, onViewDeta
 
   return (
     <>
-      <tr className="hover:bg-slate-800/20 transition-all duration-300 border-b border-slate-800/30 last:border-0 group text-xs sm:text-sm">
+      <tr className="hover:bg-slate-800/50 transition-colors duration-200 border-b border-slate-800/30 last:border-0 group text-xs sm:text-sm">
 
         {/* COLUNA 1: IDENTIFICAÇÃO */}
-        <td className="p-4 pl-6">
+        <td className="px-6 py-5">
           <div className="flex items-center gap-3">
             <div className="relative h-9 w-9 shrink-0 rounded-full bg-slate-800 overflow-hidden shadow-sm group-hover:scale-110 transition-transform duration-300">
               {!imgError ? (
-                <Image
-                  src={`https://raw.githubusercontent.com/thefintz/icones-b3/main/icones/${ativo.ticker}.png`}
+                <img
+                  src={`/api/assets/icon/${ativo.ticker}`}
                   alt={ativo.ticker}
-                  width={36}
-                  height={36}
                   className="h-full w-full object-cover"
                   onError={() => setImgError(true)}
                 />
@@ -166,7 +164,7 @@ export const AssetRow = React.memo(({ ativo, tab, onEdit, onViewNews, onViewDeta
         </td>
 
         {/* COLUNA 2: VALOR TOTAL */}
-        <td className="p-4 text-right">
+        <td className="px-6 py-5 text-right">
           <div className="flex flex-col items-end">
             <PrivateValue value={formatMoney(ativo.total_atual)} className="text-slate-200 font-bold tabular-nums" />
             <PrivateValue value={`Investido: ${formatMoney(ativo.total_investido)}`} className="text-[10px] text-slate-500 tabular-nums" />
@@ -174,7 +172,7 @@ export const AssetRow = React.memo(({ ativo, tab, onEdit, onViewNews, onViewDeta
         </td>
 
         {/* COLUNA 3: PREÇO + VARIAÇÃO */}
-        <td className="p-4 text-right hidden sm:table-cell">
+        <td className="px-6 py-5 text-right hidden sm:table-cell">
           <div className="flex flex-col items-end">
             <div className="flex items-center gap-2 justify-end">
               {!isNaN(Number(stats.variacaoIntraday)) && Number(stats.variacaoIntraday) !== 0 && (
@@ -194,7 +192,7 @@ export const AssetRow = React.memo(({ ativo, tab, onEdit, onViewNews, onViewDeta
         </td>
 
         {/* COLUNA 4: RESULTADO GERAL */}
-        <td className="p-4 text-right">
+        <td className="px-6 py-5 text-right">
           <div className="flex flex-col items-end">
             <PrivateValue value={(lucroPositivo ? '+' : '') + formatMoney(ativo.lucro_valor)} className={`font-bold font-mono tabular-nums ${lucroPositivo ? 'text-emerald-400' : 'text-rose-400'}`} />
             <div className={`text-[10px] flex items-center gap-1 ${lucroPositivo ? 'text-emerald-500/70' : 'text-rose-500/70'}`}>
@@ -205,7 +203,7 @@ export const AssetRow = React.memo(({ ativo, tab, onEdit, onViewNews, onViewDeta
         </td>
 
         {/* COLUNA 5: META */}
-        <td className="p-4 text-right w-36 hidden md:table-cell">
+        <td className="px-6 py-5 text-right w-36 hidden md:table-cell">
           <div className="flex justify-between text-[10px] mb-2 px-0.5 font-mono leading-none">
             <span className={`font-bold tabular-nums ${stats.isOverweight ? 'text-yellow-400' : 'text-blue-300'}`}>
               {ativo.pct_na_categoria.toFixed(1)}%
@@ -221,7 +219,7 @@ export const AssetRow = React.memo(({ ativo, tab, onEdit, onViewNews, onViewDeta
         </td>
 
         {/* COLUNA 6: APORTE + RECOMENDAÇÃO */}
-        <td className="p-4 text-right">
+        <td className="px-6 py-5 text-right">
           <div className="flex flex-col items-end gap-1.5 w-[110px] ml-auto">
             {ativo.falta_comprar > 1 ? (
               <PrivateValue 
@@ -279,7 +277,7 @@ export const AssetRow = React.memo(({ ativo, tab, onEdit, onViewNews, onViewDeta
 
         {/* COLUNA 7: INDICADORES EXTRAS */}
         {showIndicators && (
-          <td className="p-4 text-center hidden lg:table-cell w-28 align-middle">
+          <td className="px-6 py-5 text-center hidden lg:table-cell w-28 align-middle">
             {tab === 'FII' ? (
               <div className="flex flex-col gap-1.5 items-end w-full">
                 {(ativo.p_vp || 0) > 0 && (

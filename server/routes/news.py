@@ -5,13 +5,15 @@ import requests
 import logging
 from urllib.parse import quote
 from datetime import datetime, timedelta
-from database.models import Asset
+from database.models import Asset, safe_commit
 from services import Session
 from infrastructure.ollama_service import analyze_asset_sentiment_async
+from utils.db_utils import with_safe_commit
 
 news_bp = Blueprint('news', __name__)
 
 @news_bp.route('/api/news/<ticker>', methods=['GET'])
+@with_safe_commit
 def get_news(ticker):
     from flask import request, g
     force_reanalyze = request.args.get("force", "false").lower() == "true"
@@ -114,11 +116,11 @@ def get_news(ticker):
                     analyze_asset_sentiment_async(asset.id, asset.ticker, titles, position_info)
                     asset.ai_status = "processing"
                     asset.ai_updated_at = datetime.now()  # Registra o início do processamento como referência de timeout
-                    session.commit()
+                    safe_commit(session)
                 elif should_trigger:
                     asset.ai_status = "idle"
                     asset.ai_updated_at = datetime.now()
-                    session.commit()
+                    safe_commit(session)
 
                 ai_data = {
                     "summary": asset.ai_summary,

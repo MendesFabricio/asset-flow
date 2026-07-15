@@ -1,7 +1,9 @@
 # server/routes/maintenance.py
 from flask import Blueprint, jsonify, request
 from services import PortfolioService
-from database.models import Position, Session # ⚡ Importado a factory controlada corretamente
+from database.models import Position, Session, safe_commit, engine
+from utils.db_utils import with_safe_commit
+from sqlalchemy import text
 import logging
 
 maintenance_bp = Blueprint('maintenance', __name__)
@@ -26,6 +28,7 @@ def update_category_meta():
         return jsonify({"status": "Erro", "msg": str(e)}), 500
 
 @maintenance_bp.route('/api/cleanup_trash', methods=['GET'])
+@with_safe_commit
 def cleanup_trash():
     # 🛡️ CONTEXT MANAGER: Abre e fecha a conexão de forma atômica, eliminando leaks e deadlocks no SQLite
     with Session() as session:
@@ -37,7 +40,9 @@ def cleanup_trash():
                     session.delete(pos)
                     deleted_count += 1
             
-            session.commit()
+            # WAL checkpoint explícito
+            session.execute(text("PRAGMA wal_checkpoint(TRUNCATE)"))
+            safe_commit(session)
             logging.info(f"🧹 DB MAINTENANCE: Faxina concluída com sucesso. {deleted_count} posições órfãs expurgadas.")
             return jsonify({"status": "Sucesso", "msg": f"Faxina concluída! {deleted_count} itens removidos."})
         except Exception as e:
@@ -68,9 +73,6 @@ def backup_database():
         return jsonify({"status": "Erro", "msg": "Não autorizado. Token de backup inválido ou ausente."}), 401
 
     try:
-        from database.session import engine
-        from sqlalchemy import text
-
         backup_path = os.environ.get("BACKUP_PATH") or '/app/data/backup_assetflow.db'
         
         # Garante a existência do diretório

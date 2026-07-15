@@ -2,7 +2,9 @@ import logging
 import requests
 import json
 from flask import Blueprint, request, Response, stream_with_context, jsonify, g
-from database.models import Session, Asset, Position, LoanInstallment
+from database.session import Session, engine
+from database.models import Asset, Position, LoanInstallment, AIChatHistory, safe_commit
+from utils.db_utils import with_safe_commit
 from sqlalchemy.orm import joinedload
 from infrastructure.ollama_service import OLLAMA_CHAT_URL, MODEL_NAME, get_ollama_tools
 from domain.quant.risk import calculate_risk_metrics
@@ -138,6 +140,7 @@ def execute_get_asset_fundamental_data(session, ticker: str):
     }
 
 @ai_bp.route('/api/ai/chat', methods=['POST'])
+@with_safe_commit
 def chat():
     body = request.get_json(silent=True) or {}
     message = body.get("message", "").strip()
@@ -147,13 +150,12 @@ def chat():
         return Response("Por favor, envie uma mensagem válida.", mimetype='text/plain', status=400)
         
     try:
-        from database.models import AIChatHistory
         session = Session()
         
         # 1. Salva a pergunta do usuário no banco
         user_msg_db = AIChatHistory(session_id=session_id, role="user", content=message, user_id=g.user_id)
         session.add(user_msg_db)
-        session.commit()
+        safe_commit(session)
         
         # 2. Resgata histórico persistido desta sessão no SQLite
         db_history = session.query(AIChatHistory).filter_by(session_id=session_id, user_id=g.user_id).order_by(AIChatHistory.created_at.asc()).all()
@@ -246,10 +248,9 @@ def chat():
                             
                 # 3. Salva a resposta do assistente no banco
                 if full_response.strip():
-                    from database.models import AIChatHistory
-                    assistant_msg_db = AIChatHistory(session_id=session_id, role="assistant", content=full_response, user_id=g.user_id)
-                    stream_session.add(assistant_msg_db)
-                    stream_session.commit()
+                    bot_msg_db = AIChatHistory(session_id=session_id, role="assistant", content=full_response, user_id=g.user_id)
+                    stream_session.add(bot_msg_db)
+                    safe_commit(stream_session)
                     
             except Exception as stream_err:
                 logging.error(f"Erro no stream do agente: {stream_err}")

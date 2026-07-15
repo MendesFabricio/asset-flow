@@ -106,13 +106,13 @@ export function AssetsTable({ assets, tab, onEdit, onViewNews, onViewDetails }: 
         <table className="w-full text-left text-sm">
           <thead className="bg-slate-950/95 text-slate-400/70 uppercase text-[10px] font-bold tracking-widest border-b border-slate-800/40 sticky top-0 z-10">
             <tr>
-              <th className="p-4 pl-6">Ativo</th>
-              <th className="p-4 text-right">Minha Posição</th>
-              <th className="p-4 text-right hidden sm:table-cell">Preço</th>
-              <th className="p-4 text-right">Resultados</th>
-              <th className="p-4 text-right hidden md:table-cell">Meta</th>
-              <th className="p-4 text-right">Aporte</th>
-              {(tab === 'Ação' || tab === 'FII') && <th className="p-4 text-center hidden lg:table-cell w-24">Indicadores</th>}
+              <th className="px-6 py-5">Ativo</th>
+              <th className="px-6 py-5 text-right">Minha Posição</th>
+              <th className="px-6 py-5 text-right hidden sm:table-cell">Preço</th>
+              <th className="px-6 py-5 text-right">Resultados</th>
+              <th className="px-6 py-5 text-right hidden md:table-cell">Meta</th>
+              <th className="px-6 py-5 text-right">Aporte</th>
+              {(tab === 'Ação' || tab === 'FII') && <th className="px-6 py-5 text-center hidden lg:table-cell w-24">Indicadores</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800/30">

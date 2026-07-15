@@ -70,15 +70,15 @@ export const StatCard = React.memo(({
   const isPositiveDaily = hasDaily && dailyResult >= 0;
 
   return (
-    <div className={`relative overflow-hidden rounded-xl border border-slate-800 bg-gradient-to-br ${theme.gradient} p-5 shadow-lg ${theme.shadow} transition-all duration-300 hover:scale-[1.02] hover:border-slate-700/80 group flex flex-col justify-between min-h-[115px]`}>
+    <div className={`relative overflow-hidden rounded-xl border border-slate-800/80 bg-gradient-to-br ${theme.gradient} p-6 shadow-md ${theme.shadow} transition-all duration-300 ease-in-out hover:scale-[1.02] hover:-translate-y-1 hover:shadow-xl hover:border-slate-700/80 group flex flex-col justify-between min-h-[125px]`}>
 
       {/* Glow de fundo */}
-      <div className={`absolute -right-6 -top-6 h-24 w-24 rounded-full ${theme.glow} blur-3xl opacity-10 group-hover:opacity-20 transition-opacity duration-500`}></div>
+      <div className={`absolute -right-6 -top-6 h-24 w-24 rounded-full ${theme.glow} blur-3xl opacity-5 group-hover:opacity-20 transition-opacity duration-500`}></div>
 
       {/* Header do Card */}
       <div className="flex justify-between items-start relative z-10">
         <div className="flex flex-col">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 leading-none mb-1">{title}</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 leading-none mb-1.5">{title}</p>
 
           {type === 'insight' ? (
             <div className="flex items-center gap-2 mt-0.5">
@@ -102,25 +102,25 @@ export const StatCard = React.memo(({
       </div>
 
       {/* Footer do Card (Inteligente) */}
-      <div className={`mt-3 pt-2 ${type === 'insight' ? 'border-t border-slate-700/30 overflow-hidden relative' : ''} relative z-10`}>
+      <div className={`mt-4 pt-3 ${type === 'insight' ? 'border-t border-slate-700/40 overflow-hidden relative' : ''} relative z-10`}>
         {type === 'insight' ? (
           marquee ? (
             <div className="relative flex items-center w-full group/marquee cursor-default">
               <p 
-                className={`text-[10px] font-bold uppercase tracking-tight italic truncate w-full pr-2 opacity-70 ${colors.marqueeText}`}
+                className={`text-[10px] font-bold uppercase tracking-tight italic truncate w-full pr-2 opacity-80 ${colors.marqueeText}`}
                 title={marquee}
               >
                 {marquee}
               </p>
             </div>
           ) : (
-            <p className="text-slate-600 text-[9px] font-bold uppercase italic">Aguardando sinais...</p>
+            <p className="text-slate-500 text-[9px] font-bold uppercase italic">Aguardando sinais...</p>
           )
         ) : (
           // === FOOTER PADRÃO COM SUPORTE A DAILY RESULT ===
           <div className="flex items-center justify-between w-full">
             {/* Texto da Esquerda (Original) */}
-            <p className="text-[10px] font-medium text-slate-500 flex items-center gap-1.5 opacity-80">
+            <p className="text-[10px] font-medium text-slate-400 flex items-center gap-1.5 opacity-90">
               <span className={`w-1.5 h-1.5 rounded-full ${theme.glow}`}></span>
               {subtext}
             </p>

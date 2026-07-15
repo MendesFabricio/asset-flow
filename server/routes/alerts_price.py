@@ -16,6 +16,7 @@ from datetime import datetime
 from services import Session
 from database.models import PriceAlert, MarketData, Asset, TriggeredAlert, safe_commit
 from sqlalchemy.orm import joinedload
+from utils.db_utils import with_safe_commit
 
 price_alerts_bp = Blueprint('price_alerts', __name__)
 
@@ -56,6 +57,7 @@ def list_price_alerts():
 
 
 @price_alerts_bp.route('/api/price-alerts', methods=['POST'])
+@with_safe_commit
 def create_price_alert():
     """
     Cria um novo alerta de preço.
@@ -92,7 +94,7 @@ def create_price_alert():
                 created_at=datetime.now(),
             )
             session.add(alert)
-            session.commit()
+            safe_commit(session)
             logging.info(f"🔔 Alerta criado: {ticker} {condition} R$ {target_price:.2f}")
 
             return jsonify({
@@ -108,6 +110,7 @@ def create_price_alert():
 
 
 @price_alerts_bp.route('/api/price-alerts/<int:alert_id>', methods=['DELETE'])
+@with_safe_commit
 def delete_price_alert(alert_id: int):
     """Remove (hard-delete) um alerta pelo ID."""
     from flask import g
@@ -117,7 +120,7 @@ def delete_price_alert(alert_id: int):
             if not alert:
                 return jsonify({"status": "Erro", "msg": "Alerta não encontrado."}), 404
             session.delete(alert)
-            session.commit()
+            safe_commit(session)
             return jsonify({"status": "Sucesso", "msg": f"Alerta #{alert_id} removido."})
         except Exception as e:
             session.rollback()
