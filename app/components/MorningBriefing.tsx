@@ -89,8 +89,8 @@ export function MorningBriefing() {
   }
 
   return (
-    <div className="bg-gradient-to-r from-slate-950 via-slate-900/90 to-slate-950 border border-slate-800/80 backdrop-blur-md rounded-2xl p-5 mb-6 shadow-2xl transition-all hover:border-blue-500/30">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-800/60 pb-3 mb-3">
+    <div className="bg-gradient-to-b from-slate-950 via-slate-900/90 to-slate-950 border border-slate-800/80 backdrop-blur-md rounded-2xl p-5 shadow-2xl transition-all hover:border-blue-500/30 h-[650px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-800">
+      <div className="flex flex-col justify-between items-start gap-4 border-b border-slate-800/60 pb-4 mb-4">
         <div className="flex items-center gap-2.5">
           <div className="p-1.5 bg-blue-500/10 rounded-lg border border-blue-500/20 text-blue-400">
             <Coffee size={16} className="animate-pulse" />

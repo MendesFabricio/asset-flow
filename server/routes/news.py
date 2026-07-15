@@ -95,10 +95,15 @@ def get_news(ticker):
                     pos_qty = 0.0
                     pos_avg = 0.0
                     pos_target = 0.0
-                    if asset.position:
-                        pos_qty = float(asset.position.quantity or 0.0)
-                        pos_avg = float(asset.position.average_price or 0.0)
-                        pos_target = float(asset.position.target_percent or 0.0)
+                    
+                    from database.models import Position
+                    user_id = getattr(g, 'user_id', None)
+                    if user_id:
+                        position = session.query(Position).filter_by(asset_id=asset.id, user_id=user_id).first()
+                        if position:
+                            pos_qty = float(position.quantity or 0.0)
+                            pos_avg = float(position.average_price or 0.0)
+                            pos_target = float(position.target_percent or 0.0)
                     
                     position_info = {
                         "quantity": pos_qty,

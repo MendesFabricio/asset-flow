@@ -282,7 +282,7 @@ export const CategorySummary = ({ ativos, categorias = [], onUpdate }: CategoryS
                           </div>
                         ) : Math.abs(item.variacaoPct) > 0.001 && (
                           <div
-                            className={`flex items-center gap-0.5 text-[9px] font-mono font-bold px-1.5 py-0.5 rounded cursor-help transition-all hover:scale-105 ${isPositiveVar
+                            className={`flex items-center gap-0.5 text-[9px] font-mono font-bold px-1.5 py-0.5 rounded cursor-pointer transition-all hover:scale-105 ${isPositiveVar
                               ? 'text-emerald-400 bg-emerald-400/10 border border-emerald-400/20'
                               : 'text-rose-400 bg-rose-400/10 border border-rose-400/20'
                               }`}
@@ -320,7 +320,7 @@ export const CategorySummary = ({ ativos, categorias = [], onUpdate }: CategoryS
                         </div>
                       ) : (
                         <div
-                          className="w-full cursor-help py-1"
+                          className="w-full cursor-pointer py-1"
                           onMouseEnter={(e) => {
                             const rect = e.currentTarget.getBoundingClientRect();
                             setHoveredInfo({
@@ -331,7 +331,7 @@ export const CategorySummary = ({ ativos, categorias = [], onUpdate }: CategoryS
                           }}
                           onMouseLeave={() => setHoveredInfo(null)}
                         >
-                          <div className="flex justify-between text-[10px] mb-1.5 font-mono leading-none">
+                          <div className="flex justify-between text-[10px] mb-2 font-mono leading-none">
                             <span className="text-slate-200 font-bold">{pctAtual.toFixed(1)}%</span>
                             {meta > 0 && (
                               <span className={diff > 0 ? "text-amber-500 font-bold" : "text-emerald-500 font-bold"}>
@@ -339,9 +339,9 @@ export const CategorySummary = ({ ativos, categorias = [], onUpdate }: CategoryS
                               </span>
                             )}
                           </div>
-                          <div className="h-1.5 w-full bg-slate-800/60 rounded-full overflow-hidden relative">
+                          <div className="h-2.5 w-full bg-slate-900/80 border border-slate-800/60 shadow-inner rounded-full overflow-hidden relative p-[1px]">
                             <div
-                              className={`h-full rounded-full ${barColor} transition-all duration-500 shadow-[0_0_10px_rgba(0,0,0,0.3)]`}
+                              className={`h-full rounded-full ${barColor} opacity-90 transition-all duration-500 shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)]`}
                               style={{ width: `${visualWidth}%` }}
                             ></div>
                           </div>

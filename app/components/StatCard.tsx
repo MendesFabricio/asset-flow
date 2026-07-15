@@ -105,9 +105,11 @@ export const StatCard = React.memo(({
       <div className={`mt-3 pt-2 ${type === 'insight' ? 'border-t border-slate-700/30 overflow-hidden relative' : ''} relative z-10`}>
         {type === 'insight' ? (
           marquee ? (
-            <div className="relative flex items-center">
-              <div className="absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-[#0f172a] to-transparent z-10" />
-              <p className={`text-[10px] font-bold uppercase tracking-tight italic whitespace-nowrap animate-marquee group-hover:pause ${colors.marqueeText} opacity-70`}>
+            <div className="relative flex items-center w-full group/marquee cursor-default">
+              <p 
+                className={`text-[10px] font-bold uppercase tracking-tight italic truncate w-full pr-2 opacity-70 ${colors.marqueeText}`}
+                title={marquee}
+              >
                 {marquee}
               </p>
             </div>

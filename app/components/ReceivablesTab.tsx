@@ -1,14 +1,14 @@
 'use client';
 
 import React, { useState, useEffect, useTransition, useMemo } from 'react';
-import { 
-  Plus, CheckCircle, User, Calendar, CheckSquare, Pencil, 
-  Trash2, X, Wallet, Settings, BarChart2, 
+import {
+  Plus, CheckCircle, User, Calendar, CheckSquare, Pencil,
+  Trash2, X, Wallet, Settings, BarChart2,
   TrendingUp, AlertCircle, Phone, DollarSign,
   PieChart as PieIcon, Layers, FileText
 } from 'lucide-react';
-import { 
-  ResponsiveContainer, AreaChart, Area, XAxis, YAxis, 
+import {
+  ResponsiveContainer, AreaChart, Area, XAxis, YAxis,
   Tooltip, BarChart, Bar, Cell, PieChart, Pie, Legend
 } from 'recharts';
 import { formatMoney } from '../utils';
@@ -87,14 +87,14 @@ export const ReceivablesTab = () => {
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [debtors, setDebtors] = useState<DebtorItem[]>([]);
   const [loans, setLoans] = useState<LoanItem[]>([]);
-  
+
   // Modals
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [isLoanModalOpen, setIsLoanModalOpen] = useState(false);
   const [isDebtorModalOpen, setIsDebtorModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isGlobalPayModalOpen, setIsGlobalPayModalOpen] = useState(false);
-  
+
   // Selection
   const [selectedFatura, setSelectedFatura] = useState<string>('Todas');
   const [selectedPersonFilter, setSelectedPersonFilter] = useState<string>('Todos');
@@ -103,7 +103,7 @@ export const ReceivablesTab = () => {
   const [pendingSearch, setPendingSearch] = useState('');
   const [isPending, startTransition] = useTransition();
   const [selectedInstallments, setSelectedInstallments] = useState<number[]>([]);
-  
+
   // Pay form
   const [payingInstallment, setPayingInstallment] = useState<InstallmentItem | null>(null);
   const [payingLoanDesc, setPayingLoanDesc] = useState('');
@@ -114,17 +114,17 @@ export const ReceivablesTab = () => {
   const [globalPayDebtor, setGlobalPayDebtor] = useState<DebtorItem | null>(null);
   const [globalPayValue, setGlobalPayValue] = useState('');
   const [globalPayMethod, setGlobalPayMethod] = useState('Pix');
-  
+
   // Config form
   const [fechamentoDia, setFechamentoDia] = useState('15');
   const [vencimentoDia, setVencimentoDia] = useState('20');
-  
+
   // Debtor form
   const [editingDebtorId, setEditingDebtorId] = useState<number | null>(null);
   const [newDebtorNome, setNewDebtorNome] = useState('');
   const [newDebtorTelefone, setNewDebtorTelefone] = useState('');
   const [newDebtorObs, setNewDebtorObs] = useState('');
-  
+
   // Loan form
   const [editingLoanId, setEditingLoanId] = useState<number | null>(null);
   const [newLoanDebtorId, setNewLoanDebtorId] = useState('');
@@ -145,7 +145,7 @@ export const ReceivablesTab = () => {
         apiCall<any>('/api/refunds/loans'),
         apiCall<any>('/api/refunds/config')
       ]);
-      
+
       setDashboard(dashData);
       setDebtors(debtorsData);
       setLoans(loansData);
@@ -192,8 +192,8 @@ export const ReceivablesTab = () => {
       telefone: newDebtorTelefone,
       observacoes: newDebtorObs
     };
-    const endpoint = editingDebtorId 
-      ? `/api/refunds/debtors/${editingDebtorId}` 
+    const endpoint = editingDebtorId
+      ? `/api/refunds/debtors/${editingDebtorId}`
       : `/api/refunds/debtors`;
     const method = editingDebtorId ? 'PUT' : 'POST';
 
@@ -231,9 +231,9 @@ export const ReceivablesTab = () => {
       data_emprestimo: newLoanDate,
       observacoes: newLoanObs
     };
-    
-    const endpoint = editingLoanId 
-      ? `/api/refunds/loans/${editingLoanId}` 
+
+    const endpoint = editingLoanId
+      ? `/api/refunds/loans/${editingLoanId}`
       : `/api/refunds/loans`;
     const method = editingLoanId ? 'PUT' : 'POST';
 
@@ -379,7 +379,7 @@ export const ReceivablesTab = () => {
       categoria: string;
       installment: InstallmentItem;
     }> = [];
-    
+
     loans.forEach(loan => {
       loan.parcelas.forEach(inst => {
         list.push({
@@ -397,17 +397,17 @@ export const ReceivablesTab = () => {
   // Dynamic Faturas based on chosen Debtor Filter (User request!)
   const faturasCalculated = useMemo(() => {
     const map: Record<string, { fatura: string; total: number; recebido: number; pendente: number; status: string; items_count: number }> = {};
-    
+
     allInstallmentsCompiled.forEach(item => {
       if (selectedPersonFilter !== 'Todos' && item.debtorNome !== selectedPersonFilter) {
         return;
       }
-      
+
       const f = item.installment.fatura_mes || "Geral";
       if (!map[f]) {
         map[f] = { fatura: f, total: 0, recebido: 0, pendente: 0, status: "ABERTA", items_count: 0 };
       }
-      
+
       map[f].total += item.installment.valor_parcela;
       map[f].recebido += item.installment.valor_pago;
       map[f].items_count += 1;
@@ -415,16 +415,16 @@ export const ReceivablesTab = () => {
 
     const now = new Date();
     const currentFaturaStr = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
-    
+
     const list = Object.values(map).map(details => {
       details.pendente = Math.max(0, details.total - details.recebido);
-      
-      const instsInFatura = allInstallmentsCompiled.filter(item => 
-        (selectedPersonFilter === 'Todos' || item.debtorNome === selectedPersonFilter) && 
+
+      const instsInFatura = allInstallmentsCompiled.filter(item =>
+        (selectedPersonFilter === 'Todos' || item.debtorNome === selectedPersonFilter) &&
         (item.installment.fatura_mes || "Geral") === details.fatura
       );
       const allPaid = instsInFatura.length > 0 && instsInFatura.every(item => item.installment.status === 'PAGA');
-      
+
       if (allPaid) {
         details.status = "RECEBIDA";
       } else if (details.recebido > 0) {
@@ -434,10 +434,10 @@ export const ReceivablesTab = () => {
       } else {
         details.status = "ABERTA";
       }
-      
+
       return details;
     });
-    
+
     return list.sort((a, b) => a.fatura.localeCompare(b.fatura));
   }, [allInstallmentsCompiled, selectedPersonFilter]);
 
@@ -446,7 +446,7 @@ export const ReceivablesTab = () => {
     return allInstallmentsCompiled.filter(item => {
       const matchFatura = selectedFatura === 'Todas' || item.installment.fatura_mes === selectedFatura;
       const matchPerson = selectedPersonFilter === 'Todos' || item.debtorNome === selectedPersonFilter;
-      
+
       let matchStatus = true;
       if (selectedStatusFilter === 'Pendentes') {
         matchStatus = item.installment.status !== 'PAGA';
@@ -455,13 +455,13 @@ export const ReceivablesTab = () => {
       } else if (selectedStatusFilter === 'Atrasadas') {
         matchStatus = item.installment.status === 'ATRASADA';
       }
-      
+
       const query = searchQuery.toLowerCase().trim();
-      const matchSearch = !query || 
+      const matchSearch = !query ||
         item.loanDesc.toLowerCase().includes(query) ||
         item.debtorNome.toLowerCase().includes(query) ||
         (item.categoria && item.categoria.toLowerCase().includes(query));
-        
+
       return matchFatura && matchPerson && matchStatus && matchSearch;
     });
   }, [allInstallmentsCompiled, selectedFatura, selectedPersonFilter, selectedStatusFilter, searchQuery]);
@@ -492,7 +492,7 @@ export const ReceivablesTab = () => {
 
   return (
     <div className="space-y-6 text-slate-100 animate-in fade-in duration-300 pb-10">
-      
+
       {/* Overdue alert banner */}
       {overdueItemsCount > 0 && (
         <div className="bg-red-500/10 border border-red-500/30 p-4 rounded-xl flex items-center justify-between shadow-lg shadow-red-900/5 backdrop-blur-md">
@@ -515,24 +515,24 @@ export const ReceivablesTab = () => {
           <p className="text-xs text-slate-400 mt-1">Gestão de empréstimos, faturas de cartão e fluxos de caixa a receber.</p>
         </div>
         <div className="flex items-center gap-3 w-full md:w-auto">
-          <button 
-            type="button" 
-            onClick={() => setIsConfigOpen(true)} 
+          <button
+            type="button"
+            onClick={() => setIsConfigOpen(true)}
             className="p-3 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl border border-slate-700 transition-all"
             title="Configurações do Cartão"
           >
             <Settings size={18} />
           </button>
-          <button 
-            type="button" 
-            onClick={() => { setEditingDebtorId(null); setNewDebtorNome(''); setNewDebtorTelefone(''); setNewDebtorObs(''); setIsDebtorModalOpen(true); }} 
+          <button
+            type="button"
+            onClick={() => { setEditingDebtorId(null); setNewDebtorNome(''); setNewDebtorTelefone(''); setNewDebtorObs(''); setIsDebtorModalOpen(true); }}
             className="flex-1 md:flex-initial bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2.5 rounded-xl border border-slate-700 flex items-center justify-center gap-2 text-sm font-bold transition-all"
           >
             <User size={16} /> Novo Devedor
           </button>
-          <button 
-            type="button" 
-            onClick={() => { setEditingLoanId(null); setNewLoanDebtorId(''); setNewLoanDesc(''); setNewLoanCat('Geral'); setNewLoanVal(''); setNewLoanParcelado(false); setNewLoanTotalParc('1'); setNewLoanObs(''); setIsLoanModalOpen(true); }} 
+          <button
+            type="button"
+            onClick={() => { setEditingLoanId(null); setNewLoanDebtorId(''); setNewLoanDesc(''); setNewLoanCat('Geral'); setNewLoanVal(''); setNewLoanParcelado(false); setNewLoanTotalParc('1'); setNewLoanObs(''); setIsLoanModalOpen(true); }}
             className="flex-1 md:flex-initial bg-blue-600 hover:bg-blue-500 text-white px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 text-sm font-bold shadow-lg shadow-blue-900/30 transition-all"
           >
             <Plus size={16} /> Novo Empréstimo
@@ -542,7 +542,7 @@ export const ReceivablesTab = () => {
 
       {/* Cards de Métricas Principais (Glassmorphism - Dynamically Filtered) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        
+
         <div className="bg-slate-900/40 backdrop-blur-md p-5 rounded-2xl border border-slate-800 flex items-center gap-4">
           <div className="p-3 bg-blue-500/10 text-blue-400 rounded-xl border border-blue-500/20">
             <DollarSign size={22} />
@@ -591,11 +591,11 @@ export const ReceivablesTab = () => {
           <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><Layers size={14} /> Faturas Virtuais</h3>
           <span className="text-xs text-slate-500">Fechamento Dia {fechamentoDia}</span>
         </div>
-        
+
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 overflow-x-auto pb-2 scrollbar-thin">
-          <button 
-            type="button" 
-            onClick={() => setSelectedFatura('Todas')} 
+          <button
+            type="button"
+            onClick={() => setSelectedFatura('Todas')}
             className={`p-4 rounded-xl border transition-all text-left flex flex-col justify-between h-[100px] ${selectedFatura === 'Todas' ? 'bg-blue-600/10 border-blue-500 text-white shadow-lg' : 'bg-slate-900/30 border-slate-800 hover:border-slate-700 text-slate-400'}`}
           >
             <div className="flex justify-between items-start w-full">
@@ -635,22 +635,22 @@ export const ReceivablesTab = () => {
 
       {/* Grid Principal - Devedores + Gráficos & Tabela */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
+
         {/* Lado Esquerdo - Perfis de Devedores */}
         <div className="lg:col-span-1 space-y-4 bg-slate-900/40 backdrop-blur-md p-5 rounded-2xl border border-slate-800">
           <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><User size={14} /> Perfis de Devedores</h3>
-          
+
           <div className="space-y-3 max-h-[380px] overflow-y-auto pr-1 scrollbar-thin">
             {debtors.length === 0 ? (
               <p className="text-xs text-slate-500 text-center py-6">Nenhum devedor cadastrado.</p>
             ) : (
               debtors.map(d => (
                 <div key={d.id} className="p-3 bg-slate-950/40 border border-slate-800/80 hover:border-slate-800 rounded-xl space-y-2 group transition-all relative">
-                  
+
                   <div className="flex justify-between items-start">
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center border border-slate-700 text-slate-300 font-bold text-xs">
-                        {d.nome.substring(0,2).toUpperCase()}
+                        {d.nome.substring(0, 2).toUpperCase()}
                       </div>
                       <div>
                         <p className="text-sm font-semibold text-white leading-none">{d.nome}</p>
@@ -663,30 +663,30 @@ export const ReceivablesTab = () => {
                       <span className={`text-xs font-bold font-mono ${d.saldo_pendente > 0 ? 'text-yellow-400' : 'text-slate-500'}`}>
                         {formatMoney(d.saldo_pendente)}
                       </span>
-                      
+
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
                         {d.saldo_pendente > 0 && (
-                          <button 
-                            type="button" 
-                            onClick={() => handleOpenGlobalPay(d)} 
+                          <button
+                            type="button"
+                            onClick={() => handleOpenGlobalPay(d)}
                             className="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded text-[10px] font-bold transition-all"
                             title="Quitação em Lote / Baixa Parcial por Valor"
                           >
                             Pagar
                           </button>
                         )}
-                        <button 
-                          type="button" 
-                          onClick={() => handleOpenEditDebtor(d)} 
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditDebtor(d)}
                           className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 border border-blue-500/30 p-1 rounded transition-all"
                           title="Editar cadastro de devedor"
                         >
                           <Pencil size={10} />
                         </button>
                         {d.saldo_pendente === 0 && (
-                          <button 
-                            type="button" 
-                            onClick={() => handleDeleteDebtor(d.id, d.nome)} 
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteDebtor(d.id, d.nome)}
                             className="bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 p-1 rounded transition-all"
                             title="Remover devedor"
                           >
@@ -747,7 +747,7 @@ export const ReceivablesTab = () => {
                           <Cell key={`cell-${index}`} fill={['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'][index % 5]} />
                         ))}
                       </Pie>
-                      <Tooltip 
+                      <Tooltip
                         contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b' }}
                         formatter={(val) => formatMoney(val as number)}
                       />
@@ -768,16 +768,16 @@ export const ReceivablesTab = () => {
                     <AreaChart data={faturasCalculated}>
                       <defs>
                         <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2}/>
-                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                          <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
+                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
                         </linearGradient>
                         <linearGradient id="colorRec" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.2}/>
-                          <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
+                          <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                         </linearGradient>
                       </defs>
                       <XAxis dataKey="fatura" stroke="#475569" fontSize={9} />
-                      <Tooltip 
+                      <Tooltip
                         contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b' }}
                         formatter={(val) => formatMoney(val as number)}
                       />
@@ -798,36 +798,36 @@ export const ReceivablesTab = () => {
 
       {/* Seção da Tabela de Lançamentos */}
       <div className="bg-slate-900/50 backdrop-blur-md p-6 rounded-2xl border border-slate-800 space-y-4">
-        
+
         {/* Controles da Tabela */}
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
           <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
             <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><FileText size={14} /> Detalhamento de Lançamentos</h3>
             <div className="flex items-center gap-2 bg-slate-950/60 p-1.5 rounded-lg border border-slate-800">
-              <button 
-                type="button" 
-                onClick={() => setSelectedStatusFilter('Todos')} 
+              <button
+                type="button"
+                onClick={() => setSelectedStatusFilter('Todos')}
                 className={`px-3 py-1 rounded text-xs font-bold transition-all ${selectedStatusFilter === 'Todos' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
               >
                 Todos
               </button>
-              <button 
-                type="button" 
-                onClick={() => setSelectedStatusFilter('Pendentes')} 
+              <button
+                type="button"
+                onClick={() => setSelectedStatusFilter('Pendentes')}
                 className={`px-3 py-1 rounded text-xs font-bold transition-all ${selectedStatusFilter === 'Pendentes' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
               >
                 Pendentes
               </button>
-              <button 
-                type="button" 
-                onClick={() => setSelectedStatusFilter('Pagas')} 
+              <button
+                type="button"
+                onClick={() => setSelectedStatusFilter('Pagas')}
                 className={`px-3 py-1 rounded text-xs font-bold transition-all ${selectedStatusFilter === 'Pagas' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
               >
                 Pagas
               </button>
-              <button 
-                type="button" 
-                onClick={() => setSelectedStatusFilter('Atrasadas')} 
+              <button
+                type="button"
+                onClick={() => setSelectedStatusFilter('Atrasadas')}
                 className={`px-3 py-1 rounded text-xs font-bold transition-all ${selectedStatusFilter === 'Atrasadas' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
               >
                 Atrasadas
@@ -862,8 +862,8 @@ export const ReceivablesTab = () => {
 
             {/* Ações em Lote */}
             {selectedInstallments.length > 0 && (
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={handlePayBatch}
                 className="bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-2 rounded-lg text-xs font-bold transition-all shrink-0 flex items-center gap-1 shadow-md shadow-emerald-950/20"
               >
@@ -928,9 +928,9 @@ export const ReceivablesTab = () => {
                             type="checkbox"
                             checked={isChecked}
                             onChange={() => {
-                              setSelectedInstallments(prev => 
-                                prev.includes(item.installment.id) 
-                                  ? prev.filter(id => id !== item.installment.id) 
+                              setSelectedInstallments(prev =>
+                                prev.includes(item.installment.id)
+                                  ? prev.filter(id => id !== item.installment.id)
                                   : [...prev, item.installment.id]
                               );
                             }}
@@ -958,26 +958,26 @@ export const ReceivablesTab = () => {
                       <td className="p-4 text-center">
                         <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
                           {item.installment.status !== 'PAGA' && (
-                            <button 
-                              type="button" 
-                              onClick={() => handleOpenPay(item.installment, item.loanDesc)} 
+                            <button
+                              type="button"
+                              onClick={() => handleOpenPay(item.installment, item.loanDesc)}
                               className="text-slate-400 hover:text-emerald-400 p-1.5 rounded-full hover:bg-emerald-550/10 transition-colors"
                               title="Registrar recebimento"
                             >
                               <CheckCircle size={14} />
                             </button>
                           )}
-                          <button 
-                            type="button" 
-                            onClick={() => handleOpenEditLoan(item.loanId)} 
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditLoan(item.loanId)}
                             className="text-slate-400 hover:text-blue-450 p-1.5 rounded-full hover:bg-blue-500/10 transition-colors"
                             title="Editar descrição/categoria do empréstimo"
                           >
                             <Pencil size={13} />
                           </button>
-                          <button 
-                            type="button" 
-                            onClick={() => handleDeleteLoan(item.loanId, item.loanDesc)} 
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteLoan(item.loanId, item.loanDesc)}
                             className="text-slate-600 hover:text-red-400 p-1.5 rounded-full hover:bg-red-500/10"
                             title="Excluir empréstimo"
                           >
@@ -1003,30 +1003,30 @@ export const ReceivablesTab = () => {
             <div className="space-y-4">
               <div>
                 <label className="text-[10px] text-slate-500 uppercase font-bold pl-1 mb-1 block">Dia de Fechamento</label>
-                <input 
-                  type="number" 
-                  min="1" 
+                <input
+                  type="number"
+                  min="1"
                   max="31"
                   className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-white outline-none focus:border-blue-500 transition-colors font-mono font-bold"
-                  value={fechamentoDia} 
-                  onChange={e => setFechamentoDia(e.target.value)} 
+                  value={fechamentoDia}
+                  onChange={e => setFechamentoDia(e.target.value)}
                 />
               </div>
               <div>
                 <label className="text-[10px] text-slate-500 uppercase font-bold pl-1 mb-1 block">Dia de Vencimento</label>
-                <input 
-                  type="number" 
-                  min="1" 
+                <input
+                  type="number"
+                  min="1"
                   max="31"
                   className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-white outline-none focus:border-blue-500 transition-colors font-mono font-bold"
-                  value={vencimentoDia} 
-                  onChange={e => setVencimentoDia(e.target.value)} 
+                  value={vencimentoDia}
+                  onChange={e => setVencimentoDia(e.target.value)}
                 />
               </div>
             </div>
-            <button 
-              type="button" 
-              onClick={handleSaveConfig} 
+            <button
+              type="button"
+              onClick={handleSaveConfig}
               className="w-full bg-blue-600 hover:bg-blue-500 text-white p-3 rounded-xl font-bold transition-all"
             >
               Salvar Configuração
@@ -1046,38 +1046,38 @@ export const ReceivablesTab = () => {
             <div className="space-y-3">
               <div>
                 <label className="text-[10px] text-slate-500 uppercase font-bold pl-1 mb-1 block">Nome Completo</label>
-                <input 
+                <input
                   type="text"
-                  placeholder="Ex: Pai, Flávio..."
+                  placeholder="Ex: Lucas, Pedro..."
                   className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-white outline-none focus:border-blue-500 transition-colors"
-                  value={newDebtorNome} 
-                  onChange={e => setNewDebtorNome(e.target.value)} 
+                  value={newDebtorNome}
+                  onChange={e => setNewDebtorNome(e.target.value)}
                 />
               </div>
               <div>
                 <label className="text-[10px] text-slate-500 uppercase font-bold pl-1 mb-1 block">Telefone (Opcional)</label>
-                <input 
+                <input
                   type="text"
                   placeholder="Ex: (11) 99999-9999"
                   className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-white outline-none focus:border-blue-500 transition-colors font-mono"
-                  value={newDebtorTelefone} 
-                  onChange={e => setNewDebtorTelefone(e.target.value)} 
+                  value={newDebtorTelefone}
+                  onChange={e => setNewDebtorTelefone(e.target.value)}
                 />
               </div>
               <div>
                 <label className="text-[10px] text-slate-500 uppercase font-bold pl-1 mb-1 block">Anotações</label>
-                <textarea 
+                <textarea
                   placeholder="Ex: Contato financeiro preferido..."
                   rows={2}
                   className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-slate-350 outline-none focus:border-blue-500 transition-colors text-xs resize-none"
-                  value={newDebtorObs} 
-                  onChange={e => setNewDebtorObs(e.target.value)} 
+                  value={newDebtorObs}
+                  onChange={e => setNewDebtorObs(e.target.value)}
                 />
               </div>
             </div>
-            <button 
-              type="button" 
-              onClick={handleCreateDebtor} 
+            <button
+              type="button"
+              onClick={handleCreateDebtor}
               className="w-full bg-blue-600 hover:bg-blue-500 text-white p-3 rounded-xl font-bold transition-all"
             >
               {editingDebtorId ? 'Atualizar Devedor' : 'Criar Devedor'}
@@ -1095,7 +1095,7 @@ export const ReceivablesTab = () => {
               <Plus className="text-blue-500" /> {editingLoanId ? 'Editar Detalhes do Empréstimo' : 'Registrar Empréstimo'}
             </h3>
             <div className="space-y-3">
-              
+
               {!editingLoanId && (
                 <div className="grid grid-cols-2 gap-3 animate-in fade-in duration-200">
                   <div>
@@ -1146,15 +1146,15 @@ export const ReceivablesTab = () => {
                   </select>
                 </div>
               )}
-              
+
               <div>
                 <label className="text-[10px] text-slate-500 uppercase font-bold pl-1 mb-1 block">Descrição</label>
-                <input 
+                <input
                   type="text"
                   placeholder="Ex: Jantar de aniversário"
                   className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-white outline-none focus:border-blue-500 transition-colors text-xs"
-                  value={newLoanDesc} 
-                  onChange={e => setNewLoanDesc(e.target.value)} 
+                  value={newLoanDesc}
+                  onChange={e => setNewLoanDesc(e.target.value)}
                 />
               </div>
 
@@ -1162,21 +1162,21 @@ export const ReceivablesTab = () => {
                 <div className="grid grid-cols-2 gap-3 animate-in fade-in duration-200">
                   <div>
                     <label className="text-[10px] text-slate-500 uppercase font-bold pl-1 mb-1 block">Valor Total</label>
-                    <input 
+                    <input
                       type="number"
                       placeholder="R$ 0,00"
                       className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-white outline-none focus:border-blue-500 transition-colors font-mono font-bold"
-                      value={newLoanVal} 
-                      onChange={e => setNewLoanVal(e.target.value)} 
+                      value={newLoanVal}
+                      onChange={e => setNewLoanVal(e.target.value)}
                     />
                   </div>
                   <div>
                     <label className="text-[10px] text-slate-500 uppercase font-bold pl-1 mb-1 block">Data de Empréstimo</label>
-                    <input 
+                    <input
                       type="date"
                       className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-white outline-none focus:border-blue-500 transition-colors font-mono"
-                      value={newLoanDate} 
-                      onChange={e => setNewLoanDate(e.target.value)} 
+                      value={newLoanDate}
+                      onChange={e => setNewLoanDate(e.target.value)}
                     />
                   </div>
                 </div>
@@ -1186,7 +1186,7 @@ export const ReceivablesTab = () => {
                 <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-850 space-y-2 animate-in fade-in duration-200">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-slate-400">Empréstimo Parcelado?</span>
-                    <input 
+                    <input
                       type="checkbox"
                       checked={newLoanParcelado}
                       onChange={e => setNewLoanParcelado(e.target.checked)}
@@ -1196,13 +1196,13 @@ export const ReceivablesTab = () => {
                   {newLoanParcelado && (
                     <div className="animate-in slide-in-from-top-1 duration-200">
                       <label className="text-[10px] text-slate-500 uppercase font-bold pl-1 mb-1 block">Quantidade de Parcelas</label>
-                      <input 
+                      <input
                         type="number"
                         min="2"
                         placeholder="Qtd parcelas"
                         className="w-full bg-slate-950 border border-slate-800 p-2.5 rounded-lg text-white outline-none focus:border-blue-500 transition-colors font-mono"
-                        value={newLoanTotalParc} 
-                        onChange={e => setNewLoanTotalParc(e.target.value)} 
+                        value={newLoanTotalParc}
+                        onChange={e => setNewLoanTotalParc(e.target.value)}
                       />
                     </div>
                   )}
@@ -1211,19 +1211,19 @@ export const ReceivablesTab = () => {
 
               <div>
                 <label className="text-[10px] text-slate-500 uppercase font-bold pl-1 mb-1 block">Observações / Anotações</label>
-                <textarea 
+                <textarea
                   placeholder="Anotações adicionais para este empréstimo..."
                   rows={2}
                   className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-slate-300 outline-none focus:border-blue-500 transition-colors text-xs resize-none"
-                  value={newLoanObs} 
-                  onChange={e => setNewLoanObs(e.target.value)} 
+                  value={newLoanObs}
+                  onChange={e => setNewLoanObs(e.target.value)}
                 />
               </div>
 
             </div>
-            <button 
-              type="button" 
-              onClick={handleCreateLoan} 
+            <button
+              type="button"
+              onClick={handleCreateLoan}
               className="w-full bg-blue-600 hover:bg-blue-500 text-white p-3 rounded-xl font-bold transition-all"
             >
               {editingLoanId ? 'Salvar Alterações' : 'Criar Empréstimo'}
@@ -1238,7 +1238,7 @@ export const ReceivablesTab = () => {
           <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 w-full max-w-sm space-y-4 shadow-2xl animate-in zoom-in-95 relative">
             <button type="button" onClick={() => setIsPaymentModalOpen(false)} className="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors"><X size={20} /></button>
             <h3 className="text-lg font-bold text-white flex items-center gap-2"><CheckSquare className="text-emerald-500" /> Registrar Recebimento</h3>
-            
+
             <div className="space-y-1.5 p-3 bg-slate-950/60 rounded-xl border border-slate-800 text-xs">
               <p className="text-slate-400">Empréstimo: <span className="text-white font-semibold">{payingLoanDesc}</span></p>
               <p className="text-slate-400">Parcela: <span className="text-white font-mono font-semibold">#{payingInstallment.numero_parcela}</span></p>
@@ -1251,12 +1251,12 @@ export const ReceivablesTab = () => {
             <div className="space-y-3">
               <div>
                 <label className="text-[10px] text-slate-500 uppercase font-bold pl-1 mb-1 block">Valor Pago (R$)</label>
-                <input 
+                <input
                   type="number"
                   placeholder="0,00"
                   className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-white outline-none focus:border-blue-500 transition-colors font-mono font-bold text-lg"
-                  value={payingValue} 
-                  onChange={e => setPayingValue(e.target.value)} 
+                  value={payingValue}
+                  onChange={e => setPayingValue(e.target.value)}
                 />
                 <span className="text-[9px] text-slate-500 block pl-1 mt-1">Valores maiores abaterão parcelas futuras sequencialmente.</span>
               </div>
@@ -1276,9 +1276,9 @@ export const ReceivablesTab = () => {
               </div>
             </div>
 
-            <button 
-              type="button" 
-              onClick={handlePayInstallment} 
+            <button
+              type="button"
+              onClick={handlePayInstallment}
               className="w-full bg-emerald-600 hover:bg-emerald-500 text-white p-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
             >
               <CheckCircle size={16} /> Confirmar Recebimento
@@ -1293,7 +1293,7 @@ export const ReceivablesTab = () => {
           <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 w-full max-w-sm space-y-4 shadow-2xl animate-in zoom-in-95 relative">
             <button type="button" onClick={() => setIsGlobalPayModalOpen(false)} className="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors"><X size={20} /></button>
             <h3 className="text-lg font-bold text-white flex items-center gap-2"><CheckSquare className="text-emerald-500" /> Quitação / Recebimento Global</h3>
-            
+
             <div className="space-y-1.5 p-3 bg-slate-950/60 rounded-xl border border-slate-800 text-xs">
               <p className="text-slate-400">Devedor: <span className="text-white font-semibold">{globalPayDebtor.nome}</span></p>
               <p className="text-slate-400">Saldo Devedor Total: <span className="text-yellow-400 font-mono font-bold">{formatMoney(globalPayDebtor.saldo_pendente)}</span></p>
@@ -1302,12 +1302,12 @@ export const ReceivablesTab = () => {
             <div className="space-y-3">
               <div>
                 <label className="text-[10px] text-slate-500 uppercase font-bold pl-1 mb-1 block">Valor Recebido (R$)</label>
-                <input 
+                <input
                   type="number"
                   placeholder="0,00"
                   className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-white outline-none focus:border-blue-500 transition-colors font-mono font-bold text-lg"
-                  value={globalPayValue} 
-                  onChange={e => setGlobalPayValue(e.target.value)} 
+                  value={globalPayValue}
+                  onChange={e => setGlobalPayValue(e.target.value)}
                 />
                 <span className="text-[9px] text-slate-500 block pl-1 mt-1">Este valor quitará as parcelas em aberto mais antigas sequencialmente, abatendo ou parcelando a última afetada se necessário.</span>
               </div>
@@ -1327,9 +1327,9 @@ export const ReceivablesTab = () => {
               </div>
             </div>
 
-            <button 
-              type="button" 
-              onClick={handlePayGlobalDebtor} 
+            <button
+              type="button"
+              onClick={handlePayGlobalDebtor}
               className="w-full bg-emerald-600 hover:bg-emerald-500 text-white p-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
             >
               <CheckCircle size={16} /> Confirmar Recebimento Lote

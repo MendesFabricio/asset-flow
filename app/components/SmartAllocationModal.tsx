@@ -267,7 +267,7 @@ export const SmartAllocationModal = ({ isOpen, onClose, ativos }: SmartAllocatio
                 <div>
                   <p className="text-[10px] font-bold text-amber-400 uppercase">Proteção de Capital</p>
                   <p className="text-[10px] text-amber-200/70 leading-tight">
-                    <b>{formatMoney(sobra)}</b> preservados. Motivos: Efeito de arredondamento de lotes/unidades (compras apenas em unidades inteiras, com exceção da aba CDB / LCI).
+                    <b>{formatMoney(sobra)}</b> preservados. Motivos: Efeito de arredondamento de lotes/unidades (compras apenas em unidades inteiras, com exceção da aba Reserva).
                   </p>
                 </div>
               </div>

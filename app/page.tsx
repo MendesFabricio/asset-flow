@@ -20,9 +20,9 @@ import {
   ReceivablesSkeleton,
   CreditCardsSkeleton,
   FixedIncomeSkeleton,
-  CorrelationSkeleton,
   QuantSkeleton
 } from './components/Skeletons';
+import { HeatmapSkeleton } from './components/ui/QuantSkeletons';
 import { useAssetData } from './hooks/useAssetData';
 import { usePortfolioHandlers } from './hooks/usePortfolioHandlers';
 import { usePortfolioMetrics } from './hooks/usePortfolioMetrics';
@@ -58,7 +58,7 @@ const ReceivablesTab = dynamic(() => import('./components/ReceivablesTab').then(
 const CreditCardsTab = dynamic(() => import('./components/CreditCardsTab'), { ssr: false, loading: () => <CreditCardsSkeleton /> }) as React.FC<any>;
 const FixedIncomeTab = dynamic(() => import('./components/FixedIncomeTab'), { ssr: false, loading: () => <FixedIncomeSkeleton /> }) as React.FC<any>;
 const AssetDetailsModal = dynamic(() => import('./components/AssetDetailsModal').then(mod => mod.AssetDetailsModal), { ssr: false, loading: () => <ModalSkeleton /> }) as React.FC<any>;
-const CorrelationHeatmap = dynamic(() => import('./components/CorrelationHeatmap').then(mod => mod.CorrelationHeatmap), { ssr: false, loading: () => <CorrelationSkeleton /> }) as React.FC<any>;
+const CorrelationHeatmap = dynamic(() => import('./components/CorrelationHeatmap').then(mod => mod.CorrelationHeatmap), { ssr: false, loading: () => <HeatmapSkeleton /> }) as React.FC<any>;
 const SmartAllocationModal = dynamic(() => import('./components/SmartAllocationModal').then(mod => mod.SmartAllocationModal), { ssr: false, loading: () => <ModalSkeleton /> }) as React.FC<any>;
 const IncomeProjectionModal = dynamic(() => import('./components/IncomeProjectionModal').then(mod => mod.IncomeProjectionModal), { ssr: false, loading: () => <ModalSkeleton /> }) as React.FC<any>;
 const JarvisChat = dynamic(() => import('./components/JarvisChat').then(mod => mod.JarvisChat), { ssr: false, loading: () => <ChatSkeleton /> }) as React.FC<any>;
@@ -100,7 +100,7 @@ export default function Home() {
     { id: 'Internacional', icon: <Globe size={14} />, label: 'Internacional' },
     { id: 'Cripto', icon: <Bitcoin size={14} />, label: 'Cripto' },
     { id: 'Renda Fixa', icon: <Landmark size={14} />, label: 'Renda Fixa' },
-    { id: 'Reserva', icon: <Wallet size={14} />, label: 'CDB / LCI' },
+    { id: 'Reserva', icon: <Wallet size={14} />, label: 'Reserva' },
     { id: 'Financeiro', icon: <Wallet size={14} />, label: 'Reembolsos' },
     { id: 'Cartoes', icon: <CreditCard size={14} />, label: 'Cartões' },
   ];
@@ -222,7 +222,6 @@ export default function Home() {
       <div className="max-w-7xl mx-auto p-4 md:p-6">
         {tab === 'Resumo' && (
           <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-2">
-            <MorningBriefing />
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <StatCard
                 title="Yield on Cost Médio"
@@ -305,8 +304,13 @@ export default function Home() {
         )}
 
         {tab === 'Jarvis' && (
-          <div className="animate-in fade-in w-full">
-            <JarvisChat />
+          <div className="animate-in fade-in w-full grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-1">
+              <MorningBriefing />
+            </div>
+            <div className="lg:col-span-2">
+              <JarvisChat />
+            </div>
           </div>
         )}
 

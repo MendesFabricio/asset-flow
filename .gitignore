@@ -65,7 +65,6 @@ docker-data/
 server/backups/
 .aider*
 .kilo
-.agents
 .claude
 graphify-out/
 SECURITY_ANALYSIS.md

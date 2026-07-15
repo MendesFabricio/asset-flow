@@ -256,66 +256,34 @@ def _build_enhanced_morning_brief_prompt(context: dict) -> str:
     
     holdings_lines = []
     for h in context.get("holdings", []):
-        holdings_lines.append(
-            f"- {h['ticker']} ({h['category']}) | Peso: {h['weight_pct']:.1f}% | Meta: {h['target_pct']:.1f}% | "
-            f"P/L: {h['profit_loss_pct']:+.1f}% | Preço: R$ {h['price']:.2f} | Valor: R$ {h['value']:,.2f} | "
-            f"Beta: {h.get('beta', 'N/A')} | VaR 95%: {h.get('var_95', 'N/A')}"
-        )
+        # Somente identificar o ativo para a IA saber o que tem na carteira, sem dados tubulares
+        holdings_lines.append(f"- Ativo: {h['ticker']} ({h['category']})")
+        
     holdings_text = "\n".join(holdings_lines) if holdings_lines else "Nenhuma posição ativa no momento."
 
-    news_lines = []
-    for n in context.get("news", []):
-        news_lines.append(f"- [{n.get('source', 'News')}] {n['title']}")
-    news_text = "\n".join(news_lines) if news_lines else "Sem notícias relevantes encontradas."
+    news_text = "Sem notícias relevantes."
+    sentiment_text = "Sem sentimento anormal."
 
-    sentiment_lines = []
-    for s in context.get("sentiment", []):
-        sentiment_lines.append(f"- {s['ticker']}: {s['sentiment']} (score: {s.get('score', 'N/A')})")
-    sentiment_text = "\n".join(sentiment_lines) if sentiment_lines else "Sem análise de sentimento disponível."
-
-    prompt = f"""Você é um economista-chefe sênior especializado em gestão de portfólio de varejo.
-Elabore um briefing matinal de risco e alocação para o dia {date_str}.
+    prompt = f"""Você é o Jarvis, o gestor de portfólio de inteligência artificial do AssetFlow.
+Sua missão é elaborar um Briefing Matinal de Risco e Alocação para o dia {date_str}.
 
 [CONTEXTO MACROECONÔMICO]
-- Taxa Básica de Juros (Selic): {selic_pct:.2f}%
+- Taxa Básica de Juros (Selic Meta): {selic_pct:.2f}%
 - Cotação do Dólar (USD/BRL): R$ {dolar:.2f}
 
-[CARTEIRA DO INVESTIDOR — Top posições por contribution to risk]
+[CARTEIRA DO INVESTIDOR — Ativos em custódia]
 {holdings_text}
 
-[NOTÍCIAS RECENTES (últimas 24h)]
-{news_text}
-
-[SENTIMENTO POR ATIVO (últimos 7d)]
-{sentiment_text}
-
-[CHAIN-OF-THOUGHT OBRIGATÓRIO — NÃO mostrar ao usuário final]
-Antes de escrever o briefing, raciocine internamente:
-Passo 1: Como a Selic atual impacta cada categoria presente na carteira (Renda Fixa, FIIs, Ações, Internacional)?
-Passo 2: Qual posição concentra mais risco? Calcule contribution to risk = peso × volatilidade × beta. Ordene por risco, não por valor.
-Passo 3: Identifique outliers: posições >20% acima da meta ou <50% abaixo da meta.
-Passo 4: Com base nos dados acima, qual ajuste de alocação traria melhor relação risco/retorno hoje?
-
-[TAREFA]
-Elabore o briefing em 3 seções, máximo 150 palavras no total:
-
-1. **Cenário** (1-2 frases): Como a Selic e o dólar afetam a carteira HOJE, citando números concretos.
-2. **Riscos & Oportunidades** (bullet points): Para cada posição top-3, cite:
-   - 1 dado quantitativo (peso, P/L, VaR, Beta)
-   - 1 evento recente relevante (notícia ou sentimento)
-   - 1 ação sugerida (ex: "Reduzir X% para alinhar com meta Y%")
-3. **Ação Recomendada** (1 frase): Qual ajuste de alocação traria mais risco/retorno hoje.
-
-[REGRAS ESTRITAS]
-- NÃO generalize: cite números concretos da carteira.
-- NÃO use tautologias ("aumenta o risco se o preço cair").
-- NÃO mencione ativos fora da carteira.
-- NÃO dê conselhos macro generalistas sem ligação com as posições.
+[TAREFA E REGRAS ESTRITAS]
+- Escreva uma visão de mercado super curta (MÁXIMO de 50 palavras).
+- NÃO USE LISTAS DE BULLET POINTS (proibido usar marcadores).
+- NUNCA liste os ativos da carteira um por um.
+- Fale APENAS do impacto macro (Selic/Dólar) de forma abrangente para o investidor.
 - Responda estritamente em JSON contendo as chaves exatas:
-  - 'brief_text': texto final formatado em Markdown simples
-  - 'rationale': cadeia de raciocínio interno (CoT) em português
-  - 'action': frase curta com a ação recomendada
-  - 'risk_metrics': objeto com métricas de risco agregadas da carteira
+  - 'brief_text': Texto de 1 parágrafo contendo seu insight.
+  - 'rationale': Seu raciocínio interno.
+  - 'action': 1 frase curta de recomendação.
+  - 'risk_metrics': {{}} (deixe vazio).
 """
     return prompt
 

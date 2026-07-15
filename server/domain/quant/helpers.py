@@ -39,7 +39,7 @@ def _to_yf_ticker(ticker: str, category_name: str) -> str:
 
 def get_risk_free_rate() -> float:
     try:
-        url = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.1178/dados/ultimos/1?formato=json"
+        url = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/1?formato=json"
         res = requests.get(url, timeout=3.0)
         if res.status_code == 200:
             val = float(res.json()[0]['valor']) / 100

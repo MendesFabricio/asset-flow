@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { apiCall } from '../utils/apiClient';
 import { Card } from './ui/Card';
-import { BrainCircuit, Info } from 'lucide-react';
+import { BrainCircuit, Info, AlertTriangle } from 'lucide-react';
 
 interface CorrelationResponse {
   status: string;
@@ -12,7 +12,7 @@ interface CorrelationResponse {
   matrix: number[][];
 }
 
-export function CorrelationHeatmap() {
+export const CorrelationHeatmap = React.memo(function CorrelationHeatmap() {
   const [data, setData] = useState<CorrelationResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -63,15 +63,15 @@ export function CorrelationHeatmap() {
     );
   }
 
-  if (error || !data || data.tickers.length === 0) {
+  if (error || !data || data.tickers.length < 2) {
     return (
       <Card className="flex flex-col items-center justify-center p-8 text-center !bg-[#0f172a] !border-slate-800 min-h-[300px]">
-        <Info className="text-slate-500 mb-3" size={32} />
-        <p className="text-slate-400 text-sm font-medium">
-          {error || 'Sem dados de correlação suficientes na carteira.'}
+        <AlertTriangle className="text-amber-500 mb-3" size={32} />
+        <p className="text-slate-300 text-sm font-semibold">
+          {error || 'Dados Insuficientes para Correlação'}
         </p>
-        <p className="text-slate-600 text-xs mt-1">
-          Adicione mais ativos de renda variável para visualizar o heatmap.
+        <p className="text-slate-500 text-xs mt-2 max-w-sm">
+          A matriz de correlação de Pearson requer um histórico consolidado de pelo menos 2 ativos de renda variável para cruzar as informações.
         </p>
       </Card>
     );
@@ -136,7 +136,7 @@ export function CorrelationHeatmap() {
                 return (
                   <div
                     key={`cell-${tRow}-${tCol}`}
-                    className={`flex-1 text-center py-2.5 mx-0.5 rounded text-[10px] font-mono border transition-all hover:scale-105 cursor-help ${getCellColor(
+                    className={`flex-1 text-center py-2.5 mx-0.5 rounded text-[10px] font-mono border transition-all hover:scale-105 cursor-pointer ${getCellColor(
                       val
                     )}`}
                     title={`${tRow} vs ${tCol}: ${val.toFixed(4)} (${categories[rIdx]} / ${categories[cIdx]})`}
@@ -167,4 +167,4 @@ export function CorrelationHeatmap() {
       </div>
     </Card>
   );
-}
+});

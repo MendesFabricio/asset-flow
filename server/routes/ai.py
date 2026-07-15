@@ -3,6 +3,7 @@ import requests
 import json
 from flask import Blueprint, request, Response, stream_with_context, jsonify, g
 from database.models import Session, Asset, Position, LoanInstallment
+from sqlalchemy.orm import joinedload
 from infrastructure.ollama_service import OLLAMA_CHAT_URL, MODEL_NAME, get_ollama_tools
 from domain.quant.risk import calculate_risk_metrics
 from infrastructure.price_cache import fetch_price_history as _fetch_price_history_fn
@@ -19,7 +20,7 @@ SYSTEM_PROMPT = (
     "2. Se o usuário solicitar uma análise fundamentalista, valuation ou múltiplos financeiros de uma empresa (como margens, ROE, dívida, etc.), "
     "você não deve tentar inventar ou assumir nenhum dado. Você DEVE obrigatoriamente chamar a ferramenta `get_asset_fundamental_data` passando o ticker correto.\n"
     "3. Use sempre as informações exatas retornadas pelas ferramentas para responder de forma precisa. Se as ferramentas retornarem dados, cite-os de forma literal.\n"
-    "4. Responda sempre em português, com formatação Markdown profissional, utilizando listas e tabelas para organizar dados numéricos."
+    "4. Ao responder, evite blocos massivos de texto (paredões). Seja conciso, opinativo e vá direto ao ponto. Aja como um consultor sênior de wealth management: traga insights claros em vez de apenas vomitar os dados crus. Destaque em negrito termos chave para facilitar a leitura rápida."
 )
 
 def execute_query_portfolio_metrics(session):

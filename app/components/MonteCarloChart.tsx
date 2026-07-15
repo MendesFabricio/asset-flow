@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
@@ -27,7 +27,7 @@ interface SimulationApiResponse {
   };
 }
 
-export function MonteCarloChart() {
+export const MonteCarloChart = React.memo(function MonteCarloChart() {
   const [data, setData] = useState<SimulationDataPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ vol: '' });
@@ -73,7 +73,7 @@ export function MonteCarloChart() {
   if (data.length === 0) return null;
 
   return (
-    <Card className="flex flex-col !bg-[#0f172a] !border-slate-800 shadow-2xl p-6 animate-in fade-in duration-500">
+    <Card className="flex flex-col !bg-slate-950 !border-slate-900 shadow-2xl p-6 animate-in fade-in duration-500">
 
       {/* Cabeçalho Sincronizado */}
       <div className="flex justify-between items-start mb-8">
@@ -187,4 +187,4 @@ export function MonteCarloChart() {
       </div>
     </Card>
   );
-}
+});

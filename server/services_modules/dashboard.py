@@ -85,24 +85,40 @@ class DashboardService:
                 rec_text = "🟡 MANTER"
             return rec_text, status, score, " • ".join(motivos), 50
 
-        if falta > Decimal('0.0'): 
-            score += 30 
-            motivos.append("⚖️ Abaixo da Meta (+30)")
-        else: 
+        if falta > Decimal('0'):
+            score += 30
+            motivos.append("⚖️ Abaixo do Alvo (+30)")
+        else:
             score -= 10
             motivos.append("📊 Acima da Meta (-10)")
 
+        # DY Bonus
+        dy = metrics.get("renda_mensal_est", Decimal('0.0'))
+        if pos.quantity and pos.quantity > 0:
+            # Revert from renda_mensal to yearly DY percentage
+            try:
+                dy_percent = self._extract_value(pos.manual_dy) * 100
+                if dy_percent > Decimal('6.0'):
+                    score += 10
+                    motivos.append(f"💰 Bom Pagador de Dividendos (+10) [{float(dy_percent):.1f}%]")
+            except Exception:
+                pass
+
         rsi = 50.0
         try:
-            mdata = pos.asset.market_data[0] if pos.asset.market_data else None
-            if mdata and mdata.rsi_14 is not None:
-                rsi = float(mdata.rsi_14)
+            ta = pos.asset.technical_data
+            if ta:
+                import json
+                df = json.loads(ta.raw_data)
+                if df and isinstance(df, list):
+                    last = df[-1]
+                    rsi = float(last.get('rsi_14', 50.0))
         except Exception:
             pass
 
         if rsi < 30.0:
-            score += 35
-            motivos.append("💎 Região Sobrevendida (+35)")
+            score += 30
+            motivos.append("💎 Região Sobrevendida (+30)")
         elif rsi > 70.0:
             score -= 20
             motivos.append("🔥 Região Sobrecomprada (-20)")
@@ -118,16 +134,22 @@ class DashboardService:
             if mg >= Decimal('20.0'):
                 score += 20
                 motivos.append("🧠 Margem Graham de 20%+ (+20)")
+            elif mg <= Decimal('-20.0'):
+                score -= 15
+                motivos.append("🚨 Empresa Cara por Graham (-15)")
         elif cat_name == "FII":
             pvp = metrics.get("p_vp", Decimal('1.0'))
-            if Decimal('0.0') < pvp <= Decimal('0.92'):
+            if Decimal('0.0') < pvp <= Decimal('0.95'):
                 score += 20
                 motivos.append("🧠 Desconto Patrimonial P/VP (+20)")
+            elif pvp >= Decimal('1.05'):
+                score -= 15
+                motivos.append("🚨 FII com Ágio P/VP (-15)")
 
-        if score >= 60:
-            status = "COMPRA_FORTE" if score >= 80 else "COMPRAR"
-            rec_text = "🟢 APORTAR FORTE" if score >= 80 else "🟢 APORTAR"
-        elif score >= 25:
+        if score >= 50:
+            status = "COMPRA_FORTE" if score >= 70 else "COMPRAR"
+            rec_text = "🟢 APORTAR FORTE" if score >= 70 else "🟢 APORTAR"
+        elif score >= -15:
             status = "NEUTRO"
             rec_text = "🟡 MANTER"
         else:

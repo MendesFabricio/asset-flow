@@ -80,7 +80,7 @@ export function AssetsTable({ assets, tab, onEdit, onViewNews, onViewDetails }: 
       {/* Barra de Busca Premium Integrada */}
       <div className="p-4 bg-slate-950/20 border-b border-slate-800/40 flex flex-col sm:flex-row justify-between items-center gap-3">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Ativos em {tab}</span>
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Meus Ativos</span>
           <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 tabular-nums">
             {filteredAssets.length}
           </span>

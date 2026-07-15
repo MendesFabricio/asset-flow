@@ -179,7 +179,7 @@ export const AssetRow = React.memo(({ ativo, tab, onEdit, onViewNews, onViewDeta
             <div className="flex items-center gap-2 justify-end">
               {!isNaN(Number(stats.variacaoIntraday)) && Number(stats.variacaoIntraday) !== 0 && (
                 <div
-                  className={`text-[10px] font-bold flex items-center gap-1 px-1.5 py-0.5 rounded cursor-help transition-all hover:scale-105 tabular-nums ${stats.isPositiveIntraday ? 'text-emerald-400 bg-emerald-400/20' : 'text-rose-400 bg-rose-400/20'}`}
+                  className={`text-[10px] font-bold flex items-center gap-1 px-1.5 py-0.5 rounded cursor-pointer transition-all hover:scale-105 tabular-nums ${stats.isPositiveIntraday ? 'text-emerald-400 bg-emerald-400/20' : 'text-rose-400 bg-rose-400/20'}`}
                   onMouseEnter={(e) => handleMouseEnter(e, 'fin')}
                   onMouseLeave={handleMouseLeave}
                 >
@@ -206,32 +206,58 @@ export const AssetRow = React.memo(({ ativo, tab, onEdit, onViewNews, onViewDeta
 
         {/* COLUNA 5: META */}
         <td className="p-4 text-right w-36 hidden md:table-cell">
-          <div className="flex justify-between text-[10px] mb-1.5 px-0.5">
+          <div className="flex justify-between text-[10px] mb-2 px-0.5 font-mono leading-none">
             <span className={`font-bold tabular-nums ${stats.isOverweight ? 'text-yellow-400' : 'text-blue-300'}`}>
               {ativo.pct_na_categoria.toFixed(1)}%
             </span>
-            <span className="text-slate-600">meta <span className="tabular-nums">{ativo.meta}%</span></span>
+            <span className="text-slate-600 font-bold uppercase tracking-tighter">meta <span className="tabular-nums text-slate-500">{ativo.meta}%</span></span>
           </div>
-          <div className="w-full h-1.5 bg-slate-800/80 rounded-full overflow-hidden ring-1 ring-slate-800">
-            <div className={`h-full transition-all duration-1000 ease-out ${stats.isOverweight ? 'bg-yellow-500' : 'bg-blue-500'}`} style={{ width: `${stats.barraWidth}%` }}></div>
+          <div className="h-2.5 w-full bg-slate-900/80 border border-slate-800/60 shadow-inner rounded-full overflow-hidden relative p-[1px]">
+            <div 
+              className={`h-full rounded-full opacity-90 transition-all duration-1000 ease-out shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)] ${stats.isOverweight ? 'bg-yellow-500' : 'bg-blue-600'}`} 
+              style={{ width: `${stats.barraWidth}%` }}
+            ></div>
           </div>
         </td>
 
         {/* COLUNA 6: APORTE + RECOMENDAÇÃO */}
         <td className="p-4 text-right">
-          <div className="flex flex-col items-end gap-1.5">
+          <div className="flex flex-col items-end gap-1.5 w-[110px] ml-auto">
             {ativo.falta_comprar > 1 ? (
-              <PrivateValue value={`+${formatMoney(ativo.falta_comprar)}`} className="text-blue-300 font-bold bg-blue-500/10 px-2 py-1 rounded border border-blue-500/20 text-xs whitespace-nowrap shadow-sm shadow-blue-900/20 tabular-nums" />
-            ) : <span className="text-slate-700 text-[10px] font-medium">-</span>}
+              <PrivateValue 
+                value={`+${formatMoney(ativo.falta_comprar)}`} 
+                className="w-full max-w-[110px] text-center text-blue-400 font-bold bg-blue-500/10 px-2 py-0.5 rounded ring-1 ring-inset ring-blue-500/20 text-[11px] whitespace-nowrap shadow-sm tabular-nums inline-block" 
+              />
+            ) : <span className="w-full max-w-[110px] text-center text-slate-700 text-[10px] font-medium inline-block">-</span>}
 
-            <div
-              className="flex items-center gap-1 text-[9px] px-2 py-0.5 rounded-full border uppercase font-bold cursor-help transition-all hover:brightness-110"
-              onMouseEnter={(e) => handleMouseEnter(e, 'rec')}
-              onMouseLeave={handleMouseLeave}
-            >
-              {ativo.recomendacao}
-              <Info size={10} className="opacity-60 hover:opacity-100 transition-opacity" />
-            </div>
+            {(() => {
+              const recLower = (ativo.recomendacao || '').toLowerCase();
+              const isComprar = recLower.includes('aportar') || recLower.includes('comprar');
+              const isManter = recLower.includes('manter');
+              const isEvitar = recLower.includes('evitar');
+              
+              const colors = isComprar ? 'text-emerald-400 bg-emerald-500/10 ring-emerald-500/20' 
+                           : isManter ? 'text-amber-400 bg-amber-500/10 ring-amber-500/20'
+                           : isEvitar ? 'text-rose-400 bg-rose-500/10 ring-rose-500/20'
+                           : 'text-slate-400 bg-slate-500/10 ring-slate-500/20';
+
+              const cleanRec = (ativo.recomendacao || '').replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F000}-\u{1F02F}\u{1F0A0}-\u{1F0FF}\u{1F100}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{1F900}-\u{1F9FF}\u{1FA70}-\u{1FAFF}\u{2300}-\u{23FF}\u{2B50}\u{2B55}\u{FE0F}]/gu, '').trim();
+
+              return (
+                <div
+                  className={`inline-flex items-center justify-center gap-1 text-[9px] w-full max-w-[110px] px-1 py-[3px] rounded-md ring-1 ring-inset uppercase font-bold cursor-pointer transition-all whitespace-nowrap hover:brightness-125 ${colors}`}
+                  onMouseEnter={(e) => handleMouseEnter(e, 'rec')}
+                  onMouseLeave={handleMouseLeave}
+                >
+                  {isComprar && <TrendingUp size={10} strokeWidth={2.5} className="shrink-0" />}
+                  {isManter && <div className="w-1.5 h-1.5 rounded-full bg-amber-400 mr-0.5 shrink-0" />}
+                  {isEvitar && <TrendingDown size={10} strokeWidth={2.5} className="shrink-0" />}
+                  
+                  <span className="truncate">{cleanRec}</span>
+                  <Info size={10} className="opacity-50 hover:opacity-100 transition-opacity ml-0.5 shrink-0" />
+                </div>
+              );
+            })()}
 
             {tooltip && (
               <AssetTooltip
@@ -255,42 +281,43 @@ export const AssetRow = React.memo(({ ativo, tab, onEdit, onViewNews, onViewDeta
         {showIndicators && (
           <td className="p-4 text-center hidden lg:table-cell w-28 align-middle">
             {tab === 'FII' ? (
-              <div className="flex flex-col gap-1 items-end w-full">
+              <div className="flex flex-col gap-1.5 items-end w-full">
                 {(ativo.p_vp || 0) > 0 && (
                   <div
                     title="P/VP (Preço sobre Valor Patrimonial): Mede o preço do ativo em relação ao seu valor patrimonial. < 1.0 indica desconto."
-                    className="text-xs font-mono flex items-center gap-1.5 bg-slate-800/30 px-2 py-0.5 rounded border border-slate-800 cursor-help"
+                    className="text-[11px] font-mono flex items-center justify-between w-20 px-2 py-[3px] rounded-md ring-1 ring-inset ring-slate-700/50 bg-slate-800/40 cursor-pointer shadow-sm"
                   >
-                    <span className="text-[9px] text-slate-500 uppercase">P/VP</span>
-                    <span className={`tabular-nums ${(ativo.p_vp || 0) < 0.95 ? 'text-emerald-400 font-bold' : (ativo.p_vp || 0) > 1.05 ? 'text-rose-400' : 'text-slate-300'}`}>{(ativo.p_vp || 0).toFixed(2)}</span>
+                    <span className="text-[9px] text-slate-500 uppercase font-bold tracking-tight">P/VP</span>
+                    <span className={`tabular-nums font-bold ${(ativo.p_vp || 0) < 0.95 ? 'text-emerald-400' : (ativo.p_vp || 0) > 1.05 ? 'text-rose-400' : 'text-slate-300'}`}>{(ativo.p_vp || 0).toFixed(2)}</span>
                   </div>
                 )}
                 {atingiuMagic && (
                   <div
                     title="Número Mágico: Quantidade de cotas necessárias para que o rendimento pague uma nova cota do fundo."
-                    className="text-[10px] flex items-center gap-1 justify-end w-full px-1 text-cyan-400 font-bold cursor-help"
+                    className="text-[10px] flex items-center gap-1 justify-end w-20 px-1 text-cyan-400 font-bold cursor-pointer"
                   >
-                    <Snowflake size={10} className="animate-pulse" />
+                    <Snowflake size={11} className="animate-pulse" />
                     <PrivateValue value={`${ativo.qtd}/${ativo.magic_number}`} className="tabular-nums" />
                   </div>
                 )}
               </div>
             ) : tab === 'Ação' && ((ativo.vi_graham || 0) > 0 || (ativo.mg_graham || 0) !== 0) ? (
-              <div className="flex flex-col items-center gap-1">
+              <div className="flex flex-col items-end gap-1.5 w-full">
                 <span
                   title="Margem de Graham: Desconto percentual da cotação atual em relação ao Valor Intrínseco de Graham."
-                  className={`text-[10px] font-mono px-2 py-1 rounded border cursor-help tabular-nums ${(ativo.mg_graham || 0) > 20 ? 'text-emerald-400 bg-emerald-400/5 border-emerald-400/20' : (ativo.mg_graham || 0) > 0 ? 'text-emerald-600 bg-emerald-400/5 border-emerald-600/10' : 'text-rose-400 bg-rose-400/5 border-rose-400/20'}`}
+                  className={`text-[11px] font-mono px-2 py-[3px] rounded-md ring-1 ring-inset cursor-pointer tabular-nums font-bold w-full max-w-[80px] text-center shadow-sm ${(ativo.mg_graham || 0) > 20 ? 'text-emerald-400 bg-emerald-500/10 ring-emerald-500/20' : (ativo.mg_graham || 0) > 0 ? 'text-emerald-500 bg-emerald-500/5 ring-emerald-500/10' : 'text-rose-400 bg-rose-500/10 ring-rose-500/20'}`}
                 >
                   {(ativo.mg_graham || 0) > 0 ? '+' : ''}{(ativo.mg_graham || 0).toFixed(0)}%
                 </span>
                 <span
                   title="V.I. (Valor Intrínseco): Valor justo teórico calculado pela fórmula clássica de Benjamin Graham."
-                  className="text-[9px] text-slate-600 font-medium uppercase tracking-tighter cursor-help"
+                  className="text-[9px] text-slate-400 font-medium tracking-tighter cursor-pointer bg-slate-900/60 border border-slate-800 px-1.5 py-0.5 rounded flex items-center justify-between w-full max-w-[80px]"
                 >
-                  V.I: <PrivateValue value={formatMoney(ativo.vi_graham || 0)} className="tabular-nums" />
+                  <span className="text-slate-500 uppercase">V.I</span>
+                  <PrivateValue value={formatMoney(ativo.vi_graham || 0)} className="tabular-nums" />
                 </span>
               </div>
-            ) : <span className="text-slate-800">-</span>}
+            ) : <span className="text-slate-700">-</span>}
           </td>
         )}
       </tr>

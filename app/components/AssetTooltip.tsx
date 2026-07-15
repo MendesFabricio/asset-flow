@@ -1,5 +1,7 @@
 import { TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
 import { formatMoney } from '../utils';
+import { createPortal } from 'react-dom';
+import { useEffect, useState } from 'react';
 
 interface AssetTooltipProps {
     type: 'rec' | 'fin';
@@ -16,6 +18,12 @@ interface AssetTooltipProps {
 }
 
 export const AssetTooltip = ({ type, data, style }: AssetTooltipProps) => {
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
     const isPositive = data.variacaoFinanceira >= 0;
 
     const formattedMoney = data.isUSD
@@ -29,16 +37,23 @@ export const AssetTooltip = ({ type, data, style }: AssetTooltipProps) => {
         return 'bg-blue-400';
     };
 
-    return (
+    if (!mounted) return null;
+
+    const tooltipContent = (
         <div
-            className="absolute z-[9999] p-0 bg-slate-900 border border-slate-700 rounded-lg shadow-2xl text-left pointer-events-none animate-in fade-in zoom-in-95 duration-200"
+            className="fixed z-[9999] p-0 bg-slate-900/95 backdrop-blur-md border border-slate-700/50 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.5)] text-left pointer-events-none animate-in fade-in zoom-in-95 duration-200 overflow-hidden"
             style={style}
         >
             {type === 'rec' ? (
                 <>
-                    <div className="bg-slate-800/80 px-3 py-2 border-b border-slate-700 rounded-t-lg flex justify-between items-center backdrop-blur-sm">
-                        <span className="text-[10px] font-bold text-slate-200 flex items-center gap-1">📊 Análise de {data.ticker}</span>
-                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${data.score >= 70 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-700 text-slate-300'}`}>Score: {data.score}</span>
+                    <div className="bg-slate-800/40 px-3 py-2.5 border-b border-slate-700/50 flex justify-between items-center">
+                        <span className="text-[11px] font-bold text-slate-200 flex items-center gap-1.5 uppercase tracking-wide">
+                            <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
+                            Análise {data.ticker}
+                        </span>
+                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ring-1 ring-inset ${data.score >= 70 ? 'bg-emerald-500/10 text-emerald-400 ring-emerald-500/20' : 'bg-slate-500/10 text-slate-300 ring-slate-500/20'}`}>
+                            SCORE: {data.score}
+                        </span>
                     </div>
                     <div className="p-3 space-y-2.5">
                         {data.motivos.length > 0 ? data.motivos.map((m, i) => (
@@ -78,4 +93,6 @@ export const AssetTooltip = ({ type, data, style }: AssetTooltipProps) => {
             )}
         </div>
     );
+
+    return createPortal(tooltipContent, document.body);
 };

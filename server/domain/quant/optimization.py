@@ -37,6 +37,11 @@ def calculate_risk_parity(session, fetch_prices) -> dict:
     decay_factor = 0.94
     cov = _calculate_ewma_covariance(log_ret, decay=decay_factor)
     
+    # Adicionar ruído diagonal (Tikhonov Regularization) para matrizes singulares
+    cov_vals = cov.to_numpy() if hasattr(cov, 'to_numpy') else cov
+    cov_vals = cov_vals + np.eye(cov_vals.shape[0]) * 1e-6
+    cov = cov_vals
+    
     avail_tickers = log_ret.columns.tolist()
     n = len(avail_tickers)
     
@@ -88,6 +93,11 @@ def calculate_markowitz_optimization(session, fetch_prices) -> dict:
     decay_factor = 0.94
     cov_matrix = _calculate_ewma_covariance(log_ret, decay=decay_factor)
     
+    # Adicionar ruído diagonal (Tikhonov Regularization) para matrizes singulares
+    cov_vals = cov_matrix.to_numpy() if hasattr(cov_matrix, 'to_numpy') else cov_matrix
+    cov_vals = cov_vals + np.eye(cov_vals.shape[0]) * 1e-6
+    cov_matrix = cov_vals
+    
     avail_tickers = log_ret.columns.tolist()
     N = len(avail_tickers)
     risk_free = get_risk_free_rate()
@@ -97,7 +107,7 @@ def calculate_markowitz_optimization(session, fetch_prices) -> dict:
     weights_matrix = weights_matrix / np.sum(weights_matrix, axis=1, keepdims=True)
     
     p_rets = np.dot(weights_matrix, mean_returns) * 252
-    cov_ann = cov_matrix.to_numpy() * 252
+    cov_ann = cov_matrix * 252
     p_vols = np.sqrt(np.einsum('ij,jk,ik->i', weights_matrix, cov_ann, weights_matrix))
     p_sharpes = np.where(p_vols > 0, (p_rets - risk_free) / p_vols, 0.0)
     
@@ -150,6 +160,11 @@ def calculate_efficient_frontier_points(session, fetch_prices) -> dict:
     decay_factor = 0.94
     cov_matrix = _calculate_ewma_covariance(log_ret, decay=decay_factor)
     
+    # Adicionar ruído diagonal (Tikhonov Regularization)
+    cov_vals = cov_matrix.to_numpy() if hasattr(cov_matrix, 'to_numpy') else cov_matrix
+    cov_vals = cov_vals + np.eye(cov_vals.shape[0]) * 1e-6
+    cov_matrix = cov_vals
+    
     avail_tickers = log_ret.columns.tolist()
     N = len(avail_tickers)
     risk_free = get_risk_free_rate()
@@ -160,7 +175,7 @@ def calculate_efficient_frontier_points(session, fetch_prices) -> dict:
     weights_matrix = weights_matrix / np.sum(weights_matrix, axis=1, keepdims=True)
     
     p_rets = np.dot(weights_matrix, mean_returns) * 252
-    cov_ann = cov_matrix.to_numpy() * 252
+    cov_ann = cov_matrix * 252
     p_vols = np.sqrt(np.einsum('ij,jk,ik->i', weights_matrix, cov_ann, weights_matrix))
     p_sharpes = np.where(p_vols > 0, (p_rets - risk_free) / p_vols, 0.0)
     
