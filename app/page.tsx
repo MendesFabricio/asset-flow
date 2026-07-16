@@ -48,7 +48,8 @@ import {
   AlertTriangle
 } from 'lucide-react';
 
-const RiskRadar = dynamic(() => import('./features/quant/components/RiskRadar').then(mod => mod.RiskRadar), { ssr: false, loading: () => <RiskRadarSkeleton /> }) ;
+const PortfolioDonutChart = dynamic(() => import('./components/PortfolioDonutChart').then(mod => mod.PortfolioDonutChart), { ssr: false, loading: () => <RiskRadarSkeleton /> }) ;
+const RiskRadarModal = dynamic(() => import('./components/RiskRadarModal').then(mod => mod.RiskRadarModal), { ssr: false }) ;
 const HistoryChart = dynamic(() => import('./components/HistoryChart').then(mod => mod.HistoryChart), { ssr: false, loading: () => <HistoryChartSkeleton /> }) ;
 const CategorySummary = dynamic(() => import('./components/CategorySummary').then(mod => mod.CategorySummary), { ssr: false, loading: () => <CategorySummarySkeleton /> }) ;
 const EditModal = dynamic(() => import('./features/assets/components/EditModal').then(mod => mod.EditModal), { ssr: false, loading: () => <ModalSkeleton /> }) ;
@@ -71,6 +72,7 @@ export default function Home() {
   const [tab, setTab] = useState('Resumo');
   const [isRefetching, setIsRefetching] = useState(false);
   const [showRefreshSuccess, setShowRefreshSuccess] = useState(false);
+  const [isRadarModalOpen, setIsRadarModalOpen] = useState(false);
 
   const isAddModalOpen = useModalStore(state => state.isAddModalOpen);
   const isSmartModalOpen = useModalStore(state => state.isSmartModalOpen);
@@ -242,7 +244,7 @@ export default function Home() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 min-h-[525px]">
         <div className="h-full w-full">
-          <RiskRadar alertas={data?.alertas || []} />
+          <PortfolioDonutChart ativos={data?.ativos || []} onOpenRadar={() => setIsRadarModalOpen(true)} />
         </div>
         <div className="lg:col-span-2 h-full w-full">
           <CategorySummary ativos={data?.ativos || []} categorias={data?.categorias || []} onUpdate={() => refetch()} />
@@ -361,6 +363,12 @@ export default function Home() {
       {isIfModalOpen && (
         <IncomeProjectionModal onClose={() => setIfModalOpen(false)} />
       )}
+      
+      <RiskRadarModal 
+        isOpen={isRadarModalOpen} 
+        onClose={() => setIsRadarModalOpen(false)} 
+        alertas={data?.alertas || []} 
+      />
     </main>
   );
 }

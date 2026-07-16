@@ -6,6 +6,7 @@ import { PrivateValue } from './ui/PrivateValue';
 import { PieChart, Pencil, X, Save, AlertCircle, AlertTriangle, TrendingUp, TrendingDown, Ban, CheckCircle2, DollarSign } from 'lucide-react'; // 🧼 Removido 'Lock' que não era usado
 import { Card } from './ui/Card';
 import { apiCall } from '../lib/api';
+import { CATEGORY_COLORS } from '../lib/colors';
 
 import { useFloatingTooltip, TooltipState } from '../hooks/useFloatingTooltip';
 
@@ -273,8 +274,13 @@ export const CategorySummary = ({ ativos, categorias = [], onUpdate }: CategoryS
                 else if (pctAtual < meta * 0.85) barColor = "bg-emerald-500";
 
                 return (
-                  <tr key={item.tipo} className="hover:bg-slate-800/40 transition-colors group">
-                    <td className="px-6 py-3 align-middle">
+                  <tr key={item.tipo} className="hover:bg-slate-800/40 transition-colors group relative">
+                    <td className="px-6 py-3 align-middle relative">
+                      {/* Barra de cor identificadora */}
+                      <div 
+                        className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-3/5 rounded-r-full shadow-[2px_0_8px_rgba(0,0,0,0.5)]" 
+                        style={{ backgroundColor: CATEGORY_COLORS[item.tipo] || CATEGORY_COLORS['Outros'] }} 
+                      />
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-slate-300">{item.tipo}</span>
 
