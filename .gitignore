@@ -70,7 +70,8 @@ server/backups/
 .claude
 graphify-out/
 SECURITY_ANALYSIS.md
-server/data/
+server/data/*
+!server/data/tickers_cache.json
 AGENTS.md
 AUDITORIA_COMPLETA.md
 PLANO_IA_BRIEFING.md   
