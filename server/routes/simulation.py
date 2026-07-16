@@ -27,66 +27,42 @@ OLLAMA_TIMEOUT_DEFAULT = 60
 
 def _build_morning_brief_context(user_id: int, dolar_rate: float, selic: float) -> dict:
     """Constrói contexto enriquecido para o Morning Brief (compartilhado entre rota e worker)."""
-    from database.models import Session as DBSession
-    from sqlalchemy.orm import joinedload, selectinload
-    from domain.quant.helpers import get_risk_free_rate as _get_rf
+    # Delega lógica complexa de parseamento de ativos para o core (dashboard_data)
+    dashboard = service.get_dashboard_data(user_id)
     
-    with DBSession() as session:
-        positions = (
-            session.query(Position)
-            .options(
-                joinedload(Position.asset).joinedload(Asset.category),
-                joinedload(Position.asset).selectinload(Asset.market_data)
-            )
-            .filter(Position.user_id == user_id, Position.quantity > 0)
-            .all()
-        )
+    holdings_details = []
+    for a in dashboard.get("ativos", []):
+        holdings_details.append({
+            "ticker": a.get("ticker", ""),
+            "category": a.get("categoria", "Outros"),
+            "value": a.get("total_atual", 0.0),
+            "target_pct": a.get("target_percent", 0.0),
+            "profit_loss_pct": a.get("variacao_pct", 0.0),
+            "price": a.get("preco_atual", 0.0),
+            "weight_pct": a.get("percentual_carteira", 0.0),
+            "beta": "N/A",
+            "var_95": "N/A"
+        })
 
-        total_portfolio_val = 0.0
-        holdings_details = []
-        for pos in positions:
-            if not pos.asset:
-                continue
-            mdata = pos.asset.market_data[0] if pos.asset.market_data else None
-            price = float(mdata.price or pos.average_price or 0.0) if mdata else float(pos.average_price or 0.0)
-            fator = float(dolar_rate or 1.0) if pos.asset.currency == 'USD' else 1.0
-            qty = float(pos.quantity or 0.0)
-            val = qty * price * fator
-            if val > 0:
-                total_portfolio_val += val
-                avg_price = float(pos.average_price or 0.0)
-                profit_loss_pct = ((price - avg_price) / avg_price * 100) if avg_price > 0 else 0.0
-                holdings_details.append({
-                    "ticker": pos.asset.ticker.upper(),
-                    "category": pos.asset.category.name if pos.asset.category else "Outros",
-                    "value": val,
-                    "target_pct": float(pos.target_percent or 0.0),
-                    "profit_loss_pct": profit_loss_pct,
-                    "price": price,
-                    "weight_pct": 0.0,
-                    "beta": "N/A",
-                    "var_95": "N/A"
-                })
+    holdings_details.sort(key=lambda x: x["value"], reverse=True)
 
-        holdings_details.sort(key=lambda x: x["value"], reverse=True)
-        for h in holdings_details:
-            h["weight_pct"] = (h["value"] / total_portfolio_val * 100) if total_portfolio_val > 0 else 0.0
+    # Risk metrics computados
+    risk = None
+    try:
+        # A sessão será criada no facade internamente
+        service.current_user_id = user_id
+        risk = service.calculate_risk_metrics()
+    except Exception:
+        pass
 
-        # Risk metrics computados UMA VEZ (não 5x)
-        risk = None
-        try:
-            risk = service.calculate_risk_metrics(session=session)
-        except Exception:
-            pass
-
-        enriched_holdings = []
-        for h in holdings_details[:5]:
-            enriched = dict(h)
-            if risk and risk.get("status") == "Sucesso":
-                metrics = risk.get("metrics", {})
-                enriched["beta"] = f"{metrics.get('beta', 0):.2f}"
-                enriched["var_95"] = f"{metrics.get('var_95', 0):.2f}%"
-            enriched_holdings.append(enriched)
+    enriched_holdings = []
+    for h in holdings_details[:5]:
+        enriched = dict(h)
+        if risk and risk.get("status") == "Sucesso":
+            metrics = risk.get("metrics", {})
+            enriched["beta"] = f"{metrics.get('beta', 0):.2f}"
+            enriched["var_95"] = f"{metrics.get('var_95', 0):.2f}%"
+        enriched_holdings.append(enriched)
 
     context = {
         "selic": float(selic),
@@ -168,15 +144,6 @@ def sector_exposure():
         logging.error(f"❌ Erro ao obter exposição setorial: {e}", exc_info=True)
         return jsonify({"status": "Erro", "msg": str(e)}), 500
 
-@simulation_bp.route('/api/dividends/forecast', methods=['GET'])
-def dividends_forecast():
-    """📅 Rota Preditiva de Proventos: Projeção de fluxo de caixa de proventos para 12 meses"""
-    try:
-        res = service.calculate_dividend_forecast()
-        return jsonify(res)
-    except Exception as e:
-        logging.error(f"❌ Erro ao computar fluxo preditivo de dividendos: {e}", exc_info=True)
-        return jsonify({"status": "Erro", "msg": str(e)}), 500
 
 def _run_morning_brief_bg(user_id: int, context: dict, cache_key: str):
     """Executa a chamada ao Ollama em thread de background e salva o resultado no cache."""

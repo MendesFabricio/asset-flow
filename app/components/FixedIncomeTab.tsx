@@ -28,7 +28,7 @@ interface FixedIncomeItem {
   net_profit: number;
 }
 
-export default function FixedIncomeTab() {
+export function FixedIncomeTab() {
   const [titles, setTitles] = useState<FixedIncomeItem[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [form, setForm] = useState({

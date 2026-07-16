@@ -81,7 +81,7 @@ def get_alerts():
                                     "view"
                                 ))
                     except Exception as parse_err:
-                        logging.debug(f"Falha de parse de string temporal em {asset.ticker}: {parse_err}")
+                        pass
 
                 # =========================================================
                 # 2. ALERTAS DE RISCO FINANCEIRO (Prejuízo, Trap)

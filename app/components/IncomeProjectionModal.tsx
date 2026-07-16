@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { formatMoney } from '../utils';
 import { apiCall } from '../utils/apiClient';
+import { ModalShell } from './ModalShell';
 
 interface Params {
   aporte_mensal: number;
@@ -104,27 +105,15 @@ export function IncomeProjectionModal({ onClose }: Props) {
     setParams(p => ({ ...p, [key]: val }));
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-[#0d1117] border border-slate-800 rounded-2xl shadow-2xl">
-
-        {/* Header */}
-        <div className="sticky top-0 z-10 bg-[#0d1117]/95 backdrop-blur-md border-b border-slate-800 px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-              <TrendingUp size={18} className="text-emerald-400" />
-            </div>
-            <div>
-              <h2 className="text-base font-bold text-white">Projeção de Independência Financeira</h2>
-              <p className="text-xs text-slate-500">Juros compostos sobre patrimônio atual + aportes mensais</p>
-            </div>
-          </div>
-          <button onClick={onClose} className="p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors">
-            <X size={18} />
-          </button>
-        </div>
-
-        <div className="p-6 space-y-6">
-          {/* Parâmetros */}
+    <ModalShell
+      onClose={onClose}
+      title="Projeção de Independência Financeira"
+      subtitle="Juros compostos sobre patrimônio atual + aportes mensais"
+      icon={<TrendingUp size={18} />}
+      maxWidth="4xl"
+    >
+      <div className="space-y-6">
+        {/* Parâmetros */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
               { key: 'aporte_mensal' as keyof Params, label: 'Aporte Mensal', icon: DollarSign, prefix: 'R$', min: 100, max: 50000, step: 100 },
@@ -248,7 +237,6 @@ export function IncomeProjectionModal({ onClose }: Props) {
             </>
           )}
         </div>
-      </div>
-    </div>
+    </ModalShell>
   );
 }

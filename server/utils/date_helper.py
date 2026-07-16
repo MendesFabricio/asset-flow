@@ -30,3 +30,12 @@ def add_months_helper(sourcedate, months):
     month = month % 12 + 1
     day = min(sourcedate.day, calendar.monthrange(year, month)[1])
     return date(year, month, day)
+
+def parse_iso_date(date_str: str) -> datetime:
+    """Consolida o parse seguro de datas ISO vindas do frontend (lida com o Z do UTC)."""
+    if not date_str:
+        return None
+    try:
+        return datetime.fromisoformat(date_str.replace('Z', ''))
+    except ValueError:
+        return None

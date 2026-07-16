@@ -205,11 +205,6 @@ def get_assets():
     except Exception as e:
         logging.error(f"❌ Erro grave ao montar listagem de ativos: {e}")
         return jsonify({"status": "Erro", "msg": str(e)}), 500
-    
-@assets_bp.route('/api/correlation', methods=['GET'])
-def correlation():
-    data = service.get_correlation_matrix()
-    return jsonify(data)
 
 @assets_bp.route('/api/refresh_prices', methods=['POST'])
 def refresh_prices():

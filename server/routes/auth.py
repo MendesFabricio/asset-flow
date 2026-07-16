@@ -5,7 +5,6 @@ from database.models import User, RefundConfig, safe_commit
 from database.session import Session
 from werkzeug.security import check_password_hash, generate_password_hash
 from itsdangerous import URLSafeTimedSerializer
-from schemas import ProfileUpdateSchema, PasswordChangeSchema
 
 import time
 import re

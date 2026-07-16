@@ -101,7 +101,7 @@ def _run_sentiment_analysis(asset_id: int, ticker: str, news_titles: list, posit
                         f"{metrics_str}"
                     )
             except Exception as cvm_err:
-                logging.debug(f"Não foi possível obter dados CVM para o prompt do ativo {ticker}: {cvm_err}")
+                pass
         
         prompt = (
             f"Você é um analista financeiro sênior especializado em inteligência de mercado do ativo {ticker} brasileiro.\n"

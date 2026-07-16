@@ -9,7 +9,7 @@ import { AssetsTable } from './components/AssetsTable';
 import { Asset } from './types';
 import { useModalStore } from './store/modalStore';
 import { MorningBriefing } from './components/MorningBriefing';
-import { SkeletonLoading } from './components/SkeletonLoading';
+import { SkeletonLoading } from './components/ui/Skeletons';
 import {
   RiskRadarSkeleton,
   HistoryChartSkeleton,
@@ -21,8 +21,8 @@ import {
   CreditCardsSkeleton,
   FixedIncomeSkeleton,
   QuantSkeleton
-} from './components/Skeletons';
-import { HeatmapSkeleton } from './components/ui/QuantSkeletons';
+} from './components/ui/Skeletons';
+import { HeatmapSkeleton } from './components/ui/Skeletons';
 import { useAssetData } from './hooks/useAssetData';
 import { usePortfolioHandlers } from './hooks/usePortfolioHandlers';
 import { usePortfolioMetrics } from './hooks/usePortfolioMetrics';
@@ -55,8 +55,8 @@ const EditModal = dynamic(() => import('./components/EditModal').then(mod => mod
 const AddAssetModal = dynamic(() => import('./components/AddAssetModal').then(mod => mod.AddAssetModal), { ssr: false, loading: () => <ModalSkeleton /> }) as React.FC<any>;
 const AssetNewsPanel = dynamic(() => import('./components/AssetNewsPanel').then(mod => mod.AssetNewsPanel), { ssr: false, loading: () => <NewsPanelSkeleton /> }) as React.FC<any>;
 const ReceivablesTab = dynamic(() => import('./components/ReceivablesTab').then(mod => mod.ReceivablesTab), { ssr: false, loading: () => <ReceivablesSkeleton /> }) as React.FC<any>;
-const CreditCardsTab = dynamic(() => import('./components/CreditCardsTab'), { ssr: false, loading: () => <CreditCardsSkeleton /> }) as React.FC<any>;
-const FixedIncomeTab = dynamic(() => import('./components/FixedIncomeTab'), { ssr: false, loading: () => <FixedIncomeSkeleton /> }) as React.FC<any>;
+const CreditCardsTab = dynamic(() => import('./components/CreditCardsTab').then(mod => mod.CreditCardsTab), { ssr: false, loading: () => <CreditCardsSkeleton /> }) as React.FC<any>;
+const FixedIncomeTab = dynamic(() => import('./components/FixedIncomeTab').then(mod => mod.FixedIncomeTab), { ssr: false, loading: () => <FixedIncomeSkeleton /> }) as React.FC<any>;
 const AssetDetailsModal = dynamic(() => import('./components/AssetDetailsModal').then(mod => mod.AssetDetailsModal), { ssr: false, loading: () => <ModalSkeleton /> }) as React.FC<any>;
 const CorrelationHeatmap = dynamic(() => import('./components/CorrelationHeatmap').then(mod => mod.CorrelationHeatmap), { ssr: false, loading: () => <HeatmapSkeleton /> }) as React.FC<any>;
 const SmartAllocationModal = dynamic(() => import('./components/SmartAllocationModal').then(mod => mod.SmartAllocationModal), { ssr: false, loading: () => <ModalSkeleton /> }) as React.FC<any>;
@@ -85,10 +85,10 @@ export default function Home() {
   const setSelectedDetailsAsset = useModalStore(state => state.setSelectedDetailsAsset);
   const setNewsTicker = useModalStore(state => state.setNewsTicker);
 
-  const notify = (msg: string, type: 'success' | 'error' = 'success') => {
+  const notify = useCallback((msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3000);
-  };
+  }, []);
 
   const handlers = usePortfolioHandlers(mutateSync, mutateFundamentals, refetch, notify);
   const metrics = usePortfolioMetrics(data, isHidden, formatMoney);
@@ -114,13 +114,13 @@ export default function Home() {
 
   useEffect(() => {
     if (syncStatus.status === 'error') {
-      notify(syncStatus.message || "Erro na sincronização de relatórios CVM.", 'error');
+      setTimeout(() => notify(syncStatus.message || "Erro na sincronização de relatórios CVM.", 'error'), 0);
     }
   }, [syncStatus.status, syncStatus.message, notify]);
 
   useEffect(() => {
     if (fundamentalsStatus.status === 'error') {
-      notify(fundamentalsStatus.message || "Erro ao atualizar múltiplos do Yahoo.", 'error');
+      setTimeout(() => notify(fundamentalsStatus.message || "Erro ao atualizar múltiplos do Yahoo.", 'error'), 0);
     }
   }, [fundamentalsStatus.status, fundamentalsStatus.message, notify]);
 

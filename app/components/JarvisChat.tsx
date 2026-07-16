@@ -4,7 +4,6 @@ import { useState, useRef, useEffect } from 'react';
 import { Send, Brain, Sparkles, User, RefreshCw, ArrowRight } from 'lucide-react';
 import { apiCall } from '../utils/apiClient';
 import { Markdown } from './ui/Markdown';
-import { API_BASE_URL } from '../config/api';
 
 interface Message {
   id: string;
@@ -113,7 +112,7 @@ export function JarvisChat() {
     const timeoutId = setTimeout(() => controller.abort(), 180000);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/ai/chat`, {
+      const response = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

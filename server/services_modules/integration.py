@@ -15,8 +15,9 @@ class IntegrationService:
     def record_confirmed_dividends(self):
         logging.info("📅 [SERVICE] Iniciando verificação automática de novos dividendos...")
         positions_info = []
+        from database.models import get_active_positions
         with Session() as session:
-            positions = session.query(Position).filter(Position.quantity > 0).all()
+            positions = get_active_positions(session, None).all()
             for pos in positions:
                 positions_info.append({
                     "asset_id": pos.asset_id,

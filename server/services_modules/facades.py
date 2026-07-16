@@ -19,55 +19,41 @@ class FacadeService:
         with Session() as session:
             return run_monte_carlo(session, _fetch_price_history_fn, days, simulations)
 
+    def _execute_with_cache(self, session, cache_key, func, allow_compute):
+        def _internal(s):
+            cached = self._get_cached_unwrap(cache_key)
+            if cached:
+                return cached
+            if not allow_compute:
+                return {"status": "Erro", "msg": "Cache MISS and allow_compute is False."}
+            result = func(s)
+            self._set_cached_value(s, cache_key, result)
+            return result
+            
+        if session is not None:
+            return _internal(session)
+        with Session() as s:
+            return _internal(s)
+
     def get_correlation_matrix(self, session=None, allow_compute=True):
         """Façade → quant_engine.get_correlation_matrix com Cache"""
         uid = getattr(self, 'current_user_id', None)
         cache_key = f"correlation_matrix_{uid}" if uid else "correlation_matrix"
-        
-        if session is not None:
-            cached = self._get_cached_unwrap(cache_key)
-            if cached:
-                return cached
-            if not allow_compute:
-                return {"status": "Erro", "msg": "Cache MISS and allow_compute is False."}
-            result = get_correlation_matrix(session, _fetch_price_history_fn, allow_compute)
-            self._set_cached_value(session, cache_key, result)
-            return result
-        
-        with Session() as session:
-            cached = self._get_cached_unwrap(cache_key)
-            if cached:
-                return cached
-            if not allow_compute:
-                return {"status": "Erro", "msg": "Cache MISS and allow_compute is False."}
-            result = get_correlation_matrix(session, _fetch_price_history_fn, allow_compute)
-            self._set_cached_value(session, cache_key, result)
-            return result
+        return self._execute_with_cache(
+            session, cache_key, 
+            lambda s: get_correlation_matrix(s, _fetch_price_history_fn, allow_compute), 
+            allow_compute
+        )
 
     def calculate_risk_metrics(self, session=None, allow_compute=True) -> dict:
         """Façade → quant_engine.calculate_risk_metrics com Cache"""
         uid = getattr(self, 'current_user_id', None)
         cache_key = f"risk_metrics_{uid}" if uid else "risk_metrics"
-        
-        if session is not None:
-            cached = self._get_cached_unwrap(cache_key)
-            if cached:
-                return cached
-            if not allow_compute:
-                return {"status": "Erro", "msg": "Cache MISS and allow_compute is False."}
-            result = calculate_risk_metrics(session, _fetch_price_history_fn, allow_compute)
-            self._set_cached_value(session, cache_key, result)
-            return result
-            
-        with Session() as session:
-            cached = self._get_cached_unwrap(cache_key)
-            if cached:
-                return cached
-            if not allow_compute:
-                return {"status": "Erro", "msg": "Cache MISS and allow_compute is False."}
-            result = calculate_risk_metrics(session, _fetch_price_history_fn, allow_compute)
-            self._set_cached_value(session, cache_key, result)
-            return result
+        return self._execute_with_cache(
+            session, cache_key, 
+            lambda s: calculate_risk_metrics(s, _fetch_price_history_fn, allow_compute), 
+            allow_compute
+        )
 
     def calculate_smart_rebalance(self, monthly_contribution: float = 0.0) -> dict:
         """Façade → quant_engine.calculate_smart_rebalance"""

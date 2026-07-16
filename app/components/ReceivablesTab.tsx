@@ -28,18 +28,6 @@ interface DebtorItem {
   data_ultimo_contato?: string;
 }
 
-interface InstallmentItem {
-  id: number;
-  numero_parcela: number;
-  valor_parcela: number;
-  data_vencimento: string;
-  status: string; // ABERTA, PAGA, ATRASADA
-  data_efetiva_pagamento?: string;
-  observacoes?: string;
-  fatura_mes: string;
-  valor_pago: number;
-}
-
 interface LoanItem {
   id: number;
   debtor_id: number;
@@ -53,38 +41,14 @@ interface LoanItem {
   status: string; // PENDENTE, PARCIAL, LIQUIDADO
   fatura_mes: string;
   observacoes?: string;
-  parcelas: InstallmentItem[];
+  installments: ReceivableInstallmentItem[];
 }
 
-interface DashboardData {
-  total_emprestado: number;
-  total_recebido: number;
-  total_pendente: number;
-  total_atrasado: number;
-  maior_devedor: string;
-  maior_devedor_saldo: number;
-  parcelas_abertas: number;
-  faturas: Array<{
-    fatura: string;
-    total: number;
-    recebido: number;
-    pendente: number;
-    status: string;
-    items_count: number;
-  }>;
-  categorias: Array<{
-    categoria: string;
-    valor: number;
-  }>;
-  distribuicao_devedores: Array<{
-    devedor: string;
-    saldo: number;
-  }>;
-}
+import { ReceivableInstallmentItem, ReceivablesDashboardData } from '../types';
 
 export const ReceivablesTab = () => {
   // State
-  const [dashboard, setDashboard] = useState<DashboardData | null>(null);
+  const [dashboard, setDashboard] = useState<ReceivablesDashboardData | null>(null);
   const [debtors, setDebtors] = useState<DebtorItem[]>([]);
   const [loans, setLoans] = useState<LoanItem[]>([]);
 
@@ -105,7 +69,7 @@ export const ReceivablesTab = () => {
   const [selectedInstallments, setSelectedInstallments] = useState<number[]>([]);
 
   // Pay form
-  const [payingInstallment, setPayingInstallment] = useState<InstallmentItem | null>(null);
+  const [payingInstallment, setPayingInstallment] = useState<ReceivableInstallmentItem | null>(null);
   const [payingLoanDesc, setPayingLoanDesc] = useState('');
   const [payingValue, setPayingValue] = useState('');
   const [payingMethod, setPayingMethod] = useState('Pix');
@@ -257,7 +221,7 @@ export const ReceivablesTab = () => {
     }
   };
 
-  const handleOpenPay = (inst: InstallmentItem, loanDesc: string) => {
+  const handleOpenPay = (inst: ReceivableInstallmentItem, loanDesc: string) => {
     setPayingInstallment(inst);
     setPayingLoanDesc(loanDesc);
     const alreadyPaid = inst.valor_pago || 0;
@@ -377,11 +341,11 @@ export const ReceivablesTab = () => {
       loanDesc: string;
       debtorNome: string;
       categoria: string;
-      installment: InstallmentItem;
+      installment: ReceivableInstallmentItem;
     }> = [];
 
     loans.forEach(loan => {
-      loan.parcelas.forEach(inst => {
+      (loan.installments || []).forEach(inst => {
         list.push({
           loanId: loan.id,
           loanDesc: loan.descricao,

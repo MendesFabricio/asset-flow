@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { X, Save, Calculator, Trash2, DollarSign, Info, Plus, Minus } from 'lucide-react';
 import { Asset } from '../types';
 import { apiCall } from '../utils/apiClient';
+import { ModalShell } from './ModalShell';
 
 interface EditModalProps {
   isOpen: boolean;
@@ -183,25 +184,61 @@ export const EditModal = ({ isOpen, onClose, onSave, ativo, allAssets = [] }: Ed
 
   if (!isOpen || !ativo) return null;
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-300">
-      <div className="bg-[#0f172a] w-full max-w-md rounded-2xl border border-slate-800 shadow-2xl overflow-hidden animate-in zoom-in-95">
-        <div className="bg-slate-900/50 p-5 border-b border-slate-800 flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-blue-600/10 flex items-center justify-center text-blue-400 font-bold border border-blue-500/20 text-lg shadow-inner">
-              {ativo.ticker.substring(0, 2)}
-            </div>
-            <div>
-              <h2 className="text-base font-bold text-white tracking-tight uppercase">Configurar {ativo.ticker}</h2>
-              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest leading-none">{ativo.tipo}</p>
-            </div>
+  const footerContent = (
+    <div className="flex justify-between items-center w-full">
+      {showDeleteConfirm ? (
+        <div className="flex items-center justify-between w-full">
+          <span className="text-[10px] font-bold text-rose-500 uppercase tracking-widest animate-pulse">Tem certeza?</span>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => setShowDeleteConfirm(false)}
+              className="px-5 py-2.5 rounded-xl text-[10px] font-bold text-slate-300 bg-slate-800 hover:bg-slate-700 uppercase tracking-widest transition-all"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={loading}
+              className="px-5 py-2.5 rounded-xl text-[10px] font-bold text-white bg-rose-600 hover:bg-rose-500 uppercase tracking-widest transition-all shadow-lg shadow-rose-900/20 flex items-center gap-2"
+            >
+              <Trash2 size={14} /> Excluir
+            </button>
           </div>
-          <button onClick={onClose} className="text-slate-500 hover:text-white p-2 hover:bg-slate-800 rounded-full transition-all">
-            <X size={20} />
-          </button>
         </div>
+      ) : (
+        <>
+          <button
+            type="button"
+            onClick={() => setShowDeleteConfirm(true)}
+            disabled={loading}
+            className="text-rose-500 hover:text-rose-400 p-2.5 hover:bg-rose-500/10 rounded-xl transition-all flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest disabled:opacity-50"
+          >
+            <Trash2 size={16} />
+            <span className="hidden sm:inline">Excluir</span>
+          </button>
+          <div className="flex gap-4">
+            <button type="button" onClick={onClose} className="px-5 py-2.5 text-[10px] font-bold text-slate-500 hover:text-white uppercase tracking-widest">Cancelar</button>
+            <button type="button" onClick={handleSave} disabled={loading} className="px-6 py-2.5 text-[10px] font-bold bg-blue-600 hover:bg-blue-500 text-white rounded-xl flex items-center gap-2 shadow-lg shadow-blue-900/20 uppercase tracking-widest disabled:opacity-50">
+              {loading ? 'Salvando...' : <><Save size={14} /> Atualizar</>}
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
 
-        <div className="p-6 space-y-6">
+  return (
+    <ModalShell
+      onClose={onClose}
+      title={`Configurar ${ativo.ticker}`}
+      subtitle={ativo.tipo}
+      maxWidth="md"
+      zIndex={100}
+      footer={footerContent}
+    >
+      <div className="space-y-6">
           {shouldShowManualPrice() && (
             <div className="bg-emerald-500/5 border border-emerald-500/20 p-4 rounded-xl space-y-3">
               <div className="flex items-center gap-2 text-emerald-400">
@@ -256,52 +293,6 @@ export const EditModal = ({ isOpen, onClose, onSave, ativo, allAssets = [] }: Ed
             </div>
           )}
         </div>
-
-
-
-        <div className="bg-slate-900/80 p-5 border-t border-slate-800 flex justify-between items-center h-20">
-          {showDeleteConfirm ? (
-            <div className="flex items-center justify-between w-full">
-              <span className="text-[10px] font-bold text-rose-500 uppercase tracking-widest animate-pulse">Tem certeza?</span>
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowDeleteConfirm(false)}
-                  className="px-5 py-2.5 rounded-xl text-[10px] font-bold text-slate-300 bg-slate-800 hover:bg-slate-700 uppercase tracking-widest transition-all"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDelete}
-                  disabled={loading}
-                  className="px-5 py-2.5 rounded-xl text-[10px] font-bold text-white bg-rose-600 hover:bg-rose-500 uppercase tracking-widest transition-all shadow-lg shadow-rose-900/20 flex items-center gap-2"
-                >
-                  <Trash2 size={14} /> Excluir
-                </button>
-              </div>
-            </div>
-          ) : (
-            <>
-              <button
-                type="button"
-                onClick={() => setShowDeleteConfirm(true)}
-                disabled={loading}
-                className="text-rose-500 hover:text-rose-400 p-2.5 hover:bg-rose-500/10 rounded-xl transition-all flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest disabled:opacity-50"
-              >
-                <Trash2 size={16} />
-                <span className="hidden sm:inline">Excluir</span>
-              </button>
-              <div className="flex gap-4">
-                <button type="button" onClick={onClose} className="px-5 py-2.5 text-[10px] font-bold text-slate-500 hover:text-white uppercase tracking-widest">Cancelar</button>
-                <button type="button" onClick={handleSave} disabled={loading} className="px-6 py-2.5 text-[10px] font-bold bg-blue-600 hover:bg-blue-500 text-white rounded-xl flex items-center gap-2 shadow-lg shadow-blue-900/20 uppercase tracking-widest disabled:opacity-50">
-                  {loading ? 'Salvando...' : <><Save size={14} /> Atualizar</>}
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
+    </ModalShell>
   );
 };

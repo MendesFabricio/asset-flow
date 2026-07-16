@@ -197,19 +197,6 @@ class PortfolioSnapshot(Base):
     breakdown = Column(String, nullable=True)
 
     user = relationship("User", back_populates="portfolio_snapshots")
-    items = relationship("SnapshotItem", back_populates="snapshot", cascade="all, delete-orphan")
-
-class SnapshotItem(Base):
-    __tablename__ = 'snapshot_items'
-    id = Column(Integer, primary_key=True)
-    snapshot_id = Column(Integer, ForeignKey('snapshots.id', ondelete="CASCADE"), nullable=False, index=True)
-    category_id = Column(Integer, ForeignKey('categories.id', ondelete="CASCADE"), nullable=False, index=True)
-    
-    total_value = Column(Numeric(18, 4), nullable=False)
-    target_percent = Column(Numeric(18, 4), nullable=True)
-
-    snapshot = relationship("PortfolioSnapshot", back_populates="items")
-    category = relationship("Category")
 
 class RefundConfig(Base):
     __tablename__ = "refund_configs"

@@ -5,6 +5,7 @@ import { Asset } from '../types';
 import { formatMoney } from '../utils';
 import { Card } from './ui/Card';
 import { apiCall } from '../utils/apiClient';
+import { ModalShell } from './ModalShell';
 
 interface ServerSuggestion {
   ticker: string;
@@ -106,25 +107,44 @@ export const SmartAllocationModal = ({ isOpen, onClose, ativos }: SmartAllocatio
   const highSobra = sobra > (valorInput * 0.05) && sobra > 100;
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in fade-in duration-200">
-      <Card className="w-full max-w-2xl !bg-[#0f172a] shadow-2xl border border-slate-800 flex flex-col max-h-[90vh] p-0 overflow-hidden ring-1 ring-white/10">
+    <ModalShell
+      onClose={onClose}
+      title="Simulador Inteligente"
+      subtitle="Algoritmo de alocação institucional."
+      icon={<Sparkles size={18} />}
+      maxWidth="2xl"
+      zIndex={60}
+      footer={
+        serverResult && !serverLoading ? (
+          <div className="flex flex-col">
+            {highSobra && (
+              <div className="bg-amber-900/20 px-4 py-2 flex items-start gap-2 border-b border-amber-900/30 rounded-t-xl mb-4">
+                <AlertTriangle className="text-amber-500 mt-0.5" size={14} />
+                <div>
+                  <p className="text-[10px] font-bold text-amber-400 uppercase">Proteção de Capital</p>
+                  <p className="text-[10px] text-amber-200/70 leading-tight">
+                    <b>{formatMoney(sobra)}</b> preservados. Motivos: Efeito de arredondamento de lotes/unidades (compras apenas em unidades inteiras, com exceção da aba Reserva).
+                  </p>
+                </div>
+              </div>
+            )}
 
-        <div className="relative p-6 border-b border-slate-800 bg-gradient-to-r from-slate-900 via-[#1e1b4b] to-slate-900">
-          <div className="flex justify-between items-start relative z-10">
-            <div>
-              <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                <Sparkles className="text-purple-400" size={20} />
-                Simulador Inteligente
-              </h2>
-              <p className="text-xs text-slate-400 mt-1">Algoritmo de alocação institucional.</p>
+            <div className="flex justify-between items-center gap-4">
+              <div className="flex flex-col">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Total Alocado</span>
+                <span className="text-xl font-bold text-emerald-400 font-mono tracking-tight">{formatMoney(totalAlocado)}</span>
+              </div>
+              <div className="h-8 w-px bg-slate-800"></div>
+              <div className="flex flex-col items-end">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Sobrou (Caixa)</span>
+                <span className={`text-lg font-bold font-mono tracking-tight ${highSobra ? 'text-amber-400' : 'text-slate-300'}`}>{formatMoney(sobra)}</span>
+              </div>
             </div>
-            <button onClick={onClose} className="bg-slate-800/50 hover:bg-slate-700 p-2 rounded-full text-slate-400 hover:text-white transition-all border border-white/5">
-              <X size={18} />
-            </button>
           </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-8 bg-[#0f172a]">
+        ) : undefined
+      }
+    >
+      <div className="space-y-8">
           <div className="flex flex-col items-center gap-6 pt-4">
             <div className="relative w-full max-w-sm group">
               <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl blur opacity-20 group-hover:opacity-30 transition-opacity" />
@@ -258,35 +278,6 @@ export const SmartAllocationModal = ({ isOpen, onClose, ativos }: SmartAllocatio
             </div>
           )}
         </div>
-
-        {serverResult && !serverLoading && (
-          <div className="flex flex-col border-t border-slate-800">
-            {highSobra && (
-              <div className="bg-amber-900/20 px-4 py-2 flex items-start gap-2 border-b border-amber-900/30">
-                <AlertTriangle className="text-amber-500 mt-0.5" size={14} />
-                <div>
-                  <p className="text-[10px] font-bold text-amber-400 uppercase">Proteção de Capital</p>
-                  <p className="text-[10px] text-amber-200/70 leading-tight">
-                    <b>{formatMoney(sobra)}</b> preservados. Motivos: Efeito de arredondamento de lotes/unidades (compras apenas em unidades inteiras, com exceção da aba Reserva).
-                  </p>
-                </div>
-              </div>
-            )}
-
-            <div className="p-4 bg-slate-950 flex justify-between items-center gap-4">
-              <div className="flex flex-col">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Total Alocado</span>
-                <span className="text-xl font-bold text-emerald-400 font-mono tracking-tight">{formatMoney(totalAlocado)}</span>
-              </div>
-              <div className="h-8 w-px bg-slate-800"></div>
-              <div className="flex flex-col items-end">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Sobrou (Caixa)</span>
-                <span className={`text-lg font-bold font-mono tracking-tight ${highSobra ? 'text-amber-400' : 'text-slate-300'}`}>{formatMoney(sobra)}</span>
-              </div>
-            </div>
-          </div>
-        )}
-      </Card>
-    </div>
+    </ModalShell>
   );
 };

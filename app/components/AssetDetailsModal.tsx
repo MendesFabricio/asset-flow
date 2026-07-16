@@ -4,6 +4,7 @@ import { X, Activity, BarChart3, Bell, RefreshCw, Volume2, VolumeX, Sparkles, Fi
 import { formatMoney } from '../utils';
 import { Asset } from '../types';
 import { apiCall } from '../utils/apiClient';
+import { ModalShell } from './ModalShell';
 
 interface AssetDetailsModalProps {
     isOpen: boolean;
@@ -196,35 +197,27 @@ export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalP
     if (!isOpen || !asset) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-            <div className="bg-slate-900 w-full max-w-5xl h-[85vh] rounded-xl border border-slate-700 shadow-2xl flex flex-col relative overflow-hidden">
-
-                {/* Header */}
-                <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-950/50">
-                    <div className="flex items-center gap-4">
-                        <div className="bg-blue-600/20 p-2 rounded-lg border border-blue-600/30">
-                            <BarChart3 className="text-blue-400" size={24} />
-                        </div>
-                        <div>
-                            <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                                {asset.ticker}
-                                <span className="text-xs bg-slate-800 text-slate-400 px-2 py-0.5 rounded border border-slate-700">{asset.tipo}</span>
-                            </h2>
-                            <div className="flex items-center gap-3 text-sm mt-1">
-                                <span className="text-slate-400">Preço: <strong className="text-white">{formatMoney(asset.preco_atual)}</strong></span>
-                                <span className={`${(asset.change_percent ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'} font-bold`}>
-                                    {(asset.change_percent ?? 0) > 0 ? '+' : ''}{(asset.change_percent ?? 0).toFixed(2)}%
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                    <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-full text-slate-400 hover:text-white transition-colors">
-                        <X size={24} />
-                    </button>
-                </div>
-
-                {/* Corpo: Gráfico + Dados */}
-                <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+        <ModalShell
+            onClose={onClose}
+            title={
+                <span className="flex items-center gap-2 text-xl font-bold">
+                    {asset.ticker}
+                    <span className="text-xs bg-slate-800 text-slate-400 px-2 py-0.5 rounded border border-slate-700 font-normal">{asset.tipo}</span>
+                </span>
+            }
+            subtitle={
+                <span className="flex items-center gap-3 mt-1 text-sm">
+                    <span className="text-slate-400">Preço: <strong className="text-white">{formatMoney(asset.preco_atual)}</strong></span>
+                    <span className={`${(asset.change_percent ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'} font-bold`}>
+                        {(asset.change_percent ?? 0) > 0 ? '+' : ''}{(asset.change_percent ?? 0).toFixed(2)}%
+                    </span>
+                </span>
+            }
+            icon={<BarChart3 size={24} />}
+            maxWidth="5xl"
+            noPadding
+        >
+            <div className="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-[70vh]">
 
                     {/* Esquerda: Gráfico TradingView */}
                     <div className="flex-1 h-full relative border-r border-slate-800 bg-[#0f172a]" ref={containerRef}>
@@ -514,7 +507,6 @@ export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalP
 
                     </div>
                 </div>
-            </div>
-        </div>
+        </ModalShell>
     );
 };

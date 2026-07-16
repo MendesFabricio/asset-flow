@@ -7,6 +7,8 @@ import { PieChart, Pencil, X, Save, AlertCircle, AlertTriangle, TrendingUp, Tren
 import { Card } from './ui/Card';
 import { apiCall } from '../utils/apiClient';
 
+import { useFloatingTooltip, TooltipState } from '../hooks/useFloatingTooltip';
+
 // ==========================================
 // INTERFACES E TIPAGENS ESTRITAS (NOVAS)
 // ==========================================
@@ -37,10 +39,10 @@ interface EditingCategory { name: string; }
 // ==========================================
 // 1. SUB-COMPONENTE: TOOLTIP FINANCEIRO
 // ==========================================
-const FinanceTooltip = ({ x, y, valor, isPositive }: { x: number, y: number, valor: number, isPositive: boolean }) => (
+const FinanceTooltip = ({ rect, data: { valor, isPositive } }: TooltipState<{valor: number, isPositive: boolean}>) => (
   <div
     className="fixed z-[110] animate-in fade-in zoom-in-95 duration-150 pointer-events-none"
-    style={{ top: y - 50, left: x - 20 }}
+    style={{ top: rect.top - 50, left: rect.right - 20 }}
   >
     <div className="relative overflow-hidden bg-slate-900/95 backdrop-blur-xl rounded-lg border border-slate-700/50 shadow-2xl min-w-[140px]">
       <div className={`absolute left-0 top-0 bottom-0 w-1 ${isPositive ? 'bg-emerald-500' : 'bg-rose-500'}`} />
@@ -61,10 +63,10 @@ const FinanceTooltip = ({ x, y, valor, isPositive }: { x: number, y: number, val
 // ==========================================
 // 2. SUB-COMPONENTE: TOOLTIP DE META (PROTEGIDO)
 // ==========================================
-const MetaAnalysisTooltip = ({ x, y, data }: { x: number, y: number, data: MetaTooltipData }) => (
+const MetaAnalysisTooltip = ({ rect, data }: TooltipState<MetaTooltipData>) => (
   <div
     className="fixed z-[100] animate-in fade-in zoom-in-95 duration-150 pointer-events-none"
-    style={{ top: y - 10, left: x }}
+    style={{ top: rect.top - 10, left: rect.right + 10 }}
   >
     <div className="bg-slate-900/95 backdrop-blur border border-slate-700 shadow-2xl rounded-xl p-4 w-64 ring-1 ring-black/50">
       <div className="flex justify-between items-start mb-3">
@@ -137,8 +139,8 @@ export const CategorySummary = ({ ativos, categorias = [], onUpdate }: CategoryS
   const [loading, setLoading] = useState(false);
 
   // 🛡️ Definido o tipo correto nos estados para eliminar erros de 'any'
-  const [hoveredInfo, setHoveredInfo] = useState<{ x: number, y: number, data: MetaTooltipData } | null>(null);
-  const [financeTooltip, setFinanceTooltip] = useState<{ x: number, y: number, valor: number, isPositive: boolean } | null>(null);
+  const { tooltip: hoveredInfo, showTooltip: showMetaTooltip, hideTooltip: hideMetaTooltip } = useFloatingTooltip<MetaTooltipData>();
+  const { tooltip: financeTooltip, showTooltip: showFinanceTooltip, hideTooltip: hideFinanceTooltip } = useFloatingTooltip<{valor: number, isPositive: boolean}>();
 
   const getMaxAllowed = (catName: string) => {
     const otherCatsTotal = categorias.filter(c => c.name !== catName).reduce((acc, c) => acc + c.meta, 0);
@@ -287,15 +289,9 @@ export const CategorySummary = ({ ativos, categorias = [], onUpdate }: CategoryS
                               : 'text-rose-400 bg-rose-400/10 border border-rose-400/20'
                               }`}
                             onMouseEnter={(e) => {
-                              const rect = e.currentTarget.getBoundingClientRect();
-                              setFinanceTooltip({
-                                x: rect.right,
-                                y: rect.top,
-                                valor: item.variacaoValor,
-                                isPositive: isPositiveVar
-                              });
+                              showFinanceTooltip(e, { valor: item.variacaoValor, isPositive: isPositiveVar });
                             }}
-                            onMouseLeave={() => setFinanceTooltip(null)}
+                            onMouseLeave={() => hideFinanceTooltip()}
                           >
                             {isPositiveVar ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
                             {isPositiveVar ? '+' : ''}{item.variacaoPct.toFixed(2)}%
@@ -322,14 +318,9 @@ export const CategorySummary = ({ ativos, categorias = [], onUpdate }: CategoryS
                         <div
                           className="w-full cursor-pointer py-1"
                           onMouseEnter={(e) => {
-                            const rect = e.currentTarget.getBoundingClientRect();
-                            setHoveredInfo({
-                              x: rect.right + 10,
-                              y: rect.top,
-                              data: { item, meta, pctAtual, diff, visualWidth }
-                            });
+                            showMetaTooltip(e, { item, meta, pctAtual, diff, visualWidth });
                           }}
-                          onMouseLeave={() => setHoveredInfo(null)}
+                          onMouseLeave={() => hideMetaTooltip()}
                         >
                           <div className="flex justify-between text-[10px] mb-2 font-mono leading-none">
                             <span className="text-slate-200 font-bold">{pctAtual.toFixed(1)}%</span>

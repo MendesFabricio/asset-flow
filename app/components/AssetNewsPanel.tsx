@@ -71,8 +71,8 @@ export function AssetNewsPanel({ ticker, onClose }: Props) {
         apiCall<NewsResponse>(`/api/news/${ticker}`)
           .then(data => {
             setAiSentiment(data.ai_sentiment || null);
-            if (data.news && data.news.length > 0 && news.length === 0) {
-              setNews(data.news);
+            if (data.news && data.news.length > 0) {
+              setNews((prevNews) => prevNews.length === 0 ? data.news : prevNews);
             }
           })
           .catch(err => {
@@ -84,7 +84,7 @@ export function AssetNewsPanel({ ticker, onClose }: Props) {
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
-  }, [ticker, aiSentiment?.status, news.length]);
+  }, [ticker, aiSentiment?.status]);
 
   if (!ticker) return null;
 

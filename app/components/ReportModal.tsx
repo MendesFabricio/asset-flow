@@ -361,4 +361,4 @@ const ReportModal = ({ isOpen, onClose, ativo }: ReportModalProps) => {
     );
 };
 
-export default ReportModal;
+export { ReportModal };

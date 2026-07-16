@@ -4,9 +4,11 @@ import os
 import shutil
 from datetime import date
 from decimal import Decimal
+from typing import List, Dict, Any
 from sqlalchemy.orm import joinedload
 from database.models import Position, Asset, PortfolioSnapshot, Category, safe_commit
 from database.session import Session
+from utils.formatters import extract_position_metrics
 import json
 
 class BackupService:
@@ -29,40 +31,15 @@ class BackupService:
                 from database.models import User
                 users = session.query(User).all()
                 for user in users:
-                    positions = (
-                        session.query(Position)
-                        .filter_by(user_id=user.id)
-                        .options(joinedload(Position.asset).selectinload(Asset.market_data), joinedload(Position.asset).selectinload(Asset.category))
-                        .all()
-                    )
-                    total_equity = Decimal('0.0')
-                    total_invested = Decimal('0.0')
-                    breakdown = {}
-                    dolar_rate = self.get_usd_rate()
-                    for pos in positions:
-                        asset = pos.asset
-                        if not asset: 
-                            continue 
-                        
-                        mdata = asset.market_data[0] if asset.market_data else None
-                        try:
-                            price = Decimal(str(mdata.price)) if (mdata and mdata.price) else Decimal(str(pos.average_price or 0))
-                            qtd = Decimal(str(pos.quantity or 0))
-                            pm = Decimal(str(pos.average_price or 0))
-                        except Exception as parse_err: 
-                            price = Decimal('0.0')
-                            qtd = Decimal('0.0')
-                            pm = Decimal('0.0')
-                            logging.debug(f"Erro ao converter valores de posição para Decimal: {parse_err}")
-                        fator = dolar_rate if asset.currency == 'USD' else Decimal('1.0')
-                        pos_value = (qtd * price * fator)
-                        total_equity += pos_value
-                        total_invested += (qtd * pm * fator)
-                        
-                        cat_name = asset.category.name if asset.category else "Outros"
-                        breakdown[cat_name] = breakdown.get(cat_name, Decimal('0.0')) + pos_value
+                    self.current_user_id = user.id
+                    dash = self.get_dashboard_data()
                     
-                    breakdown_str = json.dumps({k: float(v) for k, v in breakdown.items()})
+                    total_equity = Decimal(str(dash.get('totalPatrimonio', 0)))
+                    total_invested = Decimal(str(dash.get('totalInvestido', 0)))
+                    
+                    # Convert breakdown floats back to float (dash.categories returns a dict {str: value})
+                    breakdown = {k: float(v) for k, v in dash.get('categories', {}).items()}
+                    breakdown_str = json.dumps(breakdown)
                     
                     today = date.today()
                     existing = session.query(PortfolioSnapshot).filter_by(user_id=user.id).filter(PortfolioSnapshot.date == today).first()

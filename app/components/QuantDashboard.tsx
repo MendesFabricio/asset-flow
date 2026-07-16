@@ -2,8 +2,7 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import dynamic from 'next/dynamic';
-import { SkeletonLoading } from './SkeletonLoading';
-import { MonteCarloSkeleton, MetricsGridSkeleton } from './ui/QuantSkeletons';
+import { SkeletonLoading, MonteCarloSkeleton, MetricsGridSkeleton } from './ui/Skeletons';
 import {
   BarChart3,
   AlertTriangle,

@@ -173,8 +173,11 @@ def handle_single_fixed_income(id):
         fi.index_type = data.get('index_type', fi.index_type).strip().upper()
         try:
             fi.interest_rate = Decimal(str(data.get('interest_rate', fi.interest_rate)))
-            fi.issue_date = datetime.fromisoformat(data.get('issue_date', fi.issue_date.isoformat()).replace('Z', ''))
-            fi.due_date = datetime.fromisoformat(data.get('due_date', fi.due_date.isoformat()).replace('Z', ''))
+            from utils.date_helper import parse_iso_date
+            if data.get('issue_date'):
+                fi.issue_date = parse_iso_date(data.get('issue_date')) or fi.issue_date
+            if data.get('due_date'):
+                fi.due_date = parse_iso_date(data.get('due_date')) or fi.due_date
             
             # Atualiza quantidade e preço médio na posição
             pos = db.query(Position).filter_by(asset_id=fi.asset_id, user_id=g.user_id).first()

@@ -19,19 +19,8 @@ class CreditCardCreate(BaseModel):
     closing_day: int = Field(..., ge=1, le=31)
     due_day: int = Field(..., ge=1, le=31)
 
-class CardExpenseCreate(BaseModel):
-    description: str = Field(..., min_length=1, max_length=200)
-    total_value: float = Field(..., gt=0)
-    installments_count: int = Field(..., ge=1, le=120)
-    date: Optional[str] = Field(None, description="ISO date string")
+
 
 class RefundConfigUpdate(BaseModel):
     fechamento_dia: int = Field(..., ge=1, le=31)
     vencimento_dia: int = Field(..., ge=1, le=31)
-
-class ProfileUpdateSchema(BaseModel):
-    username: str = Field(..., min_length=3, max_length=50)
-
-class PasswordChangeSchema(BaseModel):
-    current_password: str = Field(..., min_length=1)
-    new_password: str = Field(..., min_length=8)

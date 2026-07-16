@@ -1,5 +1,4 @@
-// app/utils/apiClient.ts
-import { API_BASE_URL } from '../config/api';
+const API_BASE_URL = '';
 
 const requestCache = new Map<string, Promise<any>>();
 

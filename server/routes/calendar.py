@@ -8,9 +8,8 @@ import logging
 import time
 import requests
 import threading
-from requests.adapters import HTTPAdapter
-from urllib3.util import Retry
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from utils.http_client import get_secure_session
 
 calendar_bp = Blueprint('calendar', __name__)
 
@@ -19,28 +18,7 @@ CACHE_TIMEOUT = 600  # 10 minutos
 CALENDAR_UPDATE_LOCK = threading.Lock()
 IS_UPDATING_CALENDAR = False
 
-def get_secure_session():
-    """🛡️ Cria uma sessão HTTP disfarçada de navegador com pool expandido para threads"""
-    session = requests.Session()
-    retries = Retry(total=2, backoff_factor=0.3, status_forcelist=[500, 502, 503, 504])
-    
-    session.headers.update({
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Cache-Control": "no-cache",
-        "Connection": "keep-alive"
-    })
-    
-    # ⚡ Calibração ideal: Pool de 20 slots casa perfeitamente com os 12 workers paralelos
-    adapter = HTTPAdapter(
-        max_retries=retries,
-        pool_connections=20,
-        pool_maxsize=20
-    )
-    session.mount("https://", adapter)
-    session.mount("http://", adapter)
-    return session
+
 
 def fetch_single_asset_proventos(item, secure_session):
     """🛠️ TRABALHADOR: Reutiliza a sessão única injetada para evitar conflito de Crumbs/401"""

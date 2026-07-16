@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import useSWR from 'swr';
 import { DashboardData } from '../types';
 
@@ -60,8 +60,6 @@ export function useAssetData() {
     message: ''
   });
 
-  const mutateDashboardRef = useRef(mutateDashboard);
-  mutateDashboardRef.current = mutateDashboard;
 
   useEffect(() => {
     let eventSource: EventSource | null = null;
@@ -75,12 +73,11 @@ export function useAssetData() {
       eventSource.onmessage = (event) => {
         try {
           const payload = JSON.parse(event.data);
-          
           if (payload.cvm_sync) {
             setSyncStatus((prev) => {
               const next = payload.cvm_sync;
               if (prev.status === 'processing' && next.status === 'success') {
-                mutateDashboardRef.current();
+                mutateDashboard();
               }
               return next;
             });
@@ -90,7 +87,7 @@ export function useAssetData() {
             setFundamentalsStatus((prev) => {
               const next = payload.yahoo_sync;
               if (prev.status === 'processing' && next.status === 'success') {
-                mutateDashboardRef.current();
+                mutateDashboard();
               }
               return next;
             });
@@ -134,14 +131,15 @@ export function useAssetData() {
   };
 
   // Funções stub mantidas para compatibilidade com o resto do sistema
-  const mutateSync = (newData?: any) => {
+  const mutateSync = useCallback((newData?: any) => {
     if (newData) setSyncStatus(newData);
     mutateDashboard();
-  };
-  const mutateFundamentals = (newData?: any) => {
+  }, [mutateDashboard]);
+
+  const mutateFundamentals = useCallback((newData?: any) => {
     if (newData) setFundamentalsStatus(newData);
     mutateDashboard();
-  };
+  }, [mutateDashboard]);
 
   return {
     data,

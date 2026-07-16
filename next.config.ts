@@ -26,7 +26,7 @@ const nextConfig: NextConfig = {
     allowedRevalidateHeaderKeys: ['x-vercel-protection-bypass'],
   },
   // Liberar o acesso de cross-origin resources do Ngrok para os assets carregarem
-  allowedDevOrigins: ['jorge-craftless-questionably.ngrok-free.dev'],
+  allowedDevOrigins: [process.env.NGROK_DOMAIN || 'jorge-craftless-questionably.ngrok-free.dev'],
 };
 
 export default withSentryConfig(nextConfig, {

@@ -52,7 +52,7 @@ class CacheHelperService:
                 import time
                 import logging
                 import threading
-                from database.connection import Session
+                from database.session import Session
                 time.sleep(1.0) # Wait for parent transaction to commit
                 try:
                     from services import PortfolioService

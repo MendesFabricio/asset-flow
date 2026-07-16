@@ -1,3 +1,10 @@
+x-shared-env: &shared-env
+  OLLAMA_MODEL: 
+  OLLAMA_BASE_URL: 
+  SECRET_KEY: 
+  SENTRY_DSN: http://ac68cc0ad8f54496961aec4e3d48d227@glitchtip:8000/1
+  ENVIRONMENT: production
+
 services:
   # --- BACKEND (Flask) ---
   backend:
@@ -14,14 +21,10 @@ services:
       - sqlite_data:/app/data
       - ./backups:/app/backups
     environment:
-      - FLASK_DEBUG=0
-      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2:3b}
-      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama:11434}
-      - SECRET_KEY=${SECRET_KEY}
-      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
-      - SENTRY_DSN=http://ac68cc0ad8f54496961aec4e3d48d227@glitchtip:8000/1
-      - ENVIRONMENT=production
-      - APP_RELEASE=${APP_RELEASE:-assetflow-backend@1.0.0}
+      <<: *shared-env
+      FLASK_DEBUG: 0
+      ALLOWED_ORIGINS: 
+      APP_RELEASE: 
     healthcheck:
       test: [ "CMD-SHELL", "curl -f http://localhost:5328/api/health || exit 1" ]
       interval: 15s
@@ -43,14 +46,10 @@ services:
       - sqlite_data:/app/data
       - ./backups:/app/backups
     environment:
-      - PYTHONPATH=/app
-      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2:3b}
-      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama:11434}
-      - SECRET_KEY=${SECRET_KEY}
-      - WORKER_HEARTBEAT_PATH=/app/data/worker_heartbeat.txt
-      - SENTRY_DSN=http://ac68cc0ad8f54496961aec4e3d48d227@glitchtip:8000/1
-      - ENVIRONMENT=production
-      - APP_RELEASE=${APP_RELEASE:-assetflow-worker@1.0.0}
+      <<: *shared-env
+      PYTHONPATH: /app
+      WORKER_HEARTBEAT_PATH: /app/data/worker_heartbeat.txt
+      APP_RELEASE: 
     depends_on:
       backend:
         condition: service_healthy
@@ -73,8 +72,8 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:5328}
-      - NEXT_PUBLIC_SENTRY_DSN=${NEXT_PUBLIC_SENTRY_DSN:-http://177fbc3fe9be4de3a2a352cf6dd5ad10@localhost:9000/2}
+      - NEXT_PUBLIC_API_URL=
+      - NEXT_PUBLIC_SENTRY_DSN=
       - SENTRY_DSN=http://ac68cc0ad8f54496961aec4e3d48d227@glitchtip:8000/1
       - ENVIRONMENT=production
     healthcheck:
@@ -98,61 +97,12 @@ services:
     environment:
       - OLLAMA_NUM_PARALLEL=2
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:11434/" ]
-      interval: 15s
-      timeout: 5s
+      test: ["CMD-SHELL", "curl -f http://localhost:11434/ || exit 1"]
+      interval: 30s
+      timeout: 15s
       retries: 3
       start_period: 10s
-
-  # --- OBSERVABILIDADE (GlitchTip) ---
-  glitchtip_db:
-    image: postgres:15-alpine
-    container_name: assetflow_glitchtip_db
-    restart: always
-    environment:
-      POSTGRES_DB: glitchtip
-      POSTGRES_USER: glitchtip
-      POSTGRES_PASSWORD: glitchtip_password
-    volumes:
-      - glitchtip_db_data:/var/lib/postgresql/data
-    mem_limit: 512m
-    cpus: 0.5
-
-  glitchtip:
-    image: glitchtip/glitchtip:latest
-    container_name: assetflow_glitchtip
-    restart: always
-    ports:
-      - "9000:8000"
-    environment:
-      DATABASE_URL: postgres://glitchtip:glitchtip_password@glitchtip_db:5432/glitchtip
-      SECRET_KEY: assetflow-glitchtip-super-secret-key-123
-      GLITCHTIP_DOMAIN: http://localhost:9000
-      ENABLE_OPEN_USER_REGISTRATION: "True"
-      VALKEY_URL: ""
-    command: sh -c "./manage.py migrate --no-input && ./manage.py createcachetable && ./bin/start.sh"
-    depends_on:
-      - glitchtip_db
-    mem_limit: 512m
-    cpus: 0.5
-
-  glitchtip_worker:
-    image: glitchtip/glitchtip:latest
-    container_name: assetflow_glitchtip_worker
-    restart: always
-    environment:
-      DATABASE_URL: postgres://glitchtip:glitchtip_password@glitchtip_db:5432/glitchtip
-      SECRET_KEY: assetflow-glitchtip-super-secret-key-123
-      GLITCHTIP_DOMAIN: http://localhost:9000
-      ENABLE_OPEN_USER_REGISTRATION: "True"
-      VALKEY_URL: ""
-    command: ./bin/run-celery-with-beat.sh
-    depends_on:
-      - glitchtip_db
-    mem_limit: 512m
-    cpus: 0.5
 
 volumes:
   sqlite_data:
   ollama_data:
-  glitchtip_db_data:

@@ -19,3 +19,5 @@ server/assetflow.db
 server/assetflow.db-wal
 server/assetflow.db-shm
 backups
+server/
+database/

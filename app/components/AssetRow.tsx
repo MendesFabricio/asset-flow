@@ -4,7 +4,8 @@ import { Snowflake, TrendingUp, TrendingDown, Pencil, FileText, Info, Layers, Se
 import { formatMoney, getStatusBg } from '../utils';
 import { Asset } from '../types';
 import { usePrivacy } from '../context/PrivacyContext';
-import ReportModal from './ReportModal';
+import { ReportModal } from './ReportModal';
+import { useFloatingTooltip } from '../hooks/useFloatingTooltip';
 import { AssetTooltip } from './AssetTooltip';
 import Image from 'next/image';
 
@@ -29,8 +30,7 @@ import { PrivateValue } from './ui/PrivateValue';
 export const AssetRow = React.memo(({ ativo, tab, onEdit, onViewNews, onViewDetails }: AssetRowProps) => {
   const { isHidden } = usePrivacy() as { isHidden: boolean };
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
-  const [tooltip, setTooltip] = useState<{ x: number; y: number; position: 'top' | 'bottom'; type: 'rec' | 'fin' } | null>(null);
-  const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const { tooltip, showTooltip: handleMouseEnter, hideTooltip: handleMouseLeave } = useFloatingTooltip<'rec' | 'fin'>();
   const [imgError, setImgError] = useState(false);
 
   const stats = useMemo(() => {
@@ -67,10 +67,10 @@ export const AssetRow = React.memo(({ ativo, tab, onEdit, onViewNews, onViewDeta
     if (!tooltip) return {};
 
     // Calcula largura estimada do tooltip
-    const width = tooltip.type === 'rec' ? 256 : 180;
+    const width = tooltip.data === 'rec' ? 256 : 180;
 
     // Evita transbordamento na esquerda
-    let left = tooltip.x - width;
+    let left = tooltip.rect.right - width;
     if (left < 12) {
       left = 12;
     }
@@ -82,13 +82,16 @@ export const AssetRow = React.memo(({ ativo, tab, onEdit, onViewNews, onViewDeta
 
     const style: React.CSSProperties = {
       left,
-      width: tooltip.type === 'rec' ? '16rem' : 'auto'
+      width: tooltip.data === 'rec' ? '16rem' : 'auto'
     };
 
-    if (tooltip.position === 'bottom') {
-      style.top = tooltip.y + 8;
+    const spaceBelow = typeof window !== 'undefined' ? window.innerHeight - tooltip.rect.bottom : 500;
+    const position = spaceBelow < 300 ? 'top' : 'bottom';
+
+    if (position === 'bottom') {
+      style.top = tooltip.rect.bottom + 8;
     } else {
-      style.bottom = (typeof window !== 'undefined' ? window.innerHeight : 900) - tooltip.y + 8;
+      style.bottom = (typeof window !== 'undefined' ? window.innerHeight : 900) - tooltip.rect.top + 8;
     }
 
     return style;
@@ -98,17 +101,7 @@ export const AssetRow = React.memo(({ ativo, tab, onEdit, onViewNews, onViewDeta
   const lucroPositivo = ativo.lucro_valor >= 0;
   const atingiuMagic = (ativo.magic_number || 0) > 0 && ativo.qtd >= (ativo.magic_number || 0);
 
-  const handleMouseEnter = (e: React.MouseEvent, type: 'rec' | 'fin') => {
-    if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
-    const rect = e.currentTarget.getBoundingClientRect();
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const position = spaceBelow < 300 ? 'top' : 'bottom';
-    setTooltip({ x: rect.right, y: position === 'top' ? rect.top : rect.bottom, position, type });
-  };
 
-  const handleMouseLeave = () => {
-    hideTimeoutRef.current = setTimeout(() => { setTooltip(null); }, 100);
-  };
 
   return (
     <>
@@ -179,7 +172,7 @@ export const AssetRow = React.memo(({ ativo, tab, onEdit, onViewNews, onViewDeta
                 <div
                   className={`text-[10px] font-bold flex items-center gap-1 px-1.5 py-0.5 rounded cursor-pointer transition-all hover:scale-105 tabular-nums ${stats.isPositiveIntraday ? 'text-emerald-400 bg-emerald-400/20' : 'text-rose-400 bg-rose-400/20'}`}
                   onMouseEnter={(e) => handleMouseEnter(e, 'fin')}
-                  onMouseLeave={handleMouseLeave}
+                  onMouseLeave={() => handleMouseLeave()}
                 >
                   {stats.isPositiveIntraday ? <TrendingUp size={12} strokeWidth={3} /> : <TrendingDown size={12} strokeWidth={3} />}
                   <span className="tabular-nums">{stats.isPositiveIntraday ? '+' : ''}{Number(stats.variacaoIntraday).toFixed(2)}%</span>
@@ -245,7 +238,7 @@ export const AssetRow = React.memo(({ ativo, tab, onEdit, onViewNews, onViewDeta
                 <div
                   className={`inline-flex items-center justify-center gap-1 text-[9px] w-full max-w-[110px] px-1 py-[3px] rounded-md ring-1 ring-inset uppercase font-bold cursor-pointer transition-all whitespace-nowrap hover:brightness-125 ${colors}`}
                   onMouseEnter={(e) => handleMouseEnter(e, 'rec')}
-                  onMouseLeave={handleMouseLeave}
+                  onMouseLeave={() => handleMouseLeave()}
                 >
                   {isComprar && <TrendingUp size={10} strokeWidth={2.5} className="shrink-0" />}
                   {isManter && <div className="w-1.5 h-1.5 rounded-full bg-amber-400 mr-0.5 shrink-0" />}
@@ -259,7 +252,7 @@ export const AssetRow = React.memo(({ ativo, tab, onEdit, onViewNews, onViewDeta
 
             {tooltip && (
               <AssetTooltip
-                type={tooltip.type}
+                type={tooltip.data}
                 data={{
                   ticker: ativo.ticker,
                   score: ativo.score || 0,

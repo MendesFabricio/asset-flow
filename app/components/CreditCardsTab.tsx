@@ -7,6 +7,7 @@ import {
   Clock, CheckSquare
 } from 'lucide-react';
 import { formatMoney } from '../utils';
+import { CreditCardInstallmentItem, CreditCardsDashboardData } from '../types';
 import { apiCall } from '../utils/apiClient';
 
 interface CardItem {
@@ -17,14 +18,6 @@ interface CardItem {
   due_day: number;
 }
 
-interface InstallmentItem {
-  id: number;
-  installment_number: number;
-  value: number;
-  due_date: string;
-  status: string; // PENDING, PAID
-  invoice_month: string;
-}
 
 interface ExpenseItem {
   id: number;
@@ -32,27 +25,16 @@ interface ExpenseItem {
   total_value: number;
   installments_count: number;
   date: string;
-  installments: InstallmentItem[];
+  installments: CreditCardInstallmentItem[];
 }
 
-interface DashboardData {
-  total_limit: number;
-  total_spent: number;
-  total_pending: number;
-  faturas: Array<{
-    invoice_month: string;
-    total: number;
-    pending: number;
-    paid: number;
-    status: 'PAID' | 'PARTIAL' | 'PENDING';
-  }>;
-}
 
-export default function CreditCardsTab() {
+
+export function CreditCardsTab() {
   const [cards, setCards] = useState<CardItem[]>([]);
   const [selectedCard, setSelectedCard] = useState<CardItem | null>(null);
   const [expenses, setExpenses] = useState<ExpenseItem[]>([]);
-  const [dashboard, setDashboard] = useState<DashboardData | null>(null);
+  const [dashboard, setDashboard] = useState<CreditCardsDashboardData | null>(null);
   
   // Modais
   const [showAddCard, setShowAddCard] = useState(false);
@@ -70,7 +52,7 @@ export default function CreditCardsTab() {
         setSelectedCard(dataCards[0]);
       }
 
-      const dataDash = await apiCall<DashboardData>('/api/credit-cards/dashboard');
+      const dataDash = await apiCall<CreditCardsDashboardData>('/api/credit-cards/dashboard');
       setDashboard(dataDash);
     } catch (e) {
       console.error(e);

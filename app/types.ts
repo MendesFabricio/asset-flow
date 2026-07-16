@@ -172,3 +172,64 @@ export interface MomentumRankingData {
   status: string;
   data: MomentumItem[];
 }
+export interface CreditCardInstallmentItem {
+  id: number;
+  installment_number: number;
+  value: number;
+  due_date: string;
+  status: string; // PENDING, PAID
+  invoice_month: string;
+}
+
+
+
+export interface ReceivableInstallmentItem {
+  id: number;
+  numero_parcela: number;
+  valor_parcela: number;
+  data_vencimento: string;
+  status: string; // ABERTA, PAGA, ATRASADA
+  data_efetiva_pagamento?: string;
+  observacoes?: string;
+  fatura_mes: string;
+  valor_pago: number;
+}
+
+
+export interface ReceivablesDashboardData {
+  total_emprestado: number;
+  total_recebido: number;
+  total_pendente: number;
+  total_atrasado: number;
+  maior_devedor: string;
+  maior_devedor_saldo: number;
+  parcelas_abertas: number;
+  faturas: Array<{
+    fatura: string;
+    total: number;
+    recebido: number;
+    pendente: number;
+    status: string;
+    items_count: number;
+  }>;
+  categorias: Array<{
+    categoria: string;
+    valor: number;
+  }>;
+  distribuicao_devedores: Array<{
+    devedor: string;
+    saldo: number;
+  }>;
+}
+export interface CreditCardsDashboardData {
+  total_limit: number;
+  total_spent: number;
+  total_pending: number;
+  faturas: Array<{
+    invoice_month: string;
+    total: number;
+    pending: number;
+    paid: number;
+    status: 'PAID' | 'PARTIAL' | 'PENDING';
+  }>;
+}

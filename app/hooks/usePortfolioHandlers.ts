@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { apiCall } from '../utils/apiClient';
 import { useModalStore } from '../store/modalStore';
 import { usePrivacy } from '../context/PrivacyContext';
@@ -77,7 +77,7 @@ export function usePortfolioHandlers(
   const handleOpenSmartModal = useCallback(() => setSmartModalOpen(true), [setSmartModalOpen]);
   const handleOpenAddModal = useCallback(() => setAddModalOpen(true), [setAddModalOpen]);
 
-  return {
+  const handlers = useMemo(() => ({
     isHidden,
     handleSyncReports,
     handleUpdateFundamentals,
@@ -86,5 +86,16 @@ export function usePortfolioHandlers(
     handleOpenIfModal,
     handleOpenSmartModal,
     handleOpenAddModal,
-  };
+  }), [
+    isHidden,
+    handleSyncReports,
+    handleUpdateFundamentals,
+    handleManualRefresh,
+    handleFixAsset,
+    handleOpenIfModal,
+    handleOpenSmartModal,
+    handleOpenAddModal,
+  ]);
+
+  return handlers;
 }

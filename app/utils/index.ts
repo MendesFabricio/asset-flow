@@ -14,3 +14,4 @@ export const getStatusBg = (status: string) => {
       return 'bg-slate-600';
   }
 };
+export * from './apiClient';

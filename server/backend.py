@@ -24,7 +24,6 @@ if _sentry_dsn:
 
 from flask import Flask, jsonify
 from flask_cors import CORS
-# O scheduler automático foi removido e isolado no worker.py
 from concurrent.futures import ThreadPoolExecutor, as_completed  # ⚡ Motor de paralelismo para background
 
 # Importação de Blueprints
@@ -76,11 +75,9 @@ class CustomJSONProvider(DefaultJSONProvider):
         return super().default(o)
 
 app = Flask(__name__)
-app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY")
-if not app.config["SECRET_KEY"]:
-    logging.warning("⚠️ SECRET_KEY não definida no ambiente! Utilizando chave provisória e randômica para esta sessão.")
-    import secrets
-    app.config["SECRET_KEY"] = secrets.token_hex(32)
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "asset_flow_dev_secret_key_default_value_change_in_prod")
+if app.config["SECRET_KEY"] == "asset_flow_dev_secret_key_default_value_change_in_prod":
+    logging.warning("⚠️ SECRET_KEY não definida no ambiente! Utilizando chave padrão (insegura p/ prod).")
 
 app.json = CustomJSONProvider(app)
 allowed_origins = os.environ.get("ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",")
@@ -154,8 +151,6 @@ def require_authentication():
 def handle_global_exception(e):
     from flask import request
     logging.error(f"💥 Erro crítico global interceptado em {request.method} {request.url}: {str(e)}", exc_info=True)
-    import traceback
-    traceback.print_exc()
     try:
         import sentry_sdk
         sentry_sdk.capture_exception(e)
@@ -372,10 +367,6 @@ def sync_reports():
             _SYNC_LOCK.release()
         _update_sync_state(status="error")
         return jsonify({"status": "Erro", "msg": str(e)}), 500
-
-
-# --- AGENDAMENTOS E TAREFAS DE BOOT DE BACKGROUND REMOVIDOS ---
-# Todas as tarefas agendadas e aquecimento de cache foram migrados para o worker.py
 
 
 if __name__ == '__main__':

@@ -4,7 +4,7 @@ from database.models import Session, CreditCard, CardExpense, CardInstallment, s
 from datetime import datetime, date
 from decimal import Decimal
 from sqlalchemy.orm import joinedload
-from schemas import CreditCardCreate, CardExpenseCreate
+from schemas import CreditCardCreate
 
 cards_bp = Blueprint('credit_cards', __name__)
 
@@ -98,9 +98,9 @@ def handle_expenses(card_id):
                 
             date_str = data.get('date')
             if date_str:
-                try:
-                    expense_date = datetime.fromisoformat(date_str.replace('Z', ''))
-                except ValueError:
+                from utils.date_helper import parse_iso_date
+                expense_date = parse_iso_date(date_str)
+                if not expense_date:
                     return jsonify({"status": "Erro", "msg": "Data inválida"}), 400
             else:
                 expense_date = datetime.now()

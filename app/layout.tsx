@@ -9,9 +9,6 @@ const inter = Inter({ subsets: ["latin"], display: "swap" });
 export const metadata: Metadata = {
   title: 'AssetFlow Pro | Gestão Inteligente',
   description: 'Controle de patrimônio, dividendos e rebalanceamento de carteira.',
-  icons: {
-    icon: '/favicon.ico', // Certifique-se de que o ícone existe em public/
-  },
 };
 
 export default function RootLayout({
