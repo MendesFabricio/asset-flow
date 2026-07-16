@@ -106,7 +106,9 @@ def validate_ticker_on_yahoo(ticker):
         try:
             stock = yf.Ticker(ticker, session=secure_session)
             hist = stock.history(period="1d")
-            if not hist.empty: return {"valid": True, "ticker": ticker}
+            if not hist.empty:
+                price = float(hist['Close'].iloc[-1])
+                return {"valid": True, "ticker": ticker, "price": price}
         except Exception:
             pass # Ignora erro inicial para testar o fallback .SA
             
@@ -114,7 +116,9 @@ def validate_ticker_on_yahoo(ticker):
             ticker_sa = f"{ticker}.SA"
             stock_sa = yf.Ticker(ticker_sa, session=secure_session)
             hist_sa = stock_sa.history(period="1d")
-            if not hist_sa.empty: return {"valid": True, "ticker": ticker} 
+            if not hist_sa.empty:
+                price = float(hist_sa['Close'].iloc[-1])
+                return {"valid": True, "ticker": ticker, "price": price} 
             
         return {"valid": False, "ticker": None}
     except Exception as e:

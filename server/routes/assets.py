@@ -68,6 +68,20 @@ def _worker_process_fundamentalist_data(asset):
 
 # --- Rotas ---
 
+import json
+@assets_bp.route('/api/tickers', methods=['GET'])
+def get_tickers():
+    try:
+        cache_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'tickers_cache.json')
+        if not os.path.exists(cache_path):
+            return jsonify([])
+        with open(cache_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        return jsonify(data)
+    except Exception as e:
+        logging.error(f"Erro ao ler tickers_cache.json: {e}")
+        return jsonify([])
+
 @assets_bp.route('/api/add_asset', methods=['POST'])
 def add_asset():
     try:
