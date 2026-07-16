@@ -2,8 +2,8 @@ import logging
 import requests
 import json
 from flask import Blueprint, request, Response, stream_with_context, jsonify, g
-from database.session import Session, engine
-from database.models import Asset, Position, LoanInstallment, AIChatHistory, safe_commit
+from db.session import Session, engine
+from db.models import Asset, Position, LoanInstallment, AIChatHistory, safe_commit
 from utils.db_utils import with_safe_commit
 from sqlalchemy.orm import joinedload
 from infrastructure.ollama_service import OLLAMA_CHAT_URL, MODEL_NAME, get_ollama_tools
@@ -270,7 +270,7 @@ def get_ai_history():
     session_id = request.args.get('session_id', 'default_session').strip()
     session = Session()
     try:
-        from database.models import AIChatHistory
+        from db.models import AIChatHistory
         history_records = session.query(AIChatHistory).filter_by(session_id=session_id, user_id=g.user_id).order_by(AIChatHistory.created_at.asc()).all()
         data = [{"role": msg.role, "content": msg.content, "created_at": msg.created_at.isoformat()} for msg in history_records]
         return jsonify({"status": "Sucesso", "data": data})
@@ -286,7 +286,7 @@ def clear_ai_history():
     session_id = body.get('session_id', 'default_session').strip()
     session = Session()
     try:
-        from database.models import AIChatHistory, safe_commit
+        from db.models import AIChatHistory, safe_commit
         session.query(AIChatHistory).filter_by(session_id=session_id, user_id=g.user_id).delete()
         safe_commit(session)
         return jsonify({"status": "Sucesso", "msg": f"Histórico da sessão '{session_id}' limpo."})

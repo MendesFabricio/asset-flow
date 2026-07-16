@@ -2,8 +2,8 @@
 import logging
 import yfinance as yf
 from datetime import datetime, timedelta
-from database.models import Position, Dividend, safe_commit
-from database.session import Session
+from db.models import Position, Dividend, safe_commit
+from db.session import Session
 from utils.ticker_helper import to_yf_ticker
 import infrastructure.market_data as _market
 
@@ -15,7 +15,7 @@ class IntegrationService:
     def record_confirmed_dividends(self):
         logging.info("📅 [SERVICE] Iniciando verificação automática de novos dividendos...")
         positions_info = []
-        from database.models import get_active_positions
+        from db.models import get_active_positions
         with Session() as session:
             positions = get_active_positions(session, None).all()
             for pos in positions:

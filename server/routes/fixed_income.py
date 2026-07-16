@@ -1,6 +1,6 @@
 # server/routes/fixed_income.py
 from flask import Blueprint, jsonify, request, g
-from database.models import Session, Asset, Position, Category, FixedIncome, safe_commit
+from db.models import Session, Asset, Position, Category, FixedIncome, safe_commit
 from datetime import datetime
 from decimal import Decimal
 from sqlalchemy.orm import joinedload

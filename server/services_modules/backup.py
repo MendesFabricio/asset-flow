@@ -6,8 +6,8 @@ from datetime import date
 from decimal import Decimal
 from typing import List, Dict, Any
 from sqlalchemy.orm import joinedload
-from database.models import Position, Asset, PortfolioSnapshot, Category, safe_commit
-from database.session import Session
+from db.models import Position, Asset, PortfolioSnapshot, Category, safe_commit
+from db.session import Session
 from utils.formatters import extract_position_metrics
 import json
 
@@ -28,7 +28,7 @@ class BackupService:
         logging.info("📸 JOB: Computando snapshot patrimonial diário para todos os usuários...")
         with Session() as session:
             try:
-                from database.models import User
+                from db.models import User
                 users = session.query(User).all()
                 for user in users:
                     self.current_user_id = user.id

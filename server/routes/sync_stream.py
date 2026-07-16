@@ -8,7 +8,7 @@ import time
 import json
 import logging
 from flask import Blueprint, Response, stream_with_context
-from database.models import get_sync_state_db  # 💡 CORREÇÃO: Importando a função isolada segura
+from db.models import get_sync_state_db  # 💡 CORREÇÃO: Importando a função isolada segura
 
 sync_stream_bp = Blueprint('sync_stream', __name__)
 

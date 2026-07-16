@@ -11,7 +11,7 @@ import time
 from datetime import datetime, timedelta
 from flask import Blueprint, jsonify, g, request
 from services import PortfolioService
-from database.models import Session, Asset, Position, SystemCache, safe_commit
+from db.models import Session, Asset, Position, SystemCache, safe_commit
 from domain.quant.helpers import get_risk_free_rate
 from infrastructure.ollama_service import OLLAMA_URL, MODEL_NAME
 from sqlalchemy.orm import joinedload
@@ -28,7 +28,8 @@ OLLAMA_TIMEOUT_DEFAULT = 60
 def _build_morning_brief_context(user_id: int, dolar_rate: float, selic: float) -> dict:
     """Constrói contexto enriquecido para o Morning Brief (compartilhado entre rota e worker)."""
     # Delega lógica complexa de parseamento de ativos para o core (dashboard_data)
-    dashboard = service.get_dashboard_data(user_id)
+    service.current_user_id = user_id
+    dashboard = service.get_dashboard_data()
     
     holdings_details = []
     for a in dashboard.get("ativos", []):
@@ -147,7 +148,7 @@ def sector_exposure():
 
 def _run_morning_brief_bg(user_id: int, context: dict, cache_key: str):
     """Executa a chamada ao Ollama em thread de background e salva o resultado no cache."""
-    from database.models import Session as DBSession, SystemCache, safe_commit
+    from db.models import Session as DBSession, SystemCache, safe_commit
     try:
         prompt = _build_enhanced_morning_brief_prompt(context)
         payload = {"model": MODEL_NAME, "prompt": prompt, "format": "json", "stream": False, "keep_alive": "1m"}

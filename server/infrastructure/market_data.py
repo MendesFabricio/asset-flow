@@ -9,7 +9,7 @@ import json
 import time
 from datetime import datetime, timedelta
 import yfinance as yf
-from database.models import Asset, Position, Category, MarketData
+from db.models import Asset, Position, Category, MarketData
 from utils.ticker_helper import to_yf_ticker
 
 def update_prices(session, invalidate_cache_callback):
@@ -122,8 +122,8 @@ def validate_ticker_on_yahoo(ticker):
         return {"valid": False, "ticker": None}
 
 def update_fundamentals(dolar_rate_callback, state_dict=None):
-    from database.session import Session
-    from database.models import safe_commit
+    from db.session import Session
+    from db.models import safe_commit
     from utils.http_client import get_secure_session
     
     logging.info("📊 JOB: Calculando Fundamentos via Yahoo Finance...")
@@ -251,8 +251,7 @@ def update_fundamentals(dolar_rate_callback, state_dict=None):
                 db_asset = session.query(Asset).filter_by(id=asset_id).first()
                 if db_asset:
                     db_asset.upcoming_split = upcoming_split_val
-                    pos = db_asset.position
-                    if pos:
+                    for pos in db_asset.positions:
                         if lpa != 0: pos.manual_lpa = round(lpa, 2)
                         if vpa != 0: pos.manual_vpa = round(vpa, 2)
                         if dy_calculated >= 0:
@@ -407,7 +406,7 @@ def sync_reports_with_fnet(session, state_dict=None):
 
             # 🔒 COMMIT INCREMENTAL: Salva e libera o lock de escrita do SQLite a cada ativo
             try:
-                from database.models import safe_commit
+                from db.models import safe_commit
                 safe_commit(session)
             except Exception as commit_err:
                 logging.error(f"❌ Erro ao commitar sincronização de {ticker}: {commit_err}")

@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect, useMemo, useRef, useTransition } from 'react';
 import { Asset } from '../types';
-import { AssetRow } from './AssetRow';
+import { AssetRow } from '../features/assets/components/AssetRow';
 import { Search } from 'lucide-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 

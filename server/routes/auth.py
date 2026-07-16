@@ -1,8 +1,8 @@
 # server/routes/auth.py
 import logging
 from flask import Blueprint, request, jsonify, current_app, g
-from database.models import User, RefundConfig, safe_commit
-from database.session import Session
+from db.models import User, RefundConfig, safe_commit
+from db.session import Session
 from werkzeug.security import check_password_hash, generate_password_hash
 from itsdangerous import URLSafeTimedSerializer
 

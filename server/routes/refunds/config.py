@@ -1,6 +1,6 @@
 from flask import jsonify, request
 from . import refunds_bp
-from database.models import Session, safe_commit
+from db.models import Session, safe_commit
 from schemas import RefundConfigUpdate
 from .utils import get_config, log_audit
 

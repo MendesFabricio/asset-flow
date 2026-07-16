@@ -1,6 +1,6 @@
 # server/routes/credit_cards.py
 from flask import Blueprint, jsonify, request, g
-from database.models import Session, CreditCard, CardExpense, CardInstallment, safe_commit
+from db.models import Session, CreditCard, CardExpense, CardInstallment, safe_commit
 from datetime import datetime, date
 from decimal import Decimal
 from sqlalchemy.orm import joinedload

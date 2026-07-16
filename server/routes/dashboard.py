@@ -9,7 +9,7 @@ import threading
 # Ajuste para importar services da pasta pai
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from services import PortfolioService
-from database.models import DatabaseStateProxy, get_sync_state_db
+from db.models import DatabaseStateProxy, get_sync_state_db
 
 dashboard_bp = Blueprint('dashboard', __name__)
 service = PortfolioService()
@@ -19,7 +19,7 @@ FUNDAMENTALS_STATE = DatabaseStateProxy("yahoo_sync")
 
 # 🚀 STARTUP RECOVERY: Reseta estado "processing" órfão se não houver lock ativo (ex: após reinício do container)
 try:
-    from database.models import update_sync_state_db, get_sync_state_db as _get_yahoo_state
+    from db.models import update_sync_state_db, get_sync_state_db as _get_yahoo_state
     if _get_yahoo_state("yahoo_sync").get("status") == "processing":
         logging.warning("⚠️ [STARTUP] Estado orphão 'yahoo_sync' detectado como 'processing'. Resetando para idle.")
         update_sync_state_db("yahoo_sync", status="idle", progress=0, total=0, message="Sistema pronto.")

@@ -62,6 +62,8 @@ docker-data/
 *.db
 *.db-shm
 *.db-wal
+*.db-journal
+backups/
 server/backups/
 .aider*
 .kilo

@@ -8,8 +8,8 @@ from datetime import datetime
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from services import PortfolioService
-from database.session import Session
-from database.models import SystemCache, Position, Asset
+from db.session import Session
+from db.models import SystemCache, Position, Asset
 from sqlalchemy.orm import selectinload
 
 quant_bp = Blueprint('quant', __name__)
@@ -231,7 +231,7 @@ def get_efficient_frontier():
                     session.add(cache_record)
                 cache_record.value = json.dumps(res)
                 cache_record.updated_at = datetime.now()
-                from database.models import safe_commit
+                from db.models import safe_commit
                 safe_commit(session)
             return jsonify(res)
         except Exception as e:
@@ -258,7 +258,7 @@ def get_momentum_ranking():
 
 
 def calculate_local_fear_greed(session, user_id=None):
-    from database.models import Position, Asset
+    from db.models import Position, Asset
     from sqlalchemy.orm import joinedload
     from flask import has_request_context, g
     
@@ -419,7 +419,7 @@ def generate_report():
                 
             # Consulta de Recebíveis Ativos do usuário logado
             receivables_list = []
-            from database.models import LoanInstallment
+            from db.models import LoanInstallment
             installments = session.query(LoanInstallment).filter(LoanInstallment.user_id == g.user_id, LoanInstallment.status.in_(["ABERTA", "ATRASADA"]), LoanInstallment.is_deleted == False).all()
             for inst in installments:
                 receivables_list.append({

@@ -6,7 +6,7 @@ import {
     TrendingUp, TrendingDown, Activity, ShieldAlert,
     BarChart3, PieChart, Coins
 } from 'lucide-react';
-import { formatMoney } from '../utils';
+import { formatMoney } from '../lib/format';
 import { Asset } from '../types'; // 🛡️ Importa a interface unificada de ativos
 import { PrivateValue } from './ui/PrivateValue';
 
@@ -59,7 +59,7 @@ const ReportModal = ({ isOpen, onClose, ativo }: ReportModalProps) => {
             setMounted(true);
             let hasFundamentalist = false;
             try {
-                const rawData = (ativo as any)?.last_report_type;
+                const rawData = (ativo as unknown as { last_report_type?: string })?.last_report_type;
                 if (typeof rawData === 'string' && rawData.trim().startsWith('{')) {
                     const parsedData = JSON.parse(rawData);
                     if (parsedData.fundamentalist !== undefined) {
@@ -68,7 +68,7 @@ const ReportModal = ({ isOpen, onClose, ativo }: ReportModalProps) => {
                         hasFundamentalist = ativo?.tipo === 'Ação';
                     }
                 }
-            } catch (e) {
+            } catch {
                 hasFundamentalist = ativo?.tipo === 'Ação';
             }
 

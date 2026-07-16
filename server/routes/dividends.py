@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, g
-from database.models import Dividend, Asset, Session, get_active_positions # ⚡ Importada a factory controlada thread-safe
+from db.models import Dividend, Asset, Session, get_active_positions # ⚡ Importada a factory controlada thread-safe
 import logging
 from services import PortfolioService
 

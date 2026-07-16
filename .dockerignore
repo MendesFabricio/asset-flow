@@ -14,10 +14,14 @@ server/.venv
 .coverage
 tests/__pycache__
 server/__pycache__
+server/db/__pycache__
+server/worker/__pycache__
+server/routes/__pycache__
+server/domain/__pycache__
+server/infrastructure/__pycache__
+server/services_modules/__pycache__
 database/__pycache__
 server/assetflow.db
 server/assetflow.db-wal
 server/assetflow.db-shm
 backups
-server/
-database/

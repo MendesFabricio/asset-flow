@@ -2,7 +2,7 @@
 import json
 import logging
 import numpy as np
-from database.models import get_active_positions
+from db.models import get_active_positions
 from domain.quant.helpers import _to_yf_ticker, _align_prices_to_b3, _get_current_user_id, _extract_close_prices
 
 def get_correlation_matrix(session, fetch_prices, allow_compute=True) -> dict:
@@ -30,7 +30,7 @@ def get_correlation_matrix(session, fetch_prices, allow_compute=True) -> dict:
 
     cache_key = f"correlation_matrix_{uid}"
     try:
-        from database.models import SystemCache
+        from db.models import SystemCache
         from datetime import datetime, timedelta
         rec = session.query(SystemCache).filter_by(key=cache_key).first()
         if rec and (datetime.now() - rec.updated_at) < timedelta(hours=1):
@@ -76,7 +76,7 @@ def get_correlation_matrix(session, fetch_prices, allow_compute=True) -> dict:
     result = {"status": "Sucesso", "labels": labels, "matrix": matrix}
 
     try:
-        from database.models import SystemCache, safe_commit
+        from db.models import SystemCache, safe_commit
         rec = session.query(SystemCache).filter_by(key=cache_key).first()
         if not rec:
             rec = SystemCache(key=cache_key)

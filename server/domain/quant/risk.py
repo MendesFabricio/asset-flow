@@ -3,7 +3,7 @@ import logging
 import numpy as np
 import json
 from datetime import datetime, timedelta
-from database.models import SystemCache, safe_commit, get_active_positions
+from db.models import SystemCache, safe_commit, get_active_positions
 from domain.quant.helpers import _to_yf_ticker, _align_prices_to_b3, get_risk_free_rate, _get_current_user_id, _extract_close_prices, _calculate_ewma_covariance, classify_asset_sector
 
 def calculate_risk_metrics(session, fetch_prices, allow_compute=True) -> dict:

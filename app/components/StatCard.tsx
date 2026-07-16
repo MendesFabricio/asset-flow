@@ -1,6 +1,6 @@
 import React from 'react';
 import { LucideIcon, ArrowUpRight, TrendingUp, TrendingDown } from 'lucide-react';
-import { formatMoney } from '../utils'; // Importar formatMoney
+import { formatMoney } from '../lib/format'; // Importar formatMoney
 
 interface StatCardProps {
   title: string;

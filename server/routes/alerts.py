@@ -1,7 +1,7 @@
 # server/routes/alerts.py
 import re
 from flask import Blueprint, jsonify, g, request
-from database.models import Asset, Position, Category
+from db.models import Asset, Position, Category
 from services import Session
 from datetime import datetime
 import logging

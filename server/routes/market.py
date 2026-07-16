@@ -22,7 +22,7 @@ MARKET_CACHE = {
 def load_market_cache_from_db():
     """Recupera os índices macro do banco de dados (SystemCache) compartilhado"""
     import json
-    from database.models import Session, SystemCache
+    from db.models import Session, SystemCache
     with Session() as session:
         try:
             record = session.query(SystemCache).filter_by(key="market_indices").first()
@@ -36,7 +36,7 @@ def load_market_cache_from_db():
 def save_market_cache_to_db():
     """Persiste os índices macro no banco de dados (SystemCache) compartilhado"""
     import json
-    from database.models import Session, SystemCache, safe_commit
+    from db.models import Session, SystemCache, safe_commit
     from datetime import datetime
     with Session() as session:
         try:

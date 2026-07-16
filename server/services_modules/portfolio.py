@@ -2,8 +2,8 @@
 import logging
 from datetime import datetime
 from decimal import Decimal
-from database.models import Position, Asset, MarketData, Category, safe_commit
-from database.session import Session
+from db.models import Position, Asset, MarketData, Category, safe_commit
+from db.session import Session
 
 class PortfolioCrudService:
     def update_position(self, ticker, qtd, pm, meta, dy=0, lpa=0, vpa=0, current_price=None):

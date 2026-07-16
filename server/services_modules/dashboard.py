@@ -3,9 +3,9 @@ import logging
 import traceback
 from decimal import Decimal
 from sqlalchemy.orm import joinedload
-from database.models import Asset, Category, get_active_positions
+from db.models import Asset, Category, get_active_positions
 from utils.formatters import extract_position_metrics
-from database.session import Session
+from db.session import Session
 
 from .dashboard_metrics import calculate_fundamental_metrics, apply_strategy
 from .dashboard_alerts import build_alerts

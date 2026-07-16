@@ -1,11 +1,11 @@
 'use client';
 import { useState } from 'react';
-import { formatMoney } from '../utils';
+import { formatMoney } from '../lib/format';
 import { Asset } from '../types';
 import { PrivateValue } from './ui/PrivateValue';
 import { PieChart, Pencil, X, Save, AlertCircle, AlertTriangle, TrendingUp, TrendingDown, Ban, CheckCircle2, DollarSign } from 'lucide-react'; // 🧼 Removido 'Lock' que não era usado
 import { Card } from './ui/Card';
-import { apiCall } from '../utils/apiClient';
+import { apiCall } from '../lib/api';
 
 import { useFloatingTooltip, TooltipState } from '../hooks/useFloatingTooltip';
 

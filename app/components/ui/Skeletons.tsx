@@ -16,8 +16,8 @@ export function HistoryChartSkeleton() {
     <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-6 h-[400px] animate-pulse">
       <div className="h-4 bg-slate-850 rounded w-1/3 mb-4" />
       <div className="flex items-end gap-2 h-64">
-        {Array.from({ length: 12 }).map((_, i) => (
-          <div key={i} className="flex-1 bg-slate-850 rounded-t" style={{ height: `${Math.random() * 60 + 20}%` }} />
+        {[30, 45, 25, 60, 40, 70, 35, 55, 45, 65, 30, 50].map((h, i) => (
+          <div key={i} className="flex-1 bg-slate-850 rounded-t" style={{ height: `${h}%` }} />
         ))}
       </div>
     </div>

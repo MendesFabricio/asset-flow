@@ -5,7 +5,7 @@ import {
   Plus, Landmark, Calendar, Trash2, X, 
   TrendingUp, ArrowUpRight, Percent, ShieldCheck
 } from 'lucide-react';
-import { formatMoney } from '../utils';
+import { formatMoney } from '../lib/format';
 
 interface FixedIncomeItem {
   id: number;

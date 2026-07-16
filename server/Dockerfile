@@ -36,7 +36,6 @@ COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Copia as pastas necessárias da aplicação
-COPY database /app/database
 COPY server /app/server
 
 # Configurações do Python e diretório raiz
@@ -55,4 +54,4 @@ CMD ["gunicorn", "--bind", "0.0.0.0:5328", "--workers", "2", "--threads", "4", "
 
 # --- Estágio 4: Worker (Background Tasks) ---
 FROM base AS worker
-CMD ["python", "worker.py"]
+CMD ["python", "-m", "worker.worker"]

@@ -1,5 +1,5 @@
 import { TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
-import { formatMoney } from '../utils';
+import { formatMoney } from '../lib/format';
 import { createPortal } from 'react-dom';
 import { useEffect, useState } from 'react';
 

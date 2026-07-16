@@ -1,7 +1,7 @@
 # server/services_modules/categories.py
 from decimal import Decimal
-from database.models import Category, safe_commit
-from database.session import Session
+from db.models import Category, safe_commit
+from db.session import Session
 
 class CategoryService:
     def update_category_meta(self, category_name, new_meta):

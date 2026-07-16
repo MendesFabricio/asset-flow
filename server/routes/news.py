@@ -5,7 +5,7 @@ import requests
 import logging
 from urllib.parse import quote
 from datetime import datetime, timedelta
-from database.models import Asset, safe_commit
+from db.models import Asset, safe_commit
 from services import Session
 from infrastructure.ollama_service import analyze_asset_sentiment_async
 from utils.db_utils import with_safe_commit
@@ -98,7 +98,7 @@ def get_news(ticker):
                     pos_avg = 0.0
                     pos_target = 0.0
                     
-                    from database.models import Position
+                    from db.models import Position
                     user_id = getattr(g, 'user_id', None)
                     if user_id:
                         position = session.query(Position).filter_by(asset_id=asset.id, user_id=user_id).first()
@@ -145,7 +145,7 @@ def get_daily_sector_summary():
     force_reanalyze = request.args.get("force", "false").lower() == "true"
     with Session() as session:
         try:
-            from database.models import SystemCache, safe_commit
+            from db.models import SystemCache, safe_commit
             import json
             
             # 1. Tenta recuperar do cache (expiração de 12 horas)

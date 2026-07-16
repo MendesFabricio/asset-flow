@@ -1,6 +1,6 @@
 # server/routes/scheduler.py
 from flask import Blueprint, jsonify, request, g
-from database.models import Session, ScheduledJob, safe_commit
+from db.models import Session, ScheduledJob, safe_commit
 from datetime import datetime
 import logging
 

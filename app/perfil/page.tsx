@@ -3,8 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
-import { apiCall } from '../utils/apiClient';
-import { useRouter } from 'next/navigation';
+import { apiCall } from '../lib/api';
 
 interface ProfileData {
   id: number;
@@ -13,7 +12,6 @@ interface ProfileData {
 }
 
 export default function ProfilePage() {
-  const router = useRouter();
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -55,8 +53,9 @@ export default function ProfilePage() {
         setMessage({ type: 'success', text: data.msg });
         await loadProfile();
       }
-    } catch (e: any) {
-      setMessage({ type: 'error', text: e.message || 'Erro ao atualizar perfil.' });
+      } catch (err) {
+        const e = err as Error;
+        setMessage({ type: 'error', text: e.message || 'Erro ao atualizar perfil.' });
     } finally {
       setSaving(false);
     }
@@ -91,8 +90,9 @@ export default function ProfilePage() {
         setNewPassword('');
         setConfirmPassword('');
       }
-    } catch (e: any) {
-      setMessage({ type: 'error', text: e.message || 'Erro ao alterar senha.' });
+      } catch (err) {
+        const e = err as Error;
+        setMessage({ type: 'error', text: e.message || 'Erro ao alterar senha.' });
     } finally {
       setSaving(false);
     }

@@ -8,8 +8,8 @@ import {
   X, TrendingUp, Target, DollarSign, Calendar, Zap, ChevronRight,
   Landmark, BarChart3, RefreshCw
 } from 'lucide-react';
-import { formatMoney } from '../utils';
-import { apiCall } from '../utils/apiClient';
+import { formatMoney } from '../lib/format';
+import { apiCall } from '../lib/api';
 import { ModalShell } from './ModalShell';
 
 interface Params {

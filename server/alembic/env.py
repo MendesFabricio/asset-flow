@@ -8,8 +8,8 @@ from alembic import context
 # Adiciona o diretório base ao sys.path para importar os modelos do SQLAlchemy
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
-from database.session import engine
-from database.models import Base
+from db.session import engine
+from db.models import Base
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

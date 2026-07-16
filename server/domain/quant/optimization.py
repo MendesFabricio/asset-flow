@@ -1,7 +1,7 @@
 # server/domain/quant/optimization.py
 import logging
 import numpy as np
-from database.models import get_active_positions
+from db.models import get_active_positions
 from domain.quant.helpers import _to_yf_ticker, _align_prices_to_b3, get_risk_free_rate, _get_current_user_id, _extract_close_prices, _calculate_ewma_covariance
 
 def calculate_risk_parity(session, fetch_prices) -> dict:

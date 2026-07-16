@@ -5,7 +5,7 @@ export interface TooltipState<T> {
   data: T;
 }
 
-export function useFloatingTooltip<T = any>() {
+export function useFloatingTooltip<T = unknown>() {
   const [tooltip, setTooltip] = useState<TooltipState<T> | null>(null);
   const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 

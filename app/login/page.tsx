@@ -28,6 +28,7 @@ export default function LoginPage() {
       });
 
       const data = await res.json();
+      console.log('[LOGIN DEBUG] status:', res.status, 'data:', JSON.stringify(data));
 
       if (res.ok && data.success) {
         if (isRegistering) {
@@ -38,6 +39,7 @@ export default function LoginPage() {
         } else {
           // Salva dados básicos no localStorage para o header saber o nome
           localStorage.setItem('assetflow_username', data.user.username);
+          // O cookie httpOnly é setado automaticamente pelo route handler do Next.js
           router.push('/'); // Redireciona para o dashboard
           router.refresh();
         }
@@ -45,7 +47,7 @@ export default function LoginPage() {
         setError(data.message || 'Ocorreu um erro. Tente novamente.');
         setLoading(false);
       }
-    } catch (err) {
+    } catch {
       setError('Erro ao se conectar com o servidor.');
       setLoading(false);
     }

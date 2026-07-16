@@ -1,10 +1,9 @@
-'use client';
-import { useState, useEffect, useCallback } from 'react';
-import { X, Calculator, ShoppingCart, Sparkles, AlertTriangle, Target, Info, Activity, RefreshCw } from 'lucide-react';
-import { Asset } from '../types';
-import { formatMoney } from '../utils';
-import { Card } from './ui/Card';
-import { apiCall } from '../utils/apiClient';
+﻿'use client';
+import { useState, useCallback } from 'react';
+import { Calculator, Sparkles, AlertTriangle, Activity, RefreshCw } from 'lucide-react';
+
+import { formatMoney } from '../lib/format';
+import { apiCall } from '../lib/api';
 import { ModalShell } from './ModalShell';
 
 interface ServerSuggestion {
@@ -34,10 +33,9 @@ interface ServerRebalanceResult {
 interface SmartAllocationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  ativos: Asset[];
 }
 
-export const SmartAllocationModal = ({ isOpen, onClose, ativos }: SmartAllocationModalProps) => {
+export const SmartAllocationModal = ({ isOpen, onClose }: SmartAllocationModalProps) => {
   const [amountStr, setAmountStr] = useState('');
   const [serverResult, setServerResult] = useState<ServerRebalanceResult | null>(null);
   const [serverLoading, setServerLoading] = useState(false);
@@ -216,6 +214,7 @@ export const SmartAllocationModal = ({ isOpen, onClose, ativos }: SmartAllocatio
                   <div key={s.ticker} className="p-3 bg-slate-800/30 border border-slate-800 rounded-xl hover:border-purple-500/30 transition-all">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={`https://raw.githubusercontent.com/thefintz/icones-b3/main/icones/${s.ticker}.png`}
                           alt={`Ícone ${s.ticker}`}

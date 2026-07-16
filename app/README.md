@@ -8,14 +8,17 @@ Esta pasta contém toda a interface do usuário construída sobre a arquitetura 
 
 * **`agenda/`:** Rota da agenda e calendário unificado de proventos futuros.
 * **`api/auth/`:** Endpoint de autenticação servido por Next.js Routes.
-* **`config/`:** Configuração base da API (ex: `API_BASE_URL` resolvido dinamicamente).
+* **`features/`:** Componentes, hooks e sub-abas agrupados por domínio:
+  * **`assets/`** — `components/` (AddAssetModal, EditModal, AssetDetailsModal, AssetRow), `hooks/` (useAssetData, usePortfolioHandlers, usePortfolioMetrics) e `tabs/receivables/ReceivablesTab.tsx`.
+  * **`quant/`** — `components/` (QuantDashboard, RiskMetricsPanel, CorrelationHeatmap, MonteCarloChart, RiskRadar).
+  * **`news/`** — `AssetNewsPanel.tsx`, `MorningBriefing.tsx`.
+  * **`header/components/`** — `Header.tsx` e sub-componentes (Logo, MarketStatus, MarketTicker, Notifications, PortfolioSummary, SystemStatus, ToolsMenu, UserMenu).
+  * **`jarvis/`** — `JarvisChat.tsx`.
+* **`lib/`:** Helpers centralizados — `api.ts` (helper `apiCall` + `API_BASE_URL` resolvido dinamicamente) e `format.ts` (`formatMoney`, `getStatusBg`).
+* **`types/index.ts`:** Tipos compartilhados centralizados (Asset, DashboardData, interfaces de reembolsos/cartões, etc.).
 * **`context/`:** Provedores de contexto globais (como privacidade de valores visíveis).
-* **`hooks/`:** Custom hooks para gerenciamento de fetches automáticos via **SWR** (`useAssetData.ts`).
 * **`store/`:** Gerenciador de estados de modais através do **Zustand** (`modalStore.ts`).
-* **`components/`:** Componentes de interface modulares da dashboard:
-  * **[ui/Markdown.tsx](file:///c:/Users/Fabricio/asset-flow/app/components/ui/Markdown.tsx):** Renderizador seguro de formatação de IA com tratamento de tipos.
-  * **[HealthIndicator.tsx](file:///c:/Users/Fabricio/asset-flow/app/components/HealthIndicator.tsx):** Telemetria em tempo real conectado com a API de healthcheck do backend.
-  * **[AssetsTable.tsx](file:///c:/Users/Fabricio/asset-flow/app/components/AssetsTable.tsx):** Tabela principal de ativos virtualizada (`@tanstack/react-virtual`) com filtragem via `useTransition`.
+* **`components/ui/`:** Design system modular (Badge, Card, Markdown, PrivateValue, Skeleton unificado).
 
 ---
 

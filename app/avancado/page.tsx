@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
-import { apiCall } from '../utils/apiClient';
-import { formatMoney } from '../utils';
+import { apiCall } from '../lib/api';
+import { formatMoney } from '../lib/format';
 
 interface ScheduledJob {
   id: number;

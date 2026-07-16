@@ -44,7 +44,7 @@ def test_sector_exposure_endpoint(client):
 
 def test_daily_summary_endpoint(client):
     from unittest.mock import MagicMock
-    with patch('database.models.safe_commit', return_value=None):
+    with patch('db.models.safe_commit', return_value=None):
         with patch('feedparser.parse') as mock_feed:
             mock_feed.return_value = MagicMock(entries=[])
             response = client.get('/api/news/daily-summary')

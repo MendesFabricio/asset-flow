@@ -15,8 +15,7 @@ Esta pasta armazena o servidor de dados do **AssetFlow Pro**, rodando em **Pytho
 * **`infrastructure/`:** Controladores de baixo nível para requisições de IA (`ollama_service.py`), gerenciador de cacheamento de cotações em disco (`price_cache.py`) e conexão fundamentalista Yahoo.
 * **`crawlers/`:** Automações de scrapers de fatos relevantes e proventos da CVM.
 * **`alembic/`:** Configurações de migrações estruturais do banco de dados SQLAlchemy.
-* **`backend.py`:** Ponto de entrada (Bootstrap) do Flask da API do sistema.
-* **`worker.py`:** Ponto de entrada do agendador automático em segundo plano (`APScheduler`).
+* **`db/`:** Camada de persistência SQLAlchemy (movida de `database/` na raiz). Contém `models.py` (tabelas + pragmas WAL), `session.py` (ciclo de vida das sessões) e `lock.py` (lock distribuído). As migrations Alembic ficam em `db/migrations/`.
 
 ---
 

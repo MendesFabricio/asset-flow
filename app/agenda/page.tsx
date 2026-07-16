@@ -2,9 +2,9 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
-import { formatMoney } from '../utils';
+import { formatMoney } from '../lib/format';
 import { Skeleton } from '../components/ui/Skeleton';
-import { apiCall } from '../utils/apiClient';
+import { apiCall } from '../lib/api';
 import { ArrowLeft, Calendar, Percent, TrendingUp, Table, History, ChevronLeft, ChevronRight, Clock, Award, CalendarCheck } from 'lucide-react';
 import {
   ResponsiveContainer, 

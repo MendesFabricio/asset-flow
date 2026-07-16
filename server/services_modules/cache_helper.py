@@ -2,8 +2,8 @@
 import json
 import logging
 from datetime import datetime, timedelta
-from database.models import SystemCache, safe_commit
-from database.session import Session
+from db.models import SystemCache, safe_commit
+from db.session import Session
 from infrastructure.price_cache import invalidate as _invalidate_cache
 
 class CacheHelperService:
@@ -52,7 +52,7 @@ class CacheHelperService:
                 import time
                 import logging
                 import threading
-                from database.session import Session
+                from db.session import Session
                 time.sleep(1.0) # Wait for parent transaction to commit
                 try:
                     from services import PortfolioService

@@ -1,7 +1,7 @@
 x-shared-env: &shared-env
-  OLLAMA_MODEL: 
-  OLLAMA_BASE_URL: 
-  SECRET_KEY: 
+  OLLAMA_MODEL:
+  OLLAMA_BASE_URL:
+  SECRET_KEY:
   SENTRY_DSN: http://ac68cc0ad8f54496961aec4e3d48d227@glitchtip:8000/1
   ENVIRONMENT: development
 
@@ -21,11 +21,11 @@ services:
       - ./server:/app/server
       - sqlite_data:/app/data
       - ./backups:/app/backups
-      - ./database:/app/database
     environment:
       <<: *shared-env
+      PYTHONPATH: /app
       FLASK_DEBUG: 1
-      ALLOWED_ORIGINS: 
+      ALLOWED_ORIGINS:
     healthcheck:
       test: [ "CMD-SHELL", "curl -f http://localhost:5328/api/health || exit 1" ]
       interval: 15s
@@ -41,14 +41,14 @@ services:
       target: worker
     container_name: assetflow_worker_dev
     restart: unless-stopped
+    command: sh -c "cd /app/server/worker && python worker.py"
     volumes:
       - ./server:/app/server
       - sqlite_data:/app/data
       - ./backups:/app/backups
-      - ./database:/app/database
     environment:
       <<: *shared-env
-      PYTHONPATH: /app
+      PYTHONPATH: /app:/app/server
       FLASK_DEBUG: 1
       WORKER_HEARTBEAT_PATH: /app/data/worker_heartbeat.txt
     depends_on:
@@ -74,7 +74,7 @@ services:
       - SENTRY_DSN=http://ac68cc0ad8f54496961aec4e3d48d227@glitchtip:8000/1
       - ENVIRONMENT=development
 
-  # --- OLLAMA (Opcional no Dev, mantido por consistência) ---
+  # --- OLLAMA (Opcional no Dev, mantido por consistencia) ---
   ollama:
     image: ollama/ollama:latest
     container_name: assetflow_ollama_dev
@@ -91,7 +91,7 @@ services:
     image: ngrok/ngrok:latest
     container_name: assetflow_ngrok_dev
     restart: unless-stopped
-    command: ["http", "frontend:3000", "--url="]
+    command: [ "http", "frontend:3000", "--url=" ]
     environment:
       - NGROK_AUTHTOKEN=
     depends_on:

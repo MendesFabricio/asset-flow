@@ -1,7 +1,7 @@
 'use client';
 import { useState, useMemo } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { formatMoney } from '../utils';
+import { formatMoney } from '../lib/format';
 import { Card } from './ui/Card';
 import { LineChart as LineChartIcon, TrendingUp, Layers, Activity } from 'lucide-react';
 

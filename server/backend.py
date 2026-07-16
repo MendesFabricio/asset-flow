@@ -47,7 +47,7 @@ from routes.quant_analysis import quant_bp
 from routes.credit_cards import cards_bp
 from routes.fixed_income import fixed_income_bp
 from routes.auth import auth_bp
-from routes.assets_icon import assets_icon_bp
+from infrastructure.assets_icon import assets_icon_bp
 from routes.scheduler import scheduler_bp
 
 
@@ -58,7 +58,7 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 
-from database.models import init_db, DatabaseStateProxy, get_sync_state_db
+from db.models import init_db, DatabaseStateProxy, get_sync_state_db
 try:
     init_db()
     logging.info("✅ Banco de dados inicializado com sucesso.")
@@ -85,14 +85,14 @@ CORS(app, resources={r"/api/*": {"origins": allowed_origins}})
 
 # 🧠 MÁQUINA DE ESTADO PERSISTENTE: Controla o progresso real da sincronia em SQLite (stateless)
 SYNC_STATE = DatabaseStateProxy("cvm_sync")
-from database.lock import DistributedLock
+from db.lock import DistributedLock
 _SYNC_LOCK = DistributedLock("cvm_sync", timeout=300)
 
 # 🚀 STARTUP RECOVERY: Reseta estados "processing" órfãos do banco que ficaram presos após reinício do container.
 # Sem esse reset, o frontend fica com o spinner girando para sempre após um restart, porque não há lock ativo
 # mas o banco ainda lembra o estado "processing" da sessão anterior.
 def _reset_orphaned_sync_states():
-    from database.models import update_sync_state_db
+    from db.models import update_sync_state_db
     idle_state = {"status": "idle", "progress": 0, "total": 0, "message": "Sistema pronto."}
     for key in ("cvm_sync", "yahoo_sync"):
         try:
@@ -107,7 +107,7 @@ _reset_orphaned_sync_states()
 
 @app.teardown_appcontext
 def shutdown_session(exception=None):
-    from database.session import Session
+    from db.session import Session
     Session.remove()
 
 def _update_sync_state(**kwargs):
@@ -230,8 +230,8 @@ def async_sync_worker(flask_app):
 
         # 2. Coleta de Ativos (Ações CVM)
         # 🔒 FIX 1.3: Importa o scoped_session do services (thread-safe via threading.local)
-        # em vez do sessionmaker simples de database.models que era compartilhado entre threads.
-        from database.models import Asset
+        # em vez do sessionmaker simples de db.models que era compartilhado entre threads.
+        from db.models import Asset
         tickers_para_processar = []
 
         # Abre uma sessão curta apenas para ler os códigos brutos, evitando manter o banco preso

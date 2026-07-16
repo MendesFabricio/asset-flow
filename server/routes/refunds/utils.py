@@ -1,6 +1,6 @@
 from datetime import datetime
 from flask import g
-from database.models import AuditLog, RefundConfig, safe_commit
+from db.models import AuditLog, RefundConfig, safe_commit
 
 def log_audit(session, table, reg_id, field, old_val, new_val):
     log = AuditLog(

@@ -9,7 +9,7 @@ import json
 from datetime import datetime
 import requests
 from sqlalchemy.orm import sessionmaker
-from database.models import engine, Asset
+from db.models import engine, Asset
 
 SessionLocal = sessionmaker(bind=engine)
 

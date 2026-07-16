@@ -6,9 +6,9 @@ import {
   TrendingUp, AlertCircle, DollarSign, FileText,
   Clock, CheckSquare
 } from 'lucide-react';
-import { formatMoney } from '../utils';
+import { formatMoney } from '../lib/format';
 import { CreditCardInstallmentItem, CreditCardsDashboardData } from '../types';
-import { apiCall } from '../utils/apiClient';
+import { apiCall } from '../lib/api';
 
 interface CardItem {
   id: number;

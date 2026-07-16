@@ -1,6 +1,6 @@
 # server/services_modules/facades.py
 
-from database.session import Session
+from db.session import Session
 from infrastructure.price_cache import fetch_price_history as _fetch_price_history_fn
 
 # Importações explícitas e diretas das funções de domínio matemático
@@ -130,7 +130,7 @@ class FacadeService:
     def _get_cached_unwrap(self, key, ttl_seconds=3600):
         try:
             import json
-            from database.models import SystemCache
+            from db.models import SystemCache
             session = Session()
             rec = session.query(SystemCache).filter_by(key=key).first()
             if rec:
@@ -144,7 +144,7 @@ class FacadeService:
     def _set_cached_value(self, session, key, value):
         try:
             import json
-            from database.models import SystemCache, safe_commit
+            from db.models import SystemCache, safe_commit
             from datetime import datetime
             
             rec = session.query(SystemCache).filter_by(key=key).first()

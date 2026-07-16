@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, g
-from database.models import Asset, Position, Session, Dividend
+from db.models import Asset, Position, Session, Dividend
 from utils.ticker_helper import to_yf_ticker
 import yfinance as yf
 from datetime import datetime

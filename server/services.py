@@ -23,12 +23,14 @@ from services_modules.integration import IntegrationService
 from services_modules.facades import FacadeService
 from services_modules.dashboard import DashboardService
 from services_modules.categories import CategoryService
-from database.session import Session
-from database.models import SystemCache, safe_commit
+from db.session import Session
+from db.models import SystemCache, safe_commit
 
 # Mantém as variáveis globais compartilhadas
 USD_CACHE = {"rate": Decimal('5.80'), "last_update": 0}
 USD_LOCK = threading.Lock()
+
+_local = threading.local()
 
 class PortfolioService(
     CacheHelperService,
@@ -45,13 +47,14 @@ class PortfolioService(
     _fundamentals_lock = threading.Lock()
 
     def __new__(cls, *args, **kwargs):
-        if cls._instance is None:
+        if not cls._instance:
             with cls._instance_lock:
-                if cls._instance is None:
+                if not cls._instance:
                     cls._instance = super(PortfolioService, cls).__new__(cls)
+                    cls._instance._init_once()
         return cls._instance
 
-    def __init__(self):
+    def _init_once(self):
         pass
 
     @property
@@ -59,7 +62,15 @@ class PortfolioService(
         from flask import has_request_context, g
         if has_request_context() and hasattr(g, 'user_id'):
             return g.user_id
-        return None
+        return getattr(_local, 'user_id', None)
+
+    @current_user_id.setter
+    def current_user_id(self, value):
+        from flask import has_request_context, g
+        if has_request_context():
+            g.user_id = value
+        else:
+            _local.user_id = value
 
     @property
     def current_username(self):
