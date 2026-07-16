@@ -1,5 +1,5 @@
 'use client';
-import { Fragment, useState } from 'react';
+import { Fragment, useState, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { X, Plus, Search, AlertCircle } from 'lucide-react';
 import { apiCall } from '@/lib/api';
@@ -27,6 +27,42 @@ export const AddAssetModal = ({ isOpen, onClose, onSuccess }: AddAssetModalProps
   const [loading, setLoading] = useState(false);
   const [validating, setValidating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  const [cachedTickers, setCachedTickers] = useState<any[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      apiCall<any[]>('/api/tickers').then(data => {
+        if (Array.isArray(data)) setCachedTickers(data);
+      }).catch(console.error);
+    }
+  }, [isOpen]);
+
+  const filteredTickers = cachedTickers.filter(t => 
+    t.ticker.toLowerCase().includes(formData.ticker.toLowerCase()) || 
+    t.name.toLowerCase().includes(formData.ticker.toLowerCase())
+  ).slice(0, 5);
+
+  const handleSelectTicker = async (tickerObj: any) => {
+    setFormData(prev => ({ ...prev, ticker: tickerObj.ticker, type: tickerObj.type }));
+    setShowSuggestions(false);
+    setValidating(true);
+    try {
+      const valData = await apiCall<{ valid: boolean; ticker: string; price?: number }>('/api/validate_ticker', {
+        method: 'POST',
+        body: JSON.stringify({ ticker: tickerObj.ticker })
+      });
+      if (valData.valid && valData.price) {
+        const roundedPrice = Number(Number(valData.price).toFixed(2));
+        setFormData(prev => ({ ...prev, average_price: roundedPrice }));
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setValidating(false);
+    }
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setError(null); // Limpa o estado de erro ao interagir com o formulário
@@ -123,10 +159,33 @@ export const AddAssetModal = ({ isOpen, onClose, onSuccess }: AddAssetModalProps
               type="text"
               placeholder="Ex: PETR4, AAPL, HGLG11..."
               value={formData.ticker}
-              onChange={(e) => setFormData({ ...formData, ticker: e.target.value.toUpperCase() })}
+              onFocus={() => setShowSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+              onChange={(e) => {
+                setFormData({ ...formData, ticker: e.target.value.toUpperCase() });
+                setShowSuggestions(true);
+              }}
               className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white placeholder:text-slate-600 focus:ring-2 focus:ring-blue-500 outline-none font-mono uppercase transition-colors autofill:shadow-[0_0_0_30px_#020617_inset] autofill:text-fill-white"
             />
             <Search size={16} className="absolute right-3 top-3 text-slate-600" />
+            
+            {showSuggestions && formData.ticker && filteredTickers.length > 0 && (
+              <div className="absolute z-10 w-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl max-h-48 overflow-y-auto">
+                {filteredTickers.map((t) => (
+                  <div
+                    key={t.ticker}
+                    onClick={() => handleSelectTicker(t)}
+                    className="flex justify-between items-center p-3 hover:bg-slate-700 cursor-pointer border-b border-slate-700/50 last:border-0"
+                  >
+                    <div>
+                      <div className="font-mono text-sm text-white font-bold">{t.ticker}</div>
+                      <div className="text-xs text-slate-400">{t.name}</div>
+                    </div>
+                    <Badge label={t.type} variant="blue" />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -153,7 +212,7 @@ export const AddAssetModal = ({ isOpen, onClose, onSuccess }: AddAssetModalProps
             <input name="quantity" type="number" step="0.000001" value={formData.quantity} onChange={handleChange} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white font-mono focus:ring-2 focus:ring-blue-500 outline-none" />
           </div>
           <div className="space-y-1.5">
-            <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Preço Médio (R$)</label>
+            <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Preço (Atual ou Compra)</label>
             <input name="average_price" type="number" step="0.01" value={formData.average_price} onChange={handleChange} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white font-mono focus:ring-2 focus:ring-blue-500 outline-none" />
           </div>
         </div>
