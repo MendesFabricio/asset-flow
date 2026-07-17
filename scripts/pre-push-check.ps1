@@ -25,7 +25,7 @@ Write-Host ""
 # 1. TypeScript — sem erros de tipo
 # ----------------------------------------------------------
 Write-Check "TypeScript type check (npx tsc --noEmit)..."
-$tscOut = npx tsc --noEmit 2>&1
+$tscOut = npx tsc --noEmit --exclude .next 2>&1
 if ($LASTEXITCODE -eq 0) {
     Write-Pass "TypeScript: sem erros"
 } else {
