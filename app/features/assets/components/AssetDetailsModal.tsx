@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
-import { X, Activity, BarChart3, Bell, RefreshCw, Volume2, VolumeX, Sparkles, FileSpreadsheet } from 'lucide-react';
+import { Activity, BarChart3, Bell, RefreshCw, Volume2, VolumeX, Sparkles, FileSpreadsheet } from 'lucide-react';
 import { formatMoney } from '@/lib/format';
 import { Asset } from '@/types';
 import { apiCall } from '@/lib/api';
@@ -30,6 +30,10 @@ export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalP
     const [kpiData, setKpiData] = useState<any | null>(null);
     const [loadingKpi, setLoadingKpi] = useState(false);
     const [kpiError, setKpiError] = useState<string | null>(null);
+
+    // History Tab States removed as they are moved to ManageAssetModal
+
+
 
     // Limpa estados de IA e áudio ao fechar
     useEffect(() => {
@@ -219,10 +223,12 @@ export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalP
         >
             <div className="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-[70vh]">
 
-                    {/* Esquerda: Gráfico TradingView */}
-                    <div className="flex-1 h-full relative border-r border-slate-800 bg-[#0f172a]" ref={containerRef}>
-                        <div className="flex items-center justify-center h-full text-slate-500 gap-2">
-                            <Activity className="animate-spin" /> Carregando Gráfico...
+                    {/* Esquerda: Conteúdo Principal (Gráfico) */}
+                    <div className="flex-1 flex flex-col relative border-r border-slate-800 bg-[#0f172a]">
+                        <div className="flex-1 relative block" ref={containerRef}>
+                            <div className="flex items-center justify-center h-full text-slate-500 gap-2">
+                                <Activity className="animate-spin" /> Carregando Gráfico...
+                            </div>
                         </div>
                     </div>
 

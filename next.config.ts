@@ -15,7 +15,7 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
-        source: '/api/:path*',
+        source: '/api/:path((?!sync/stream).*)',
         destination: 'http://backend:5328/api/:path*',
       },
     ];

@@ -105,3 +105,86 @@ class PortfolioCrudService:
             except Exception:
                 session.rollback()
                 raise
+
+    def add_transaction(self, ticker, tx_type, quantity, unit_price, date=None):
+        from db.models import AssetTransaction
+        user_id = self.current_user_id
+        with Session() as session:
+            try:
+                asset = session.query(Asset).filter_by(ticker=ticker).first()
+                if not asset:
+                    raise ValueError(f"Ativo {ticker} não encontrado")
+                
+                pos = session.query(Position).filter_by(asset_id=asset.id, user_id=user_id).first()
+                if not pos:
+                    raise ValueError(f"Posição para {ticker} não encontrada na carteira")
+
+                qty_dec = Decimal(str(quantity))
+                price_dec = Decimal(str(unit_price))
+                total_value = qty_dec * price_dec
+
+                if tx_type == "BUY":
+                    new_qty = pos.quantity + qty_dec
+                    new_pm = ((pos.quantity * pos.average_price) + total_value) / new_qty
+                    pos.quantity = new_qty
+                    pos.average_price = new_pm
+                elif tx_type == "SELL":
+                    if pos.quantity < qty_dec:
+                        raise ValueError("Quantidade de venda maior que a posição atual")
+                    new_qty = pos.quantity - qty_dec
+                    pos.quantity = new_qty
+                    if new_qty == 0:
+                        pos.average_price = Decimal("0.0")
+                else:
+                    raise ValueError(f"Tipo de transação inválido: {tx_type}")
+
+                tx_date = datetime.fromisoformat(date.replace("Z", "+00:00")) if date else datetime.now()
+                
+                transaction = AssetTransaction(
+                    position_id=pos.id,
+                    user_id=user_id,
+                    ticker=ticker,
+                    type=tx_type,
+                    quantity=qty_dec,
+                    unit_price=price_dec,
+                    total_value=total_value,
+                    transaction_date=tx_date
+                )
+                session.add(transaction)
+                
+                self._invalidate_quant_cache(session)
+                safe_commit(session)
+                return f"Transação de {tx_type} registrada com sucesso!"
+            except Exception as e:
+                session.rollback()
+                logging.error(f"❌ Falha ao adicionar transação para {ticker}: {e}")
+                raise
+
+    def get_transaction_history(self, ticker):
+        from db.models import AssetTransaction
+        user_id = self.current_user_id
+        with Session() as session:
+            try:
+                asset = session.query(Asset).filter_by(ticker=ticker).first()
+                if not asset:
+                    return []
+                
+                pos = session.query(Position).filter_by(asset_id=asset.id, user_id=user_id).first()
+                if not pos:
+                    return []
+
+                transactions = session.query(AssetTransaction).filter_by(position_id=pos.id, user_id=user_id).order_by(AssetTransaction.transaction_date.desc()).all()
+                return [
+                    {
+                        "id": t.id,
+                        "type": t.type,
+                        "quantity": float(t.quantity),
+                        "unit_price": float(t.unit_price),
+                        "total_value": float(t.total_value),
+                        "date": t.transaction_date.isoformat()
+                    }
+                    for t in transactions
+                ]
+            except Exception as e:
+                logging.error(f"❌ Falha ao buscar histórico de transações para {ticker}: {e}")
+                return []

@@ -31,6 +31,18 @@ class DistributedLock:
                 self._locked = True
                 return True
             except FileExistsError:
+                try:
+                    # Se o arquivo do lock for mais velho que o timeout da classe, ele é um lock órfão (crash)
+                    if time.time() - os.path.getmtime(self.lock_path) > self.timeout:
+                        logging.warning(f"🧹 Removendo lock órfão/estagnado: {self.lock_path}")
+                        try:
+                            os.unlink(self.lock_path)
+                        except FileNotFoundError:
+                            pass
+                        continue # Volta pro início do while para tentar adquirir novamente
+                except Exception:
+                    pass
+
                 if not blocking:
                     return False
                 if time.time() - start > effective_timeout:

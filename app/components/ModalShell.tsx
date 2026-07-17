@@ -1,4 +1,6 @@
-import { ReactNode } from 'react';
+'use client';
+import { ReactNode, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 interface ModalShellProps {
@@ -35,7 +37,13 @@ export function ModalShell({
   maxWidth = '2xl',
   zIndex = 50,
 }: ModalShellProps) {
-  return (
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const content = (
     <div
       className={`fixed inset-0 z-[${zIndex}] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200`}
       style={{ zIndex }}
@@ -78,4 +86,8 @@ export function ModalShell({
       </div>
     </div>
   );
+
+  if (!mounted) return null;
+
+  return createPortal(content, document.body);
 }

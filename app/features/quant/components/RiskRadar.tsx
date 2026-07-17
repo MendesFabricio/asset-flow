@@ -11,11 +11,7 @@ import {
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 
-interface Alerta {
-  titulo: string;
-  significado: string;
-  acao: string;
-}
+import { Alerta } from '@/types';
 
 export const RiskRadar = React.memo(({ alertas }: { alertas: (string | Alerta)[] }) => {
   

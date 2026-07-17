@@ -55,5 +55,6 @@ def sync_stream():
         'Cache-Control': 'no-cache',
         'Transfer-Encoding': 'chunked',
         'X-Accel-Buffering': 'no',
+        'Access-Control-Allow-Origin': '*',
     }
     return Response(stream_with_context(event_generator()), mimetype='text/event-stream', headers=headers)

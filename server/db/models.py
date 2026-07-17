@@ -130,10 +130,27 @@ class Position(Base):
     
     asset = relationship("Asset", back_populates="positions")
     user = relationship("User", back_populates="positions")
+    transactions = relationship("AssetTransaction", back_populates="position", cascade="all, delete-orphan")
 
     __table_args__ = (
         UniqueConstraint('asset_id', 'user_id', name='_asset_user_uc'),
     )
+
+class AssetTransaction(Base):
+    __tablename__ = 'asset_transactions'
+    id = Column(Integer, primary_key=True)
+    position_id = Column(Integer, ForeignKey('positions.id', ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"), nullable=False, index=True)
+    ticker = Column(String, nullable=False, index=True)
+    type = Column(String, nullable=False) # "BUY" / "SELL"
+    quantity = Column(Numeric(18, 4), nullable=False)
+    unit_price = Column(Numeric(18, 4), nullable=False)
+    total_value = Column(Numeric(18, 4), nullable=False)
+    transaction_date = Column(DateTime, default=datetime.now)
+    created_at = Column(DateTime, default=datetime.now)
+
+    position = relationship("Position", back_populates="transactions")
+    user = relationship("User")
 
 class MarketData(Base):
     __tablename__ = 'market_data'

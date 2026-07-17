@@ -22,6 +22,7 @@ assets_bp = Blueprint('assets', __name__)
 service = PortfolioService()
 
 # --- Schemas de Validação ---
+from schemas import AssetTransactionCreate
 class AssetInput(BaseModel):
     ticker: str = Field(..., min_length=1, strip_whitespace=True)
     category: str = Field(..., min_length=1)
@@ -188,6 +189,43 @@ def delete_asset():
         return jsonify({"status": "Sucesso", "msg": msg})
     except ValueError as e:
         return jsonify({"status": "Erro", "msg": str(e)}), 404
+    except Exception as e:
+        return jsonify({"status": "Erro", "msg": str(e)}), 500
+
+@assets_bp.route('/api/asset-transactions', methods=['POST'])
+def add_asset_transaction():
+    try:
+        body = AssetTransactionCreate(**request.json)
+        msg = service.add_transaction(
+            ticker=body.ticker,
+            tx_type=body.type,
+            quantity=body.quantity,
+            unit_price=body.unit_price,
+            date=body.date
+        )
+        
+        def _background_update():
+            try:
+                service.take_daily_snapshot() 
+            except Exception as e:
+                logging.warning(f"⚠️ Falha ao computar snapshot pós-transação em background: {e}")
+                
+        from services import background_task_executor
+        background_task_executor.submit(_background_update)
+
+        return jsonify({"status": "Sucesso", "msg": msg})
+    except ValueError as e:
+        return jsonify({"status": "Erro", "msg": str(e)}), 400
+    except ValidationError as e:
+        return jsonify({"status": "Erro", "msg": "Dados inválidos", "errors": e.errors()}), 400
+    except Exception as e:
+        return jsonify({"status": "Erro", "msg": str(e)}), 500
+
+@assets_bp.route('/api/asset-transactions/<ticker>', methods=['GET'])
+def get_asset_transactions(ticker):
+    try:
+        history = service.get_transaction_history(ticker.upper())
+        return jsonify(history)
     except Exception as e:
         return jsonify({"status": "Erro", "msg": str(e)}), 500
 

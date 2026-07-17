@@ -11,9 +11,10 @@ interface AssetsTableProps {
   onEdit: (asset: Asset) => void;
   onViewNews: (ticker: string) => void;
   onViewDetails: (asset: Asset) => void;
+  onRefresh?: () => void;
 }
 
-export function AssetsTable({ assets, tab, onEdit, onViewNews, onViewDetails }: AssetsTableProps) {
+export function AssetsTable({ assets, tab, onEdit, onViewNews, onViewDetails, onRefresh }: AssetsTableProps) {
   const [search, setSearch] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [isPending, startTransition] = useTransition();

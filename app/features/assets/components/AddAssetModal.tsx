@@ -165,21 +165,21 @@ export const AddAssetModal = ({ isOpen, onClose, onSuccess }: AddAssetModalProps
                 setFormData({ ...formData, ticker: e.target.value.toUpperCase() });
                 setShowSuggestions(true);
               }}
-              className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white placeholder:text-slate-600 focus:ring-2 focus:ring-blue-500 outline-none font-mono uppercase transition-colors autofill:shadow-[0_0_0_30px_#020617_inset] autofill:text-fill-white"
+              className="w-full bg-slate-800/30 border border-slate-700/50 rounded-lg p-3 text-white placeholder:text-slate-500 focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 outline-none font-mono uppercase transition-all shadow-sm hover:bg-slate-800/40"
             />
-            <Search size={16} className="absolute right-3 top-3 text-slate-600" />
+            <Search size={16} className="absolute right-3 top-3.5 text-slate-600" />
             
             {showSuggestions && formData.ticker && filteredTickers.length > 0 && (
-              <div className="absolute z-10 w-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl max-h-48 overflow-y-auto">
+              <div className="absolute z-10 w-full mt-2 bg-slate-900/95 backdrop-blur-md border border-slate-800 rounded-lg shadow-2xl shadow-black/50 max-h-48 overflow-y-auto">
                 {filteredTickers.map((t) => (
                   <div
                     key={t.ticker}
                     onClick={() => handleSelectTicker(t)}
-                    className="flex justify-between items-center p-3 hover:bg-slate-700 cursor-pointer border-b border-slate-700/50 last:border-0"
+                    className="flex justify-between items-center p-3 hover:bg-slate-800/80 cursor-pointer border-b border-slate-800/50 last:border-0 transition-colors"
                   >
                     <div>
                       <div className="font-mono text-sm text-white font-bold">{t.ticker}</div>
-                      <div className="text-xs text-slate-400">{t.name}</div>
+                      <div className="text-xs text-slate-400 mt-0.5">{t.name}</div>
                     </div>
                     <Badge label={t.type} variant="blue" />
                   </div>
@@ -195,7 +195,7 @@ export const AddAssetModal = ({ isOpen, onClose, onSuccess }: AddAssetModalProps
             name="type"
             value={formData.type}
             onChange={handleChange}
-            className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-blue-500 outline-none appearance-none cursor-pointer"
+            className="w-full bg-slate-800/30 border border-slate-700/50 rounded-lg p-3 text-white focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 outline-none appearance-none cursor-pointer transition-all shadow-sm hover:bg-slate-800/40"
           >
             <option value="Ação">Ação</option>
             <option value="FII">Fundo Imobiliário (FII)</option>
@@ -209,11 +209,11 @@ export const AddAssetModal = ({ isOpen, onClose, onSuccess }: AddAssetModalProps
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1.5">
             <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Quantidade</label>
-            <input name="quantity" type="number" step="0.000001" value={formData.quantity} onChange={handleChange} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white font-mono focus:ring-2 focus:ring-blue-500 outline-none" />
+            <input name="quantity" type="number" step="0.000001" value={formData.quantity} onChange={handleChange} className="w-full bg-slate-800/30 border border-slate-700/50 rounded-lg p-3 text-white font-mono focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 outline-none transition-all shadow-sm hover:bg-slate-800/40" />
           </div>
           <div className="space-y-1.5">
-            <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Preço (Atual ou Compra)</label>
-            <input name="average_price" type="number" step="0.01" value={formData.average_price} onChange={handleChange} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white font-mono focus:ring-2 focus:ring-blue-500 outline-none" />
+            <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Preço Médio / Atual</label>
+            <input name="average_price" type="number" step="0.01" value={formData.average_price} onChange={handleChange} className="w-full bg-slate-800/30 border border-slate-700/50 rounded-lg p-3 text-white font-mono focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 outline-none transition-all shadow-sm hover:bg-slate-800/40" />
           </div>
         </div>
 
@@ -226,19 +226,19 @@ export const AddAssetModal = ({ isOpen, onClose, onSuccess }: AddAssetModalProps
             name="target_percent" type="range" min="0" max="100" step="1"
             value={formData.target_percent}
             onChange={(e) => setFormData({ ...formData, target_percent: Number(e.target.value) })}
-            className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+            className="w-full h-1.5 bg-slate-800/50 rounded-lg appearance-none cursor-pointer accent-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
           />
         </div>
       </div>
 
-      <div className="mt-8 flex justify-end gap-3">
-        <button onClick={onClose} className="px-4 py-2 text-xs font-bold text-slate-400 hover:text-white rounded-lg transition-colors">
+      <div className="mt-8 flex justify-end gap-3 border-t border-slate-800/50 pt-5">
+        <button onClick={onClose} className="px-5 py-2.5 text-[11px] font-bold uppercase tracking-wider text-slate-400 hover:text-white rounded-lg transition-colors">
           Cancelar
         </button>
         <button
           onClick={handleSave}
           disabled={loading || validating || !formData.ticker}
-          className="inline-flex justify-center items-center gap-2 rounded-lg bg-blue-600 px-6 py-2 text-xs font-bold text-white hover:bg-blue-500 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-blue-900/20"
+          className="inline-flex justify-center items-center gap-2 rounded-lg bg-blue-600 px-6 py-2.5 text-[11px] font-bold uppercase tracking-wider text-white hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-[0_2px_10px_rgba(37,99,235,0.2)]"
         >
           {validating ? (
             <>

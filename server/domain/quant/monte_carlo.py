@@ -36,7 +36,11 @@ def run_monte_carlo(session, fetch_prices, simulations=1000, days=252) -> dict:
     close_prices = pd.DataFrame()
     if len(tickers) == 1:
         t = tickers[0]
-        close_prices[t] = data["Close"] if "Close" in data.columns else data
+        if "Close" in data.columns:
+            col = data["Close"]
+            close_prices[t] = col.iloc[:, 0] if isinstance(col, pd.DataFrame) else col
+        else:
+            close_prices[t] = data.iloc[:, 0] if isinstance(data, pd.DataFrame) else data
     else:
         for t in tickers:
             try:

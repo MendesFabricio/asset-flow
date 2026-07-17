@@ -68,7 +68,8 @@ export function useAssetData() {
     const MAX_RETRY_DELAY = 30000;
 
     const connect = () => {
-      eventSource = new EventSource('/api/sync/stream');
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5328';
+      eventSource = new EventSource(`${backendUrl}/api/sync/stream`);
 
       eventSource.onmessage = (event) => {
         try {

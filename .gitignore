@@ -68,6 +68,7 @@ server/backups/
 .aider*
 .kilo
 .claude
+docs
 graphify-out/
 SECURITY_ANALYSIS.md
 server/data/*

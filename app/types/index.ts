@@ -1,5 +1,9 @@
 // app/types.ts
-
+export interface Alerta {
+  titulo: string;
+  significado: string;
+  acao: string;
+}
 
 export interface Asset {
   id?: number;
@@ -234,4 +238,13 @@ export interface CreditCardsDashboardData {
     paid: number;
     status: 'PAID' | 'PARTIAL' | 'PENDING';
   }>;
+}
+
+export interface AssetTransaction {
+  id: number;
+  type: 'BUY' | 'SELL';
+  quantity: number;
+  unit_price: number;
+  total_value: number;
+  date: string;
 }

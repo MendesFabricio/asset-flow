@@ -24,3 +24,10 @@ class CreditCardCreate(BaseModel):
 class RefundConfigUpdate(BaseModel):
     fechamento_dia: int = Field(..., ge=1, le=31)
     vencimento_dia: int = Field(..., ge=1, le=31)
+
+class AssetTransactionCreate(BaseModel):
+    ticker: str = Field(..., min_length=1, max_length=20)
+    type: str = Field(..., pattern="^(BUY|SELL)$")
+    quantity: float = Field(..., gt=0)
+    unit_price: float = Field(..., gt=0)
+    date: Optional[str] = Field(None, description="ISO date string for transaction_date")

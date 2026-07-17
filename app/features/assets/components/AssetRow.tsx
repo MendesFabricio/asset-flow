@@ -139,7 +139,7 @@ export const AssetRow = React.memo(({ ativo, tab, onEdit, onViewNews, onViewDeta
                   <button type="button" onClick={() => setIsReportModalOpen(true)} className={`p-1 hover:bg-slate-700 rounded transition-colors ${stats.hasReports ? 'text-blue-400' : 'text-slate-600'}`} title="Docs">
                     <Layers size={12} />
                   </button>
-                  <button type="button" onClick={() => onEdit(ativo)} className="p-1 hover:bg-slate-700 rounded text-slate-500 hover:text-blue-400 transition-colors" title="Editar">
+                  <button type="button" onClick={() => onEdit(ativo)} className="p-1 hover:bg-slate-700 rounded text-slate-500 hover:text-blue-400 transition-colors" title="Gerenciar Ativo">
                     <Pencil size={12} />
                   </button>
                   {onViewNews && (
