@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 // 👇 IMPORTANTE: Importar o Provider que vamos criar
 import { PrivacyProvider } from "./context/PrivacyContext";
+import { ThemeProvider } from "./context/ThemeContext";
 
 const inter = Inter({ subsets: ["latin"], display: "swap" });
 
@@ -18,11 +19,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.className} antialiased bg-[#0b0f19] text-slate-200`}>
-        {/* 👇 Envolvemos todo o site com o Provider de Privacidade */}
-        <PrivacyProvider>
-          {children}
-        </PrivacyProvider>
+      <body className={`${inter.className} antialiased bg-[#0b0f19] text-slate-200 transition-colors duration-300`}>
+        <ThemeProvider>
+          <PrivacyProvider>
+            {children}
+          </PrivacyProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

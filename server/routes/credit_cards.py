@@ -77,12 +77,89 @@ def handle_single_card(id):
         safe_commit(db)
         return jsonify({"msg": "Cartão atualizado com sucesso!"})
 
+@cards_bp.route('/api/credit-cards/<int:card_id>/invoices', methods=['GET'])
+@cards_bp.route('/api/credit-cards/-1/invoices', defaults={'card_id': -1}, methods=['GET'])
+def get_card_invoices(card_id):
+    with Session() as db:
+        if card_id <= 0:
+            installments = (
+                db.query(CardInstallment)
+                .join(CardExpense)
+                .filter(
+                    CardExpense.user_id == g.user_id,
+                    CardExpense.is_deleted == False,
+                    CardInstallment.is_deleted == False
+                )
+                .all()
+            )
+            current_month = datetime.now().strftime('%Y-%m')
+        else:
+            card = db.query(CreditCard).filter_by(id=card_id, user_id=g.user_id, is_deleted=False).first()
+            if not card:
+                return jsonify({"status": "Erro", "msg": "Cartão não encontrado"}), 404
+            installments = (
+                db.query(CardInstallment)
+                .join(CardExpense)
+                .filter(
+                    CardExpense.card_id == card_id,
+                    CardExpense.user_id == g.user_id,
+                    CardExpense.is_deleted == False,
+                    CardInstallment.is_deleted == False
+                )
+                .all()
+            )
+            from utils.date_helper import get_invoice_month_helper
+            current_month = get_invoice_month_helper(datetime.now(), card.closing_day)
+        
+        faturas_map = {}
+        for inst in installments:
+            mes = inst.invoice_month
+            if mes not in faturas_map:
+                faturas_map[mes] = {
+                    "invoice_month": mes,
+                    "total": Decimal('0.0'),
+                    "pending": Decimal('0.0'),
+                    "paid": Decimal('0.0')
+                }
+            faturas_map[mes]["total"] += inst.value
+            if inst.status == 'PENDING':
+                faturas_map[mes]["pending"] += inst.value
+            else:
+                faturas_map[mes]["paid"] += inst.value
+                
+        # Garante que a fatura do mês atual sempre exista (mesmo se zerada)
+        if current_month not in faturas_map:
+            faturas_map[current_month] = {
+                "invoice_month": current_month,
+                "total": Decimal('0.0'),
+                "pending": Decimal('0.0'),
+                "paid": Decimal('0.0')
+            }
+            
+        faturas_list = sorted([
+            {
+                "invoice_month": k,
+                "total": float(v["total"]),
+                "pending": float(v["pending"]),
+                "paid": float(v["paid"]),
+                "status": "PAID" if v["pending"] == 0 and v["total"] > 0 else ("PARTIAL" if v["paid"] > 0 else "PENDING")
+            } for k, v in faturas_map.items()
+        ], key=lambda x: x["invoice_month"])
+        
+        return jsonify(faturas_list)
+
 @cards_bp.route('/api/credit-cards/<int:card_id>/expenses', methods=['GET', 'POST'])
+@cards_bp.route('/api/credit-cards/-1/expenses', defaults={'card_id': -1}, methods=['GET', 'POST'])
 def handle_expenses(card_id):
     with Session() as db:
-        card = db.query(CreditCard).filter_by(id=card_id, user_id=g.user_id, is_deleted=False).first()
-        if not card:
-            return jsonify({"status": "Erro", "msg": "Cartão não encontrado"}), 404
+        if card_id <= 0:
+            if request.method == 'POST':
+                return jsonify({"status": "Erro", "msg": "Selecione um cartão específico para registrar despesas"}), 400
+            card = None
+        else:
+            card = db.query(CreditCard).filter_by(id=card_id, user_id=g.user_id, is_deleted=False).first()
+            if not card:
+                return jsonify({"status": "Erro", "msg": "Cartão não encontrado"}), 404
             
         if request.method == 'POST':
             data = request.json or {}
@@ -143,6 +220,50 @@ def handle_expenses(card_id):
             return jsonify({"msg": "Despesa de cartão registrada com sucesso!"}), 201
             
         # GET
+        invoice_month = request.args.get('invoice_month')
+        if invoice_month:
+            inst_query = (
+                db.query(CardInstallment)
+                .join(CardExpense)
+                .filter(
+                    CardExpense.user_id == g.user_id,
+                    CardExpense.is_deleted == False,
+                    CardInstallment.is_deleted == False,
+                    CardInstallment.invoice_month == invoice_month
+                )
+            )
+            if card_id > 0:
+                inst_query = inst_query.filter(CardExpense.card_id == card_id)
+            inst_query = inst_query.order_by(CardInstallment.id.desc())
+            installments = inst_query.all()
+            result = [{
+                "id": inst.expense_id,
+                "installment_id": inst.id,
+                "description": inst.expense.description,
+                "total_value": float(inst.expense.total_value),
+                "installments_count": inst.expense.installments_count,
+                "date": inst.expense.date.isoformat(),
+                "installment_number": inst.installment_number,
+                "value": float(inst.value),
+                "due_date": inst.due_date.isoformat(),
+                "status": inst.status,
+                "invoice_month": inst.invoice_month,
+                "installments": [{
+                    "id": inst.id,
+                    "installment_number": inst.installment_number,
+                    "value": float(inst.value),
+                    "due_date": inst.due_date.isoformat(),
+                    "status": inst.status,
+                    "invoice_month": inst.invoice_month
+                }]
+            } for inst in installments]
+            return jsonify({
+                "items": result,
+                "total": len(result),
+                "page": 1,
+                "page_size": len(result)
+            })
+
         page = request.args.get('page', 1, type=int)
         page_size = request.args.get('page_size', 50, type=int)
         page = max(page, 1)
@@ -151,8 +272,10 @@ def handle_expenses(card_id):
         base_query = (
             db.query(CardExpense)
             .options(joinedload(CardExpense.installments))
-            .filter_by(card_id=card_id, user_id=g.user_id, is_deleted=False)
+            .filter_by(user_id=g.user_id, is_deleted=False)
         )
+        if card_id > 0:
+            base_query = base_query.filter_by(card_id=card_id)
         total = base_query.count()
         expenses = base_query.order_by(CardExpense.id.desc()).limit(page_size).offset((page - 1) * page_size).all()
         
