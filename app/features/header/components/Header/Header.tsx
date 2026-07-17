@@ -11,6 +11,7 @@ import { NewAssetButton } from './NewAssetButton';
 import { Notifications } from './Notifications';
 import { SystemStatus } from './SystemStatus';
 import { UserMenu } from './UserMenu';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { Asset } from '@/types';
 
 interface HeaderProps {
@@ -62,9 +63,10 @@ export const Header = memo(({
     <header className="sticky top-0 z-30 w-full bg-slate-950/80 backdrop-blur-md border-b border-slate-900 select-none">
       <div className="max-w-7xl mx-auto px-4 lg:px-6 py-3 flex justify-between items-center">
         
-        {/* ESQUERDA: LOGO + USER INFO + STATUS */}
-        <div className="flex items-center gap-3.5 shrink-0">
+        {/* ESQUERDA: LOGO + THEME TOGGLE + USER INFO + STATUS */}
+        <div className="flex items-center gap-2.5 sm:gap-3.5 shrink-0">
           <Logo />
+          <ThemeToggle />
           <div className="hidden sm:block h-6 w-px bg-slate-900" />
           <div className="hidden sm:flex flex-col justify-center leading-none">
             <span className="text-[10px] font-bold text-slate-300 tracking-wide uppercase">

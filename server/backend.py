@@ -46,6 +46,7 @@ from routes.ai import ai_bp
 from routes.quant_analysis import quant_bp
 from routes.credit_cards import cards_bp
 from routes.fixed_income import fixed_income_bp
+from routes.statement_import import statement_import_bp
 from routes.auth import auth_bp
 from infrastructure.assets_icon import assets_icon_bp
 from routes.scheduler import scheduler_bp
@@ -182,6 +183,7 @@ app.register_blueprint(ai_bp)
 app.register_blueprint(quant_bp)
 app.register_blueprint(cards_bp)
 app.register_blueprint(fixed_income_bp)
+app.register_blueprint(statement_import_bp)
 app.register_blueprint(scheduler_bp, url_prefix='/api/scheduler')
 logging.info("✅ Todos os blueprints registrados com sucesso.")
 

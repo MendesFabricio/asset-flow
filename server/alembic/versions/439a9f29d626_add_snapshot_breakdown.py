@@ -20,9 +20,22 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema."""
-    op.add_column('snapshots', sa.Column('breakdown', sa.String(), nullable=True))
+    import sqlalchemy as _sa
+    bind = op.get_bind()
+    inspector = _sa.inspect(bind)
+    if 'snapshots' in inspector.get_table_names():
+        columns = {col['name'] for col in inspector.get_columns('snapshots')}
+        if 'breakdown' not in columns:
+            op.add_column('snapshots', sa.Column('breakdown', sa.String(), nullable=True))
 
 
 def downgrade() -> None:
     """Downgrade schema."""
-    op.drop_column('snapshots', 'breakdown')
+    import sqlalchemy as _sa
+    bind = op.get_bind()
+    inspector = _sa.inspect(bind)
+    if 'snapshots' in inspector.get_table_names():
+        columns = {col['name'] for col in inspector.get_columns('snapshots')}
+        if 'breakdown' in columns:
+            with op.batch_alter_table('snapshots') as batch_op:
+                batch_op.drop_column('breakdown')
