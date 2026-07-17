@@ -118,7 +118,7 @@ export const ReceivablesTab = () => {
       setFechamentoDia(configData.fechamento_dia.toString());
       setVencimentoDia(configData.vencimento_dia.toString());
     } catch (err) {
-      console.error("Erro ao carregar dados do m�dulo de reembolsos:", err);
+      console.error("Erro ao carregar dados do módulo de reembolsos:", err);
     }
   };
 
@@ -147,12 +147,12 @@ export const ReceivablesTab = () => {
       setIsConfigOpen(false);
       refreshAll();
     } catch (err: any) {
-      alert(err.message || "Erro ao salvar configura��o.");
+      alert(err.message || "Erro ao salvar configuração.");
     }
   };
 
   const handleCreateDebtor = async () => {
-    if (!newDebtorNome.trim()) return alert("O nome � obrigat�rio.");
+    if (!newDebtorNome.trim()) return alert("O nome é obrigatório.");
     const payload = {
       nome: newDebtorNome,
       telefone: newDebtorTelefone,
@@ -181,7 +181,7 @@ export const ReceivablesTab = () => {
 
   const handleCreateLoan = async () => {
     if (!newLoanDesc || (!editingLoanId && (!newLoanDebtorId || !newLoanVal))) {
-      return alert("Preencha todos os campos obrigat�rios.");
+      return alert("Preencha todos os campos obrigatórios.");
     }
     const payload = editingLoanId ? {
       descricao: newLoanDesc,
@@ -219,7 +219,7 @@ export const ReceivablesTab = () => {
       setIsLoanModalOpen(false);
       refreshAll();
     } catch (err: any) {
-      alert(err.message || "Erro ao cadastrar/editar empr�stimo.");
+      alert(err.message || "Erro ao cadastrar/editar empréstimo.");
     }
   };
 
@@ -279,7 +279,7 @@ export const ReceivablesTab = () => {
 
   const handlePayBatch = async () => {
     if (selectedInstallments.length === 0) return;
-    if (!confirm(`Confirmar liquida��o das ${selectedInstallments.length} parcelas selecionadas?`)) return;
+    if (!confirm(`Confirmar liquidação das ${selectedInstallments.length} parcelas selecionadas?`)) return;
     try {
       await apiCall('/api/refunds/installments/pay-batch', {
         method: 'POST',
@@ -295,19 +295,19 @@ export const ReceivablesTab = () => {
   };
 
   const handleDeleteLoan = async (id: number, desc: string) => {
-    if (!confirm(`Deseja excluir permanentemente o empr�stimo "${desc}" e todas as suas parcelas?`)) return;
+    if (!confirm(`Deseja excluir permanentemente o empréstimo "${desc}" e todas as suas parcelas?`)) return;
     try {
       await apiCall(`/api/refunds/loans/${id}`, {
         method: 'DELETE'
       });
       refreshAll();
     } catch (err) {
-      alert("Erro ao excluir empr�stimo.");
+      alert("Erro ao excluir empréstimo.");
     }
   };
 
   const handleDeleteDebtor = async (id: number, nome: string) => {
-    if (!confirm(`Deseja excluir o perfil de "${nome}"? Todos os empr�stimos ativos dele ser�o arquivados.`)) return;
+    if (!confirm(`Deseja excluir o perfil de "${nome}"? Todos os empréstimos ativos dele serão arquivados.`)) return;
     try {
       await apiCall(`/api/refunds/debtors/${id}`, {
         method: 'DELETE'
@@ -465,27 +465,27 @@ export const ReceivablesTab = () => {
           <div className="flex items-center gap-3">
             <AlertCircle className="text-red-400 shrink-0" size={20} />
             <div>
-              <p className="text-sm font-bold text-red-200">Aten��o ao Inadimplemento</p>
-              <p className="text-xs text-red-400">Voc� possui {overdueItemsCount} parcelas em atraso na carteira de reembolsos.</p>
+              <p className="text-sm font-bold text-red-200">Atenção ao Inadimplemento</p>
+              <p className="text-xs text-red-400">Você possui {overdueItemsCount} parcelas em atraso na carteira de reembolsos.</p>
             </div>
           </div>
         </div>
       )}
 
-      {/* Header com A��es R�pidas */}
+      {/* Header com Ações Rápidas */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-900/50 backdrop-blur-md p-6 rounded-2xl border border-slate-800">
         <div>
           <h2 className="text-2xl font-bold flex items-center gap-2 tracking-tight">
             <Wallet className="text-blue-500" /> Plataforma de Reembolsos
           </h2>
-          <p className="text-xs text-slate-400 mt-1">Gest�o de empr�stimos, faturas de cart�o e fluxos de caixa a receber.</p>
+          <p className="text-xs text-slate-400 mt-1">Gestão de empréstimos, faturas de cartão e fluxos de caixa a receber.</p>
         </div>
         <div className="flex items-center gap-3 w-full md:w-auto">
           <button
             type="button"
             onClick={() => setIsConfigOpen(true)}
             className="p-3 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl border border-slate-700 transition-all"
-            title="Configura��es do Cart�o"
+            title="Configurações do Cartão"
           >
             <Settings size={18} />
           </button>
@@ -501,12 +501,12 @@ export const ReceivablesTab = () => {
             onClick={() => { setEditingLoanId(null); setNewLoanDebtorId(''); setNewLoanDesc(''); setNewLoanCat('Geral'); setNewLoanVal(''); setNewLoanParcelado(false); setNewLoanTotalParc('1'); setNewLoanObs(''); setIsLoanModalOpen(true); }}
             className="flex-1 md:flex-initial bg-blue-600 hover:bg-blue-500 text-white px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 text-sm font-bold shadow-lg shadow-blue-900/30 transition-all"
           >
-            <Plus size={16} /> Novo Empr�stimo
+            <Plus size={16} /> Novo Empréstimo
           </button>
         </div>
       </div>
 
-      {/* Cards de M�tricas Principais (Glassmorphism - Dynamically Filtered) */}
+      {/* Cards de Métricas Principais (Glassmorphism - Dynamically Filtered) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
 
         <div className="bg-slate-900/40 backdrop-blur-md p-5 rounded-2xl border border-slate-800 flex items-center gap-4">
@@ -599,7 +599,7 @@ export const ReceivablesTab = () => {
         </div>
       </div>
 
-      {/* Grid Principal - Devedores + Gr�ficos & Tabela */}
+      {/* Grid Principal - Devedores + Gráficos & Tabela */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {/* Lado Esquerdo - Perfis de Devedores */}
@@ -636,7 +636,7 @@ export const ReceivablesTab = () => {
                             type="button"
                             onClick={() => handleOpenGlobalPay(d)}
                             className="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded text-[10px] font-bold transition-all"
-                            title="Quita��o em Lote / Baixa Parcial por Valor"
+                            title="Quitação em Lote / Baixa Parcial por Valor"
                           >
                             Pagar
                           </button>
@@ -669,7 +669,7 @@ export const ReceivablesTab = () => {
                       <span className="font-semibold font-mono text-slate-300">{formatMoney(d.valor_total_emprestado)}</span>
                     </div>
                     <div>
-                      <span className="text-slate-600 block">�ltimo Pagamento:</span>
+                      <span className="text-slate-600 block">Último Pagamento:</span>
                       <span className="font-semibold text-slate-300 truncate block font-mono">
                         {d.data_ultimo_pagamento ? d.data_ultimo_pagamento.split('T')[0] : 'Nenhum'}
                       </span>
@@ -684,17 +684,17 @@ export const ReceivablesTab = () => {
           </div>
         </div>
 
-        {/* Lado Direito - Gr�ficos de Concentra��o */}
+        {/* Lado Direito - Gráficos de Concentração */}
         <div className="lg:col-span-2 space-y-4 bg-slate-900/40 backdrop-blur-md p-5 rounded-2xl border border-slate-800">
           <div className="flex justify-between items-center">
-            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><BarChart2 size={14} /> Distribui��o de Receitas</h3>
-            <span className="text-[10px] text-slate-500">Visualiza��o Anal�tica</span>
+            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><BarChart2 size={14} /> Distribuição de Receitas</h3>
+            <span className="text-[10px] text-slate-500">Visualização Analítica</span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Gr�fico 1 - Concentra��o por Categoria */}
+            {/* Gráfico 1 - Concentração por Categoria */}
             <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-850 h-[220px] flex flex-col justify-between">
-              <p className="text-xs font-bold text-slate-400 mb-1 flex items-center gap-1"><PieIcon size={12} /> Concentra��o por Categorias</p>
+              <p className="text-xs font-bold text-slate-400 mb-1 flex items-center gap-1"><PieIcon size={12} /> Concentração por Categorias</p>
               <div className="flex-1 min-h-[160px]">
                 {dashboard?.categorias && dashboard.categorias.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
@@ -725,9 +725,9 @@ export const ReceivablesTab = () => {
               </div>
             </div>
 
-            {/* Gr�fico 2 - Balan�o de Faturas Mensais */}
+            {/* Gráfico 2 - Balanço de Faturas Mensais */}
             <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-850 h-[220px] flex flex-col justify-between">
-              <p className="text-xs font-bold text-slate-400 mb-1 flex items-center gap-1"><TrendingUp size={12} /> Evolu��o de Faturas</p>
+              <p className="text-xs font-bold text-slate-400 mb-1 flex items-center gap-1"><TrendingUp size={12} /> Evolução de Faturas</p>
               <div className="flex-1 min-h-[160px]">
                 {faturasCalculated.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
@@ -762,13 +762,13 @@ export const ReceivablesTab = () => {
 
       </div>
 
-      {/* Se��o da Tabela de Lan�amentos */}
+      {/* Seção da Tabela de Lançamentos */}
       <div className="bg-slate-900/50 backdrop-blur-md p-6 rounded-2xl border border-slate-800 space-y-4">
 
         {/* Controles da Tabela */}
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
           <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
-            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><FileText size={14} /> Detalhamento de Lan�amentos</h3>
+            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><FileText size={14} /> Detalhamento de Lançamentos</h3>
             <div className="flex items-center gap-2 bg-slate-950/60 p-1.5 rounded-lg border border-slate-800">
               <button
                 type="button"
@@ -818,7 +818,7 @@ export const ReceivablesTab = () => {
             <div className="relative w-full lg:w-[220px]">
               <input
                 type="text"
-                placeholder="Buscar por descri��o..."
+                placeholder="Buscar por descrição..."
                 value={pendingSearch}
                 onChange={handleSearchChange}
                 className="w-full bg-slate-950 border border-slate-800 p-2 pl-3 rounded-lg text-xs outline-none text-white focus:border-blue-500 transition-colors"
@@ -826,7 +826,7 @@ export const ReceivablesTab = () => {
               {isPending && <span className="absolute right-3 top-2.5 w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></span>}
             </div>
 
-            {/* A��es em Lote */}
+            {/* Ações em Lote */}
             {selectedInstallments.length > 0 && (
               <button
                 type="button"
@@ -839,7 +839,7 @@ export const ReceivablesTab = () => {
           </div>
         </div>
 
-        {/* Tabela de Lan�amentos */}
+        {/* Tabela de Lançamentos */}
         <div className="overflow-x-auto rounded-xl border border-slate-800/80 bg-slate-950/20">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
@@ -861,7 +861,7 @@ export const ReceivablesTab = () => {
                     className="cursor-pointer accent-blue-500"
                   />
                 </th>
-                <th className="p-4">Descri��o</th>
+                <th className="p-4">Descrição</th>
                 <th className="p-4">Devedor</th>
                 <th className="p-4">Categoria</th>
                 <th className="p-4">Parcela</th>
@@ -870,13 +870,13 @@ export const ReceivablesTab = () => {
                 <th className="p-4 text-right">Valor</th>
                 <th className="p-4 text-right">Pago</th>
                 <th className="p-4 text-center">Status</th>
-                <th className="p-4 text-center">A��es</th>
+                <th className="p-4 text-center">Ações</th>
               </tr>
             </thead>
             <tbody>
               {filteredInstallments.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="p-8 text-center text-slate-500 italic">Nenhum lan�amento pendente encontrado para os filtros selecionados.</td>
+                  <td colSpan={11} className="p-8 text-center text-slate-500 italic">Nenhum lançamento pendente encontrado para os filtros selecionados.</td>
                 </tr>
               ) : (
                 filteredInstallments.map(item => {
@@ -937,7 +937,7 @@ export const ReceivablesTab = () => {
                             type="button"
                             onClick={() => handleOpenEditLoan(item.loanId)}
                             className="text-slate-400 hover:text-blue-450 p-1.5 rounded-full hover:bg-blue-500/10 transition-colors"
-                            title="Editar descri��o/categoria do empr�stimo"
+                            title="Editar descrição/categoria do emprÃ©stimo"
                           >
                             <Pencil size={13} />
                           </button>
@@ -945,7 +945,7 @@ export const ReceivablesTab = () => {
                             type="button"
                             onClick={() => handleDeleteLoan(item.loanId, item.loanDesc)}
                             className="text-slate-600 hover:text-red-400 p-1.5 rounded-full hover:bg-red-500/10"
-                            title="Excluir empr�stimo"
+                            title="Excluir emprÃ©stimo"
                           >
                             <Trash2 size={13} />
                           </button>
@@ -995,7 +995,7 @@ export const ReceivablesTab = () => {
               onClick={handleSaveConfig}
               className="w-full bg-blue-600 hover:bg-blue-500 text-white p-3 rounded-xl font-bold transition-all"
             >
-              Salvar Configura��o
+              Salvar Configuração
             </button>
           </div>
         </div>
@@ -1031,7 +1031,7 @@ export const ReceivablesTab = () => {
                 />
               </div>
               <div>
-                <label className="text-[10px] text-slate-500 uppercase font-bold pl-1 mb-1 block">Anota��es</label>
+                <label className="text-[10px] text-slate-500 uppercase font-bold pl-1 mb-1 block">Anotações</label>
                 <textarea
                   placeholder="Ex: Contato financeiro preferido..."
                   rows={2}
@@ -1052,13 +1052,13 @@ export const ReceivablesTab = () => {
         </div>
       )}
 
-      {/* ?? Novo/Editar Empr�stimo Modal */}
+      {/* ?? Novo/Editar Empréstimo Modal */}
       {isLoanModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 w-full max-w-md space-y-4 shadow-2xl animate-in zoom-in-95 relative">
             <button type="button" onClick={() => setIsLoanModalOpen(false)} className="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors"><X size={20} /></button>
             <h3 className="text-lg font-bold text-white flex items-center gap-2">
-              <Plus className="text-blue-500" /> {editingLoanId ? 'Editar Detalhes do Empr�stimo' : 'Registrar Empr�stimo'}
+              <Plus className="text-blue-500" /> {editingLoanId ? 'Editar Detalhes do Empréstimo' : 'Registrar Empréstimo'}
             </h3>
             <div className="space-y-3">
 
@@ -1086,7 +1086,7 @@ export const ReceivablesTab = () => {
                     >
                       <option value="Geral">Geral</option>
                       <option value="Aluguel">Aluguel</option>
-                      <option value="Refei��o">Refei��o</option>
+                      <option value="Refeição">Refeição</option>
                       <option value="Viagem">Viagem</option>
                       <option value="Transporte">Transporte</option>
                       <option value="Outros">Outros</option>
@@ -1105,7 +1105,7 @@ export const ReceivablesTab = () => {
                   >
                     <option value="Geral">Geral</option>
                     <option value="Aluguel">Aluguel</option>
-                    <option value="Refei��o">Refei��o</option>
+                    <option value="Refeição">Refeição</option>
                     <option value="Viagem">Viagem</option>
                     <option value="Transporte">Transporte</option>
                     <option value="Outros">Outros</option>
@@ -1114,10 +1114,10 @@ export const ReceivablesTab = () => {
               )}
 
               <div>
-                <label className="text-[10px] text-slate-500 uppercase font-bold pl-1 mb-1 block">Descri��o</label>
+                <label className="text-[10px] text-slate-500 uppercase font-bold pl-1 mb-1 block">Descrição</label>
                 <input
                   type="text"
-                  placeholder="Ex: Jantar de anivers�rio"
+                  placeholder="Ex: Jantar de aniversário"
                   className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-white outline-none focus:border-blue-500 transition-colors text-xs"
                   value={newLoanDesc}
                   onChange={e => setNewLoanDesc(e.target.value)}
@@ -1137,7 +1137,7 @@ export const ReceivablesTab = () => {
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] text-slate-500 uppercase font-bold pl-1 mb-1 block">Data de Empr�stimo</label>
+                    <label className="text-[10px] text-slate-500 uppercase font-bold pl-1 mb-1 block">Data de Empréstimo</label>
                     <input
                       type="date"
                       className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-white outline-none focus:border-blue-500 transition-colors font-mono"
@@ -1151,7 +1151,7 @@ export const ReceivablesTab = () => {
               {!editingLoanId && (
                 <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-850 space-y-2 animate-in fade-in duration-200">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-400">Empr�stimo Parcelado?</span>
+                    <span className="text-xs font-bold text-slate-400">Empréstimo Parcelado?</span>
                     <input
                       type="checkbox"
                       checked={newLoanParcelado}
@@ -1176,9 +1176,9 @@ export const ReceivablesTab = () => {
               )}
 
               <div>
-                <label className="text-[10px] text-slate-500 uppercase font-bold pl-1 mb-1 block">Observa��es / Anota��es</label>
+                <label className="text-[10px] text-slate-500 uppercase font-bold pl-1 mb-1 block">Observações / Anotações</label>
                 <textarea
-                  placeholder="Anota��es adicionais para este empr�stimo..."
+                  placeholder="Anotações adicionais para este empréstimo..."
                   rows={2}
                   className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-slate-300 outline-none focus:border-blue-500 transition-colors text-xs resize-none"
                   value={newLoanObs}
@@ -1192,7 +1192,7 @@ export const ReceivablesTab = () => {
               onClick={handleCreateLoan}
               className="w-full bg-blue-600 hover:bg-blue-500 text-white p-3 rounded-xl font-bold transition-all"
             >
-              {editingLoanId ? 'Salvar Altera��es' : 'Criar Empr�stimo'}
+              {editingLoanId ? 'Salvar Alterações' : 'Criar Empréstimo'}
             </button>
           </div>
         </div>
@@ -1206,11 +1206,11 @@ export const ReceivablesTab = () => {
             <h3 className="text-lg font-bold text-white flex items-center gap-2"><CheckSquare className="text-emerald-500" /> Registrar Recebimento</h3>
 
             <div className="space-y-1.5 p-3 bg-slate-950/60 rounded-xl border border-slate-800 text-xs">
-              <p className="text-slate-400">Empr�stimo: <span className="text-white font-semibold">{payingLoanDesc}</span></p>
+              <p className="text-slate-400">Empréstimo: <span className="text-white font-semibold">{payingLoanDesc}</span></p>
               <p className="text-slate-400">Parcela: <span className="text-white font-mono font-semibold">#{payingInstallment.numero_parcela}</span></p>
               <p className="text-slate-400">Valor Parcela: <span className="text-emerald-400 font-mono font-bold">{formatMoney(payingInstallment.valor_parcela)}</span></p>
               {payingInstallment.valor_pago > 0 && (
-                <p className="text-slate-500">J� Recebido Parcialmente: <span className="text-slate-400 font-mono">{formatMoney(payingInstallment.valor_pago)}</span></p>
+                <p className="text-slate-500">Já Recebido Parcialmente: <span className="text-slate-400 font-mono">{formatMoney(payingInstallment.valor_pago)}</span></p>
               )}
             </div>
 
@@ -1224,7 +1224,7 @@ export const ReceivablesTab = () => {
                   value={payingValue}
                   onChange={e => setPayingValue(e.target.value)}
                 />
-                <span className="text-[9px] text-slate-500 block pl-1 mt-1">Valores maiores abater�o parcelas futuras sequencialmente.</span>
+                <span className="text-[9px] text-slate-500 block pl-1 mt-1">Valores maiores abaterão parcelas futuras sequencialmente.</span>
               </div>
 
               <div>
@@ -1236,7 +1236,7 @@ export const ReceivablesTab = () => {
                 >
                   <option value="Pix">Pix</option>
                   <option value="Dinheiro">Dinheiro</option>
-                  <option value="Cr�dito">Cr�dito / Boleto</option>
+                  <option value="Crédito">Crédito / Boleto</option>
                   <option value="Outro">Outro</option>
                 </select>
               </div>
@@ -1258,7 +1258,7 @@ export const ReceivablesTab = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 w-full max-w-sm space-y-4 shadow-2xl animate-in zoom-in-95 relative">
             <button type="button" onClick={() => setIsGlobalPayModalOpen(false)} className="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors"><X size={20} /></button>
-            <h3 className="text-lg font-bold text-white flex items-center gap-2"><CheckSquare className="text-emerald-500" /> Quita��o / Recebimento Global</h3>
+            <h3 className="text-lg font-bold text-white flex items-center gap-2"><CheckSquare className="text-emerald-500" /> Quitação / Recebimento Global</h3>
 
             <div className="space-y-1.5 p-3 bg-slate-950/60 rounded-xl border border-slate-800 text-xs">
               <p className="text-slate-400">Devedor: <span className="text-white font-semibold">{globalPayDebtor.nome}</span></p>
@@ -1275,7 +1275,7 @@ export const ReceivablesTab = () => {
                   value={globalPayValue}
                   onChange={e => setGlobalPayValue(e.target.value)}
                 />
-                <span className="text-[9px] text-slate-500 block pl-1 mt-1">Este valor quitar� as parcelas em aberto mais antigas sequencialmente, abatendo ou parcelando a �ltima afetada se necess�rio.</span>
+                <span className="text-[9px] text-slate-500 block pl-1 mt-1">Este valor quitar as parcelas em aberto mais antigas sequencialmente, abatendo ou parcelando a última afetada se necessário.</span>
               </div>
 
               <div>
@@ -1287,7 +1287,7 @@ export const ReceivablesTab = () => {
                 >
                   <option value="Pix">Pix</option>
                   <option value="Dinheiro">Dinheiro</option>
-                  <option value="Cr�dito">Cr�dito / Boleto</option>
+                  <option value="Crédito">Crédito / Boleto</option>
                   <option value="Outro">Outro</option>
                 </select>
               </div>

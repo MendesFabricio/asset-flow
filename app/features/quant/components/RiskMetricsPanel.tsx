@@ -51,7 +51,7 @@ interface RiskMetrics {
 
 
 
-/** Cart�o de m�trica individual com tooltip inline */
+/** Cartão de métrica individual com tooltip inline */
 function MetricCard({
   label, value, unit = '', icon: Icon, color, tooltip, subtext
 }: {
@@ -102,7 +102,7 @@ function colorByValue(v: number, goodPositive = true): string {
   return v > 0 ? 'text-red-400' : v < 0 ? 'text-emerald-400' : 'text-slate-400';
 }
 
-/** Tooltip personalizado para o gr�fico de drawdown */
+/** Tooltip personalizado para o gráfico de drawdown */
 const DrawdownTooltip = ({ active, payload, label }: { active?: boolean; payload?: { value: number }[]; label?: string }) => {
   if (!active || !payload?.length) return null;
   const v = payload[0].value as number;
@@ -135,7 +135,7 @@ export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
         if (d.status === 'Sucesso') setData(d);
         else {
           setData(null);
-          setError(d.msg || 'Erro ao carregar m�tricas.');
+          setError(d.msg || 'Erro ao carregar métricas.');
         }
       })
       .catch(e => {
@@ -167,10 +167,10 @@ export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
       <div className="bg-[#0f172a] border border-slate-800 rounded-2xl p-8 flex flex-col items-center justify-center text-center min-h-[400px]">
         <AlertTriangle className="text-amber-500 mb-3" size={36} />
         <p className="text-sm font-semibold text-slate-300">
-          {error || data?.msg || 'M�tricas de Risco Indispon�veis'}
+           {error || data?.msg || 'Métricas de Risco Indisponíveis'}
         </p>
         <p className="text-xs text-slate-500 mt-2 max-w-md">
-          Aguarde o cadastro de pelo menos 2 ativos de renda vari�vel ou a consolida��o de dados hist�ricos m�nimos (30 dias) para o c�lculo destas m�tricas.
+          Aguarde o cadastro de pelo menos 2 ativos de renda variável ou a consolidação de dados históricos mínimos (30 dias) para o cálculo destas métricas.
         </p>
       </div>
     );
@@ -197,8 +197,8 @@ export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
             <Activity size={16} className="text-indigo-400" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-white">Atribui��o de Performance</h3>
-            <p className="text-[10px] text-slate-500">vs. {data?.benchmark ?? 'IBOV'} � {data?.periodo ?? '12m'} � {data?.n_pregoes ?? 0} preg�es</p>
+            <h3 className="text-sm font-bold text-white">Atribuição de Performance</h3>
+            <p className="text-[10px] text-slate-500">vs. {data?.benchmark ?? 'IBOV'} - {data?.periodo ?? '12m'} - {data?.n_pregoes ?? 0} pregões</p>
           </div>
         </div>
         <div className="flex items-center gap-1.5 bg-slate-800/50 border border-slate-700 rounded-lg px-2.5 py-1">
@@ -212,9 +212,9 @@ export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
         <div className="w-full lg:w-3/4 p-1 bg-slate-900/50 rounded-xl border border-slate-800/60 shadow-inner mb-4 self-center">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-1">
             {[
-              { id: 'overview', label: 'Vis�o Geral', icon: <Activity size={14} /> },
-              { id: 'exposure', label: 'Exposi��es', icon: <Target size={14} /> },
-              { id: 'credit', label: 'Risco de Cr�dito', icon: <ShieldAlert size={14} /> }
+              { id: 'overview', label: 'Visão Geral', icon: <Activity size={14} /> },
+              { id: 'exposure', label: 'Exposições', icon: <Target size={14} /> },
+              { id: 'credit', label: 'Risco de Crédito', icon: <ShieldAlert size={14} /> }
             ].map((tab) => {
               const isActive = activeSubTab === tab.id;
               return (
@@ -237,31 +237,31 @@ export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
 
         {activeSubTab === 'overview' && (
           <>
-            {/* Grade de M�tricas Principais */}
+            {/* Grade de Métricas Principais */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <MetricCard
-            label="Beta (�)" value={betaValue.toFixed(3)} icon={Activity}
+            label="Beta (β)" value={betaValue.toFixed(3)} icon={Activity}
             color={betaColor}
-            tooltip={`Beta mede a sensibilidade do portf�lio ao mercado.\n1.0 = move igual ao IBOV\n>1.0 = amplifica movimentos`}
+            tooltip={`Beta mede a sensibilidade do portfólio ao mercado.\n1.0 = move igual ao IBOV\n>1.0 = amplifica movimentos`}
             subtext={data?.interpretacao?.beta ?? ''}
           />
           <MetricCard
             label="Alpha (a)" value={alphaValue > 0 ? `+${alphaValue.toFixed(2)}` : alphaValue.toFixed(2)}
             unit="% a.a." icon={alphaValue >= 0 ? TrendingUp : TrendingDown}
             color={alphaColor}
-            tooltip="Alpha de Jensen: retorno acima/abaixo do esperado pelo CAPM. Alpha positivo = voc� gerou valor acima do mercado ajustado pelo risco."
+            tooltip="Alpha de Jensen: retorno acima/abaixo do esperado pelo CAPM. Alpha positivo = você gerou valor acima do mercado ajustado pelo risco."
             subtext={data?.interpretacao?.alpha ?? ''}
           />
           <MetricCard
             label="Sharpe (12m)" value={sharpeValue.toFixed(3)} icon={Target}
             color={sharpeColor}
-            tooltip="Sharpe Ratio: retorno excedente por unidade de risco total. >1.0 � bom, >2.0 � excepcional."
+            tooltip="Sharpe Ratio: retorno excedente por unidade de risco total. >1.0 é bom, >2.0 é excepcional."
             subtext={data?.interpretacao?.sharpe ?? ''}
           />
           <MetricCard
             label="Sortino (12m)" value={(data?.sortino_12m ?? 0).toFixed(3)} icon={ShieldAlert}
             color={(data?.sortino_12m ?? 0) > 1 ? 'text-emerald-400' : (data?.sortino_12m ?? 0) > 0 ? 'text-amber-400' : 'text-red-400'}
-            tooltip="Sortino: como Sharpe, mas divide apenas pela volatilidade negativa. Penaliza perdas, n�o ganhos."
+            tooltip="Sortino: como Sharpe, mas divide apenas pela volatilidade negativa. Penaliza perdas, não ganhos."
             subtext={`Calmar: ${(data?.calmar_ratio ?? 0).toFixed(2)}`}
           />
         </div>
@@ -271,7 +271,7 @@ export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
           <MetricCard
             label="Retorno Anual" value={`${(data?.retorno_anual_pct ?? 0) > 0 ? '+' : ''}${(data?.retorno_anual_pct ?? 0).toFixed(2)}`}
             unit="%" icon={TrendingUp} color={colorByValue(data?.retorno_anual_pct ?? 0)}
-            subtext="Portf�lio (log-retornos)"
+            subtext="Portfólio (log-retornos)"
           />
           <MetricCard
             label="IBOVESPA" value={`${(data?.retorno_benchmark_pct ?? 0) > 0 ? '+' : ''}${(data?.retorno_benchmark_pct ?? 0).toFixed(2)}`}
@@ -282,7 +282,7 @@ export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
             label="Volatilidade" value={(data?.volatilidade_anual_pct ?? 0).toFixed(2)}
             unit="% a.a." icon={Zap}
             color={(data?.volatilidade_anual_pct ?? 0) > 30 ? 'text-red-400' : (data?.volatilidade_anual_pct ?? 0) > 20 ? 'text-amber-400' : 'text-emerald-400'}
-            tooltip="Desvio-padr�o anualizado dos retornos di�rios do portf�lio."
+            tooltip="Desvio-padrão anualizado dos retornos diários do portfólio."
             subtext={`Max Drawdown: ${(data?.max_drawdown_pct ?? 0).toFixed(2)}%`}
           />
         </div>
@@ -295,8 +295,8 @@ export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
             unit="%"
             icon={ShieldAlert}
             color="text-amber-500"
-            tooltip="VaR Hist�rico 95% Mensal: A perda m�xima esperada para o portf�lio no per�odo de 1 m�s, com 95% de n�vel de confian�a."
-            subtext={`Di�rio: ${(data?.var_95_daily_pct ?? 0).toFixed(2)}%`}
+            tooltip="VaR Histórico 95% Mensal: A perda máxima esperada para o portfólio no período de 1 mês, com 95% de nível de confiança."
+            subtext={`Diário: ${(data?.var_95_daily_pct ?? 0).toFixed(2)}%`}
           />
           <MetricCard
             label="Conditional VaR (CVaR 95%)"
@@ -304,8 +304,8 @@ export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
             unit="%"
             icon={Zap}
             color="text-red-400"
-            tooltip="CVaR (Expected Shortfall): Perda m�dia esperada nos piores 5% dos cen�rios do per�odo."
-            subtext={`Di�rio: ${(data?.cvar_95_daily_pct ?? 0).toFixed(2)}%`}
+            tooltip="CVaR (Expected Shortfall): Perda média esperada nos piores 5% dos cenários do período."
+            subtext={`Diário: ${(data?.cvar_95_daily_pct ?? 0).toFixed(2)}%`}
           />
           <MetricCard
             label="Tracking Error"
@@ -313,17 +313,17 @@ export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
             unit="%"
             icon={Activity}
             color="text-indigo-400"
-            tooltip="Tracking Error anualizado: Desvio-padr�o da diferen�a de retornos entre a carteira e o IBOVESPA. Mede o risco ativo do gestor."
+            tooltip="Tracking Error anualizado: Desvio-padrão da diferença de retornos entre a carteira e o IBOVESPA. Mede o risco ativo do gestor."
             subtext="Volatilidade ativa vs. IBOV"
           />
         </div>
 
-        {/* Gr�fico de Drawdown */}
+        {/* Gráfico de Drawdown */}
         <div>
           <div className="flex items-center justify-between mb-3">
             <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
               <ShieldAlert size={12} className="text-red-400" />
-              Drawdown Hist�rico (12m)
+              Drawdown Histórico (12m)
             </h4>
             <span className="text-[10px] bg-red-900/20 text-red-400 border border-red-900/30 px-2 py-0.5 rounded-full font-mono">
               Pior: {(data?.max_drawdown_pct ?? 0).toFixed(2)}%
@@ -363,7 +363,7 @@ export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
                   dot={false}
                   activeDot={{ r: 3, fill: '#f87171', strokeWidth: 0 }}
                 />
-                {/* Linha de refer�ncia zero */}
+                {/* Linha de referência zero */}
                 <CartesianGrid
                   horizontalCoordinatesGenerator={() => []}
                   verticalCoordinatesGenerator={() => []}
@@ -378,16 +378,16 @@ export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
         </>
         )}
 
-        {/* ??? EXPOSI��O E SETORES */}
+        {/* ??? EXPOSIÇÃO E SETORES */}
         {activeSubTab === 'exposure' && (
         <div className="pt-2 grid grid-cols-1 lg:grid-cols-2 gap-5">
           
-          {/* 1. Concentra��o Setorial Real */}
+          {/* 1. Concentração Setorial Real */}
           {data?.sectors_alloc && data.sectors_alloc.length > 0 && (
             <div className="bg-slate-950/30 p-4 rounded-xl border border-slate-800/50 h-full">
               <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
                 <Scale size={12} className="text-indigo-400" />
-                Concentra��o Setorial Real
+                Concentração Setorial Real
               </h4>
               <div className="space-y-2.5">
                 {data.sectors_alloc.map((s, idx) => (
@@ -489,14 +489,14 @@ export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
                   <div className="text-xl font-bold font-mono text-emerald-400 mt-1">
                     {data.upside_capture_pct}%
                   </div>
-                  <p className="text-[8px] text-slate-500 mt-1 leading-normal">Fra��o capturada em meses de alta do IBOV</p>
+                  <p className="text-[8px] text-slate-500 mt-1 leading-normal">Fração capturada em meses de alta do IBOV</p>
                 </div>
                 <div className="bg-slate-900/40 p-3 rounded-lg border border-slate-850">
                   <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wide">Downside Capture</span>
                   <div className="text-xl font-bold font-mono text-red-400 mt-1">
                     {data?.downside_capture_pct}%
                   </div>
-                  <p className="text-[8px] text-slate-500 mt-1 leading-normal">Fra��o capturada em meses de queda do IBOV</p>
+                  <p className="text-[8px] text-slate-500 mt-1 leading-normal">Fração capturada em meses de queda do IBOV</p>
                 </div>
               </div>
             </div>
@@ -504,21 +504,21 @@ export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
         </div>
         )}
 
-        {/* 4. Risco de Cr�dito (FIIs e Renda Fixa) */}
+        {/* 4. Risco de Crédito (FIIs e Renda Fixa) */}
         {activeSubTab === 'credit' && (
           <>
           {data?.fii_credit_map && data.fii_credit_map.length > 0 ? (
             <div className="bg-slate-950/30 p-4 rounded-xl border border-slate-800/50 h-full mt-2">
               <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
                 <ShieldAlert size={12} className="text-indigo-400" />
-                Mapa de Risco de Cr�dito (FIIs & Renda Fixa)
+                Mapa de Risco de Crédito (FIIs & Renda Fixa)
               </h4>
               <div className="overflow-x-auto w-full">
                 <table className="w-full text-[9px] text-slate-400 uppercase tracking-wider font-semibold text-left border-collapse">
                   <thead>
                     <tr className="border-b border-slate-900 pb-1 text-slate-500">
                       <th className="py-1">Ativo</th>
-                      <th className="py-1">Rating M�dio</th>
+                      <th className="py-1">Rating Médio</th>
                       <th className="py-1 text-right">Duration</th>
                       <th className="py-1 text-right">Indexadores</th>
                     </tr>
@@ -543,7 +543,7 @@ export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
               <ShieldAlert size={32} className="mb-3 text-slate-700" />
               <p className="text-sm font-semibold text-slate-400">Sem FIIs ou Renda Fixa</p>
               <p className="text-xs text-slate-500 mt-1 text-center max-w-sm">
-                Esta aba monitora o risco de cr�dito e prazo de vencimento de suas posi��es em Renda Fixa e FIIs de Papel.
+                Esta aba monitora o risco de crédito e prazo de vencimento de suas posições em Renda Fixa e FIIs de Papel.
               </p>
             </div>
           )}
