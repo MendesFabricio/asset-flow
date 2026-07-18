@@ -1,33 +1,9 @@
-# Caddyfile — Proxy reverso com TLS automático via Let's Encrypt
-# Substitua {$DOMAIN} pela variável de ambiente ou pelo hostname fixo.
-# Padrão: assetflow.duckdns.org
-
-{$DOMAIN:assetflow.duckdns.org} {
-    # SSE precisa de proxy direto ao backend (o Next.js rewrite exclui esse path)
-    # e precisa de buffer desabilitado para streaming funcionar
-    handle /api/sync/stream {
-        reverse_proxy backend:5328 {
-            flush_interval -1
-            header_up X-Forwarded-Proto {scheme}
-            header_up Host {host}
-        }
+assetflowpro.duckdns.org {
+    # Proxy direto para Server-Sent Events (SSE) sem bufferização
+    reverse_proxy /api/sync/stream backend:5328 {
+        flush_interval -1
     }
 
-    # Todo o resto vai para o frontend Next.js
-    # que por sua vez faz rewrite de /api/* para backend:5328
-    handle {
-        reverse_proxy frontend:3000 {
-            header_up X-Forwarded-Proto {scheme}
-            header_up Host {host}
-        }
-    }
-
-    # Compressão automática
-    encode gzip
-
-    # Logs estruturados
-    log {
-        output stderr
-        format json
-    }
+    # Proxy para todo o restante do Frontend Next.js
+    reverse_proxy * frontend:3000
 }

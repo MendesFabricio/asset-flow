@@ -1,45 +1,43 @@
 # docker-compose.prod.yml
 # Otimizado para Oracle Always-Free Ampere A1: 2 vCPU / 12 GB RAM
-# CPU total alocado: ≤ 3.5 vCPU (burst), baseline ≤ 2.0 vCPU
-# RAM total reservada: ≤ 7.5 GB (sobram ~4.5 GB para cache/SO)
+# CPU total (burst): ≤ 4.0 | RAM total: ≤ 6.75 GB (sobram ~5 GB p/ SO/cache)
 
 x-shared-env: &shared-env
   OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:3b}
   OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
   SECRET_KEY: ${SECRET_KEY}
-  # SENTRY_DSN: deixado em branco — glitchtip não está configurado
   SENTRY_DSN: ""
   ENVIRONMENT: production
   APP_RELEASE: ${APP_RELEASE:-latest}
 
 services:
   # ------------------------------------------------------------------
-  # CADDY — Proxy reverso + TLS automático via Let's Encrypt / DuckDNS
+  # CADDY — Proxy reverso + TLS automático via Let's Encrypt
   # ------------------------------------------------------------------
   caddy:
     image: caddy:2-alpine
-    container_name: assetflow_caddy
+    container_name: assetflow_proxy
     restart: always
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./Caddyfile:/etc/caddy/Caddyfile
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
-      frontend:
-        condition: service_healthy
-      backend:
-        condition: service_healthy
-    mem_limit: 128m
-    cpus: "0.50"
+      - frontend
+      - backend
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 128M
     networks:
       - assetflow
 
   # ------------------------------------------------------------------
   # BACKEND — Flask / Gunicorn
-  # 1 vCPU limit, 1.5 GB RAM. 1 worker + 4 threads = bom p/ I/O-bound.
   # ------------------------------------------------------------------
   backend:
     build:
@@ -64,7 +62,7 @@ services:
     environment:
       <<: *shared-env
       FLASK_DEBUG: "0"
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://assetflow.duckdns.org}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://assetflowpro.duckdns.org}
       LOCKS_DIR: /app/data/locks
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:5328/api/health || exit 1"]
@@ -72,14 +70,16 @@ services:
       timeout: 5s
       retries: 3
       start_period: 30s
-    mem_limit: 1.5g
-    cpus: "1.0"
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1536M
     networks:
       - assetflow
 
   # ------------------------------------------------------------------
-  # WORKER — APScheduler (tarefas em background)
-  # 0.5 vCPU, 1 GB RAM. Aguarda backend saudável antes de subir.
+  # WORKER — APScheduler
   # ------------------------------------------------------------------
   worker:
     build:
@@ -107,14 +107,16 @@ services:
       timeout: 10s
       retries: 3
       start_period: 90s
-    mem_limit: 1g
-    cpus: "0.50"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 1024M
     networks:
       - assetflow
 
   # ------------------------------------------------------------------
   # FRONTEND — Next.js Standalone
-  # 1 vCPU, 1 GB RAM. Porta só interna; Caddy faz o proxy.
   # ------------------------------------------------------------------
   frontend:
     build:
@@ -127,9 +129,9 @@ services:
     environment:
       - NODE_ENV=production
       - NEXT_TELEMETRY_DISABLED=1
-      # URL pública vazia: o Next.js usa mesmo host via Caddy
+      - NODE_OPTIONS=--max-old-space-size=2048
       - NEXT_PUBLIC_API_URL=
-      - NEXT_PUBLIC_BACKEND_URL=${NEXT_PUBLIC_BACKEND_URL:-}
+      - NEXT_PUBLIC_BACKEND_URL=
       - SENTRY_DSN=
       - ENVIRONMENT=production
     healthcheck:
@@ -138,16 +140,17 @@ services:
       timeout: 15s
       retries: 5
       start_period: 60s
-    mem_limit: 1g
-    cpus: "1.0"
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1024M
     networks:
       - assetflow
 
   # ------------------------------------------------------------------
   # OLLAMA — LLM local (llama3.2:3b)
-  # Adaptativo: carregado sob demanda, fica idle sem consumir CPU.
-  # 1 vCPU limit / 0.5 baseline, 3 GB RAM.
-  # Sem porta pública — acesso só interno via backend.
+  # Adaptativo: ocioso sem consumir CPU; carregado sob demanda.
   # ------------------------------------------------------------------
   ollama:
     image: ollama/ollama:latest
@@ -158,10 +161,8 @@ services:
     volumes:
       - ollama_data:/root/.ollama
     environment:
-      # Modo single-request: libera CPU quando ocioso
       - OLLAMA_NUM_PARALLEL=1
       - OLLAMA_MAX_LOADED_MODELS=1
-      # Descarrega modelo após 5min de inatividade
       - OLLAMA_KEEP_ALIVE=5m
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:11434/ || exit 1"]
@@ -169,12 +170,11 @@ services:
       timeout: 15s
       retries: 3
       start_period: 30s
-    mem_limit: 3g
-    cpus: "1.0"
     deploy:
       resources:
-        reservations:
-          cpus: "0.50"
+        limits:
+          cpus: "1.0"
+          memory: 3072M
     networks:
       - assetflow
 
@@ -185,5 +185,6 @@ networks:
 volumes:
   sqlite_data:
   ollama_data:
+  backups:
   caddy_data:
   caddy_config:
