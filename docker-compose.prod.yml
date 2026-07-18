@@ -1,40 +1,86 @@
+# docker-compose.prod.yml
+# Otimizado para Oracle Always-Free Ampere A1: 2 vCPU / 12 GB RAM
+# CPU total alocado: ≤ 3.5 vCPU (burst), baseline ≤ 2.0 vCPU
+# RAM total reservada: ≤ 7.5 GB (sobram ~4.5 GB para cache/SO)
+
 x-shared-env: &shared-env
-  OLLAMA_MODEL: 
-  OLLAMA_BASE_URL: 
-  SECRET_KEY: 
-  SENTRY_DSN: http://ac68cc0ad8f54496961aec4e3d48d227@glitchtip:8000/1
+  OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:3b}
+  OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
+  SECRET_KEY: ${SECRET_KEY}
+  # SENTRY_DSN: deixado em branco — glitchtip não está configurado
+  SENTRY_DSN: ""
   ENVIRONMENT: production
+  APP_RELEASE: ${APP_RELEASE:-latest}
 
 services:
-  # --- BACKEND (Flask) ---
+  # ------------------------------------------------------------------
+  # CADDY — Proxy reverso + TLS automático via Let's Encrypt / DuckDNS
+  # ------------------------------------------------------------------
+  caddy:
+    image: caddy:2-alpine
+    container_name: assetflow_caddy
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      frontend:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    mem_limit: 128m
+    cpus: "0.50"
+    networks:
+      - assetflow
+
+  # ------------------------------------------------------------------
+  # BACKEND — Flask / Gunicorn
+  # 1 vCPU limit, 1.5 GB RAM. 1 worker + 4 threads = bom p/ I/O-bound.
+  # ------------------------------------------------------------------
   backend:
     build:
       context: .
       dockerfile: server/Dockerfile
       target: backend
     container_name: assetflow_backend
-    command: sh -c "alembic upgrade head && gunicorn --bind 0.0.0.0:5328 --workers 1 --threads 4 --timeout 120 backend:app"
+    command: >
+      sh -c "alembic upgrade head &&
+             gunicorn --bind 0.0.0.0:5328
+                      --workers 1
+                      --threads 4
+                      --timeout 120
+                      --graceful-timeout 30
+                      backend:app"
     restart: always
-    ports:
-      - "5328:5328"
+    expose:
+      - "5328"
     volumes:
       - sqlite_data:/app/data
       - ./backups:/app/backups
     environment:
       <<: *shared-env
-      FLASK_DEBUG: 0
-      ALLOWED_ORIGINS: 
-      APP_RELEASE: 
+      FLASK_DEBUG: "0"
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://assetflow.duckdns.org}
+      LOCKS_DIR: /app/data/locks
     healthcheck:
-      test: [ "CMD-SHELL", "curl -f http://localhost:5328/api/health || exit 1" ]
+      test: ["CMD-SHELL", "curl -sf http://localhost:5328/api/health || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 3
-      start_period: 10s
-    mem_limit: 2g
-    cpus: 2.0
+      start_period: 30s
+    mem_limit: 1.5g
+    cpus: "1.0"
+    networks:
+      - assetflow
 
-  # --- WORKER (APScheduler) ---
+  # ------------------------------------------------------------------
+  # WORKER — APScheduler (tarefas em background)
+  # 0.5 vCPU, 1 GB RAM. Aguarda backend saudável antes de subir.
+  # ------------------------------------------------------------------
   worker:
     build:
       context: .
@@ -49,60 +95,95 @@ services:
       <<: *shared-env
       PYTHONPATH: /app
       WORKER_HEARTBEAT_PATH: /app/data/worker_heartbeat.txt
-      APP_RELEASE: 
+      LOCKS_DIR: /app/data/locks
     depends_on:
       backend:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD-SHELL", "python -c \"import os, time; p='/app/data/worker_heartbeat.txt'; ok=os.path.exists(p) and (time.time()-os.path.getmtime(p))<120; exit(0 if ok else 1)\"" ]
+      test: >
+        ["CMD-SHELL",
+         "python -c \"import os,time; p='/app/data/worker_heartbeat.txt'; ok=os.path.exists(p) and (time.time()-os.path.getmtime(p))<120; exit(0 if ok else 1)\""]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
-    mem_limit: 1.5g
-    cpus: 1.5
+      start_period: 90s
+    mem_limit: 1g
+    cpus: "0.50"
+    networks:
+      - assetflow
 
-  # --- FRONTEND (Next.js Standalone) ---
+  # ------------------------------------------------------------------
+  # FRONTEND — Next.js Standalone
+  # 1 vCPU, 1 GB RAM. Porta só interna; Caddy faz o proxy.
+  # ------------------------------------------------------------------
   frontend:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: assetflow_frontend
     restart: always
-    ports:
-      - "3000:3000"
+    expose:
+      - "3000"
     environment:
+      - NODE_ENV=production
+      - NEXT_TELEMETRY_DISABLED=1
+      # URL pública vazia: o Next.js usa mesmo host via Caddy
       - NEXT_PUBLIC_API_URL=
-      - NEXT_PUBLIC_SENTRY_DSN=
-      - SENTRY_DSN=http://ac68cc0ad8f54496961aec4e3d48d227@glitchtip:8000/1
+      - NEXT_PUBLIC_BACKEND_URL=${NEXT_PUBLIC_BACKEND_URL:-}
+      - SENTRY_DSN=
       - ENVIRONMENT=production
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000 || exit 1"]
       interval: 30s
       timeout: 15s
       retries: 5
       start_period: 60s
     mem_limit: 1g
-    cpus: 1.0
+    cpus: "1.0"
+    networks:
+      - assetflow
 
-  # --- OLLAMA ---
+  # ------------------------------------------------------------------
+  # OLLAMA — LLM local (llama3.2:3b)
+  # Adaptativo: carregado sob demanda, fica idle sem consumir CPU.
+  # 1 vCPU limit / 0.5 baseline, 3 GB RAM.
+  # Sem porta pública — acesso só interno via backend.
+  # ------------------------------------------------------------------
   ollama:
     image: ollama/ollama:latest
     container_name: assetflow_ollama
     restart: always
+    expose:
+      - "11434"
     volumes:
       - ollama_data:/root/.ollama
-    ports:
-      - "11434:11434"
     environment:
-      - OLLAMA_NUM_PARALLEL=2
+      # Modo single-request: libera CPU quando ocioso
+      - OLLAMA_NUM_PARALLEL=1
+      - OLLAMA_MAX_LOADED_MODELS=1
+      # Descarrega modelo após 5min de inatividade
+      - OLLAMA_KEEP_ALIVE=5m
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:11434/ || exit 1"]
-      interval: 30s
+      test: ["CMD-SHELL", "curl -sf http://localhost:11434/ || exit 1"]
+      interval: 60s
       timeout: 15s
       retries: 3
-      start_period: 10s
+      start_period: 30s
+    mem_limit: 3g
+    cpus: "1.0"
+    deploy:
+      resources:
+        reservations:
+          cpus: "0.50"
+    networks:
+      - assetflow
+
+networks:
+  assetflow:
+    driver: bridge
 
 volumes:
   sqlite_data:
   ollama_data:
+  caddy_data:
+  caddy_config:
