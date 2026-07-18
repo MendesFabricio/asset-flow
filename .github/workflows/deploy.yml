@@ -31,8 +31,8 @@ jobs:
             echo "❌ Secret VM_USER não configurado no repositório."
             missing=1
           fi
-          if [ -z "${{ secrets.VM_SSH_KEY }}" ]; then
-            echo "❌ Secret VM_SSH_KEY não configurado no repositório."
+          if [ -z "${{ secrets.SSH_PRIVATE_KEY }}" ]; then
+            echo "❌ Secret SSH_PRIVATE_KEY não configurado no repositório."
             missing=1
           fi
           if [ "$missing" -eq 1 ]; then
@@ -42,7 +42,7 @@ jobs:
             echo ""
             echo "   VM_HOST    → IP público da VPS (ex: 163.176.221.126)"
             echo "   VM_USER    → usuário SSH (ex: ubuntu)"
-            echo "   VM_SSH_KEY → chave privada SSH (conteúdo do arquivo ~/.ssh/id_rsa)"
+            echo "   SSH_PRIVATE_KEY → chave privada SSH (conteúdo do arquivo ~/.ssh/id_rsa)"
             exit 1
           fi
           echo "✅ Todos os secrets estão configurados."
@@ -52,7 +52,7 @@ jobs:
         with:
           host: ${{ secrets.VM_HOST }}
           username: ${{ secrets.VM_USER }}
-          key: ${{ secrets.VM_SSH_KEY }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
           timeout: 300s
           script: |
