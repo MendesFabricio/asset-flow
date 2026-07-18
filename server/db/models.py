@@ -650,10 +650,25 @@ def init_db():
         except Exception as e:
             logging.error(f"❌ Falha ao copiar banco de dados inicial: {e}")
 
-    # Nota: As migrações do Alembic agora são executadas na inicialização do container backend (docker-compose)
-    # para evitar concorrência e deadlocks no SQLite entre os múltiplos workers do Gunicorn e o Worker.
-    pass
-    
+    # Auto-aplica migrações Alembic pendentes em todos os ambientes
+    # (local, Docker dev, produção). No Docker, o comando já rodou no startup;
+    # aqui garantimos que dev local também aplique automaticamente.
+    try:
+        from alembic.config import Config
+        from alembic import command
+
+        alembic_ini = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), '..', 'alembic.ini')
+        )
+        if os.path.exists(alembic_ini):
+            alembic_cfg = Config(alembic_ini)
+            command.upgrade(alembic_cfg, "head")
+            logging.info("✅ Migrações Alembic aplicadas com sucesso.")
+        else:
+            logging.warning(f"⚠️ alembic.ini não encontrado em {alembic_ini}. Migrações não aplicadas.")
+    except Exception as mig_err:
+        logging.error(f"❌ Erro ao aplicar migrações Alembic: {mig_err}", exc_info=True)
+
     # Sementes padrão para a tabela de categorias se estiver vazia
     db_session = _local_session_factory()
     try:
