@@ -1,0 +1,15 @@
+assetflowpro.duckdns.org {
+    # Proxy direto para Server-Sent Events (SSE) e stream do Jarvis sem bufferização
+    reverse_proxy /api/sync/stream backend:5328 {
+        flush_interval -1
+    }
+
+    reverse_proxy /api/ai/chat backend:5328 {
+        flush_interval -1
+    }
+
+    # Proxy para todo o restante do Frontend Next.js
+    reverse_proxy * frontend:3000 {
+        flush_interval -1
+    }
+}

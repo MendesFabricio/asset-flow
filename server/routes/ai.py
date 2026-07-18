@@ -178,36 +178,43 @@ def chat():
             yield "💡 *Jarvis: Analisando sua pergunta...*\n\n"
             stream_session = Session()
             try:
-                # Loop de execução do agente (máximo 5 iterações para evitar loops infinitos)
-                for i in range(5):
+                # Loop de execução do agente (máximo 2 iterações: 1ª com tool-calling, 2ª final).
+                # Mantido curto porque em CPU (2 vCPU) cada iteração é cara; o caso real
+                # quase sempre termina na 1ª iteração após executar a ferramenta.
+                for i in range(2):
                     payload = {
                         "model": MODEL_NAME,
                         "messages": messages,
                         "tools": tools,
                         "stream": False,
-                        "keep_alive": "5m"
+                        "keep_alive": "10m",
+                        "options": {
+                            "num_ctx": 4096,
+                            "num_predict": 1024,
+                            "temperature": 0.3
+                        }
                     }
-                    
+
                     logging.info(f"🤖 [Jarvis Agent] Enviando requisição para o Ollama (Iteração {i+1})...")
-                    response = requests.post(OLLAMA_CHAT_URL, json=payload, timeout=240)
+                    response = requests.post(OLLAMA_CHAT_URL, json=payload, timeout=300)
                     if response.status_code != 200:
                         raise Exception(f"Ollama respondeu com status {response.status_code}")
-                        
+
                     res_data = response.json()
                     assistant_message = res_data.get("message", {})
                     tool_calls = assistant_message.get("tool_calls", [])
-                    
+
                     if not tool_calls:
                         break
-                        
+
                     messages.append(assistant_message)
-                    
+
                     for tool_call in tool_calls:
                         func_name = tool_call.get("function", {}).get("name")
                         args = tool_call.get("function", {}).get("arguments", {})
-                        
+
                         logging.info(f"🔧 [Jarvis Agent] Executando ferramenta local: '{func_name}' com args: {args}")
-                        
+
                         if func_name == "query_portfolio_metrics":
                             yield "💡 *Ação: Consultando ativos da carteira e recalculando indicadores de risco...*\n\n"
                             result = execute_query_portfolio_metrics(stream_session)
@@ -217,22 +224,27 @@ def chat():
                             result = execute_get_asset_fundamental_data(stream_session, ticker)
                         else:
                             result = {"status": "Erro", "error": f"Ferramenta '{func_name}' não suportada."}
-                            
+
                         messages.append({
                             "role": "tool",
                             "name": func_name,
                             "content": json.dumps(result)
                          })
-                
+
                 # Resposta final por streaming
                 final_payload = {
                     "model": MODEL_NAME,
                     "messages": messages,
                     "stream": True,
-                    "keep_alive": "5m"
+                    "keep_alive": "10m",
+                    "options": {
+                        "num_ctx": 4096,
+                        "num_predict": 1024,
+                        "temperature": 0.3
+                    }
                 }
-                
-                response = requests.post(OLLAMA_CHAT_URL, json=final_payload, stream=True, timeout=240)
+
+                response = requests.post(OLLAMA_CHAT_URL, json=final_payload, stream=True, timeout=300)
                 if response.status_code != 200:
                     yield "Erro na geração final por streaming."
                     return

@@ -1,0 +1,62 @@
+name: Deploy to Oracle VPS
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:  # permite trigger manual pelo GitHub UI
+
+jobs:
+  deploy:
+    name: Deploy to Oracle Always-Free VPS
+    runs-on: ubuntu-latest
+    # Só roda após o CI passar (depende dos jobs do ci.yml)
+    needs: []
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          port: 22
+          timeout: 300s
+          script: |
+            set -e
+            echo "🚀 Iniciando deploy em $(hostname) - $(date)"
+
+            # Garante que o diretório existe
+            if [ ! -d /opt/assetflow ]; then
+              echo "❌ Diretório /opt/assetflow não encontrado. Execute o setup inicial primeiro."
+              exit 1
+            fi
+
+            cd /opt/assetflow
+
+            # Pega as últimas mudanças
+            echo "📥 Pulling latest changes..."
+            git fetch origin main
+            git reset --hard origin/main
+
+            # Injeta o APP_RELEASE para rastreamento de versão
+            export APP_RELEASE=$(git rev-parse --short HEAD)
+            echo "APP_RELEASE=$APP_RELEASE" >> .env.production
+
+            # Rebuild e restart dos containers alterados
+            echo "🐳 Rebuilding and restarting containers..."
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml up -d --build
+
+            # Limpeza para economizar espaço (disco é valioso no free tier)
+            echo "🧹 Cleaning up old images..."
+            docker image prune -f
+
+            # Health check pós-deploy
+            echo "🏥 Checking health..."
+            sleep 15
+            curl -sf http://localhost/api/health && echo "✅ Backend healthy" || echo "⚠️ Backend not healthy yet"
+
+            echo "🎉 Deploy finalizado: $APP_RELEASE"
