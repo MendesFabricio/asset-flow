@@ -45,7 +45,7 @@ services:
       dockerfile: server/Dockerfile
       target: backend
     container_name: assetflow_backend
-    command: sh -c "alembic upgrade head && gunicorn --bind 0.0.0.0:5328 --workers 1 --threads 4 --timeout 120 --graceful-timeout 30 backend:app"
+    command: sh -c "alembic upgrade head && gunicorn --bind 0.0.0.0:5328 -k gthread --workers 2 --threads 8 --timeout 300 --graceful-timeout 30 backend:app"
     restart: always
     expose:
       - "5328"

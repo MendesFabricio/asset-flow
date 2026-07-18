@@ -11,6 +11,7 @@ export function middleware(request: NextRequest) {
     pathname.startsWith('/api/auth') ||
     pathname.startsWith('/api/health') ||
     pathname === '/api/sync/stream' ||
+    pathname === '/api/ai/chat' ||
     pathname.startsWith('/_next') ||
     pathname === '/favicon.ico'
   ) {
