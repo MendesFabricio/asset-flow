@@ -55,6 +55,8 @@ services:
     env_file:
       - path: .env.production
         required: false
+      - path: .env.production.local
+        required: false
     environment:
       <<: *shared-env
       FLASK_DEBUG: "0"
@@ -89,6 +91,8 @@ services:
       - ./backups:/app/backups
     env_file:
       - path: .env.production
+        required: false
+      - path: .env.production.local
         required: false
     environment:
       <<: *shared-env

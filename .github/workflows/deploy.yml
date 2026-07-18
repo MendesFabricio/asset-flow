@@ -75,10 +75,15 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
 
-            # Marca a versão no .env.production (sem duplicar a linha)
+            # Auto-generate secret key if not exists in local env
+            if [ ! -f .env.production.local ] || ! grep -q "SECRET_KEY=" .env.production.local; then
+              echo "SECRET_KEY=$(openssl rand -hex 32)" >> .env.production.local
+            fi
+
+            # Marca a versão no .env.production.local
             export APP_RELEASE=$(git rev-parse --short HEAD)
-            sed -i '/^APP_RELEASE=/d' .env.production
-            echo "APP_RELEASE=$APP_RELEASE" >> .env.production
+            sed -i '/^APP_RELEASE=/d' .env.production.local 2>/dev/null || true
+            echo "APP_RELEASE=$APP_RELEASE" >> .env.production.local
 
             echo "🐳 Rebuilding and restarting containers..."
             docker compose -f docker-compose.prod.yml pull

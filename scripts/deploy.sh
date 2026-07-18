@@ -31,6 +31,15 @@ echo "📥 Pulling latest changes (branch main)..."
 git fetch origin main
 git reset --hard origin/main
 
+# Auto-generate secret key se não existir
+if [ ! -f .env.production.local ] || ! grep -q "SECRET_KEY=" .env.production.local; then
+  echo "SECRET_KEY=$(openssl rand -hex 32)" >> .env.production.local
+fi
+
+# Marca a versão local (sem sujar o .env.production)
+sed -i '/^APP_RELEASE=/d' .env.production.local 2>/dev/null || true
+echo "APP_RELEASE=$APP_RELEASE" >> .env.production.local
+
 echo "🐳 Building and restarting containers..."
 docker compose -f "$COMPOSE_FILE" pull
 docker compose -f "$COMPOSE_FILE" up -d --build
