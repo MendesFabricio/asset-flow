@@ -45,20 +45,16 @@ services:
       dockerfile: server/Dockerfile
       target: backend
     container_name: assetflow_backend
-    command: >
-      sh -c "alembic upgrade head &&
-             gunicorn --bind 0.0.0.0:5328
-                      --workers 1
-                      --threads 4
-                      --timeout 120
-                      --graceful-timeout 30
-                      backend:app"
+    command: sh -c "alembic upgrade head && gunicorn --bind 0.0.0.0:5328 --workers 1 --threads 4 --timeout 120 --graceful-timeout 30 backend:app"
     restart: always
     expose:
       - "5328"
     volumes:
       - sqlite_data:/app/data
       - ./backups:/app/backups
+    env_file:
+      - path: .env.production
+        required: false
     environment:
       <<: *shared-env
       FLASK_DEBUG: "0"
@@ -91,6 +87,9 @@ services:
     volumes:
       - sqlite_data:/app/data
       - ./backups:/app/backups
+    env_file:
+      - path: .env.production
+        required: false
     environment:
       <<: *shared-env
       PYTHONPATH: /app
