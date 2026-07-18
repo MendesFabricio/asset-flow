@@ -21,24 +21,29 @@ jobs:
 
       # Valida se os secrets obrigatórios estão configurados antes de tentar SSH
       - name: Verify required secrets
+        env:
+          SECRET_HOST: ${{ secrets.VM_HOST }}
+          SECRET_USER: ${{ secrets.VM_USER }}
+          SECRET_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          REPO: ${{ github.repository }}
         run: |
           missing=0
-          if [ -z "${{ secrets.VM_HOST }}" ]; then
+          if [ -z "$SECRET_HOST" ]; then
             echo "❌ Secret VM_HOST não configurado no repositório."
             missing=1
           fi
-          if [ -z "${{ secrets.VM_USER }}" ]; then
+          if [ -z "$SECRET_USER" ]; then
             echo "❌ Secret VM_USER não configurado no repositório."
             missing=1
           fi
-          if [ -z "${{ secrets.SSH_PRIVATE_KEY }}" ]; then
+          if [ -z "$SECRET_KEY" ]; then
             echo "❌ Secret SSH_PRIVATE_KEY não configurado no repositório."
             missing=1
           fi
           if [ "$missing" -eq 1 ]; then
             echo ""
             echo "📋 Para configurar, acesse:"
-            echo "   https://github.com/${{ github.repository }}/settings/secrets/actions"
+            echo "   https://github.com/$REPO/settings/secrets/actions"
             echo ""
             echo "   VM_HOST    → IP público da VPS (ex: 163.176.221.126)"
             echo "   VM_USER    → usuário SSH (ex: ubuntu)"
