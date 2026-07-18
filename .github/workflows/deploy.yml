@@ -1,20 +1,51 @@
 name: Deploy to Oracle VPS
 
+# Roda APENAS em push direto para main (não em feature branches)
 on:
   push:
     branches: ["main"]
   workflow_dispatch:  # permite trigger manual pelo GitHub UI
 
 jobs:
+  # ------------------------------------------------------------------
+  # O CI (ci.yml) roda separado. Este job verifica os secrets e
+  # só conecta na VM se tudo estiver configurado.
+  # ------------------------------------------------------------------
   deploy:
     name: Deploy to Oracle Always-Free VPS
     runs-on: ubuntu-latest
-    # Só roda após o CI passar (depende dos jobs do ci.yml)
-    needs: []
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      # Valida se os secrets obrigatórios estão configurados antes de tentar SSH
+      - name: Verify required secrets
+        run: |
+          missing=0
+          if [ -z "${{ secrets.VM_HOST }}" ]; then
+            echo "❌ Secret VM_HOST não configurado no repositório."
+            missing=1
+          fi
+          if [ -z "${{ secrets.VM_USER }}" ]; then
+            echo "❌ Secret VM_USER não configurado no repositório."
+            missing=1
+          fi
+          if [ -z "${{ secrets.VM_SSH_KEY }}" ]; then
+            echo "❌ Secret VM_SSH_KEY não configurado no repositório."
+            missing=1
+          fi
+          if [ "$missing" -eq 1 ]; then
+            echo ""
+            echo "📋 Para configurar, acesse:"
+            echo "   https://github.com/${{ github.repository }}/settings/secrets/actions"
+            echo ""
+            echo "   VM_HOST    → IP público da VPS (ex: 163.176.221.126)"
+            echo "   VM_USER    → usuário SSH (ex: ubuntu)"
+            echo "   VM_SSH_KEY → chave privada SSH (conteúdo do arquivo ~/.ssh/id_rsa)"
+            exit 1
+          fi
+          echo "✅ Todos os secrets estão configurados."
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
@@ -28,7 +59,6 @@ jobs:
             set -e
             echo "🚀 Iniciando deploy em $(hostname) - $(date)"
 
-            # Garante que o diretório existe
             if [ ! -d /opt/assetflow ]; then
               echo "❌ Diretório /opt/assetflow não encontrado. Execute o setup inicial primeiro."
               exit 1
@@ -36,27 +66,26 @@ jobs:
 
             cd /opt/assetflow
 
-            # Pega as últimas mudanças
-            echo "📥 Pulling latest changes..."
+            echo "📥 Pulling latest changes (main)..."
             git fetch origin main
             git reset --hard origin/main
 
-            # Injeta o APP_RELEASE para rastreamento de versão
+            # Marca a versão no .env.production (sem duplicar a linha)
             export APP_RELEASE=$(git rev-parse --short HEAD)
+            sed -i '/^APP_RELEASE=/d' .env.production
             echo "APP_RELEASE=$APP_RELEASE" >> .env.production
 
-            # Rebuild e restart dos containers alterados
             echo "🐳 Rebuilding and restarting containers..."
             docker compose -f docker-compose.prod.yml pull
             docker compose -f docker-compose.prod.yml up -d --build
 
-            # Limpeza para economizar espaço (disco é valioso no free tier)
             echo "🧹 Cleaning up old images..."
             docker image prune -f
 
-            # Health check pós-deploy
-            echo "🏥 Checking health..."
-            sleep 15
-            curl -sf http://localhost/api/health && echo "✅ Backend healthy" || echo "⚠️ Backend not healthy yet"
+            echo "⏳ Waiting 20s for services to stabilize..."
+            sleep 20
 
-            echo "🎉 Deploy finalizado: $APP_RELEASE"
+            echo "🏥 Health check..."
+            curl -sf http://localhost/api/health && echo "✅ Backend healthy" || echo "⚠️ Backend still starting, check logs."
+
+            echo "🎉 Deploy finalizado! Release: $APP_RELEASE"
