@@ -1,67 +1,70 @@
 """
-infrastructure/ollama_service.py
-Integração assíncrona com micro-LLM Ollama (Llama 3.2:3b)
+infrastructure/gemini_service.py
+Integração assíncrona com API do Google Gemini
 para análise de sentimento consciente da carteira (portfolio-aware) e saída estruturada.
 """
 import logging
 import threading
 import json
+import os
 from datetime import datetime
-import requests
 from sqlalchemy.orm import sessionmaker
+import google.generativeai as genai
+from google.generativeai.types import content_types
+
 from db.models import engine, Asset
 
 SessionLocal = sessionmaker(bind=engine)
 
-import os
+# Configurar a API Key
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+else:
+    logging.warning("⚠️ GEMINI_API_KEY não encontrada no ambiente!")
 
-OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434").rstrip("/")
-OLLAMA_URL = f"{OLLAMA_BASE_URL}/api/generate"
-OLLAMA_CHAT_URL = f"{OLLAMA_BASE_URL}/api/chat"
-MODEL_NAME = os.getenv("OLLAMA_MODEL", "llama3.2:3b")  # Modelo leve para hardware restrito
+# Usaremos o modelo rápido por padrão
+MODEL_NAME = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
-def get_ollama_tools() -> list:
+def get_gemini_tools() -> list:
     """
-    Retorna as definições das ferramentas compatíveis com a API de ferramentas do Ollama (JSON Schema oficial).
+    Retorna as definições das ferramentas compatíveis com o SDK do Google Generative AI.
     """
     return [
         {
-            "type": "function",
-            "function": {
-                "name": "query_portfolio_metrics",
-                "description": "Devolve as métricas de alocação de carteira, saldo total, devedores/recebíveis, posições ativas, além de todas as métricas quantitativas de risco calculadas pelo sistema (VaR, Sharpe, Beta, Max Drawdown).",
-                "parameters": {
-                    "type": "object",
-                    "properties": {},
-                    "required": []
+            "function_declarations": [
+                {
+                    "name": "query_portfolio_metrics",
+                    "description": "Devolve as métricas de alocação de carteira, saldo total, devedores/recebíveis, posições ativas, além de todas as métricas quantitativas de risco calculadas pelo sistema (VaR, Sharpe, Beta, Max Drawdown).",
+                    "parameters": {
+                        "type": "OBJECT",
+                        "properties": {}
+                    }
+                },
+                {
+                    "name": "get_asset_fundamental_data",
+                    "description": "Devolve o bloco de demonstrativos da CVM e múltiplos fundamentalistas exatos indexados ao ticker corporativo fornecido.",
+                    "parameters": {
+                        "type": "OBJECT",
+                        "properties": {
+                            "ticker": {
+                                "type": "STRING",
+                                "description": "O ticker da ação ou FII a ser consultado (ex: WEGE3, PETR4, MXRF11)."
+                            }
+                        },
+                        "required": ["ticker"]
+                    }
                 }
-            }
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "get_asset_fundamental_data",
-                "description": "Devolve o bloco de demonstrativos da CVM e múltiplos fundamentalistas exatos indexados ao ticker corporativo fornecido.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "ticker": {
-                            "type": "string",
-                            "description": "O ticker da ação ou FII a ser consultado (ex: WEGE3, PETR4, MXRF11)."
-                        }
-                    },
-                    "required": ["ticker"]
-                }
-            }
+            ]
         }
     ]
 
 def _run_sentiment_analysis(asset_id: int, ticker: str, news_titles: list, position_info: dict):
     """
-    Worker que roda na thread de background para consultar o Ollama local
+    Worker que roda na thread de background para consultar o Gemini
     e salvar o resultado no banco.
     """
-    logging.info(f"🤖 [IA] Iniciando análise de sentimento consciente da carteira para: {ticker}")
+    logging.info(f"🤖 [IA] Iniciando análise de sentimento consciente da carteira para: {ticker} via Gemini")
     session = SessionLocal()
     try:
         asset = session.query(Asset).filter_by(id=asset_id).first()
@@ -82,7 +85,7 @@ def _run_sentiment_analysis(asset_id: int, ticker: str, news_titles: list, posit
             session.commit()
             return
 
-        # 2. Constrói o Prompt Consciente de Portfolio (Portfolio-Aware)
+        # 2. Constrói o Prompt Consciente de Portfolio
         qty = position_info.get("quantity", 0.0)
         avg_price = position_info.get("average_price", 0.0)
         target_pct = position_info.get("target_percent", 0.0)
@@ -126,31 +129,26 @@ def _run_sentiment_analysis(asset_id: int, ticker: str, news_titles: list, posit
             f"   - 'sentiment': Classificação de sentimento do ativo {ticker} (exclusivamente entre: 'Positivo', 'Negativo', 'Neutro').\n"
         )
 
-        payload = {
-            "model": MODEL_NAME,
-            "prompt": prompt,
-            "format": "json",
-            "stream": False,
-            "keep_alive": "5m"
-        }
+        model = genai.GenerativeModel(MODEL_NAME)
         
-        # Timeout preventivo estendido para 180 segundos para acomodar inferências lentas em CPU
-        response = requests.post(OLLAMA_URL, json=payload, timeout=180)
-        
-        if response.status_code != 200:
-            raise Exception(f"Ollama respondeu com status {response.status_code}")
+        # 3. Faz a requisição forçando saída JSON
+        response = model.generate_content(
+            prompt,
+            generation_config=genai.GenerationConfig(
+                response_mime_type="application/json",
+                temperature=0.2
+            )
+        )
 
-        res_data = response.json()
-        response_text = res_data.get("response", "").strip()
+        response_text = response.text.strip()
 
-        # Parse direto do JSON forçado nativamente pelo Ollama
+        # Parse do JSON
         try:
             parsed = json.loads(response_text)
             rationale_raw = parsed.get("rationale", "")
             summary_raw = parsed.get("summary", "")
             sentiment_val = parsed.get("sentiment", "Neutro")
 
-            # Trata respostas do LLM caso retornem em formato de listas/vetores JSON
             if isinstance(rationale_raw, list):
                 rationale_val = "\n".join(f"- {str(item).strip()}" for item in rationale_raw if item)
             else:
@@ -161,13 +159,12 @@ def _run_sentiment_analysis(asset_id: int, ticker: str, news_titles: list, posit
             else:
                 summary_val = str(summary_raw).strip()
             
-            # Formata a resposta concatenando rationale e o resumo de forma limpa para exibição
             summary = f"**Análise de Risco (CoT):**\n{rationale_val}\n\n**Resumo Executivo:**\n{summary_val}"
             sentiment = str(sentiment_val).strip().title()
             if sentiment not in ["Positivo", "Negativo", "Neutro"]:
                 sentiment = "Neutro"
         except Exception as parse_err:
-            logging.warning(f"⚠️ [IA] Falha ao processar resposta JSON estruturada para {ticker}: {parse_err}")
+            logging.warning(f"⚠️ [IA] Falha ao processar resposta JSON estruturada do Gemini para {ticker}: {parse_err}")
             summary = response_text
             sentiment = "Neutro"
 
@@ -177,11 +174,11 @@ def _run_sentiment_analysis(asset_id: int, ticker: str, news_titles: list, posit
         asset.ai_status = "success"
         asset.ai_updated_at = datetime.now()
         session.commit()
-        logging.info(f"✅ [IA] Sentimento de {ticker} atualizado com sucesso!")
+        logging.info(f"✅ [IA] Sentimento de {ticker} atualizado com sucesso via Gemini!")
 
     except Exception as e:
         session.rollback()
-        logging.error(f"❌ [IA] Falha na integração com Ollama para {ticker}: {e}")
+        logging.error(f"❌ [IA] Falha na integração com Gemini para {ticker}: {e}")
         try:
             asset = session.query(Asset).filter_by(id=asset_id).first()
             if asset:

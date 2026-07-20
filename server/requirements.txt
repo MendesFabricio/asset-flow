@@ -18,3 +18,4 @@ reportlab==5.0.0
 sentry-sdk[flask]
 curl-cffi
 beautifulsoup4
+google-generativeai
