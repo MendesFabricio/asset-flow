@@ -25,6 +25,7 @@ jobs:
           SECRET_HOST: ${{ secrets.VM_HOST }}
           SECRET_USER: ${{ secrets.VM_USER }}
           SECRET_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           REPO: ${{ github.repository }}
         run: |
           missing=0
@@ -40,6 +41,10 @@ jobs:
             echo "❌ Secret SSH_PRIVATE_KEY não configurado no repositório."
             missing=1
           fi
+          if [ -z "$GEMINI_API_KEY" ]; then
+            echo "❌ Secret GEMINI_API_KEY não configurado no repositório."
+            missing=1
+          fi
           if [ "$missing" -eq 1 ]; then
             echo ""
             echo "📋 Para configurar, acesse:"
@@ -48,6 +53,7 @@ jobs:
             echo "   VM_HOST    → IP público da VPS (ex: 163.176.221.126)"
             echo "   VM_USER    → usuário SSH (ex: ubuntu)"
             echo "   SSH_PRIVATE_KEY → chave privada SSH (conteúdo do arquivo ~/.ssh/id_rsa)"
+            echo "   GEMINI_API_KEY → chave de API do Google Gemini AI"
             exit 1
           fi
           echo "✅ Todos os secrets estão configurados."
@@ -60,6 +66,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
           timeout: 300s
+          envs: GEMINI_API_KEY
           script: |
             set -e
             echo "🚀 Iniciando deploy em $(hostname) - $(date)"
@@ -83,7 +90,10 @@ jobs:
             # Marca a versão no .env.production.local
             export APP_RELEASE=$(git rev-parse --short HEAD)
             sed -i '/^APP_RELEASE=/d' .env.production.local 2>/dev/null || true
+            sed -i '/^GEMINI_API_KEY=/d' .env.production.local 2>/dev/null || true
+            
             echo "APP_RELEASE=$APP_RELEASE" >> .env.production.local
+            echo "GEMINI_API_KEY=\"$GEMINI_API_KEY\"" >> .env.production.local
 
             echo "🐳 Rebuilding and restarting containers..."
             docker compose -f docker-compose.prod.yml pull
