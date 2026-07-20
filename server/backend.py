@@ -145,6 +145,13 @@ def require_authentication():
     if not user_data:
         return jsonify({"status": "Erro", "msg": "Sessão inválida ou expirada. Efetue login novamente."}), 401
         
+    from db.session import Session
+    from db.models import User
+    with Session() as session:
+        user_exists = session.query(User).filter_by(id=user_data["user_id"]).first()
+        if not user_exists:
+            return jsonify({"status": "Erro", "msg": "Sessão expirada ou usuário não existe mais no sistema. Por favor, faça login novamente."}), 401
+            
     g.user_id = user_data["user_id"]
     g.username = user_data["username"]
 
