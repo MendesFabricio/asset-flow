@@ -1,6 +1,5 @@
 x-shared-env: &shared-env
-  OLLAMA_MODEL:
-  OLLAMA_BASE_URL:
+  GEMINI_API_KEY: ${GEMINI_API_KEY}
   SECRET_KEY:
   SENTRY_DSN: http://ac68cc0ad8f54496961aec4e3d48d227@glitchtip:8000/1
   ENVIRONMENT: development
@@ -74,30 +73,8 @@ services:
       - SENTRY_DSN=http://ac68cc0ad8f54496961aec4e3d48d227@glitchtip:8000/1
       - ENVIRONMENT=development
 
-  # --- OLLAMA (Opcional no Dev, mantido por consistencia) ---
-  ollama:
-    image: ollama/ollama:latest
-    container_name: assetflow_ollama_dev
-    restart: unless-stopped
-    volumes:
-      - ollama_data:/root/.ollama
-    ports:
-      - "11434:11434"
-    environment:
-      - OLLAMA_NUM_PARALLEL=2
 
-  # --- NGROK (Expose frontend) ---
-  ngrok:
-    image: ngrok/ngrok:latest
-    container_name: assetflow_ngrok_dev
-    restart: unless-stopped
-    command: [ "http", "frontend:3000", "--url=" ]
-    environment:
-      - NGROK_AUTHTOKEN=
-    depends_on:
-      - frontend
 
 volumes:
   sqlite_data:
-  ollama_data:
   node_modules:

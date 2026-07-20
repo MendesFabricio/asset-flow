@@ -6,8 +6,9 @@ from db.session import Session, engine
 from db.models import Asset, Position, LoanInstallment, AIChatHistory, safe_commit
 from utils.db_utils import with_safe_commit
 from sqlalchemy.orm import joinedload
-from infrastructure.ollama_service import OLLAMA_CHAT_URL, MODEL_NAME, get_ollama_tools
+from infrastructure.gemini_service import MODEL_NAME, get_gemini_tools
 from domain.quant.risk import calculate_risk_metrics
+import google.generativeai as genai
 from infrastructure.price_cache import fetch_price_history as _fetch_price_history_fn
 
 ai_bp = Blueprint('ai', __name__)
@@ -162,7 +163,7 @@ def chat():
         
         Session.remove()  # Libera para a thread de streaming
         
-        tools = get_ollama_tools()
+        tools = get_gemini_tools()
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT}
         ]
@@ -178,42 +179,35 @@ def chat():
             yield "💡 *Jarvis: Analisando sua pergunta...*\n\n"
             stream_session = Session()
             try:
-                # Loop de execução do agente (máximo 2 iterações: 1ª com tool-calling, 2ª final).
-                # Mantido curto porque em CPU (2 vCPU) cada iteração é cara; o caso real
-                # quase sempre termina na 1ª iteração após executar a ferramenta.
-                for i in range(2):
-                    payload = {
-                        "model": MODEL_NAME,
-                        "messages": messages,
-                        "tools": tools,
-                        "stream": False,
-                        "keep_alive": "10m",
-                        "options": {
-                            "num_ctx": 4096,
-                            "num_predict": 1024,
-                            "temperature": 0.3
-                        }
-                    }
-
-                    logging.info(f"🤖 [Jarvis Agent] Enviando requisição para o Ollama (Iteração {i+1})...")
-                    response = requests.post(OLLAMA_CHAT_URL, json=payload, timeout=300)
-                    if response.status_code != 200:
-                        raise Exception(f"Ollama respondeu com status {response.status_code}")
-
-                    res_data = response.json()
-                    assistant_message = res_data.get("message", {})
-                    tool_calls = assistant_message.get("tool_calls", [])
-
-                    if not tool_calls:
-                        break
-
-                    messages.append(assistant_message)
-
-                    for tool_call in tool_calls:
-                        func_name = tool_call.get("function", {}).get("name")
-                        args = tool_call.get("function", {}).get("arguments", {})
-
-                        logging.info(f"🔧 [Jarvis Agent] Executando ferramenta local: '{func_name}' com args: {args}")
+                model = genai.GenerativeModel(
+                    model_name=MODEL_NAME,
+                    system_instruction=SYSTEM_PROMPT,
+                    tools=get_gemini_tools()
+                )
+                
+                # Converte o histórico para o formato do Gemini
+                contents = []
+                for msg in db_history[:-1]:
+                    role = "model" if msg.role == "assistant" else "user"
+                    contents.append({"role": role, "parts": [msg.content]})
+                
+                contents.append({"role": "user", "parts": [message]})
+                
+                logging.info("🤖 [Jarvis Agent] Enviando requisição para o Gemini...")
+                
+                # 1ª Iteração para ver se a IA quer usar alguma ferramenta
+                response = model.generate_content(contents)
+                
+                # Checa se houve function call
+                has_function_call = False
+                for part in response.parts:
+                    if part.function_call:
+                        has_function_call = True
+                        fc = part.function_call
+                        func_name = fc.name
+                        args = {k: v for k, v in fc.args.items()}
+                        
+                        logging.info(f"🔧 [Jarvis Agent] Executando ferramenta: '{func_name}'")
 
                         if func_name == "query_portfolio_metrics":
                             yield "💡 *Ação: Consultando ativos da carteira e recalculando indicadores de risco...*\n\n"
@@ -224,39 +218,34 @@ def chat():
                             result = execute_get_asset_fundamental_data(stream_session, ticker)
                         else:
                             result = {"status": "Erro", "error": f"Ferramenta '{func_name}' não suportada."}
-
-                        messages.append({
-                            "role": "tool",
-                            "name": func_name,
-                            "content": json.dumps(result)
-                         })
-
-                # Resposta final por streaming
-                final_payload = {
-                    "model": MODEL_NAME,
-                    "messages": messages,
-                    "stream": True,
-                    "keep_alive": "10m",
-                    "options": {
-                        "num_ctx": 4096,
-                        "num_predict": 1024,
-                        "temperature": 0.3
-                    }
-                }
-
-                response = requests.post(OLLAMA_CHAT_URL, json=final_payload, stream=True, timeout=300)
-                if response.status_code != 200:
-                    yield "Erro na geração final por streaming."
-                    return
+                        
+                        # Adiciona a resposta do modelo (que contém o function_call)
+                        contents.append(response.candidates[0].content)
+                        
+                        # Adiciona o resultado da função
+                        contents.append({
+                            "role": "user",
+                            "parts": [
+                                genai.types.Part.from_function_response(
+                                    name=func_name,
+                                    response=result
+                                )
+                            ]
+                        })
+                        
+                # 2ª Iteração: Gerar a resposta final por streaming (se houve function call, o contents já foi atualizado)
+                # Se não houve, podemos apenas iterar na string final, mas para garantir streaming real:
+                if has_function_call:
+                    final_response = model.generate_content(contents, stream=True)
+                else:
+                    # Se não houve function call, refaz a requisição com streaming para dar a sensação visual
+                    final_response = model.generate_content(contents, stream=True)
                     
                 full_response = ""
-                for line in response.iter_lines():
-                    if line:
-                        chunk = json.loads(line.decode('utf-8'))
-                        content = chunk.get("message", {}).get("content", "")
-                        if content:
-                            full_response += content
-                            yield content
+                for chunk in final_response:
+                    if chunk.text:
+                        full_response += chunk.text
+                        yield chunk.text
                             
                 # 3. Salva a resposta do assistente no banco
                 if full_response.strip():
@@ -266,7 +255,7 @@ def chat():
                     
             except Exception as stream_err:
                 logging.error(f"Erro no stream do agente: {stream_err}")
-                yield f"\n[Erro de conexão com o Ollama: {stream_err}]"
+                yield f"\n[Erro de conexão com a IA: {stream_err}]"
             finally:
                 Session.remove()
 
@@ -342,20 +331,15 @@ def explain_score(ticker):
             f"- Preço Atual: R$ {price:.2f}\n"
         )
         
-        payload = {
-            "model": MODEL_NAME,
-            "messages": [
-                {"role": "system", "content": "Você é o assistente virtual Jarvis do AssetFlow. Diga apenas a explicação em português."},
-                {"role": "user", "content": prompt}
-            ],
-            "stream": False,
-            "keep_alive": "5m"
-        }
-        
-        response = requests.post(OLLAMA_CHAT_URL, json=payload, timeout=120)
-        if response.status_code == 200:
-            explanation = response.json().get("message", {}).get("content", "").strip()
-        else:
+        try:
+            model = genai.GenerativeModel(
+                model_name=MODEL_NAME,
+                system_instruction="Você é o assistente virtual Jarvis do AssetFlow. Diga apenas a explicação em português."
+            )
+            response = model.generate_content(prompt)
+            explanation = response.text.strip()
+        except Exception as api_err:
+            logging.error(f"Erro no Gemini: {api_err}")
             explanation = f"O score do ativo {ticker} é {score} ({recomendacao}) devido aos seguintes fatores: {motivo}."
             
         return jsonify({

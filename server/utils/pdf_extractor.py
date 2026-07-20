@@ -108,27 +108,24 @@ def extract_kpis_from_pdf(pdf_path_or_url: str, is_fii: bool = True) -> dict:
             f"Retorne APENAS o JSON válido sem explicações, introduções ou Markdown."
         )
         
-        # Faz requisição local ao Ollama
-        from infrastructure.ollama_service import OLLAMA_CHAT_URL, MODEL_NAME
-        payload = {
-            "model": MODEL_NAME,
-            "messages": [
-                {"role": "system", "content": "Você é um parser JSON estrito de relatórios financeiros de RI. Não responda com texto livre, apenas com o JSON bruto."},
-                {"role": "user", "content": prompt}
-            ],
-            "stream": False,
-            "keep_alive": "5m"
-        }
+        # Faz requisição local ao Gemini
+        from infrastructure.gemini_service import MODEL_NAME
+        import google.generativeai as genai
         
-        response = requests.post(OLLAMA_CHAT_URL, json=payload, timeout=90)
-        if response.status_code == 200:
-            content = response.json().get("message", {}).get("content", "").strip()
-            # Tenta limpar marcações de código markdown se o modelo alucinar
-            content_clean = content.replace("```json", "").replace("```", "").strip()
-            parsed = json.loads(content_clean)
+        try:
+            model = genai.GenerativeModel(
+                model_name=MODEL_NAME,
+                system_instruction="Você é um parser JSON estrito de relatórios financeiros de RI. Não responda com texto livre, apenas com o JSON bruto.",
+                generation_config=genai.GenerationConfig(
+                    response_mime_type="application/json"
+                )
+            )
+            response = model.generate_content(prompt)
+            content = response.text.strip()
+            parsed = json.loads(content)
             return {"status": "Sucesso", "kpis": parsed}
-        else:
-            raise Exception(f"Ollama respondeu com status {response.status_code}")
+        except Exception as e:
+            raise Exception(f"Gemini falhou: {e}")
             
     except Exception as e:
         logging.error(f"❌ Erro ao extrair KPIs do PDF: {e}", exc_info=True)

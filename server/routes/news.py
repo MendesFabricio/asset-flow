@@ -7,7 +7,7 @@ from urllib.parse import quote
 from datetime import datetime, timedelta
 from db.models import Asset, safe_commit
 from services import Session
-from infrastructure.ollama_service import analyze_asset_sentiment_async
+from infrastructure.gemini_service import analyze_asset_sentiment_async
 from utils.db_utils import with_safe_commit
 
 news_bp = Blueprint('news', __name__)
@@ -168,7 +168,8 @@ def get_daily_sector_summary():
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
             }
             
-            from infrastructure.ollama_service import OLLAMA_CHAT_URL, MODEL_NAME
+            from infrastructure.gemini_service import MODEL_NAME
+            import google.generativeai as genai
             
             for sector, url in sectors.items():
                 titles = []
@@ -185,7 +186,7 @@ def get_daily_sector_summary():
                     summaries[sector] = "Sem notícias relevantes encontradas nas últimas horas."
                     continue
                     
-                # Chama o Ollama para consolidar o sumário
+                # Chama o Gemini para consolidar o sumário
                 prompt = (
                     f"Você é o assistente financeiro Jarvis.\n"
                     f"Consolide os seguintes títulos de notícias recentes sobre o setor '{sector}' em um resumo de 2 ou 3 tópicos curtos e objetivos (máximo 60 palavras no total).\n"
@@ -193,25 +194,16 @@ def get_daily_sector_summary():
                     f"Títulos:\n" + "\n".join([f"- {t}" for t in titles])
                 )
                 
-                payload = {
-                    "model": MODEL_NAME,
-                    "messages": [
-                        {"role": "system", "content": "Você é o analista financeiro Jarvis. Retorne apenas o resumo em português."},
-                        {"role": "user", "content": prompt}
-                    ],
-                    "stream": False,
-                    "keep_alive": "5m"
-                }
-                
                 try:
-                    ai_res = requests.post(OLLAMA_CHAT_URL, json=payload, timeout=60)
-                    if ai_res.status_code == 200:
-                        summaries[sector] = ai_res.json().get("message", {}).get("content", "").strip()
-                    else:
-                        summaries[sector] = "Erro ao consolidar resumo do setor via IA."
+                    model = genai.GenerativeModel(
+                        model_name=MODEL_NAME,
+                        system_instruction="Você é o analista financeiro Jarvis. Retorne apenas o resumo em português."
+                    )
+                    ai_res = model.generate_content(prompt)
+                    summaries[sector] = ai_res.text.strip()
                 except Exception as ai_err:
-                    logging.warning(f"Erro ao gerar resumo de {sector} no Ollama: {ai_err}")
-                    summaries[sector] = "OLLAMA indisponível no momento."
+                    logging.warning(f"Erro ao gerar resumo de {sector} no Gemini: {ai_err}")
+                    summaries[sector] = "IA indisponível no momento."
                     
             # 3. Salva no cache
             result_data = {

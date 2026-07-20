@@ -20,7 +20,7 @@ interface HealthResponse {
   services: {
     database: ServiceStatus;
     yahoo_finance: ServiceStatus;
-    ollama: ServiceStatus;
+    gemini: ServiceStatus;
   };
   metrics?: {
     cpu_percent: number;
@@ -178,9 +178,9 @@ export function SystemStatus() {
               Database
             )}
             {renderServiceRow(
-              'IA Jarvis (Ollama)', 
-              data?.services?.ollama?.status, 
-              data?.services?.ollama?.message || 'Pingando daemon de inteligência artificial...',
+              'IA Jarvis (Gemini)', 
+              data?.services?.gemini?.status, 
+              data?.services?.gemini?.message || 'Validando API Key...',
               Brain
             )}
           </div>

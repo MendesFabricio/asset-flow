@@ -80,29 +80,21 @@ def healthcheck():
         detail_db = f"Falha ao conectar no SQLite: {str(e)}"
         logging.error(f"❌ [HEALTH] Erro SQLite: {e}")
 
-    # 2. Ollama Service (IA local daemon status)
-    status_ollama = "online"
-    detail_ollama = "Serviço de IA ativo e respondendo."
+    # 2. Gemini Service (IA Cloud)
+    status_gemini = "online"
+    detail_gemini = "Serviço de IA ativo e respondendo."
     try:
-        ollama_base_url = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434").rstrip("/")
-        active_model = os.getenv("OLLAMA_MODEL", "llama3.2:3b")
-        res = requests.get(f"{ollama_base_url}/api/tags", timeout=3.0)
-        if res.status_code == 200:
-            models = [m.get("name") for m in res.json().get("models", [])]
-            if active_model in models:
-                detail_ollama = f"Daemon ativo. Modelo em uso: {active_model}"
-            else:
-                detail_ollama = f"Daemon ativo, mas o modelo configurado ({active_model}) não está baixado!"
-                status_ollama = "warning"
+        from infrastructure.gemini_service import MODEL_NAME
+        import os
+        api_key = os.getenv("GEMINI_API_KEY")
+        if not api_key:
+            status_gemini = "offline"
+            detail_gemini = "API Key do Gemini não configurada."
         else:
-            status_ollama = "offline"
-            detail_ollama = f"Daemon ativo, mas retornou status {res.status_code}."
-    except requests.exceptions.Timeout:
-        status_ollama = "offline"
-        detail_ollama = "Timeout de conexão (Ollama travado ou sobrecarregado)"
+            detail_gemini = f"API Key presente. Modelo em uso: {MODEL_NAME}"
     except Exception as e:
-        status_ollama = "offline"
-        detail_ollama = f"Daemon inativo (OOM ou offline): {str(e)}"
+        status_gemini = "offline"
+        detail_gemini = f"Falha ao validar serviço de IA: {str(e)}"
 
     # 3. Yahoo Finance API (Cached 1 min)
     current_time = time.time()
@@ -126,7 +118,7 @@ def healthcheck():
     global_status = "online"
     if status_db == "offline":
         global_status = "offline"
-    elif status_ollama == "offline":
+    elif status_gemini == "offline":
         global_status = "warning"
 
     return jsonify({
@@ -142,9 +134,9 @@ def healthcheck():
                 "status": _yahoo_cache["status"],
                 "message": _yahoo_cache["message"]
             },
-            "ollama": {
-                "status": status_ollama,
-                "message": detail_ollama
+            "gemini": {
+                "status": status_gemini,
+                "message": detail_gemini
             }
         }
     }), 200 if global_status in ["online", "warning"] else 503

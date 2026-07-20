@@ -13,7 +13,8 @@ from flask import Blueprint, jsonify, g, request
 from services import PortfolioService
 from db.models import Session, Asset, Position, SystemCache, safe_commit
 from domain.quant.helpers import get_risk_free_rate
-from infrastructure.ollama_service import OLLAMA_URL, MODEL_NAME
+from infrastructure.gemini_service import MODEL_NAME
+import google.generativeai as genai
 from sqlalchemy.orm import joinedload
 from routes.news import get_daily_sector_summary
 
@@ -147,61 +148,43 @@ def sector_exposure():
 
 
 def _run_morning_brief_bg(user_id: int, context: dict, cache_key: str):
-    """Executa a chamada ao Ollama em thread de background e salva o resultado no cache."""
+    """Executa a chamada ao Gemini em thread de background e salva o resultado no cache."""
     from db.models import Session as DBSession, SystemCache, safe_commit
     try:
         prompt = _build_enhanced_morning_brief_prompt(context)
-        payload = {"model": MODEL_NAME, "prompt": prompt, "format": "json", "stream": False, "keep_alive": "1m"}
         
-        response = None
-        for attempt in range(2):
-            try:
-                response = requests.post(OLLAMA_URL, json=payload, timeout=OLLAMA_TIMEOUT_BRIEF)
-                break
-            except requests.exceptions.Timeout:
-                if attempt == 0:
-                    logging.warning(f"⚠️ [BRIEF] Timeout na tentativa 1/2 para usuário {user_id}. Retrying...")
-                    time.sleep(2)
-                else:
-                    raise
-        
-        brief_data = {
-            "status": "Erro",
-            "selic_rate": context.get("selic_rate", ""),
-            "dolar_rate": context.get("dolar_rate", ""),
-            "rationale": "",
-            "brief_text": "Ollama inativo ou respondendo com falha.",
-            "action": "",
-            "risk_metrics": {}
-        }
-        
-        if response and response.status_code == 200:
-            res_data = response.json()
-            response_text = res_data.get("response", "").strip()
-            try:
-                parsed = json.loads(response_text)
-                brief_data = {
-                    "status": "Sucesso",
-                    "selic_rate": context.get("selic_rate", ""),
-                    "dolar_rate": context.get("dolar_rate", ""),
-                    "rationale": parsed.get("rationale", "") or "",
-                    "brief_text": parsed.get("brief_text", "") or "Morning Brief indisponível.",
-                    "action": parsed.get("action", "") or "",
-                    "risk_metrics": parsed.get("risk_metrics", {}) or {}
-                }
-                if not brief_data["brief_text"]:
-                    brief_data["brief_text"] = "Morning Brief indisponível."
-            except Exception:
-                logging.warning(f"⚠️ [BRIEF] Falha ao parsear JSON estruturado do Ollama. Usando texto puro.")
-                brief_data = {
-                    "status": "Aviso",
-                    "selic_rate": context.get("selic_rate", ""),
-                    "dolar_rate": context.get("dolar_rate", ""),
-                    "rationale": "",
-                    "brief_text": response_text,
-                    "action": "",
-                    "risk_metrics": {}
-                }
+        try:
+            model = genai.GenerativeModel(
+                model_name=MODEL_NAME,
+                generation_config=genai.GenerationConfig(
+                    response_mime_type="application/json"
+                )
+            )
+            response = model.generate_content(prompt)
+            parsed = json.loads(response.text.strip())
+            
+            brief_data = {
+                "status": "Sucesso",
+                "selic_rate": context.get("selic_rate", ""),
+                "dolar_rate": context.get("dolar_rate", ""),
+                "rationale": parsed.get("rationale", "") or "",
+                "brief_text": parsed.get("brief_text", "") or "Morning Brief indisponível.",
+                "action": parsed.get("action", "") or "",
+                "risk_metrics": parsed.get("risk_metrics", {}) or {}
+            }
+            if not brief_data["brief_text"]:
+                brief_data["brief_text"] = "Morning Brief indisponível."
+        except Exception as e:
+            logging.warning(f"⚠️ [BRIEF] Falha ao consultar Gemini. {e}")
+            brief_data = {
+                "status": "Erro",
+                "selic_rate": context.get("selic_rate", ""),
+                "dolar_rate": context.get("dolar_rate", ""),
+                "rationale": "",
+                "brief_text": "IA inativa ou respondendo com falha.",
+                "action": "",
+                "risk_metrics": {}
+            }
 
         with DBSession() as session:
             cache_record = session.query(SystemCache).filter_by(key=cache_key).first()
