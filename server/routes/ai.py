@@ -226,9 +226,11 @@ def chat():
                         contents.append({
                             "role": "user",
                             "parts": [
-                                genai.types.Part.from_function_response(
-                                    name=func_name,
-                                    response=result
+                                genai.protos.Part(
+                                    function_response=genai.protos.FunctionResponse(
+                                        name=func_name,
+                                        response={"result": result}
+                                    )
                                 )
                             ]
                         })
