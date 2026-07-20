@@ -1,0 +1,189 @@
+/* AssetFlow Pro Typography Scale */
+:root {
+  /* Font Families */
+  --font-sans: 'GeistSans', Arial, sans-serif;
+  --font-mono: 'GeistMono', 'Courier New', monospace;
+
+  /* Typography Scale - Mobile First */
+  --text-display: clamp(1.5rem, 4vw, 2.25rem);
+  --text-heading: clamp(1.125rem, 2.5vw, 1.5rem);
+  --text-body: clamp(0.875rem, 1.5vw, 1rem);
+  --text-caption: clamp(0.75rem, 1.2vw, 0.875rem);
+  --text-fine: clamp(0.625rem, 1vw, 0.75rem);
+
+  /* Font Weights */
+  --font-weight-light: 300;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* Line Heights */
+  --leading-tight: 1.2;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.8;
+
+  /* Letter Spacing */
+  --tracking-tight: -0.025em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.025em;
+  --tracking-wider: 0.05em;
+}
+
+/* Semantic Typography Classes */
+.display {
+  font-family: var(--font-sans);
+  font-size: var(--text-display);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
+  color: var(--color-text-primary);
+}
+
+.heading {
+  font-family: var(--font-sans);
+  font-size: var(--text-heading);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-normal);
+  color: var(--color-text-primary);
+}
+
+.body {
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--leading-normal);
+  letter-spacing: var(--tracking-normal);
+  color: var(--color-text-primary);
+}
+
+.caption {
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--leading-normal);
+  letter-spacing: var(--tracking-normal);
+  color: var(--color-text-muted);
+}
+
+.fine {
+  font-family: var(--font-sans);
+  font-size: var(--text-fine);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--leading-normal);
+  letter-spacing: var(--tracking-wide);
+  color: var(--color-text-muted);
+}
+
+/* Component-specific Typography */
+.card-header {
+  @apply heading;
+}
+
+.card-body {
+  @apply body;
+}
+
+.card-caption {
+  @apply caption;
+}
+
+.card-fine {
+  @apply fine;
+}
+
+.list-item {
+  @apply body;
+  font-weight: var(--font-weight-medium);
+}
+
+.badge {
+  @apply caption;
+  font-weight: var(--font-weight-semibold);
+}
+
+.stat-label {
+  @apply caption;
+  font-weight: var(--font-weight-medium);
+  letter-spacing: var(--tracking-wider);
+  text-transform: uppercase;
+}
+
+.value-display {
+  @apply heading;
+  font-weight: var(--font-weight-bold);
+  font-family: var(--font-mono);
+}
+
+.help-text {
+  @apply fine;
+  font-style: italic;
+}
+
+/* Semantic Color System */
+:root {
+  /* Primary Colors */
+  --color-primary: #2563eb;
+  --color-primary-hover: #1d4ed8;
+  --color-primary-foreground: #ffffff;
+
+  /* Secondary Colors */
+  --color-secondary: #374151;
+  --color-secondary-hover: #4b5563;
+  --color-secondary-foreground: #f9fafb;
+
+  /* Surface Colors */
+  --color-surface: var(--surface-card);
+  --color-surface-hover: var(--surface-input);
+  --color-surface-elevated: var(--surface-elevated);
+
+  /* Status Colors */
+  --color-success: #16a34a;
+  --color-success-light: #22c55e;
+  --color-warning: #d97706;
+  --color-warning-light: #fbbf24;
+  --color-error: #dc2626;
+  --color-error-light: #ef4444;
+
+  /* Text Colors */
+  --color-text-primary: #111827;
+  --color-text-secondary: #4b5563;
+  --color-text-muted: #6b7280;
+  --color-text-muted-light: #9ca3af;
+  --color-text-inverse: #f9fafb;
+
+  /* Border Colors */
+  --color-border-subtle: #e5e7eb;
+  --color-border-default: #d1d5db;
+  --color-border-muted: #9ca3af;
+
+  /* Background Colors */
+  --color-background: var(--background);
+  --color-background-elevated: var(--surface-elevated);
+  --color-background-overlay: rgba(0, 0, 0, 0.5);
+}
+
+/* Dark Theme Overrides */
+.dark-theme {
+  --color-primary: #3b82f6;
+  --color-primary-hover: #60a5fa;
+  --color-primary-foreground: #ffffff;
+
+  --color-secondary: #e5e7eb;
+  --color-secondary-hover: #d1d5db;
+  --color-secondary-foreground: #111827;
+
+  --color-surface: var(--surface-card);
+  --color-surface-hover: var(--surface-input);
+  --color-surface-elevated: var(--surface-elevated);
+
+  --color-text-primary: #f9fafb;
+  --color-text-secondary: #e5e7eb;
+  --color-text-muted: #9ca3af;
+  --color-text-muted-light: #6b7280;
+
+  --color-border-subtle: #374151;
+  --color-border-default: #4b5563;
+  --color-border-muted: #6b7280;
+}

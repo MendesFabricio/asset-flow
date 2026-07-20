@@ -145,7 +145,7 @@ const ReportModal = ({ isOpen, onClose, ativo }: ReportModalProps) => {
 
     return createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-[#0f172a] w-full max-w-md rounded-2xl border border-slate-800 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="bg-surface-card w-full max-w-md rounded-2xl border border-slate-800 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
 
                 {/* HEADER */}
                 <div className="flex justify-between items-center p-4 border-b border-slate-800 bg-slate-900/50">

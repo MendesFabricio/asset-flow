@@ -61,13 +61,13 @@ export const Header = memo(({
 
   return (
     <header className="sticky top-0 z-30 w-full bg-slate-950/80 backdrop-blur-md border-b border-slate-900 select-none">
-      <div className="max-w-7xl mx-auto px-4 lg:px-6 py-3 flex justify-between items-center">
+      <div className="max-w-7xl mx-auto px-4 lg:px-6 py-3 flex justify-between items-center h-16">
         
         {/* ESQUERDA: LOGO + THEME TOGGLE + USER INFO + STATUS */}
         <div className="flex items-center gap-2.5 sm:gap-3.5 shrink-0">
           <Logo />
           <ThemeToggle />
-          <div className="hidden sm:block h-6 w-px bg-slate-900" />
+          <div className="hidden sm:block h-6 w-px bg-slate-800" />
           <div className="hidden sm:flex flex-col justify-center leading-none">
             <span className="text-[10px] font-bold text-slate-300 tracking-wide uppercase">
               {username || 'Investidor'}
@@ -78,74 +78,56 @@ export const Header = memo(({
           </div>
         </div>
 
-        {/* CENTRO: MARKET TICKER (Escondido em tablets e mobile) */}
-        <div className="hidden md:flex items-center justify-center flex-1 max-w-xs lg:max-w-sm px-4">
+        {/* CENTRO: Market Ticker (md+) */}
+        <div className="hidden md:flex items-center justify-center flex-1 max-w-xs lg:max-w-md px-4">
           <MarketTicker />
         </div>
 
-        {/* DIREITA: DESKTOP CONTROLS */}
-        <div className="hidden xl:flex items-center gap-3 shrink-0">
-          <ToolsMenu
-            onSyncReports={onSyncReports}
-            onUpdateFundamentals={onUpdateFundamentals}
-            onManualRefresh={onManualRefresh}
-            onOpenIfModal={onOpenIfModal}
-            onOpenSmartModal={onOpenSmartModal}
-            onOpenAddModal={onOpenAddModal}
-            syncStatus={syncStatus}
-            fundamentalsStatus={fundamentalsStatus}
-            loading={loading}
-            isRefetching={isRefetching}
-            showRefreshSuccess={showRefreshSuccess}
-          />
-          <NewAssetButton onClick={onOpenAddModal} />
-          <div className="h-6 w-px bg-slate-900 mx-1" />
-          <Notifications onFixAsset={onFixAsset} />
-          <SystemStatus />
-          <UserMenu />
-          <div className="h-6 w-px bg-slate-900 mx-1" />
-          <PortfolioSummary total={total} ativos={ativos} money={money} />
-        </div>
+        {/* DIREITA: Desktop Controls & Mobile Burger */}
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Controles Desktop/Tablet (md+) */}
+          <div className="hidden md:flex items-center gap-2">
+            <ToolsMenu
+              onSyncReports={onSyncReports}
+              onUpdateFundamentals={onUpdateFundamentals}
+              onManualRefresh={onManualRefresh}
+              onOpenIfModal={onOpenIfModal}
+              onOpenSmartModal={onOpenSmartModal}
+              onOpenAddModal={onOpenAddModal}
+              syncStatus={syncStatus}
+              fundamentalsStatus={fundamentalsStatus}
+              loading={loading}
+              isRefetching={isRefetching}
+              showRefreshSuccess={showRefreshSuccess}
+            />
+            <NewAssetButton onClick={onOpenAddModal} />
+            <Notifications onFixAsset={onFixAsset} />
+            <div className="hidden lg:block">
+               <SystemStatus />
+            </div>
+            <div className="hidden lg:block h-6 w-px bg-slate-800 mx-1" />
+            
+            <UserMenu />
+            
+            <div className="hidden lg:block h-6 w-px bg-slate-800 mx-1" />
+            <div className="hidden lg:block">
+              <PortfolioSummary total={total} ativos={ativos} money={money} />
+            </div>
+          </div>
 
-        {/* CONTROLES COMPACTOS (Para notebooks menores xl) */}
-        <div className="hidden lg:flex xl:hidden items-center gap-3 shrink-0">
-          <ToolsMenu
-            onSyncReports={onSyncReports}
-            onUpdateFundamentals={onUpdateFundamentals}
-            onManualRefresh={onManualRefresh}
-            onOpenIfModal={onOpenIfModal}
-            onOpenSmartModal={onOpenSmartModal}
-            onOpenAddModal={onOpenAddModal}
-            syncStatus={syncStatus}
-            fundamentalsStatus={fundamentalsStatus}
-            loading={loading}
-            isRefetching={isRefetching}
-            showRefreshSuccess={showRefreshSuccess}
-          />
-          <NewAssetButton onClick={onOpenAddModal} />
-          <Notifications onFixAsset={onFixAsset} />
-          <UserMenu />
-          <div className="h-6 w-px bg-slate-900 mx-1" />
-          <PortfolioSummary total={total} ativos={ativos} money={money} />
-        </div>
-
-        {/* CONTROLES TABLET (lg e abaixo) */}
-        <div className="hidden sm:flex lg:hidden items-center gap-2">
-          <NewAssetButton onClick={onOpenAddModal} />
-          <Notifications onFixAsset={onFixAsset} />
-          <UserMenu />
-        </div>
-
-        {/* BURGER MENU MOBILE */}
-        <div className="sm:hidden flex items-center gap-2">
-          <Notifications onFixAsset={onFixAsset} />
-          <button
-            type="button"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-2 text-slate-400 hover:text-white rounded-lg bg-slate-900/60 border border-slate-800"
-          >
-            {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
-          </button>
+          {/* BURGER MENU MOBILE (sm and below) */}
+          <div className="md:hidden flex items-center gap-2">
+            <Notifications onFixAsset={onFixAsset} />
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label={mobileMenuOpen ? 'Fechar menu' : 'Abrir menu'}
+              aria-expanded={mobileMenuOpen}
+              className="p-2 text-slate-400 hover:text-accent focus:outline-none rounded-lg bg-slate-900/60 border border-slate-800"
+            >
+              {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
+            </button>
+          </div>
         </div>
       </div>
 

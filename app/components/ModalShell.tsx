@@ -1,5 +1,5 @@
 'use client';
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
@@ -13,6 +13,7 @@ interface ModalShellProps {
   noPadding?: boolean;
   maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | '5xl';
   zIndex?: number;
+  initialFocusRef?: React.RefObject<HTMLElement>;
 }
 
 const maxWidthMap = {
@@ -26,6 +27,9 @@ const maxWidthMap = {
   '5xl': 'max-w-5xl',
 };
 
+const FOCUSABLE =
+  'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
+
 export function ModalShell({
   onClose,
   title,
@@ -36,23 +40,77 @@ export function ModalShell({
   noPadding = false,
   maxWidth = '2xl',
   zIndex = 50,
+  initialFocusRef,
 }: ModalShellProps) {
   const [mounted, setMounted] = useState(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
+  useEffect(() => {
+    if (!mounted) return;
+
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    const node = dialogRef.current;
+
+    const focusTarget =
+      initialFocusRef?.current ?? node?.querySelector<HTMLElement>(FOCUSABLE) ?? node ?? null;
+    focusTarget?.focus();
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+        return;
+      }
+      if (e.key !== 'Tab' || !node) return;
+
+      const focusable = Array.from(node.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
+        (el) => el.offsetParent !== null
+      );
+      if (focusable.length === 0) {
+        e.preventDefault();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+
+      if (e.shiftKey && active === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown, true);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown, true);
+      previouslyFocused?.focus?.();
+    };
+  }, [mounted, onClose, initialFocusRef]);
+
   const content = (
     <div
-      className={`fixed inset-0 z-[${zIndex}] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200`}
+      className="fixed inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200"
       style={{ zIndex }}
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
       <div
-        className={`relative w-full ${maxWidthMap[maxWidth]} max-h-[90vh] overflow-y-auto bg-[#0d1117] border border-slate-800 rounded-2xl shadow-2xl flex flex-col`}
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        tabIndex={-1}
+        className={`relative w-full ${maxWidthMap[maxWidth]} max-h-[90vh] overflow-y-auto bg-surface-card border border-slate-800 rounded-2xl shadow-2xl flex flex-col outline-none`}
       >
         {/* Header */}
-        <div className="sticky top-0 z-10 bg-[#0d1117]/95 backdrop-blur-md border-b border-slate-800 px-6 py-4 flex items-center justify-between shrink-0">
+        <div className="sticky top-0 z-10 bg-surface-card/95 backdrop-blur-md border-b border-slate-800 px-6 py-4 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             {icon && (
               <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-emerald-400 flex items-center justify-center">
@@ -65,8 +123,10 @@ export function ModalShell({
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+            aria-label="Fechar"
+            className="p-2 rounded-lg hover:bg-surface-input text-slate-400 hover:text-white transition-colors"
           >
             <X size={18} />
           </button>
@@ -79,7 +139,7 @@ export function ModalShell({
 
         {/* Footer */}
         {footer && (
-          <div className="sticky bottom-0 z-10 bg-[#0d1117]/95 backdrop-blur-md border-t border-slate-800 p-6 shrink-0">
+          <div className="sticky bottom-0 z-10 bg-surface-card/95 backdrop-blur-md border-t border-slate-800 p-6 shrink-0">
             {footer}
           </div>
         )}

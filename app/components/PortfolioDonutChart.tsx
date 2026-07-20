@@ -36,7 +36,7 @@ export const PortfolioDonutChart: React.FC<PortfolioDonutChartProps> = ({ ativos
       const data = payload[0].payload;
       const percent = totalValue > 0 ? ((data.value / totalValue) * 100).toFixed(1) : 0;
       return (
-        <div className="bg-slate-900/95 backdrop-blur border border-slate-700 shadow-2xl rounded-xl p-3 ring-1 ring-black/50 z-50">
+        <div className="bg-surface-card backdrop-blur border border-slate-700 shadow-2xl rounded-xl p-3 ring-1 ring-black/5 z-[100]">
           <p className="text-sm font-bold text-slate-200 mb-1 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full" style={{ backgroundColor: payload[0].payload.fill || CATEGORY_COLORS[data.name] }}></span>
             {data.name}
@@ -51,8 +51,8 @@ export const PortfolioDonutChart: React.FC<PortfolioDonutChartProps> = ({ ativos
   };
 
   return (
-    <Card className="flex flex-col h-full min-h-[525px] overflow-hidden !bg-[#0f172a] !border-slate-800 shadow-2xl p-0 relative animate-in fade-in duration-500">
-      <div className="p-4 border-b border-slate-800 bg-slate-900/50 flex items-center justify-between shrink-0">
+    <Card className="flex flex-col h-full min-h-[525px] overflow-hidden !bg-surface-card !border-slate-800 shadow-2xl p-0 relative animate-in fade-in duration-500">
+      <div className="p-4 border-b border-slate-800 bg-transparent flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
           <div className="p-1.5 bg-indigo-500/10 rounded-lg border border-indigo-500/20">
             <Wallet size={16} className="text-indigo-400" />
@@ -93,10 +93,10 @@ export const PortfolioDonutChart: React.FC<PortfolioDonutChartProps> = ({ ativos
                     <Cell key={`cell-${index}`} fill={CATEGORY_COLORS[entry.name] || CATEGORY_COLORS['Outros']} />
                   ))}
                 </Pie>
-                <Tooltip content={<CustomTooltip />} />
+                <Tooltip content={<CustomTooltip />} wrapperStyle={{ zIndex: 100 }} />
               </PieChart>
             </ResponsiveContainer>
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
               <div className="p-3 bg-slate-800/50 rounded-full backdrop-blur-md border border-slate-700/50 shadow-inner mb-1">
                 <Wallet size={20} className="text-slate-400" />
               </div>

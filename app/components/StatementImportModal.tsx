@@ -9,6 +9,7 @@ import {
 import { formatMoney } from '../lib/format';
 import { apiCall } from '../lib/api';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
+import { useChartPalette } from '../lib/chartPalette';
 
 interface CardItem {
   id: number;
@@ -74,6 +75,7 @@ export function StatementImportModal({
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const palette = useChartPalette();
   const [parsedData, setParsedData] = useState<ParsedData | null>(null);
   const [rows, setRows] = useState<TransactionRow[]>([]);
   const [referenceMonth, setReferenceMonth] = useState<string>('');
@@ -454,8 +456,8 @@ export function StatementImportModal({
                           </Pie>
                           <Tooltip
                             formatter={(value: any) => [formatMoney(Number(value || 0)), '']}
-                            contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '0.75rem', color: '#fff' }}
-                            itemStyle={{ color: '#fff' }}
+                            contentStyle={{ backgroundColor: palette.tooltipBg, borderColor: palette.tooltipBorder, borderRadius: '0.75rem', color: palette.tooltipLabel }}
+                            itemStyle={{ color: palette.tooltipLabel }}
                           />
                           <Legend 
                             layout="vertical" 

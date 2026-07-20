@@ -310,7 +310,7 @@ export function HeatmapSkeleton() {
 export function MetricsGridSkeleton() {
   return (
     <div className="bg-slate-900/40 border border-slate-800 rounded-2xl overflow-hidden animate-pulse min-h-[500px]">
-      <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/50">
+      <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between bg-transparent">
         <div className="flex items-center gap-2.5">
           <div className="w-7 h-7 bg-slate-800 rounded-lg"></div>
           <div className="space-y-1.5">

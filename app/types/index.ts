@@ -5,6 +5,14 @@ export interface Alerta {
   acao: string;
 }
 
+export interface HistoryDataPoint {
+  date: string;
+  Patrimônio: number;
+  Investido: number;
+  IPCA_6?: number;
+  [key: string]: string | number | undefined;
+}
+
 export interface Asset {
   id?: number;
   ticker: string;
@@ -46,6 +54,12 @@ export interface Asset {
   last_report_url?: string;
   last_report_at?: string;
   last_report_type?: string;
+
+  // Metadados de mercado / fundamentos
+  currency?: string;
+  rsi?: number;
+  fundamentalist_data?: unknown;
+  mdata_date?: string;
 }
 
 export interface DashboardData {

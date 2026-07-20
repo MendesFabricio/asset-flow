@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import dynamic from 'next/dynamic';
-import { SkeletonLoading, MonteCarloSkeleton, MetricsGridSkeleton } from '@/components/ui/Skeletons';
+import { MonteCarloSkeleton, MetricsGridSkeleton, CorrelationSkeleton } from '@/components/ui/Skeletons';
 import {
   BarChart3,
   AlertTriangle,
@@ -10,7 +10,6 @@ import {
   Sliders,
   Target,
   Award,
-  Sparkles,
   TrendingUp,
   Play,
   DollarSign,
@@ -18,15 +17,17 @@ import {
   FileText,
   Download,
   Activity,
-  Brain
+  Brain,
+  ChevronDown,
+  ChevronUp,
+  HelpCircle
 } from 'lucide-react';
 
 const MonteCarloChart = dynamic(() => import('./MonteCarloChart').then(mod => mod.MonteCarloChart), { ssr: false, loading: () => <MonteCarloSkeleton /> });
 const RiskMetricsPanel = dynamic(() => import('./RiskMetricsPanel').then(mod => mod.RiskMetricsPanel), { ssr: false, loading: () => <MetricsGridSkeleton /> });
+const CorrelationHeatmap = dynamic(() => import('./CorrelationHeatmap').then(mod => mod.CorrelationHeatmap), { ssr: false, loading: () => <CorrelationSkeleton /> });
 
-import { apiCall } from '@/lib/api';
 import { Card } from '@/components/ui/Card';
-import { Badge } from '@/components/ui/Badge';
 import {
   ScatterChart,
   Scatter,
@@ -39,245 +40,66 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts';
-import {
-  AlphaAttributionData,
-  RebalanceBandsData,
-  EfficientFrontierData,
-  KellyData,
-  MomentumRankingData,
-  SharpeRollingData,
-  DCASimulationData,
-  FrontierPoint
-} from '@/types';
+import { KellyData } from '@/types';
+
+import { useToast } from '@/context/ToastContext';
+import { useQuantData } from '../hooks/useQuantData';
+import { useDcaSimulation } from '../hooks/useDcaSimulation';
+import { useQuantReports } from '../hooks/useQuantReports';
 
 export function QuantDashboard() {
+  const { notify } = useToast();
   const [activeTab, setActiveTab] = useState<'performance' | 'optimization' | 'simulations' | 'reports'>('performance');
-  
-  // Data States
-  const [frontierData, setFrontierData] = useState<EfficientFrontierData | null>(null);
-  const [rebalanceData, setRebalanceData] = useState<RebalanceBandsData | null>(null);
-  const [attributionData, setAttributionData] = useState<AlphaAttributionData | null>(null);
-  const [kellyData, setKellyData] = useState<KellyData | null>(null);
-  const [momentumData, setMomentumData] = useState<MomentumRankingData | null>(null);
-  const [sharpeData, setSharpeData] = useState<SharpeRollingData | null>(null);
-
-  // Rebalanceamento States (from RiskMetricsPanel)
-  const [markowitz, setMarkowitz] = useState<Record<string, number>>({});
-  const [riskParity, setRiskParity] = useState<Record<string, number>>({});
-  const [currentAlloc, setCurrentAlloc] = useState<Record<string, number>>({});
-  
-  // Reports & Sentiment States
-  const [fearGreedData, setFearGreedData] = useState<any | null>(null);
-  const [reportsList, setReportsList] = useState<any[]>([]);
-  const [loadingReports, setLoadingReports] = useState(false);
-  const [generatingReport, setGeneratingReport] = useState(false);
-
-  const fetchReportsAndFG = () => {
-    setLoadingReports(true);
-    Promise.all([
-      apiCall<any>('/api/quant/fear-greed'),
-      apiCall<any>('/api/quant/reports')
-    ])
-      .then(([fg, rep]) => {
-        if (fg.status === 'Sucesso') setFearGreedData(fg.data);
-        else setFearGreedData(null);
-
-        if (rep.status === 'Sucesso') setReportsList(rep.reports || []);
-        else setReportsList([]);
-      })
-      .catch((err) => {
-        console.error(err);
-        setFearGreedData(null);
-        setReportsList([]);
-      })
-      .finally(() => setLoadingReports(false));
-  };
-
-  const handleGenerateReport = () => {
-    setGeneratingReport(true);
-    apiCall<any>('/api/quant/generate-report', { method: 'POST' })
-      .then((res) => {
-        if (res.status === 'Sucesso') {
-          fetchReportsAndFG();
-        } else {
-          alert(res.msg || 'Falha ao gerar relatório.');
-        }
-      })
-      .catch((err) => {
-        console.error(err);
-        alert('Erro ao se conectar ao backend.');
-      })
-      .finally(() => setGeneratingReport(false));
-  };
-  
-  // DCA Simulator States
-  const [dcaTicker, setDcaTicker] = useState('PETR4');
-  const [dcaInitialAmount, setDcaInitialAmount] = useState(10000);
-  const [dcaMonthlyContribution, setDcaMonthlyContribution] = useState(1000);
-  const [dcaResult, setDcaResult] = useState<DCASimulationData | null>(null);
-  const [dcaLoading, setDcaLoading] = useState(false);
-  const [dcaError, setDcaError] = useState<string | null>(null);
-
-  // General Loading/Error States
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   // Slider State (Aversão ao Risco)
   const [riskAversion, setRiskAversion] = useState(3.0);
 
-  // Sharpe Chart Filter States
-  const [sharpeFilter, setSharpeFilter] = useState<string[]>(['portfolio']);
+  // Accordions State
+  const [showCorrelation, setShowCorrelation] = useState(false);
+  const [showAlpha, setShowAlpha] = useState(false);
 
-  // Fetch all data
-  useEffect(() => {
-    setLoading(true);
-    setError(null);
-    
-    Promise.all([
-      apiCall<EfficientFrontierData>('/api/quant/efficient-frontier'),
-      apiCall<RebalanceBandsData>('/api/quant/rebalance-bands'),
-      apiCall<AlphaAttributionData>('/api/quant/attribution-analysis'),
-      apiCall<KellyData>('/api/quant/kelly-criterion'),
-      apiCall<MomentumRankingData>('/api/quant/momentum-ranking'),
-      apiCall<SharpeRollingData>('/api/quant/sharpe-rolling')
-    ])
-      .then(([frontier, rebalance, attribution, kelly, momentum, sharpe]) => {
-        if (frontier.status === 'Sucesso') setFrontierData(frontier);
-        else setFrontierData(null);
+  // Dados quantitativos base + otimização
+  const {
+    frontierData,
+    rebalanceData,
+    attributionData,
+    markowitz,
+    riskParity,
+    currentAlloc,
+    selectedOptimalPt,
+    loading,
+    error,
+  } = useQuantData(riskAversion);
 
-        if (rebalance.status === 'Sucesso') setRebalanceData(rebalance);
-        else setRebalanceData(null);
+  // Relatórios & Sentimento (Fear & Greed)
+  const {
+    fearGreedData,
+    reportsList,
+    loadingReports,
+    generatingReport,
+    fetchReportsAndFG,
+    handleGenerateReport,
+  } = useQuantReports(notify);
 
-        if (attribution.status === 'Sucesso') setAttributionData(attribution);
-        else setAttributionData(null);
-
-        if (kelly.status === 'Sucesso') setKellyData(kelly);
-        else setKellyData(null);
-
-        if (momentum.status === 'Sucesso') setMomentumData(momentum);
-        else setMomentumData(null);
-        
-        if (sharpe.status === 'Sucesso') {
-          setSharpeData(sharpe);
-          // Adiciona portfolio e os 3 primeiros tickers à exibição inicial
-          const keys = Object.keys(sharpe.series);
-          setSharpeFilter(keys.slice(0, 4));
-        } else {
-          setSharpeData(null);
-        }
-      })
-      .catch((err) => {
-        console.error(err);
-        setError('Erro ao carregar os dados quantitativos. Verifique a conexão com o servidor.');
-        setFrontierData(null);
-        setRebalanceData(null);
-        setAttributionData(null);
-        setKellyData(null);
-        setMomentumData(null);
-        setSharpeData(null);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-      
-    // Fetch Otimização e Paridade
-    apiCall<{ status: string; weights: Record<string, number> }>('/api/simulation/optimize')
-      .then(res => {
-        if (res.status === 'Sucesso') setMarkowitz(res.weights);
-        else setMarkowitz({});
-      }).catch(() => setMarkowitz({}));
-
-    apiCall<{ status: string; weights: Record<string, number> }>('/api/simulation/risk-parity')
-      .then(res => {
-        if (res.status === 'Sucesso') setRiskParity(res.weights);
-        else setRiskParity({});
-      }).catch(() => setRiskParity({}));
-
-    apiCall<any[]>('/api/assets')
-      .then(res => {
-        const assetsList = Array.isArray(res) ? res : [];
-        if (assetsList && assetsList.length > 0) {
-          const totalVal = assetsList.reduce((acc: number, curr: any) => {
-            const val = parseFloat(curr.total_atual || 0);
-            return acc + (isNaN(val) ? 0 : val);
-          }, 0);
-          const mapping: Record<string, number> = {};
-          assetsList.forEach((a: any) => {
-            const val = parseFloat(a.total_atual || 0);
-            const pct = totalVal > 0 ? ((isNaN(val) ? 0 : val) / totalVal) * 100 : 0;
-            if (a.ticker) {
-              mapping[a.ticker.toUpperCase()] = pct;
-            }
-          });
-          setCurrentAlloc(mapping);
-        }
-      }).catch(() => {});
-  }, []);
-
-  // Recalcular portfólio ótimo baseado na aversão ao risco do slider usando useMemo
-  const selectedOptimalPt = useMemo<FrontierPoint | null>(() => {
-    if (!frontierData || frontierData.frontier.length === 0) return null;
-    
-    let bestPt: FrontierPoint | null = null;
-    let maxUtility = -Infinity;
-
-    frontierData.frontier.forEach((pt) => {
-      const r = pt.retorno / 100.0;
-      const v = pt.volatilidade / 100.0;
-      const utility = r - 0.5 * riskAversion * (v ** 2);
-      
-      if (utility > maxUtility) {
-        maxUtility = utility;
-        bestPt = pt;
-      }
-    });
-
-    return bestPt;
-  }, [riskAversion, frontierData]);
-
-  // Run DCA Simulation
-  const runDcaSimulation = () => {
-    if (!dcaTicker.trim()) return;
-    setDcaLoading(true);
-    setDcaError(null);
-    
-    apiCall<DCASimulationData>(`/api/quant/dca-lump-sum?ticker=${encodeURIComponent(dcaTicker)}&initial_amount=${dcaInitialAmount}&monthly_contribution=${dcaMonthlyContribution}`)
-      .then((res) => {
-        if (res.status === 'Sucesso') {
-          setDcaResult(res);
-        } else {
-          setDcaError((res as any).msg || 'Falha ao processar simulação.');
-        }
-      })
-      .catch((err: any) => {
-        console.error(err);
-        setDcaError(err?.message || 'Erro ao comunicar com a API do simulador.');
-      })
-      .finally(() => {
-        setDcaLoading(false);
-      });
-  };
-
-  // Trigger initial DCA simulation if tickers are loaded
-  useEffect(() => {
-    if (rebalanceData && rebalanceData.data.length > 0) {
-      const firstTicker = rebalanceData.data[0].ticker;
-      setDcaTicker(firstTicker);
-    }
-  }, [rebalanceData]);
-
-  // Run initial simulation once we resolve the default ticker
-  useEffect(() => {
-    if (dcaTicker) {
-      runDcaSimulation();
-    }
-  }, [dcaTicker]);
+  // Simulador DCA vs. Aporte Único
+  const {
+    ticker: dcaTicker,
+    setTicker: setDcaTicker,
+    initialAmount: dcaInitialAmount,
+    setInitialAmount: setDcaInitialAmount,
+    monthlyContribution: dcaMonthlyContribution,
+    setMonthlyContribution: setDcaMonthlyContribution,
+    result: dcaResult,
+    loading: dcaLoading,
+    error: dcaError,
+    runSimulation: runDcaSimulation,
+  } = useDcaSimulation(rebalanceData?.data?.[0]?.ticker);
 
   useEffect(() => {
     if (activeTab === 'reports') {
       fetchReportsAndFG();
     }
-  }, [activeTab]);
+  }, [activeTab, fetchReportsAndFG]);
 
   // Format Recharts Point Tooltip
   const scatterTooltipFormatter = (value: any, name: any) => {
@@ -365,10 +187,10 @@ export function QuantDashboard() {
   if (loading) {
     return (
       <div className="flex flex-col gap-6 w-full animate-pulse p-6">
-        <div className="h-20 bg-slate-900/40 rounded-2xl border border-slate-800" />
+        <div className="h-20 bg-surface-card/40 rounded-2xl border border-slate-800" />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="h-64 bg-slate-900/40 rounded-2xl border border-slate-800 col-span-2" />
-          <div className="h-64 bg-slate-900/40 rounded-2xl border border-slate-800" />
+          <div className="h-64 bg-surface-card/40 rounded-2xl border border-slate-800 col-span-2" />
+          <div className="h-64 bg-surface-card/40 rounded-2xl border border-slate-800" />
         </div>
       </div>
     );
@@ -394,7 +216,7 @@ export function QuantDashboard() {
     <div className="flex flex-col gap-6 w-full p-6 text-slate-300">
       
       {/* 🚀 SUB-CABALHEIRO QUANT */}
-      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 bg-slate-950 p-4 rounded-2xl border border-slate-900">
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 bg-surface-card p-4 rounded-2xl border border-slate-900">
         <div>
           <div className="flex items-center gap-2">
             <span className="p-1 bg-gradient-to-tr from-emerald-500/10 to-teal-500/10 rounded border border-emerald-500/20 text-emerald-400">
@@ -407,16 +229,46 @@ export function QuantDashboard() {
           <p className="text-xs text-slate-500 mt-1">
             Modelos matemáticos integrados, dimensionamento de risco por probabilidade e fronteira eficiente.
           </p>
+
+          {/* HERO KPIs */}
+          <div className="flex flex-wrap gap-4 mt-3">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-800/60 rounded-lg border border-slate-700/50">
+              <span className={`w-2 h-2 rounded-full ${(rebalanceData?.data?.filter(a => a.status !== 'NORMAL').length || 0) > 0 ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
+              <span className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                Ações a Tomar: <span className="text-white ml-1">{rebalanceData?.data?.filter(a => a.status !== 'NORMAL').length || 0}</span>
+                <div className="relative group/tt flex items-center cursor-pointer normal-case">
+                  <HelpCircle size={12} className="text-slate-500 hover:text-blue-400 transition-colors" />
+                  <div className="absolute top-full mt-2 hidden group-hover/tt:block w-48 p-2 bg-slate-900 text-slate-300 text-[10px] rounded shadow-xl border border-slate-700 z-50 font-normal text-left">
+                    Ativos que saíram da banda de tolerância e exigem sua atenção no rebalanceamento.
+                  </div>
+                </div>
+              </span>
+            </div>
+            {attributionData && (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-800/60 rounded-lg border border-slate-700/50">
+                <Target size={14} className="text-blue-400" />
+                <span className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                  Beta da Carteira: <span className="text-white ml-1">{attributionData.portfolio_beta.toFixed(2)}</span>
+                  <div className="relative group/tt flex items-center cursor-pointer normal-case">
+                    <HelpCircle size={12} className="text-slate-500 hover:text-blue-400 transition-colors" />
+                    <div className="absolute top-full mt-2 hidden group-hover/tt:block w-48 p-2 bg-slate-900 text-slate-300 text-[10px] rounded shadow-xl border border-slate-700 z-50 font-normal text-left">
+                      Mede a sensibilidade da carteira ao mercado. Beta = 1 acompanha o mercado. Beta {'<'} 1 é mais defensivo.
+                    </div>
+                  </div>
+                </span>
+              </div>
+            )}
+          </div>
         </div>
         
         {/* TAB CONTROLS (SEGMENTED CONTROL PREMIUM) */}
-        <div className="w-full xl:w-auto p-1 bg-slate-900/50 rounded-xl border border-slate-800/60 shadow-inner">
+        <div className="w-full xl:w-auto p-1 bg-surface-card/50 rounded-xl border border-slate-800/60 shadow-inner">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-1">
             {[
               { id: 'performance', label: 'Risco & Performance', icon: <Activity size={14} /> },
               { id: 'optimization', label: 'Otimização', icon: <Target size={14} /> },
               { id: 'simulations', label: 'Simuladores', icon: <TrendingUp size={14} /> },
-              { id: 'reports', label: 'Sentimento', icon: <Brain size={14} /> }
+              { id: 'reports', label: 'Relatórios & Sentimento', icon: <Brain size={14} /> }
             ].map((tab) => {
               const isActive = activeTab === tab.id;
               return (
@@ -439,7 +291,7 @@ export function QuantDashboard() {
       </div>
 
       {/* ──────────────────────────────────────────────────────── */}
-      {['frontier', 'rebalance', 'ranking', 'sharpe', 'montecarlo', 'performance'].includes(activeTab) && (!frontierData || !rebalanceData) ? (
+      {(!frontierData || !rebalanceData) && (activeTab === 'optimization' || activeTab === 'performance') ? (
         <Card className="flex flex-col items-center justify-center p-12 text-center !bg-[#0f172a] !border-slate-800 min-h-[350px]">
           <Info className="text-indigo-400 mb-4 animate-pulse" size={32} />
           <h3 className="font-bold text-slate-200 text-sm">Dados Quantitativos Insuficientes</h3>
@@ -451,15 +303,21 @@ export function QuantDashboard() {
         <>
           {activeTab === 'optimization' && frontierData && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Card className="lg:col-span-2 flex flex-col gap-4 !bg-slate-950 !border-slate-900 p-6 min-h-[480px]">
+          <Card className="lg:col-span-2 flex flex-col gap-4 bg-surface-card !border-slate-900 p-6 min-h-[480px]">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-2">
                 <Sliders className="text-blue-400" size={18} />
-                <h3 className="font-bold text-slate-200 text-sm uppercase tracking-wider">
+                <h3 className="font-bold text-slate-200 text-sm uppercase tracking-wider flex items-center gap-2">
                   Fronteira Eficiente de Markowitz Interativa
+                  <div className="relative group/tt flex items-center cursor-pointer normal-case">
+                    <HelpCircle size={14} className="text-slate-500 hover:text-blue-400 transition-colors" />
+                    <div className="absolute bottom-full mb-2 hidden group-hover/tt:block w-64 p-2 bg-slate-900 text-slate-300 text-[10px] rounded shadow-xl border border-slate-700 z-50 font-normal">
+                      Mostra as melhores combinações possíveis de ativos (pontos no gráfico) para maximizar o retorno em diferentes níveis de risco.
+                    </div>
+                  </div>
                 </h3>
               </div>
-              <div className="text-xs text-slate-500 bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1">
+              <div className="text-xs text-slate-500 bg-surface-card border border-slate-800 rounded-lg px-2.5 py-1">
                 Calculado em background com 5.000 simulações
               </div>
             </div>
@@ -470,7 +328,7 @@ export function QuantDashboard() {
             </div>
 
             {/* Slider de Risco */}
-            <div className="flex flex-col gap-2 bg-slate-900/60 p-4 rounded-xl border border-slate-800">
+            <div className="flex flex-col gap-2 bg-surface-card/60 p-4 rounded-xl border border-slate-800">
               <div className="flex justify-between items-center text-xs font-semibold">
                 <span className="text-slate-400">Aversão ao Risco (A)</span>
                 <span className="text-pink-400 px-2 py-0.5 bg-pink-500/10 border border-pink-500/20 rounded">
@@ -495,12 +353,18 @@ export function QuantDashboard() {
           </Card>
 
           {/* Allocation Breakdown Card */}
-          <Card className="flex flex-col gap-4 !bg-slate-950 !border-slate-900 p-6">
+          <Card className="flex flex-col gap-4 bg-surface-card !border-slate-900 p-6">
             <div>
               <div className="flex items-center gap-2">
                 <Target className="text-emerald-400" size={18} />
-                <h3 className="font-bold text-slate-200 text-sm uppercase tracking-wider">
+                <h3 className="font-bold text-slate-200 text-sm uppercase tracking-wider flex items-center gap-2">
                   Alocação do Portfólio Sugerido
+                  <div className="relative group/tt flex items-center cursor-pointer normal-case">
+                    <HelpCircle size={14} className="text-slate-500 hover:text-blue-400 transition-colors" />
+                    <div className="absolute bottom-full mb-2 hidden group-hover/tt:block w-64 p-2 bg-slate-900 text-slate-300 text-[10px] rounded shadow-xl border border-slate-700 z-50 font-normal">
+                      Pesos de cada ativo que resultam no ponto ótimo escolhido na Fronteira Eficiente. Use isso como meta para o seu rebalanceamento.
+                    </div>
+                  </div>
                 </h3>
               </div>
               <p className="text-[11px] text-slate-500 mt-1">
@@ -510,7 +374,7 @@ export function QuantDashboard() {
 
             {selectedOptimalPt ? (
               <div className="flex flex-col gap-4 mt-2">
-                <div className="grid grid-cols-2 gap-3 bg-slate-900/40 p-3 rounded-xl border border-slate-800 text-center">
+                <div className="grid grid-cols-2 gap-3 bg-surface-card/40 p-3 rounded-xl border border-slate-800 text-center">
                   <div>
                     <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Retorno Esperado</div>
                     <div className="text-lg font-bold text-emerald-400">{selectedOptimalPt.retorno}% a.a.</div>
@@ -564,12 +428,18 @@ export function QuantDashboard() {
         <div className="w-full mt-6 animate-in fade-in">
           
           {/* Rebalance Bands Table */}
-          <Card className="flex flex-col gap-4 !bg-slate-950 !border-slate-900 p-6 h-full">
+          <Card className="flex flex-col gap-4 bg-surface-card !border-slate-900 p-6 h-full">
             <div>
               <div className="flex items-center gap-2">
                 <Target className="text-teal-400" size={18} />
-                <h3 className="font-bold text-slate-200 text-sm uppercase tracking-wider">
+                <h3 className="font-bold text-slate-200 text-sm uppercase tracking-wider flex items-center gap-2">
                   Desvios de Peso e Banda de Tolerância (±2%)
+                  <div className="relative group/tt flex items-center cursor-pointer normal-case">
+                    <HelpCircle size={14} className="text-slate-500 hover:text-blue-400 transition-colors" />
+                    <div className="absolute bottom-full mb-2 hidden group-hover/tt:block w-64 p-2 bg-slate-900 text-slate-300 text-[10px] rounded shadow-xl border border-slate-700 z-50 font-normal">
+                      As bandas de tolerância indicam quando um ativo subiu ou caiu tanto que sua carteira ficou desbalanceada em relação à sua alocação ideal estipulada.
+                    </div>
+                  </div>
                 </h3>
               </div>
               <p className="text-xs text-slate-500 mt-1">
@@ -578,7 +448,7 @@ export function QuantDashboard() {
             </div>
 
             {rebalanceData.data.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10 text-slate-500 bg-slate-900/20 rounded-xl border border-dashed border-slate-800">
+              <div className="flex flex-col items-center justify-center py-10 text-slate-500 bg-surface-card/20 rounded-xl border border-dashed border-slate-800">
                 <Target size={32} className="mb-3 text-slate-700" />
                 <p className="text-sm font-semibold text-slate-400">Nenhum desvio significativo.</p>
                 <p className="text-xs text-slate-500 mt-1 text-center max-w-sm">
@@ -604,7 +474,7 @@ export function QuantDashboard() {
                       const isExcedente = item.status === 'EXCEDENTE';
                       
                       return (
-                        <tr key={item.ticker} className="hover:bg-slate-900/20 transition">
+                        <tr key={item.ticker} className="hover:bg-surface-card/20 transition">
                           <td className="py-3 pl-2 font-bold text-slate-300">{item.ticker}</td>
                           <td className="py-3 text-right">{item.weight_pct}%</td>
                           <td className="py-3 text-right">{item.target_pct}%</td>
@@ -616,7 +486,7 @@ export function QuantDashboard() {
                           <td className="py-3 text-center">
                             <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
                               isNormal 
-                                ? 'bg-slate-900 border border-slate-800 text-slate-500'
+                                ? 'bg-surface-card border border-slate-800 text-slate-500'
                                 : isExcedente
                                   ? 'bg-red-500/10 border border-red-500/20 text-red-400'
                                   : 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'
@@ -640,12 +510,18 @@ export function QuantDashboard() {
 
           {/* Otimização de Portfólio (Movido de RiskMetricsPanel) */}
           {Object.keys(markowitz).length > 0 && (
-            <Card className="flex flex-col gap-4 !bg-slate-950 !border-slate-900 p-6 mt-6">
+            <Card className="flex flex-col gap-4 bg-surface-card !border-slate-900 p-6 mt-6">
               <div>
                 <div className="flex items-center gap-2">
                   <Compass className="text-indigo-400" size={18} />
-                  <h3 className="font-bold text-slate-200 text-sm uppercase tracking-wider">
+                  <h3 className="font-bold text-slate-200 text-sm uppercase tracking-wider flex items-center gap-2">
                     Sugestão de Rebalanceamento Quantitativo
+                    <div className="relative group/tt flex items-center cursor-pointer normal-case">
+                      <HelpCircle size={14} className="text-slate-500 hover:text-blue-400 transition-colors" />
+                      <div className="absolute bottom-full left-0 mb-2 hidden group-hover/tt:block w-64 p-2 bg-slate-900 text-slate-300 text-[10px] rounded shadow-xl border border-slate-700 z-50 font-normal">
+                        <strong>Markowitz:</strong> Busca o maior retorno possível pelo risco aceito (Fronteira Eficiente).<br/><strong>Paridade de Risco:</strong> Divide o risco igualmente entre os ativos, ideal para estratégias defensivas.
+                      </div>
+                    </div>
                   </h3>
                 </div>
                 <p className="text-xs text-slate-500 mt-1">
@@ -671,7 +547,7 @@ export function QuantDashboard() {
                       const markoVal = markowitz[ticker] || 0;
                       const parityVal = riskParity[ticker] || 0;
                       return (
-                        <tr key={ticker} className="hover:bg-slate-900/20 transition">
+                        <tr key={ticker} className="hover:bg-surface-card/20 transition">
                           <td className="py-3 pl-2 font-bold text-slate-300">{cleanTicker}</td>
                           <td className="py-3 text-right">{current.toFixed(1)}%</td>
                           <td className="py-3 text-right font-bold text-blue-400">{markoVal.toFixed(1)}%</td>
@@ -695,7 +571,7 @@ export function QuantDashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           
           {/* Controls Column */}
-          <Card className="flex flex-col !bg-slate-950 !border-slate-900 p-6 h-full">
+          <Card className="flex flex-col bg-surface-card !border-slate-900 p-6 h-full">
             <div className="flex items-center gap-2 mb-6">
               <Sliders className="text-blue-400" size={18} />
               <h3 className="font-bold text-slate-200 text-sm uppercase tracking-wider">Parâmetros</h3>
@@ -710,7 +586,7 @@ export function QuantDashboard() {
                   placeholder="Ex: PETR4"
                   value={dcaTicker}
                   onChange={(e) => setDcaTicker(e.target.value.toUpperCase())}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500 uppercase font-semibold"
+                  className="w-full bg-surface-card border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500 uppercase font-semibold"
                 />
               </div>
 
@@ -723,7 +599,7 @@ export function QuantDashboard() {
                     type="number"
                     value={dcaInitialAmount}
                     onChange={(e) => setDcaInitialAmount(parseInt(e.target.value) || 0)}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500 font-semibold"
+                    className="w-full bg-surface-card border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500 font-semibold"
                   />
                 </div>
               </div>
@@ -737,7 +613,7 @@ export function QuantDashboard() {
                     type="number"
                     value={dcaMonthlyContribution}
                     onChange={(e) => setDcaMonthlyContribution(parseInt(e.target.value) || 0)}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500 font-semibold"
+                    className="w-full bg-surface-card border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500 font-semibold"
                   />
                 </div>
               </div>
@@ -763,12 +639,18 @@ export function QuantDashboard() {
           </Card>
 
           {/* Graph & Stats Column */}
-          <Card className="lg:col-span-3 flex flex-col gap-4 !bg-slate-950 !border-slate-900 p-6 min-h-[420px]">
+          <Card className="lg:col-span-3 flex flex-col gap-4 bg-surface-card !border-slate-900 p-6 min-h-[420px]">
             <div>
               <div className="flex items-center gap-2">
                 <DollarSign className="text-emerald-400" size={18} />
-                <h3 className="font-bold text-slate-200 text-sm uppercase tracking-wider">
+                <h3 className="font-bold text-slate-200 text-sm uppercase tracking-wider flex items-center gap-2">
                   DCA vs Lump Sum Simulator (Histórico 1 Ano)
+                  <div className="relative group/tt flex items-center cursor-pointer normal-case">
+                    <HelpCircle size={14} className="text-slate-500 hover:text-blue-400 transition-colors" />
+                    <div className="absolute bottom-full mb-2 hidden group-hover/tt:block w-64 p-2 bg-slate-900 text-slate-300 text-[10px] rounded shadow-xl border border-slate-700 z-50 font-normal">
+                      Compara matematicamente a estratégia de comprar tudo de uma vez (Lump Sum) versus fazer compras menores, recorrentes e mensais (DCA - Dollar Cost Averaging).
+                    </div>
+                  </div>
                 </h3>
               </div>
               <p className="text-xs text-slate-500 mt-1">
@@ -783,7 +665,7 @@ export function QuantDashboard() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   
                   {/* Card Lump Sum */}
-                  <div className="p-4 bg-slate-900/40 rounded-2xl border border-slate-800 flex justify-between items-center">
+                  <div className="p-4 bg-surface-card/40 rounded-2xl border border-slate-800 flex justify-between items-center">
                     <div>
                       <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Estratégia Lump Sum</div>
                       <div className="text-xl font-black text-slate-200 mt-1">
@@ -806,7 +688,7 @@ export function QuantDashboard() {
                   </div>
 
                   {/* Card DCA */}
-                  <div className="p-4 bg-slate-900/40 rounded-2xl border border-slate-800 flex justify-between items-center">
+                  <div className="p-4 bg-surface-card/40 rounded-2xl border border-slate-800 flex justify-between items-center">
                     <div>
                       <div className="text-[10px] text-blue-400 font-bold uppercase tracking-wider">Estratégia DCA Recorrente</div>
                       <div className="text-xl font-black text-blue-400 mt-1">
@@ -889,11 +771,17 @@ export function QuantDashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
           {/* FEAR & GREED CARD */}
-          <Card className="flex flex-col gap-6 !bg-slate-950 !border-slate-900 p-6">
+          <Card className="flex flex-col gap-6 bg-surface-card !border-slate-900 p-6">
             <div className="flex items-center gap-2 border-b border-slate-900 pb-3">
               <Compass className="text-emerald-400" size={18} />
-              <h3 className="font-bold text-slate-200 text-sm uppercase tracking-wider">
+              <h3 className="font-bold text-slate-200 text-sm uppercase tracking-wider flex items-center gap-2">
                 Fear & Greed Index Local
+                <div className="relative group/tt flex items-center cursor-pointer normal-case">
+                  <HelpCircle size={14} className="text-slate-500 hover:text-blue-400 transition-colors" />
+                  <div className="absolute bottom-full left-0 mb-2 hidden group-hover/tt:block w-64 p-2 bg-slate-900 text-slate-300 text-[10px] rounded shadow-xl border border-slate-700 z-50 font-normal">
+                    O índice de Medo e Ganância (Fear & Greed) analisa os ativos da sua carteira para descobrir se o seu micromercado está eufórico (bom momento para proteger lucros) ou em pânico (potenciais pechinchas).
+                  </div>
+                </div>
               </h3>
             </div>
             
@@ -981,12 +869,18 @@ export function QuantDashboard() {
           </Card>
 
           {/* REPORTS MANAGER CARD */}
-          <Card className="lg:col-span-2 flex flex-col gap-4 !bg-slate-950 !border-slate-900 p-6 min-h-[400px]">
+          <Card className="lg:col-span-2 flex flex-col gap-4 bg-surface-card !border-slate-900 p-6 min-h-[400px]">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-900 pb-3">
               <div className="flex items-center gap-2">
                 <FileText className="text-blue-400" size={18} />
-                <h3 className="font-bold text-slate-200 text-sm uppercase tracking-wider">
+                <h3 className="font-bold text-slate-200 text-sm uppercase tracking-wider flex items-center gap-2">
                   Central de Relatórios Patrimoniais (PDF)
+                  <div className="relative group/tt flex items-center cursor-pointer normal-case">
+                    <HelpCircle size={14} className="text-slate-500 hover:text-blue-400 transition-colors" />
+                    <div className="absolute bottom-full mb-2 hidden group-hover/tt:block w-64 p-2 bg-slate-900 text-slate-300 text-[10px] rounded shadow-xl border border-slate-700 z-50 font-normal text-left">
+                      Gera uma fotografia imutável em PDF da sua alocação, lucros e posições no instante atual. Ideal para prestação de contas, imposto de renda ou arquivo pessoal trimestral.
+                    </div>
+                  </div>
                 </h3>
               </div>
               <button
@@ -1045,7 +939,7 @@ export function QuantDashboard() {
                         : "Relatório Patrimonial";
                       
                       return (
-                        <tr key={rep.filename} className="hover:bg-slate-900/20 transition">
+                        <tr key={rep.filename} className="hover:bg-surface-card/20 transition">
                           <td className="py-3 pl-2 font-bold text-slate-300 flex items-center gap-2">
                             <FileText size={14} className="text-slate-500" />
                             {repLabel}
@@ -1062,7 +956,7 @@ export function QuantDashboard() {
                                   '_blank'
                                 )
                               }
-                              className="px-2 py-1 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 rounded text-[10px] font-bold uppercase tracking-wider transition flex items-center gap-1.5 ml-auto"
+                              className="px-2 py-1 bg-surface-card hover:bg-slate-800 border border-slate-800 text-slate-300 rounded text-[10px] font-bold uppercase tracking-wider transition flex items-center gap-1.5 ml-auto"
                             >
                               <Download size={10} />
                               Baixar
@@ -1089,84 +983,163 @@ export function QuantDashboard() {
         <div className="animate-in fade-in w-full flex flex-col gap-6">
           <RiskMetricsPanel />
           
-          {/* Alpha Attribution Card */}
-          {attributionData && (
-            <Card className="flex flex-col gap-4 !bg-slate-950 !border-slate-900 p-6 h-full">
-              <div className="flex justify-between items-start">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <Award className="text-emerald-400" size={18} />
-                    <h3 className="font-bold text-slate-200 text-sm uppercase tracking-wider">
-                      Análise de Atribuição de Alpha (CAPM)
-                    </h3>
-                  </div>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Quantificação do Alpha excedente (retorno não correlacionado ao mercado) gerado por ativo.
+          {/* Accordion: Correlação */}
+          <div className="flex flex-col gap-2">
+            <button
+              onClick={() => setShowCorrelation(!showCorrelation)}
+              className="flex items-center justify-between p-4 bg-surface-card hover:bg-slate-800/80 rounded-xl border border-slate-800/60 transition-colors group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-purple-500/10 rounded-lg border border-purple-500/20 text-purple-400 group-hover:scale-110 transition-transform">
+                  <Activity size={18} />
+                </div>
+                <div className="text-left">
+                  <h3 className="font-bold text-slate-200 text-sm tracking-wider flex items-center gap-2">
+                    Diversificação de Risco (Correlação)
+                    <div className="relative group/tt flex items-center cursor-pointer">
+                      <HelpCircle size={14} className="text-slate-500 hover:text-blue-400 transition-colors" />
+                      <div className="absolute bottom-full mb-2 hidden group-hover/tt:block w-64 p-2 bg-slate-900 text-slate-300 text-[10px] rounded shadow-xl border border-slate-700 z-50">
+                        Ativos com correlação negativa (vermelho) tendem a se mover em direções opostas. Correlação positiva (azul) indica que caem ou sobem juntos.
+                      </div>
+                    </div>
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Descubra se seus ativos tendem a cair todos juntos em uma crise.
                   </p>
                 </div>
-                
-                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-3 py-1.5 text-center">
-                  <div className="text-[9px] text-emerald-400 font-bold uppercase tracking-wider">Alpha da Carteira</div>
-                  <div className="text-base font-bold text-emerald-300">{attributionData.portfolio_alpha_pct}% a.a.</div>
-                </div>
               </div>
+              {showCorrelation ? <ChevronUp size={20} className="text-slate-400" /> : <ChevronDown size={20} className="text-slate-400" />}
+            </button>
+            {showCorrelation && (
+              <div className="animate-in slide-in-from-top-2 fade-in duration-200">
+                <CorrelationHeatmap />
+              </div>
+            )}
+          </div>
 
-              <div className="grid grid-cols-3 gap-4 bg-slate-900/40 p-3 rounded-xl border border-slate-800 text-center mb-2">
-                <div>
-                  <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Retorno EWMA</div>
-                  <div className="text-sm font-bold text-slate-300">{attributionData.portfolio_return_pct}% a.a.</div>
+          {/* Accordion: Alpha Attribution Card */}
+          {attributionData && (
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => setShowAlpha(!showAlpha)}
+                className="flex items-center justify-between p-4 bg-surface-card hover:bg-slate-800/80 rounded-xl border border-slate-800/60 transition-colors group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-emerald-500/10 rounded-lg border border-emerald-500/20 text-emerald-400 group-hover:scale-110 transition-transform">
+                    <Award size={18} />
+                  </div>
+                  <div className="text-left">
+                    <h3 className="font-bold text-slate-200 text-sm tracking-wider flex items-center gap-2">
+                      Desempenho vs Mercado (Alpha)
+                      <div className="relative group/tt flex items-center cursor-pointer">
+                        <HelpCircle size={14} className="text-slate-500 hover:text-blue-400 transition-colors" />
+                        <div className="absolute bottom-full left-0 mb-2 hidden group-hover/tt:block w-64 p-2 bg-slate-900 text-slate-300 text-[10px] rounded shadow-xl border border-slate-700 z-50">
+                          Mede o rendimento de um ativo além do esperado pelo mercado (Alpha) e sua sensibilidade às variações do IBOV (Beta).
+                        </div>
+                      </div>
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Saiba quais ativos realmente geram valor independente de a bolsa estar subindo ou caindo.
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Beta EWMA</div>
-                  <div className="text-sm font-bold text-slate-300">{attributionData.portfolio_beta}</div>
-                </div>
-                <div>
-                  <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Benchmark (IBOV)</div>
-                  <div className="text-sm font-bold text-slate-300">EWMA indexado</div>
-                </div>
-              </div>
+                {showAlpha ? <ChevronUp size={20} className="text-slate-400" /> : <ChevronDown size={20} className="text-slate-400" />}
+              </button>
+              
+              {showAlpha && (
+                <div className="animate-in slide-in-from-top-2 fade-in duration-200">
+                  <Card className="flex flex-col gap-4 bg-surface-card/50 !border-slate-800/80 p-6 h-full mt-2">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-bold text-slate-300 text-xs uppercase tracking-wider">
+                            Resumo do Portfólio (CAPM)
+                          </h3>
+                        </div>
+                      </div>
+                      <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-3 py-1.5 text-center">
+                        <div className="text-[9px] text-emerald-400 font-bold uppercase tracking-wider">Alpha da Carteira</div>
+                        <div className="text-base font-bold text-emerald-300">{attributionData.portfolio_alpha_pct}% a.a.</div>
+                      </div>
+                    </div>
 
-              <div className="overflow-x-auto w-full">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="border-b border-slate-900 text-[10px] text-slate-500 font-bold uppercase tracking-wider">
-                      <th className="pb-3 pl-2">Ativo</th>
-                      <th className="pb-3 text-right">Peso</th>
-                      <th className="pb-3 text-right">Beta</th>
-                      <th className="pb-3 text-right">Alpha Ativo</th>
-                      <th className="pb-3 text-right">Contrib. Alpha</th>
-                      <th className="pb-3 text-right pr-2">Aproveitamento</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-900/60 text-xs">
-                    {attributionData.data.map((item) => {
-                      const isPositive = item.weighted_alpha_pct >= 0;
-                      
-                      return (
-                        <tr key={item.ticker} className="hover:bg-slate-900/20 transition">
-                          <td className="py-3 pl-2 font-bold text-slate-300">{item.ticker}</td>
-                          <td className="py-3 text-right">{item.weight_pct}%</td>
-                          <td className="py-3 text-right">{item.beta}</td>
-                          <td className={`py-3 text-right ${item.asset_alpha_pct >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                            {item.asset_alpha_pct > 0 ? `+${item.asset_alpha_pct}` : item.asset_alpha_pct}%
-                          </td>
-                          <td className={`py-3 text-right font-bold ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
-                            {item.weighted_alpha_pct > 0 ? `+${item.weighted_alpha_pct}` : item.weighted_alpha_pct}%
-                          </td>
-                          <td className="py-3 text-right pr-2">
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                              isPositive ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
-                            }`}>
-                              {item.pct_contribution}%
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
+                    <div className="grid grid-cols-3 gap-4 bg-slate-900/40 p-3 rounded-xl border border-slate-800/60 text-center mb-2">
+                      <div>
+                        <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Retorno EWMA</div>
+                        <div className="text-sm font-bold text-slate-300">{attributionData.portfolio_return_pct}% a.a.</div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                          Beta EWMA
+                        </div>
+                        <div className="text-sm font-bold text-slate-300">{attributionData.portfolio_beta}</div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Benchmark (IBOV)</div>
+                        <div className="text-sm font-bold text-slate-300">EWMA indexado</div>
+                      </div>
+                    </div>
+
+                    <div className="overflow-x-auto w-full">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="border-b border-slate-800 text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                            <th className="pb-3 pl-2">Ativo</th>
+                            <th className="pb-3 text-right">Peso</th>
+                            <th className="pb-3 text-right">
+                              Beta
+                              <div className="inline-block ml-1 relative group/th cursor-pointer">
+                                <HelpCircle size={10} className="inline text-slate-500 hover:text-blue-400" />
+                                <div className="absolute bottom-full right-0 mb-2 hidden group-hover/th:block w-48 p-2 bg-slate-900 text-slate-300 text-[9px] rounded shadow-xl border border-slate-700 z-50 text-left font-normal normal-case">
+                                  Beta &gt; 1: Mais volátil que o mercado.<br/>Beta &lt; 1: Menos volátil.
+                                </div>
+                              </div>
+                            </th>
+                            <th className="pb-3 text-right">
+                              Alpha Ativo
+                              <div className="inline-block ml-1 relative group/th cursor-pointer">
+                                <HelpCircle size={10} className="inline text-slate-500 hover:text-blue-400" />
+                                <div className="absolute bottom-full right-0 mb-2 hidden group-hover/th:block w-48 p-2 bg-slate-900 text-slate-300 text-[9px] rounded shadow-xl border border-slate-700 z-50 text-left font-normal normal-case">
+                                  Retorno % adicional gerado pelo ativo que não é explicado pelas subidas do mercado.
+                                </div>
+                              </div>
+                            </th>
+                            <th className="pb-3 text-right">Contrib. Alpha</th>
+                            <th className="pb-3 text-right pr-2">Aproveitamento</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800/50 text-xs">
+                          {attributionData.data.map((item) => {
+                            const isPositive = item.weighted_alpha_pct >= 0;
+                            
+                            return (
+                              <tr key={item.ticker} className="hover:bg-slate-800/30 transition">
+                                <td className="py-3 pl-2 font-bold text-slate-300">{item.ticker}</td>
+                                <td className="py-3 text-right">{item.weight_pct}%</td>
+                                <td className="py-3 text-right">{item.beta}</td>
+                                <td className={`py-3 text-right ${item.asset_alpha_pct >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                  {item.asset_alpha_pct > 0 ? `+${item.asset_alpha_pct}` : item.asset_alpha_pct}%
+                                </td>
+                                <td className={`py-3 text-right font-bold ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+                                  {item.weighted_alpha_pct > 0 ? `+${item.weighted_alpha_pct}` : item.weighted_alpha_pct}%
+                                </td>
+                                <td className="py-3 text-right pr-2">
+                                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                    isPositive ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
+                                  }`}>
+                                    {item.pct_contribution}%
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </Card>
+                </div>
+              )}
+            </div>
           )}
         </div>
       )}

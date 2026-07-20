@@ -108,6 +108,12 @@ class Asset(Base):
     ai_status = Column(String, default="idle")
     ai_updated_at = Column(DateTime, nullable=True)
     upcoming_split = Column(String, nullable=True)
+    
+    # ── Métricas de Risco de Crédito (extraídas via IA do Relatório Gerencial) ──
+    credit_rating = Column(String, nullable=True)
+    duration_years = Column(Float, nullable=True)
+    indexer_cdi_pct = Column(Float, nullable=True)
+    indexer_ipca_pct = Column(Float, nullable=True)
 
     # Nenhuma UniqueConstraint necessária aqui pois ticker já é único globalmente
 

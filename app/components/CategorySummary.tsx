@@ -1,156 +1,60 @@
 'use client';
 import { useState } from 'react';
 import { formatMoney } from '../lib/format';
-import { Asset } from '../types';
-import { PrivateValue } from './ui/PrivateValue';
-import { PieChart, Pencil, X, Save, AlertCircle, AlertTriangle, TrendingUp, TrendingDown, Ban, CheckCircle2, DollarSign } from 'lucide-react'; // 🧼 Removido 'Lock' que não era usado
+import { PieChart, AlertCircle } from 'lucide-react';
 import { Card } from './ui/Card';
+import { PrivateValue } from './ui/PrivateValue';
 import { apiCall } from '../lib/api';
-import { CATEGORY_COLORS } from '../lib/colors';
+import { useToast } from '../context/ToastContext';
+import { useFloatingTooltip } from '../hooks/useFloatingTooltip';
+import { GroupedAsset, MetaTooltipData, FinanceTooltipData, CategorySummaryProps } from './category-summary/types';
+import { FinanceTooltip } from './category-summary/FinanceTooltip';
+import { MetaAnalysisTooltip } from './category-summary/MetaAnalysisTooltip';
+import { CategoryRow } from './category-summary/CategoryRow';
+import { MetaEditor } from './category-summary/MetaEditor';
 
-import { useFloatingTooltip, TooltipState } from '../hooks/useFloatingTooltip';
-
-// ==========================================
-// INTERFACES E TIPAGENS ESTRITAS (NOVAS)
-// ==========================================
-interface GroupedAsset {
-  tipo: string;
-  investido: number;
-  atual: number;
-  variacaoPct: number;
-  variacaoValor: number;
-}
-
-interface MetaTooltipData {
-  item: GroupedAsset;
-  meta: number;
-  pctAtual: number;
-  diff: number;
-  visualWidth: number;
-}
-
-interface CategorySummaryProps {
-  ativos: Asset[];
-  categorias?: { name: string; meta: number }[];
-  onUpdate: () => void;
-}
-
-interface EditingCategory { name: string; }
-
-// ==========================================
-// 1. SUB-COMPONENTE: TOOLTIP FINANCEIRO
-// ==========================================
-const FinanceTooltip = ({ rect, data: { valor, isPositive } }: TooltipState<{valor: number, isPositive: boolean}>) => (
-  <div
-    className="fixed z-[110] animate-in fade-in zoom-in-95 duration-150 pointer-events-none"
-    style={{ top: rect.top - 50, left: rect.right - 20 }}
-  >
-    <div className="relative overflow-hidden bg-slate-900/95 backdrop-blur-xl rounded-lg border border-slate-700/50 shadow-2xl min-w-[140px]">
-      <div className={`absolute left-0 top-0 bottom-0 w-1 ${isPositive ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-      <div className="pl-3 pr-3 py-2">
-        <div className="flex flex-col">
-          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5 flex items-center gap-1">
-            <DollarSign size={10} /> Variação Hoje
-          </span>
-          <span className={`text-sm font-mono font-bold tracking-tight leading-none ${isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
-            {isPositive ? '+' : '-'}{formatMoney(Math.abs(valor))}
-          </span>
-        </div>
-      </div>
-    </div>
-  </div>
-);
-
-// ==========================================
-// 2. SUB-COMPONENTE: TOOLTIP DE META (PROTEGIDO)
-// ==========================================
-const MetaAnalysisTooltip = ({ rect, data }: TooltipState<MetaTooltipData>) => (
-  <div
-    className="fixed z-[100] animate-in fade-in zoom-in-95 duration-150 pointer-events-none"
-    style={{ top: rect.top - 10, left: rect.right + 10 }}
-  >
-    <div className="bg-slate-900/95 backdrop-blur border border-slate-700 shadow-2xl rounded-xl p-4 w-64 ring-1 ring-black/50">
-      <div className="flex justify-between items-start mb-3">
-        <h4 className="text-sm font-bold text-white uppercase tracking-tight flex items-center gap-2">
-          <PieChart size={14} className="text-blue-400" />
-          Análise de {data.item.tipo}
-        </h4>
-        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase border ${data.meta === 0 ? 'bg-slate-800 border-slate-600 text-slate-400' : data.diff > 2 ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' : data.diff < -2 ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-blue-500/10 border-blue-500/30 text-blue-400'}`}>
-          {data.meta === 0 ? 'Sem Meta' : data.diff > 2 ? 'Excesso' : data.diff < -2 ? 'Aporte' : 'Neutro'}
-        </span>
-      </div>
-
-      <div className="space-y-2">
-        {data.meta === 0 ? (
-          <div className="flex items-start gap-2.5">
-            <div className="mt-0.5"><AlertTriangle size={14} className="text-slate-500" /></div>
-            <div><p className="text-xs font-bold text-slate-300">Meta não definida</p></div>
-          </div>
-        ) : (
-          <>
-            {data.diff > 2 && (
-              <div className="flex items-start gap-2.5">
-                <div className="mt-0.5"><Ban size={14} className="text-amber-500" /></div>
-                <div>
-                  <p className="text-xs font-bold text-amber-400">Acima da Meta (+{data.diff.toFixed(1)}%)</p>
-                  <p className="text-[10px] text-slate-500 leading-tight mt-0.5">Evite novos aportes ou considere rebalancear.</p>
-                </div>
-              </div>
-            )}
-            {data.diff < -2 && (
-              <div className="flex items-start gap-2.5">
-                <div className="mt-0.5"><TrendingUp size={14} className="text-emerald-500" /></div>
-                <div>
-                  <p className="text-xs font-bold text-emerald-400">Abaixo da Meta ({data.diff.toFixed(1)}%)</p>
-                  <p className="text-[10px] text-slate-500 leading-tight mt-0.5">Oportunidade para novos aportes.</p>
-                </div>
-              </div>
-            )}
-            {Math.abs(data.diff) <= 2 && (
-              <div className="flex items-start gap-2.5">
-                <div className="mt-0.5"><CheckCircle2 size={14} className="text-blue-500" /></div>
-                <div>
-                  <p className="text-xs font-bold text-blue-400">Dentro da Meta</p>
-                  <p className="text-[10px] text-slate-500 leading-tight mt-0.5">Alocação equilibrada.</p>
-                </div>
-              </div>
-            )}
-          </>
-        )}
-      </div>
-
-      {data.meta > 0 && (
-        <div className="mt-3 pt-3 border-t border-slate-800">
-          <div className="flex justify-between text-[9px] text-slate-500 font-bold uppercase mb-1">
-            <span>Conclusão da Meta</span>
-            <span>{data.visualWidth.toFixed(0)}%</span>
-          </div>
-          <div className="h-1 bg-slate-800 rounded-full overflow-hidden">
-            <div className={`h-full rounded-full transition-all duration-300 ${data.diff > 2 ? 'bg-amber-500' : 'bg-blue-500'}`} style={{ width: `${Math.min(data.visualWidth, 100)}%` }}></div>
-          </div>
-        </div>
-      )}
-    </div>
-  </div>
-);
+const CATEGORY_ORDER = ['Ação', 'FII', 'Internacional', 'Cripto', 'Renda Fixa', 'Reserva'];
 
 export const CategorySummary = ({ ativos, categorias = [], onUpdate }: CategorySummaryProps) => {
-  const [editingCat, setEditingCat] = useState<EditingCategory | null>(null);
+  const { notify } = useToast();
+  const [editingCat, setEditingCat] = useState<string | null>(null);
   const [newMeta, setNewMeta] = useState(0);
   const [loading, setLoading] = useState(false);
 
-  // 🛡️ Definido o tipo correto nos estados para eliminar erros de 'any'
   const { tooltip: hoveredInfo, showTooltip: showMetaTooltip, hideTooltip: hideMetaTooltip } = useFloatingTooltip<MetaTooltipData>();
-  const { tooltip: financeTooltip, showTooltip: showFinanceTooltip, hideTooltip: hideFinanceTooltip } = useFloatingTooltip<{valor: number, isPositive: boolean}>();
+  const { tooltip: financeTooltip, showTooltip: showFinanceTooltip, hideTooltip: hideFinanceTooltip } = useFloatingTooltip<FinanceTooltipData>();
 
   const getMaxAllowed = (catName: string) => {
     const otherCatsTotal = categorias.filter(c => c.name !== catName).reduce((acc, c) => acc + c.meta, 0);
     return Math.max(0, 100 - otherCatsTotal);
   };
 
+  const handleEdit = (catName: string, currentMeta: number) => {
+    setEditingCat(catName);
+    setNewMeta(currentMeta);
+  };
+
+  const handleSave = async () => {
+    if (!editingCat) return;
+    setLoading(true);
+    try {
+      await apiCall('/api/update_category_meta', {
+        method: 'POST',
+        body: JSON.stringify({ category: editingCat, meta: Number(newMeta) }),
+      });
+      setEditingCat(null);
+      onUpdate();
+    } catch (error) {
+      console.error(error);
+      notify('Erro ao salvar a meta.', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (!ativos || ativos.length === 0) {
     return (
-      <Card className="flex flex-col items-center justify-center p-8 h-full !bg-[#0f172a] !border-slate-800 text-center min-h-[400px]">
+      <Card className="flex flex-col items-center justify-center p-8 h-full !bg-surface-card !border-slate-800 text-center min-h-[400px]">
         <div className="p-3 bg-indigo-500/10 rounded-full border border-indigo-500/20 text-indigo-400 mb-4 animate-pulse">
           <PieChart size={24} />
         </div>
@@ -171,9 +75,7 @@ export const CategorySummary = ({ ativos, categorias = [], onUpdate }: CategoryS
     return acc;
   }, {});
 
-  const CATEGORY_ORDER = ['Ação', 'FII', 'Internacional', 'Cripto', 'Renda Fixa', 'Reserva'];
-
-  const lista = (Object.values(groups)).map(group => {
+  const lista = Object.values(groups).map(group => {
     const assetsInCat = ativos.filter(a => (a.tipo || 'Outros') === group.tipo);
 
     let totalOntem = 0;
@@ -204,33 +106,10 @@ export const CategorySummary = ({ ativos, categorias = [], onUpdate }: CategoryS
     return acc + (catInfo ? catInfo.meta : 0);
   }, 0);
 
-  const handleEdit = (catName: string, currentMeta: number) => {
-    setEditingCat({ name: catName });
-    setNewMeta(currentMeta);
-  };
-
-  const handleSave = async () => {
-    if (!editingCat) return;
-    setLoading(true);
-    try {
-      await apiCall('/api/update_category_meta', {
-        method: 'POST',
-        body: JSON.stringify({ category: editingCat.name, meta: Number(newMeta) }),
-      });
-      setEditingCat(null);
-      onUpdate();
-    } catch (error) {
-      console.error(error);
-      alert("Erro ao salvar a meta.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <>
-      <Card className="flex flex-col h-[525px] overflow-hidden !bg-[#0f172a] !border-slate-800 shadow-2xl p-0 animate-in fade-in duration-500 relative">
-        <div className="p-4 border-b border-slate-800 bg-slate-900/50 flex items-center justify-between shrink-0">
+      <Card className="flex flex-col h-[525px] overflow-hidden !bg-surface-card !border-slate-800 shadow-2xl p-0 animate-in fade-in duration-500 relative">
+        <div className="p-4 border-b border-slate-800 bg-transparent flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             <div className="p-1.5 bg-blue-500/10 rounded-lg border border-blue-500/20">
               <PieChart size={16} className="text-blue-400" />
@@ -263,104 +142,25 @@ export const CategorySummary = ({ ativos, categorias = [], onUpdate }: CategoryS
                 const catInfo = categorias.find(c => c.name === item.tipo);
                 const meta = catInfo ? catInfo.meta : 0;
                 const diff = pctAtual - meta;
-                const isPositiveVar = item.variacaoPct >= 0;
 
                 let visualWidth = 0;
-                if (meta > 0) { visualWidth = Math.min((pctAtual / meta) * 100, 100); }
-                else if (pctAtual > 0) { visualWidth = 100; }
-
-                let barColor = "bg-blue-600";
-                if (pctAtual > meta * 1.15) barColor = "bg-amber-500";
-                else if (pctAtual < meta * 0.85) barColor = "bg-emerald-500";
+                if (meta > 0) visualWidth = Math.min((pctAtual / meta) * 100, 100);
+                else if (pctAtual > 0) visualWidth = 100;
 
                 return (
-                  <tr key={item.tipo} className="hover:bg-slate-800/40 transition-colors group relative">
-                    <td className="px-6 py-3 align-middle relative">
-                      {/* Barra de cor identificadora */}
-                      <div 
-                        className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-3/5 rounded-r-full shadow-[2px_0_8px_rgba(0,0,0,0.5)]" 
-                        style={{ backgroundColor: CATEGORY_COLORS[item.tipo] || CATEGORY_COLORS['Outros'] }} 
-                      />
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-300">{item.tipo}</span>
-
-                        {item.tipo === 'Reserva' ? (
-                          <div className="flex items-center gap-0.5 text-[9px] font-mono font-bold px-1.5 py-0.5 rounded text-slate-400 bg-slate-800/85 border border-slate-750/70 cursor-default">
-                            Estável (CDB/Selic)
-                          </div>
-                        ) : Math.abs(item.variacaoPct) > 0.001 && (
-                          <div
-                            className={`flex items-center gap-0.5 text-[9px] font-mono font-bold px-1.5 py-0.5 rounded cursor-pointer transition-all hover:scale-105 ${isPositiveVar
-                              ? 'text-emerald-400 bg-emerald-400/10 border border-emerald-400/20'
-                              : 'text-rose-400 bg-rose-400/10 border border-rose-400/20'
-                              }`}
-                            onMouseEnter={(e) => {
-                              showFinanceTooltip(e, { valor: item.variacaoValor, isPositive: isPositiveVar });
-                            }}
-                            onMouseLeave={() => hideFinanceTooltip()}
-                          >
-                            {isPositiveVar ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
-                            {isPositiveVar ? '+' : ''}{item.variacaoPct.toFixed(2)}%
-                          </div>
-                        )}
-                      </div>
-                    </td>
-
-                    <td className="px-4 py-3 text-right text-slate-500 font-mono align-middle">
-                      <PrivateValue value={formatMoney(item.investido)} />
-                    </td>
-
-                    <td className="px-4 py-3 text-right text-white font-mono font-bold align-middle">
-                      <PrivateValue value={formatMoney(item.atual)} />
-                    </td>
-
-                    <td className="px-4 py-3 align-middle">
-                      {item.tipo === 'Reserva' ? (
-                        <div className="flex flex-col py-1">
-                          <span className="text-slate-200 font-bold font-mono text-[10px] leading-none">{pctAtual.toFixed(1)}%</span>
-                          <span className="text-[9px] text-slate-500 font-bold leading-none mt-1">Excluído das metas</span>
-                        </div>
-                      ) : (
-                        <div
-                          className="w-full cursor-pointer py-1"
-                          onMouseEnter={(e) => {
-                            showMetaTooltip(e, { item, meta, pctAtual, diff, visualWidth });
-                          }}
-                          onMouseLeave={() => hideMetaTooltip()}
-                        >
-                          <div className="flex justify-between text-[10px] mb-2 font-mono leading-none">
-                            <span className="text-slate-200 font-bold">{pctAtual.toFixed(1)}%</span>
-                            {meta > 0 && (
-                              <span className={diff > 0 ? "text-amber-500 font-bold" : "text-emerald-500 font-bold"}>
-                                {diff > 0 ? '+' : ''}{diff.toFixed(1)}%
-                              </span>
-                            )}
-                          </div>
-                          <div className="h-2.5 w-full bg-slate-900/80 border border-slate-800/60 shadow-inner rounded-full overflow-hidden relative p-[1px]">
-                            <div
-                              className={`h-full rounded-full ${barColor} opacity-90 transition-all duration-500 shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)]`}
-                              style={{ width: `${visualWidth}%` }}
-                            ></div>
-                          </div>
-                        </div>
-                      )}
-                    </td>
-
-                    <td className="px-6 py-3 text-right align-middle">
-                      <div className="flex items-center justify-end gap-2 h-full">
-                        {item.tipo === 'Reserva' ? (
-                          <span className="text-slate-500 font-bold font-mono text-xs block">-</span>
-                        ) : (
-                          <>
-                            <span className="text-slate-400 font-bold font-mono text-xs block">{meta.toFixed(0)}%</span>
-                            <button type="button" onClick={() => handleEdit(item.tipo, meta)} className="opacity-0 group-hover:opacity-100 p-1.5 rounded hover:bg-slate-800 text-slate-600 hover:text-white transition-all -mr-2">
-                              <Pencil size={12} />
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
+                  <CategoryRow
+                    key={item.tipo}
+                    item={item}
+                    meta={meta}
+                    pctAtual={pctAtual}
+                    diff={diff}
+                    visualWidth={visualWidth}
+                    onEdit={handleEdit}
+                    onShowFinance={showFinanceTooltip}
+                    onHideFinance={hideFinanceTooltip}
+                    onShowMeta={showMetaTooltip}
+                    onHideMeta={hideMetaTooltip}
+                  />
                 );
               })}
             </tbody>
@@ -370,17 +170,11 @@ export const CategorySummary = ({ ativos, categorias = [], onUpdate }: CategoryS
         <div className="py-2 px-4 bg-slate-900 border-t border-slate-800 flex justify-between items-center shrink-0">
           <div className="space-y-0.5">
             <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest leading-none">Patrimônio Atual</p>
-            <PrivateValue
-              value={formatMoney(totalAtualGeral)}
-              className="text-lg font-bold text-emerald-400 font-mono"
-            />
+            <PrivateValue value={formatMoney(totalAtualGeral)} className="text-lg font-bold text-emerald-400 font-mono" />
           </div>
           <div className="text-right space-y-0.5">
             <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest leading-none">Custo Total</p>
-            <PrivateValue
-              value={formatMoney(totalInvestidoGeral)}
-              className="text-sm font-bold text-slate-300 font-mono"
-            />
+            <PrivateValue value={formatMoney(totalInvestidoGeral)} className="text-sm font-bold text-slate-300 font-mono" />
           </div>
         </div>
       </Card>
@@ -389,27 +183,15 @@ export const CategorySummary = ({ ativos, categorias = [], onUpdate }: CategoryS
       {hoveredInfo && <MetaAnalysisTooltip {...hoveredInfo} />}
 
       {editingCat && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <Card className="w-full max-w-sm !bg-slate-900 shadow-2xl p-6 space-y-6 border-slate-700">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-bold text-white leading-tight">Meta: {editingCat.name}</h3>
-              <button type="button" onClick={() => setEditingCat(null)} className="p-1.5 text-slate-500 hover:text-white transition-colors"><X size={20} /></button>
-            </div>
-            <div className="space-y-4">
-              <div className="flex justify-between items-end px-1">
-                <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Ajustar Alocação</span>
-                <span className="text-3xl font-bold text-blue-400 font-mono">{newMeta}%</span>
-              </div>
-              <input type="range" min="0" max={getMaxAllowed(editingCat.name)} step="1" value={newMeta} onChange={(e) => setNewMeta(Number(e.target.value))} className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500 outline-none" />
-            </div>
-            <div className="flex justify-end gap-3">
-              <button type="button" onClick={() => setEditingCat(null)} className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-white transition-colors uppercase tracking-widest">Cancelar</button>
-              <button type="button" onClick={handleSave} disabled={loading} className="px-6 py-2 text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white rounded-lg flex items-center gap-2 shadow-lg shadow-blue-900/20 uppercase tracking-widest">
-                {loading ? 'Salvando...' : <><Save size={14} /> Salvar Meta</>}
-              </button>
-            </div>
-          </Card>
-        </div>
+        <MetaEditor
+          categoryName={editingCat}
+          value={newMeta}
+          maxValue={getMaxAllowed(editingCat)}
+          loading={loading}
+          onChange={setNewMeta}
+          onSave={handleSave}
+          onClose={() => setEditingCat(null)}
+        />
       )}
     </>
   );

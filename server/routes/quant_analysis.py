@@ -11,6 +11,7 @@ from services import PortfolioService
 from db.session import Session
 from db.models import SystemCache, Position, Asset
 from sqlalchemy.orm import selectinload
+from domain.quant.constants import VARIABLE_ASSET_CATEGORIES
 
 quant_bp = Blueprint('quant', __name__)
 service = PortfolioService()
@@ -125,7 +126,7 @@ def get_dca_lump_sum():
                 .filter(Position.quantity > 0)
                 .all()
             )
-            active_tickers = [p.asset.ticker.upper() for p in positions if p.asset and p.asset.category and p.asset.category.name not in ["Renda Fixa", "Reserva"]]
+            active_tickers = [p.asset.ticker.upper() for p in positions if p.asset and p.asset.category and p.asset.category.name in VARIABLE_ASSET_CATEGORIES]
             if active_tickers:
                 ticker = active_tickers[0]
             else:
@@ -134,9 +135,19 @@ def get_dca_lump_sum():
     try:
         from infrastructure.price_cache import fetch_price_history
         from domain.quant.analysis import _to_yf_ticker
+        from services import PortfolioService
+        
+        dolar_rate = 1.0
+        cat_name = "Ação"
+        with Session() as session:
+            asset = session.query(Asset).options(selectinload(Asset.category)).filter_by(ticker=ticker).first()
+            if asset and asset.category:
+                cat_name = asset.category.name
+            if cat_name == "Internacional":
+                dolar_rate = float(PortfolioService().get_usd_rate())
         
         # Resolve ticker YF
-        yf_ticker = _to_yf_ticker(ticker, "Ação")
+        yf_ticker = _to_yf_ticker(ticker, cat_name)
         raw = fetch_price_history([yf_ticker], period="1y")
         
         import pandas as pd
@@ -160,13 +171,13 @@ def get_dca_lump_sum():
         # 1. Simulação Lump Sum
         p_start = float(prices[0])
         p_end = float(prices[-1])
-        lump_shares = initial_amount / p_start
-        lump_final_val = lump_shares * p_end
+        lump_shares = (initial_amount / dolar_rate) / p_start
+        lump_final_val = lump_shares * p_end * dolar_rate
         lump_profit = lump_final_val - initial_amount
         lump_return_pct = (lump_profit / initial_amount) * 100
 
         # 2. Simulação DCA (Aporte inicial + aporte mensal a cada 21 dias úteis)
-        dca_shares = initial_amount / p_start
+        dca_shares = (initial_amount / dolar_rate) / p_start
         dca_invested = initial_amount
         dca_history = []
         
@@ -175,11 +186,11 @@ def get_dca_lump_sum():
             
             # Aporte mensal regular (a cada 21 dias úteis)
             if idx > 0 and idx % 21 == 0:
-                dca_shares += monthly_contribution / price_t
+                dca_shares += (monthly_contribution / dolar_rate) / price_t
                 dca_invested += monthly_contribution
                 
-            dca_val = dca_shares * price_t
-            lump_val = lump_shares * price_t
+            dca_val = dca_shares * price_t * dolar_rate
+            lump_val = lump_shares * price_t * dolar_rate
             
             dca_history.append({
                 "date": dates[idx],
@@ -188,7 +199,7 @@ def get_dca_lump_sum():
                 "dca_invested": round(dca_invested, 2)
             })
 
-        dca_final_val = dca_shares * p_end
+        dca_final_val = dca_shares * p_end * dolar_rate
         dca_profit = dca_final_val - dca_invested
         dca_return_pct = (dca_profit / dca_invested) * 100 if dca_invested > 0 else 0.0
 
@@ -218,10 +229,16 @@ def get_dca_lump_sum():
 def get_efficient_frontier():
     with Session() as session:
         try:
-            cache_key = f"efficient_frontier_{g.user_id}"
+            pos_count = session.query(Position).filter_by(user_id=g.user_id).filter(Position.quantity > 0).count()
+            cache_key = f"efficient_frontier_{g.user_id}_{pos_count}"
             cache_record = session.query(SystemCache).filter_by(key=cache_key).first()
+            
             if cache_record:
-                return jsonify(json.loads(cache_record.value))
+                # 24h TTL
+                if cache_record.updated_at and (datetime.now() - cache_record.updated_at).total_seconds() < 86400:
+                    return jsonify(json.loads(cache_record.value))
+                else:
+                    logging.info("📈 Cache de Fronteira Eficiente expirado (>24h).")
                 
             logging.info("📈 Cache de Fronteira Eficiente frio. Calculando síncrono...")
             res = service.calculate_efficient_frontier_points()
@@ -280,7 +297,7 @@ def calculate_local_fear_greed(session, user_id=None):
     variable_assets = []
     total_var_value = 0.0
     for p in positions:
-        if p.asset and p.asset.category and p.asset.category.name in ["Ação", "FII", "Cripto"]:
+        if p.asset and p.asset.category and p.asset.category.name in VARIABLE_ASSET_CATEGORIES:
             mdata = p.asset.market_data[0] if p.asset.market_data else None
             price = float(mdata.price or p.average_price or 0.0) if mdata else float(p.average_price or 0.0)
             val = float(p.quantity) * price
@@ -465,11 +482,44 @@ def analyze_pdf_endpoint():
             if not position or not position.last_report_url:
                 return jsonify({"status": "Erro", "msg": f"Nenhum link de relatório de RI disponível para o ativo {ticker}."}), 404
                 
+            # Verifica se já está atualizado
+            if position.asset.ai_updated_at and position.last_report_at:
+                try:
+                    last_rep_dt = datetime.fromisoformat(position.last_report_at.replace("Z", "+00:00"))
+                    if position.asset.ai_updated_at >= last_rep_dt:
+                        # Já foi processado
+                        cached_kpis = {
+                            "credit_rating": position.asset.credit_rating,
+                            "duration_years": position.asset.duration_years,
+                            "indexer_cdi_pct": position.asset.indexer_cdi_pct,
+                            "indexer_ipca_pct": position.asset.indexer_ipca_pct
+                        }
+                        return jsonify({"status": "Aviso", "msg": "Os dados já estão atualizados com o último relatório disponível.", "kpis": cached_kpis})
+                except Exception as ex:
+                    logging.warning(f"Erro ao parsear datas para {ticker}: {ex}")
+
             url = position.last_report_url
-            is_fii = position.asset.category.name == "FII"
+            is_fii = position.asset.category.name in ["FII", "Renda Fixa", "Reserva"]
             
             from utils.pdf_extractor import extract_kpis_from_pdf
             res = extract_kpis_from_pdf(url, is_fii)
+            
+            # Salvar no banco de dados se for sucesso
+            if res.get("status") == "Sucesso" and "kpis" in res:
+                kpis = res["kpis"]
+                
+                if "credit_rating" in kpis and kpis["credit_rating"]:
+                    position.asset.credit_rating = str(kpis["credit_rating"]).strip()
+                if "duration_years" in kpis and kpis["duration_years"] is not None:
+                    position.asset.duration_years = float(kpis["duration_years"])
+                if "indexer_cdi_pct" in kpis and kpis["indexer_cdi_pct"] is not None:
+                    position.asset.indexer_cdi_pct = float(kpis["indexer_cdi_pct"])
+                if "indexer_ipca_pct" in kpis and kpis["indexer_ipca_pct"] is not None:
+                    position.asset.indexer_ipca_pct = float(kpis["indexer_ipca_pct"])
+                    
+                position.asset.ai_updated_at = datetime.utcnow()
+                session.commit()
+                
             return jsonify(res)
         except Exception as e:
             logging.error(f"Erro ao processar relatório RI PDF de {ticker}: {e}", exc_info=True)

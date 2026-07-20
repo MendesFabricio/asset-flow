@@ -6,6 +6,7 @@ import {
   ChevronDown, Briefcase, FileText, TrendingUp, PieChart, 
   Layers, Brain, RefreshCw, Calendar, Settings, Terminal
 } from 'lucide-react';
+import { useToast } from '@/context/ToastContext';
 
 interface ToolsMenuProps {
   onSyncReports: () => void;
@@ -34,6 +35,7 @@ export function ToolsMenu({
   isRefetching,
   showRefreshSuccess
 }: ToolsMenuProps) {
+  const { notify } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   
@@ -57,6 +59,9 @@ export function ToolsMenu({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
+        aria-label="Menu de ferramentas"
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
         className={`bg-slate-900/60 hover:bg-slate-800 text-slate-200 hover:text-white px-3 py-2 rounded-lg transition-all flex items-center gap-2 text-xs font-bold border border-slate-800 shadow-sm ${
           isSyncActive ? 'border-blue-500/50 shadow-[0_0_10px_rgba(59,130,246,0.15)] text-white' : ''
         }`}
@@ -100,7 +105,7 @@ export function ToolsMenu({
                 <button
                   type="button"
                   onClick={() => {
-                    alert('Funcionalidade "Importação OCR" em desenvolvimento. Em breve disponível no AssetFlow Pro!');
+                    notify('Funcionalidade "Importação OCR" em desenvolvimento. Em breve disponível no AssetFlow Pro!', 'info');
                     setIsOpen(false);
                   }}
                   className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-slate-900/60 transition-colors flex items-center gap-2.5 text-xs text-slate-200"
@@ -224,7 +229,7 @@ export function ToolsMenu({
                 <button
                   type="button"
                   onClick={() => {
-                    alert('O console de logs do desenvolvedor está em desenvolvimento para o painel administrativo Pro.');
+                    notify('O console de logs do desenvolvedor está em desenvolvimento para o painel administrativo Pro.', 'info');
                     setIsOpen(false);
                   }}
                   className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-slate-900/60 transition-colors flex items-center gap-2.5 text-xs text-slate-400 hover:text-slate-200"

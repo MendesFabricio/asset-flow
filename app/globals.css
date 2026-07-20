@@ -6,6 +6,22 @@
   /* Mantendo a fidelidade às cores que usamos nos cards */
   --card-bg: #0f172a;
   --border-slate: #1e293b;
+  /* Tokens semânticos (dark por padrão) */
+  --surface: #0b0f19;
+  --surface-card: #0f172a;
+  --surface-input: #1e293b;
+  --surface-elevated: #111827;
+  --border-subtle: #1e293b;
+  --text-primary: #f3f6fa;
+  --text-muted: #94a3b8;
+  
+  /* Auditoria UI: Unificação de Acentos e Status */
+  --accent: #3b82f6; /* blue-500 */
+  --accent-soft: rgba(59, 130, 246, 0.15);
+  --accent-glow: rgba(59, 130, 246, 0.3);
+  --status-success: #10b981; /* emerald-500 */
+  --status-warning: #f59e0b; /* amber-500 */
+  --status-error: #ef4444; /* rose-500 */
 }
 
 @theme inline {
@@ -13,6 +29,21 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --color-surface: var(--surface);
+  --color-surface-card: var(--surface-card);
+  --color-surface-input: var(--surface-input);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-border-subtle: var(--border-subtle);
+  --color-text-primary: var(--text-primary);
+  --color-text-muted: var(--text-muted);
+  
+  /* Audit UI */
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-glow: var(--accent-glow);
+  --color-status-success: var(--status-success);
+  --color-status-warning: var(--status-warning);
+  --color-status-error: var(--status-error);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -58,6 +89,14 @@ body {
   ::-webkit-scrollbar-thumb:hover {
     background: #475569;
   }
+
+  button:focus, a:focus, button:focus-visible, a:focus-visible {
+    outline: none !important;
+  }
+
+  button::-moz-focus-inner {
+    border: 0;
+  }
 }
 
 /* Utilitário para os cards usarem o scroll interno sem quebrar o design */
@@ -99,13 +138,28 @@ html.light-theme, body.light-theme, [data-theme="light"] {
   --foreground: #1e293b !important;
   --card-bg: #ffffff !important;
   --border-slate: #e2e8f0 !important;
+  --surface: #f3f6fa !important;
+  --surface-card: #ffffff !important;
+  --surface-input: #f1f5f9 !important;
+  --surface-elevated: #f8fafc !important;
+  --border-subtle: #e2e8f0 !important;
+  --text-primary: #0f172a !important;
+  --text-muted: #64748b !important;
   background-color: #f3f6fa !important;
   color: #1e293b !important;
 }
 
 /* Fundo da página e textos principais no Modo Claro */
-.light-theme .bg-\[\#0b0f19\] {
-  background-color: #f3f6fa !important;
+.light-theme .bg-\[\#0b0f19\],
+.light-theme .bg-\[\#0d1117\],
+.light-theme .bg-\[\#0d1117\]\/95,
+.light-theme .bg-\[\#0f172a\] {
+  background-color: #ffffff !important;
+}
+
+/* Header/footer fixos de modais (leve contraste) */
+.light-theme .bg-\[\#0d1117\]\/95 {
+  background-color: #f8fafc !important;
 }
 
 .light-theme .text-white,
@@ -123,18 +177,65 @@ html.light-theme, body.light-theme, [data-theme="light"] {
   color: #64748b !important;
 }
 
+.light-theme .text-slate-600 {
+  color: #475569 !important;
+}
+
+.light-theme .text-slate-700 {
+  color: #334155 !important;
+}
+
 /* Cards, containers e modais */
 .light-theme .bg-slate-900,
 .light-theme .bg-slate-950,
+.light-theme .bg-slate-900\/95,
 .light-theme .bg-slate-900\/80,
 .light-theme .bg-slate-900\/90,
+.light-theme .bg-slate-950\/95,
 .light-theme .bg-slate-950\/80,
 .light-theme .bg-slate-950\/90,
 .light-theme .bg-slate-900\/50,
 .light-theme .bg-slate-900\/60,
-.light-theme .bg-slate-950\/50 {
+.light-theme .bg-slate-950\/50,
+.light-theme .bg-slate-950\/40,
+.light-theme .bg-slate-950\/30,
+.light-theme .bg-slate-950\/20,
+.light-theme .bg-slate-950\/10,
+.light-theme .bg-slate-900\/40,
+.light-theme .bg-slate-900\/30,
+.light-theme .bg-slate-900\/45 {
   background-color: #ffffff !important;
+  color: #1e293b !important;
   box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.03) !important;
+}
+
+/* Tooltips escuros (Recharts e custom) no Modo Claro */
+.light-theme [class*="bg-slate-900/"],
+.light-theme [class*="bg-slate-950/"] {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #1e293b !important;
+  box-shadow: 0 8px 30px rgba(15, 23, 42, 0.12) !important;
+}
+
+/* Variantes com !important (ex.: !bg-slate-950, !bg-[#0f172a]) usadas em cards
+   de análise quant e modais — o seletor .bg-x NÃO casa a classe !bg-x, por isso
+   usamos seletor de atributo por substring. */
+.light-theme [class*="!bg-slate-950"],
+.light-theme [class*="!bg-slate-900"],
+.light-theme [class*="!bg-[#0f172a]"],
+.light-theme [class*="!bg-[#0d1117]"] {
+  background-color: #ffffff !important;
+  color: #1e293b !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.03) !important;
+}
+
+/* Bordas de variantes !important no Modo Claro */
+.light-theme [class*="!border-slate-900"],
+.light-theme [class*="!border-slate-800"],
+.light-theme [class*="!border-slate-700"] {
+  border-color: #e2e8f0 !important;
 }
 
 /* Inputs, botões secundários, abas inativas e hovers */
@@ -142,7 +243,9 @@ html.light-theme, body.light-theme, [data-theme="light"] {
 .light-theme .bg-slate-800\/80,
 .light-theme .bg-slate-800\/60,
 .light-theme .bg-slate-800\/50,
-.light-theme .bg-slate-800\/40 {
+.light-theme .bg-slate-800\/40,
+.light-theme .bg-slate-800\/30,
+.light-theme .bg-slate-800\/85 {
   background-color: #f1f5f9 !important;
   color: #1e293b !important;
 }
@@ -152,7 +255,9 @@ html.light-theme, body.light-theme, [data-theme="light"] {
 .light-theme .hover\:bg-slate-800\/60:hover,
 .light-theme .hover\:bg-slate-800:hover,
 .light-theme .hover\:bg-slate-900\/60:hover,
-.light-theme .hover\:bg-slate-900\/40:hover {
+.light-theme .hover\:bg-slate-900\/40:hover,
+.light-theme .hover\:bg-slate-900\/30:hover,
+.light-theme .hover\:bg-slate-800\/30:hover {
   background-color: #f8fafc !important;
 }
 
@@ -170,18 +275,101 @@ html.light-theme, body.light-theme, [data-theme="light"] {
 
 .light-theme .divide-slate-800,
 .light-theme .divide-slate-800\/80,
-.light-theme .divide-slate-900 {
+.light-theme .divide-slate-900,
+.light-theme .divide-slate-900\/60,
+.light-theme .divide-slate-900\/50,
+.light-theme .divide-slate-900\/40 {
   border-color: #e2e8f0 !important;
 }
 
 /* Acentuação e legibilidade das cores de status e números no Modo Claro */
-.light-theme .text-emerald-400 { color: #059669 !important; }
-.light-theme .text-rose-400 { color: #e11d48 !important; }
-.light-theme .text-purple-400 { color: #7c3aed !important; }
-.light-theme .text-blue-400 { color: #2563eb !important; }
-.light-theme .text-amber-400 { color: #d97706 !important; }
-.light-theme .text-indigo-400 { color: #4f46e5 !important; }
-.light-theme .text-cyan-400 { color: #0891b2 !important; }
+.light-theme .text-emerald-400,
+.light-theme .text-emerald-500 { color: #059669 !important; }
+.light-theme .text-emerald-300 { color: #047857 !important; }
+.light-theme .text-rose-400,
+.light-theme .text-rose-500 { color: #e11d48 !important; }
+.light-theme .text-rose-300 { color: #be123c !important; }
+.light-theme .text-purple-400,
+.light-theme .text-purple-500 { color: #7c3aed !important; }
+.light-theme .text-purple-300 { color: #6d28d9 !important; }
+.light-theme .text-blue-400,
+.light-theme .text-blue-500 { color: #2563eb !important; }
+.light-theme .text-blue-300 { color: #1d4ed8 !important; }
+.light-theme .text-amber-400,
+.light-theme .text-amber-500 { color: #d97706 !important; }
+.light-theme .text-amber-300 { color: #b45309 !important; }
+.light-theme .text-indigo-400,
+.light-theme .text-indigo-500 { color: #4f46e5 !important; }
+.light-theme .text-indigo-300 { color: #4338ca !important; }
+.light-theme .text-cyan-400,
+.light-theme .text-cyan-500 { color: #0891b2 !important; }
+.light-theme .text-cyan-300 { color: #0e7490 !important; }
+.light-theme .text-green-400,
+.light-theme .text-green-500 { color: #16a34a !important; }
+.light-theme .text-green-300 { color: #15803d !important; }
+.light-theme .text-red-400,
+.light-theme .text-red-500 { color: #dc2626 !important; }
+.light-theme .text-red-300 { color: #b91c1c !important; }
+
+/* Fundos e bordas de badges de status no Modo Claro */
+.light-theme .bg-emerald-400\/10, .light-theme .bg-emerald-500\/10 { background-color: rgba(5, 150, 105, 0.1) !important; }
+.light-theme .border-emerald-400\/20, .light-theme .border-emerald-500\/20 { border-color: rgba(5, 150, 105, 0.2) !important; }
+
+.light-theme .bg-rose-400\/10, .light-theme .bg-rose-500\/10 { background-color: rgba(225, 29, 72, 0.1) !important; }
+.light-theme .border-rose-400\/20, .light-theme .border-rose-500\/20 { border-color: rgba(225, 29, 72, 0.2) !important; }
+.light-theme .border-rose-400\/30 { border-color: rgba(225, 29, 72, 0.3) !important; }
+
+.light-theme .bg-red-400\/10, .light-theme .bg-red-500\/10 { background-color: rgba(220, 38, 38, 0.1) !important; }
+.light-theme .border-red-400\/20, .light-theme .border-red-500\/20 { border-color: rgba(220, 38, 38, 0.2) !important; }
+.light-theme .border-red-500\/30 { border-color: rgba(220, 38, 38, 0.3) !important; }
+
+.light-theme .bg-amber-400\/10, .light-theme .bg-amber-500\/10 { background-color: rgba(217, 119, 6, 0.1) !important; }
+.light-theme .border-amber-400\/20, .light-theme .border-amber-500\/20 { border-color: rgba(217, 119, 6, 0.2) !important; }
+
+.light-theme .bg-blue-400\/10, .light-theme .bg-blue-500\/10 { background-color: rgba(37, 99, 235, 0.1) !important; }
+.light-theme .border-blue-400\/20, .light-theme .border-blue-500\/20 { border-color: rgba(37, 99, 235, 0.2) !important; }
+
+.light-theme .bg-cyan-400\/10, .light-theme .bg-cyan-500\/10 { background-color: rgba(8, 145, 178, 0.1) !important; }
+.light-theme .border-cyan-400\/20, .light-theme .border-cyan-500\/20 { border-color: rgba(8, 145, 178, 0.2) !important; }
+
+/* Gradientes do StatCard e outros gradientes escuros no Modo Claro.
+   Mantém o leve tom colorido (from) e only clareia o final escuro (to) para branco,
+   preservando um gradiente agradável no light mode. */
+.light-theme [class*="bg-gradient-to-br"][class*="to-slate-9"],
+.light-theme [class*="bg-gradient-to-r"][class*="to-slate-9"] {
+  --tw-gradient-to: #ffffff var(--tw-gradient-to-position) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+/* Card padrão (cinza, sem cor de destaque): gradiente suave claro no light mode */
+.light-theme [class*="bg-gradient-to-br"][class*="from-slate-8"],
+.light-theme [class*="bg-gradient-to-r"][class*="from-slate-8"],
+.light-theme [class*="bg-gradient-to-br"][class*="from-slate-9"],
+.light-theme [class*="bg-gradient-to-r"][class*="from-slate-9"],
+.light-theme [class*="bg-gradient-to-br"][class*="from-slate-7"],
+.light-theme [class*="bg-gradient-to-r"][class*="from-slate-7"] {
+  --tw-gradient-from: #f1f5f9 var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: #ffffff var(--tw-gradient-to-position) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+  background-color: #ffffff !important;
+}
+
+/* Fundos escuros de marca (indigo/rose-950) no Modo Claro */
+.light-theme .bg-indigo-950\/20,
+.light-theme .bg-indigo-950\/10,
+.light-theme .bg-indigo-950 {
+  background-color: #eef2ff !important;
+  border-color: #c7d2fe !important;
+  color: #3730a3 !important;
+}
+
+/* Ícones com gradiente slate (ex.: avatar do usuário) no Modo Claro */
+.light-theme [class*="from-slate-7"][class*="to-slate-8"],
+.light-theme [class*="from-slate-8"][class*="to-slate-8"] {
+  --tw-gradient-from: #e2e8f0 var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: #f1f5f9 var(--tw-gradient-to-position) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
 
 /* Scrollbars no Modo Claro */
 .light-theme * {

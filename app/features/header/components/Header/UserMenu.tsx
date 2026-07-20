@@ -6,6 +6,7 @@ import {
   ChevronDown, User, Settings, History, LogOut, Eye, EyeOff
 } from 'lucide-react';
 import { usePrivacy } from '@/context/PrivacyContext';
+import { useToast } from '@/context/ToastContext';
 
 interface UserMenuProps {
   showName?: boolean;
@@ -17,6 +18,7 @@ export function UserMenu({ showName = false }: UserMenuProps) {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const { isHidden, togglePrivacy } = usePrivacy() as { isHidden: boolean; togglePrivacy: () => void };
+  const { notify } = useToast();
 
   useEffect(() => {
     const saved = localStorage.getItem('assetflow_username');
@@ -51,6 +53,9 @@ export function UserMenu({ showName = false }: UserMenuProps) {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
+        aria-label="Menu do usuário"
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
         className="flex items-center gap-1.5 bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 p-1.5 rounded-xl transition-all text-xs font-semibold text-slate-200"
       >
         <div className="w-5 h-5 rounded-full bg-gradient-to-br from-slate-700 to-slate-800 border border-slate-600/40 text-slate-200 flex items-center justify-center font-bold text-[9px] shadow-sm">
@@ -93,7 +98,7 @@ export function UserMenu({ showName = false }: UserMenuProps) {
             type="button"
             className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-slate-900 text-slate-400 hover:text-slate-200 transition-colors flex items-center gap-2.5 text-xs"
             onClick={() => {
-              alert('Funcionalidade "Logs de Auditoria" em desenvolvimento. Em breve no AssetFlow Pro!');
+              notify('Funcionalidade "Logs de Auditoria" em desenvolvimento. Em breve no AssetFlow Pro!', 'info');
               setIsOpen(false);
             }}
           >

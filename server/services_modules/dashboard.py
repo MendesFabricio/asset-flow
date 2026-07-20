@@ -10,7 +10,7 @@ from db.session import Session
 from .dashboard_metrics import calculate_fundamental_metrics, apply_strategy
 from .dashboard_alerts import build_alerts
 from utils.date_helper import get_invoice_month_helper as get_fatura_mes_helper
-from datetime import datetime
+from datetime import datetime, timezone
 
 class DashboardService:
     def get_dashboard_data(self):
@@ -53,7 +53,8 @@ class DashboardService:
                     
                     ativos_proc.append({
                         "obj": pos, "total_atual": total_atual, "total_investido": total_investido,
-                        "preco_atual": preco, "min_6m": min_6m, "change_percent": change_percent, "metrics": metrics
+                        "preco_atual": preco, "min_6m": min_6m, "change_percent": change_percent, "metrics": metrics,
+                        "mdata_date": mdata.date.isoformat() if mdata and mdata.date else None
                     })
 
                 resumo["LucroTotal"] = resumo["Total"] - resumo["TotalInvestido"]
@@ -94,6 +95,11 @@ class DashboardService:
                     else:
                         status_order = 3
 
+                    # Zero variation if not from today
+                    today_str = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+                    mdata_date_str = item.get("mdata_date")
+                    final_change_percent = float(change_percent) if mdata_date_str == today_str else 0.0
+
                     final_list.append({
                         "id": asset.id,
                         "ticker": asset.ticker,
@@ -111,7 +117,7 @@ class DashboardService:
                         "preco_medio": float(pos.average_price),
                         "preco_atual": float(preco),
                         "min_6m": float(min_6m),
-                        "change_percent": float(change_percent),
+                        "change_percent": final_change_percent,
                         "total_atual": float(total_atual),
                         "total_investido": float(total_investido),
                         "lucro_valor": float(total_atual - total_investido),
@@ -136,7 +142,7 @@ class DashboardService:
                         "last_report_at": pos.last_report_at,
                         "last_report_type": pos.last_report_type,
                         "fundamentalist_data": pos.last_report_type,
-                        **item["metrics"]
+                        "mdata_date": mdata_date_str,
                     })
 
                 alertas = build_alerts(ativos_proc, cat_totals, cat_metas, resumo, self, session)

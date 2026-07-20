@@ -218,6 +218,9 @@ export function Notifications({ onFixAsset }: NotificationsProps) {
     <div className="relative select-none">
       <button
         onClick={() => setIsOpen(!isOpen)}
+        aria-label="Central de Notificações"
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
         className={`p-2 rounded-lg transition-all border relative group ${
           isOpen
             ? 'bg-slate-900 border-slate-700 text-white shadow-[0_0_15px_rgba(59,130,246,0.15)]'
