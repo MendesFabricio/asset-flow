@@ -3,7 +3,6 @@
 # CPU total (burst): ≤ 4.0 | RAM total: ≤ 6.75 GB (sobram ~5 GB p/ SO/cache)
 
 x-shared-env: &shared-env
-  GEMINI_API_KEY: ${GEMINI_API_KEY}
   SENTRY_DSN: ""
   ENVIRONMENT: production
   APP_RELEASE: ${APP_RELEASE:-latest}

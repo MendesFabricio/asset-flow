@@ -154,7 +154,7 @@ export function JarvisChat() {
       setMessages((prev) =>
         prev.map((msg) =>
           msg.id === jarvisMsgId
-            ? { ...msg, text: '❌ Ocorreu um erro ao conectar-se à inteligência local. Verifique se o serviço Ollama está ativo.' }
+            ? { ...msg, text: '❌ Ocorreu um erro ao conectar-se à inteligência artificial.' }
             : msg
         )
       );

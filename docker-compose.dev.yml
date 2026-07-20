@@ -1,5 +1,4 @@
 x-shared-env: &shared-env
-  GEMINI_API_KEY: ${GEMINI_API_KEY}
   SECRET_KEY:
   SENTRY_DSN: http://ac68cc0ad8f54496961aec4e3d48d227@glitchtip:8000/1
   ENVIRONMENT: development
