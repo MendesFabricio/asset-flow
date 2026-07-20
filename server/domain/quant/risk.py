@@ -177,15 +177,33 @@ def calculate_risk_metrics(session, fetch_prices, allow_compute=True) -> dict:
         ticker = pos.asset.ticker.upper().strip()
         
         sector = classify_asset_sector(ticker, cat)
-        sectors_alloc[sector] = sectors_alloc.get(sector, 0.0) + val
+        if sector not in sectors_alloc:
+            sectors_alloc[sector] = {"value": 0.0, "assets": []}
+            
+        sectors_alloc[sector]["value"] += val
+        sectors_alloc[sector]["assets"].append({
+            "ticker": ticker,
+            "value": val
+        })
 
     sectors_list = []
     if total_assets_value > 0:
-        for sec, s_val in sectors_alloc.items():
+        for sec, data_dict in sectors_alloc.items():
+            s_val = data_dict["value"]
+            assets_list = []
+            for a in data_dict["assets"]:
+                assets_list.append({
+                    "ticker": a["ticker"],
+                    "value": round(a["value"], 2),
+                    "percent": round((a["value"] / total_assets_value) * 100, 2)
+                })
+            assets_list.sort(key=lambda x: x["value"], reverse=True)
+            
             sectors_list.append({
                 "sector": sec,
                 "value": round(s_val, 2),
-                "percent": round((s_val / total_assets_value) * 100, 2)
+                "percent": round((s_val / total_assets_value) * 100, 2),
+                "assets": assets_list
             })
         sectors_list.sort(key=lambda x: x["percent"], reverse=True)
 
@@ -279,35 +297,38 @@ def calculate_risk_metrics(session, fetch_prices, allow_compute=True) -> dict:
             downside_capture = round((mean_p_down / mean_b_down) * 100, 1)
 
     fii_credit_map = []
-    fii_risk_db = {
-        "KNCR11": {"rating": "AAA (High)", "duration_years": 2.2, "indexers": {"CDI": 95, "IPCA": 5}},
-        "KNIP11": {"rating": "AA+ (High-Medium)", "duration_years": 4.8, "indexers": {"IPCA": 98, "CDI": 2}},
-        "CPTS11": {"rating": "AA (Medium)", "duration_years": 5.5, "indexers": {"IPCA": 90, "CDI": 10}},
-        "MXRF11": {"rating": "A+ (Medium-Low)", "duration_years": 3.9, "indexers": {"IPCA": 55, "CDI": 45}},
-        "HGCR11": {"rating": "AA (Medium)", "duration_years": 3.2, "indexers": {"CDI": 60, "IPCA": 40}}
-    }
     
     for pos in positions:
         if not pos.asset or pos.asset.category.name not in ["FII", "Renda Fixa", "Reserva"]:
             continue
         ticker = pos.asset.ticker.upper().strip()
         
-        if ticker in fii_risk_db:
-            fii_credit_map.append({
-                "ticker": ticker,
-                "rating": fii_risk_db[ticker]["rating"],
-                "duration": fii_risk_db[ticker]["duration_years"],
-                "indexers": fii_risk_db[ticker]["indexers"]
-            })
+        is_rf = pos.asset.category.name in ["Renda Fixa", "Reserva"]
+        
+        rating = pos.asset.credit_rating
+        duration = pos.asset.duration_years
+        cdi = pos.asset.indexer_cdi_pct
+        ipca = pos.asset.indexer_ipca_pct
+        
+        # Fallback dinâmico se a inteligência artificial ainda não extraiu ou o dado não existe
+        if not rating:
+            rating = "A (Medium)" if is_rf else "BBB (Standard)"
+        if duration is None:
+            duration = 3.5 if is_rf else 5.0
+            
+        if cdi is None and ipca is None:
+            indexers = {"CDI": 80, "IPCA": 20} if is_rf else {"IPCA": 60, "CDI": 40}
         else:
-            # Fallback dinâmico para garantir que o mapa de risco exista
-            is_rf = pos.asset.category.name in ["Renda Fixa", "Reserva"]
-            fii_credit_map.append({
-                "ticker": ticker,
-                "rating": "A (Medium)" if is_rf else "BBB (Standard)",
-                "duration": 3.5 if is_rf else 5.0,
-                "indexers": {"CDI": 80, "IPCA": 20} if is_rf else {"IPCA": 60, "CDI": 40}
-            })
+            indexers = {}
+            if cdi is not None: indexers["CDI"] = cdi
+            if ipca is not None: indexers["IPCA"] = ipca
+
+        fii_credit_map.append({
+            "ticker": ticker,
+            "rating": rating,
+            "duration": duration,
+            "indexers": indexers
+        })
 
     result = {
         "status": "Sucesso",

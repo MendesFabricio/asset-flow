@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+﻿/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
@@ -15,6 +15,7 @@ import {
 } from 'recharts';
 import { formatMoney } from '@/lib/format';
 import { apiCall } from '@/lib/api';
+import { useToast } from '@/context/ToastContext';
 
 interface DebtorItem {
   id: number;
@@ -49,6 +50,7 @@ interface LoanItem {
 import { ReceivableInstallmentItem, ReceivablesDashboardData } from '@/types';
 
 export const ReceivablesTab = () => {
+  const { notify } = useToast();
   // State
   const [dashboard, setDashboard] = useState<ReceivablesDashboardData | null>(null);
   const [debtors, setDebtors] = useState<DebtorItem[]>([]);
@@ -147,12 +149,12 @@ export const ReceivablesTab = () => {
       setIsConfigOpen(false);
       refreshAll();
     } catch (err: any) {
-      alert(err.message || "Erro ao salvar configuração.");
+      notify(err.message || "Erro ao salvar configuração.", "error");
     }
   };
 
   const handleCreateDebtor = async () => {
-    if (!newDebtorNome.trim()) return alert("O nome é obrigatório.");
+    if (!newDebtorNome.trim()) return notify("O nome é obrigatório.", "error");
     const payload = {
       nome: newDebtorNome,
       telefone: newDebtorTelefone,
@@ -175,13 +177,13 @@ export const ReceivablesTab = () => {
       setIsDebtorModalOpen(false);
       refreshAll();
     } catch (err: any) {
-      alert(err.message || "Erro ao cadastrar/editar devedor.");
+      notify(err.message || "Erro ao cadastrar/editar devedor.", "error");
     }
   };
 
   const handleCreateLoan = async () => {
     if (!newLoanDesc || (!editingLoanId && (!newLoanDebtorId || !newLoanVal))) {
-      return alert("Preencha todos os campos obrigatórios.");
+      return notify("Preencha todos os campos obrigatórios.", "error");
     }
     const payload = editingLoanId ? {
       descricao: newLoanDesc,
@@ -219,7 +221,7 @@ export const ReceivablesTab = () => {
       setIsLoanModalOpen(false);
       refreshAll();
     } catch (err: any) {
-      alert(err.message || "Erro ao cadastrar/editar empréstimo.");
+      notify(err.message || "Erro ao cadastrar/editar empréstimo.", "error");
     }
   };
 
@@ -247,7 +249,7 @@ export const ReceivablesTab = () => {
       setPayingInstallment(null);
       refreshAll();
     } catch (err: any) {
-      alert(err.message || "Erro ao efetuar pagamento.");
+      notify(err.message || "Erro ao efetuar pagamento.", "error");
     }
   };
 
@@ -273,7 +275,7 @@ export const ReceivablesTab = () => {
       setGlobalPayValue('');
       refreshAll();
     } catch (err: any) {
-      alert(err.message || "Erro ao processar recebimento global.");
+      notify(err.message || "Erro ao processar recebimento global.", "error");
     }
   };
 
@@ -290,7 +292,7 @@ export const ReceivablesTab = () => {
       setSelectedInstallments([]);
       refreshAll();
     } catch (err) {
-      alert("Erro ao liquidar parcelas selecionadas.");
+      notify("Erro ao liquidar parcelas selecionadas.", "error");
     }
   };
 
@@ -302,7 +304,7 @@ export const ReceivablesTab = () => {
       });
       refreshAll();
     } catch (err) {
-      alert("Erro ao excluir empréstimo.");
+      notify("Erro ao excluir empréstimo.", "error");
     }
   };
 
@@ -314,7 +316,7 @@ export const ReceivablesTab = () => {
       });
       refreshAll();
     } catch (err) {
-      alert("Erro ao excluir devedor.");
+      notify("Erro ao excluir devedor.", "error");
     }
   };
 

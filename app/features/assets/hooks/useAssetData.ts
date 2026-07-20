@@ -2,13 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import useSWR from 'swr';
-import { DashboardData } from '@/types';
-
-interface HistoryDataPoint {
-  date: string;
-  Patrimônio: number;
-  Investido: number;
-}
+import { DashboardData, HistoryDataPoint } from '@/types';
 
 interface SyncStatusResponse {
   status: 'idle' | 'processing' | 'success' | 'error';

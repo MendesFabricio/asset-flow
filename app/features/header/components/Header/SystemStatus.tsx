@@ -22,6 +22,13 @@ interface HealthResponse {
     yahoo_finance: ServiceStatus;
     ollama: ServiceStatus;
   };
+  metrics?: {
+    cpu_percent: number;
+    mem_percent: number;
+    mem_total_gb: number;
+    mem_used_gb: number;
+    error?: string;
+  };
 }
 
 export function SystemStatus() {
@@ -124,6 +131,9 @@ export function SystemStatus() {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
+        aria-label="Status do sistema"
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
         className={`flex items-center gap-2 px-3 py-1.5 rounded-full border bg-slate-900/40 backdrop-blur-md cursor-pointer transition-all duration-300 hover:bg-slate-900/80 ${config.borderColor}`}
       >
         <span className="relative flex h-2 w-2">
@@ -148,7 +158,7 @@ export function SystemStatus() {
             </div>
             {data && (
               <span className="text-[8px] font-mono text-slate-500">
-                {new Date(data.timestamp).toLocaleTimeString()}
+                {new Date(data.timestamp).toLocaleTimeString('pt-BR')}
               </span>
             )}
           </div>
@@ -174,6 +184,29 @@ export function SystemStatus() {
               Brain
             )}
           </div>
+
+          {/* Hardware Metrics */}
+          {data?.metrics && data.metrics.mem_total_gb > 0 && (
+            <div className="mt-2.5 pt-2 border-t border-slate-900 grid grid-cols-2 gap-1.5">
+              <div className="flex items-center justify-between px-2 py-1.5 rounded-md bg-slate-950/60 border border-slate-900">
+                <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">CPU (VM)</span>
+                <span className={`text-[10px] font-mono font-bold ${data.metrics.cpu_percent > 85 ? 'text-rose-400' : data.metrics.cpu_percent > 60 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                  {data.metrics.cpu_percent.toFixed(1)}%
+                </span>
+              </div>
+              <div className="flex items-center justify-between px-2 py-1.5 rounded-md bg-slate-950/60 border border-slate-900">
+                <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">RAM</span>
+                <div className="flex items-center gap-1.5">
+                  <span className={`text-[10px] font-mono font-bold ${data.metrics.mem_percent > 85 ? 'text-rose-400' : data.metrics.mem_percent > 60 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                    {data.metrics.mem_percent.toFixed(1)}%
+                  </span>
+                  <span className="text-[7px] text-slate-500 font-mono tracking-tight">
+                    {data.metrics.mem_used_gb.toFixed(1)}/{data.metrics.mem_total_gb.toFixed(1)}G
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Footer Informativo */}
           <div className="mt-3 pt-2 border-t border-slate-900 flex items-center gap-1.5 justify-center">

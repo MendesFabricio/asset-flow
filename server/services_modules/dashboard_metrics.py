@@ -48,8 +48,8 @@ def apply_strategy(pos, metrics, falta, preco, min_6m):
 
     if cat_name == "Renda Fixa":
         if falta > Decimal('0.0'):
-            score = 85 
-            motivos.append("💰 Aporte Mensal / Rebalanceamento")
+            score = 60 
+            motivos.append("💰 Aporte Mensal / Rebalanceamento (+60)")
             status = "COMPRAR"
             rec_text = "🟢 APORTAR"
         else:
@@ -118,6 +118,12 @@ def apply_strategy(pos, metrics, falta, preco, min_6m):
         elif pvp >= Decimal('1.05'):
             score -= 15
             motivos.append("🚨 FII com Ágio P/VP (-15)")
+    elif cat_name == "Cripto":
+        if preco > Decimal('0.0') and min_6m > Decimal('0.0'):
+            desconto = ((preco - min_6m) / min_6m) * Decimal('100.0')
+            if Decimal('15.0') < desconto <= Decimal('35.0'):
+                score += 15
+                motivos.append(f"⛏️ Acúmulo Estratégico Crypto (+15) [{float(desconto):.1f}% da mínima]")
 
     if score >= 50:
         status = "COMPRA_FORTE" if score >= 70 else "COMPRAR"

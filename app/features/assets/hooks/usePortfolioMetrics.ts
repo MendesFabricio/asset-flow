@@ -26,7 +26,13 @@ export function usePortfolioMetrics(data: DashboardData | undefined, isHidden: b
 
   const variacaoDiariaTotal = useMemo(() => {
     return data?.ativos?.reduce((acc: number, asset: Asset) => {
-      const variacaoPct = (asset as Asset & { change_percent?: number }).change_percent || 0;
+      let variacaoPct = (asset as Asset & { change_percent?: number }).change_percent || 0;
+      
+      const todayDate = new Date().toISOString().split('T')[0];
+      if (asset.mdata_date && asset.mdata_date !== todayDate) {
+        variacaoPct = 0;
+      }
+
       const totalAtual = asset.total_atual || 0;
       const valOntem = totalAtual / (1 + variacaoPct / 100);
       return acc + (totalAtual - valOntem);

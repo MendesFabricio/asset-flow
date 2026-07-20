@@ -85,7 +85,7 @@ def update_prices(session, invalidate_cache_callback):
                 mdata.price = current_price
                 mdata.min_6m = absolute_min_6m
                 mdata.change_percent = change_pct
-                mdata.date = datetime.now()
+                mdata.date = hist.index[-1].date()
                 count_ok += 1
 
             except Exception:

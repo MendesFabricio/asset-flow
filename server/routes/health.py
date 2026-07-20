@@ -10,7 +10,7 @@ import requests
 from flask import Blueprint, jsonify
 from services import Session
 from sqlalchemy import text
-from datetime import datetime
+from datetime import datetime, timezone
 import yfinance as yf
 
 # Cache global para a API do Yahoo Finance (evita rate limit a cada healthcheck)
@@ -19,6 +19,43 @@ _yahoo_cache = {
     "message": "Aguardando primeira verificação...",
     "last_check": 0
 }
+
+def get_system_metrics():
+    try:
+        cores = os.cpu_count() or 1
+        load1, load5, load15 = os.getloadavg()
+        cpu_percent = (load1 / cores) * 100
+
+        with open('/proc/meminfo', 'r') as f:
+            lines = f.readlines()
+        meminfo = {}
+        for line in lines:
+            parts = line.split(':')
+            if len(parts) == 2:
+                meminfo[parts[0].strip()] = int(parts[1].strip().split()[0])
+        
+        total = meminfo.get('MemTotal', 0)
+        free = meminfo.get('MemFree', 0)
+        buffers = meminfo.get('Buffers', 0)
+        cached = meminfo.get('Cached', 0)
+        
+        used = total - free - buffers - cached
+        mem_percent = (used / total) * 100 if total > 0 else 0
+        
+        return {
+            "cpu_percent": round(cpu_percent, 1),
+            "mem_percent": round(mem_percent, 1),
+            "mem_total_gb": round(total / 1024 / 1024, 1),
+            "mem_used_gb": round(used / 1024 / 1024, 1)
+        }
+    except Exception as e:
+        return {
+            "cpu_percent": 0.0,
+            "mem_percent": 0.0,
+            "mem_total_gb": 0.0,
+            "mem_used_gb": 0.0,
+            "error": str(e)
+        }
 
 health_bp = Blueprint('health', __name__)
 
@@ -94,19 +131,20 @@ def healthcheck():
 
     return jsonify({
         "status": global_status,
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "metrics": get_system_metrics(),
         "services": {
             "database": {
                 "status": status_db,
                 "message": detail_db
             },
-            "ollama": {
-                "status": status_ollama,
-                "message": detail_ollama
-            },
             "yahoo_finance": {
                 "status": _yahoo_cache["status"],
                 "message": _yahoo_cache["message"]
+            },
+            "ollama": {
+                "status": status_ollama,
+                "message": detail_ollama
             }
         }
     }), 200 if global_status in ["online", "warning"] else 503

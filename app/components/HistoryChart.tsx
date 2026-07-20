@@ -4,6 +4,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { formatMoney } from '../lib/format';
 import { Card } from './ui/Card';
 import { LineChart as LineChartIcon, TrendingUp, Layers, Activity } from 'lucide-react';
+import { useChartPalette } from '../lib/chartPalette';
 
 interface HistoryChartItem {
   date: string;
@@ -27,6 +28,7 @@ const getColor = (name: string, index: number) => CLASS_COLORS[name] || `hsl(${i
 
 export const HistoryChart = ({ data }: { data: HistoryChartItem[] }) => {
   const [viewMode, setViewMode] = useState<'total' | 'classes'>('total');
+  const palette = useChartPalette();
 
   // Extrai as classes de ativos dinamicamente ignorando as chaves padrão
   const assetClasses = useMemo(() => {
@@ -44,7 +46,7 @@ export const HistoryChart = ({ data }: { data: HistoryChartItem[] }) => {
 
   if (!data || data.length === 0) {
     return (
-      <div className="bg-[#0f172a] p-8 rounded-xl border border-slate-800 text-center text-slate-500 h-[400px] flex flex-col items-center justify-center gap-4 animate-pulse">
+      <div className="bg-surface-card p-8 rounded-xl border border-slate-800 text-center text-slate-500 h-[400px] flex flex-col items-center justify-center gap-4 animate-pulse">
         <div className="p-4 bg-slate-800/50 rounded-full">
           <LineChartIcon size={32} className="text-slate-600" />
         </div>
@@ -60,7 +62,7 @@ export const HistoryChart = ({ data }: { data: HistoryChartItem[] }) => {
   const growth = lastInvestido > 0 ? ((lastPatrimonio - lastInvestido) / lastInvestido) * 100 : 0;
 
   return (
-    <Card className="flex flex-col !bg-[#0f172a] !border-slate-800 shadow-2xl p-6 h-[400px] animate-in fade-in duration-500 relative overflow-hidden group">
+    <Card className="flex flex-col !bg-surface-card !border-slate-800 shadow-2xl p-6 h-[400px] animate-in fade-in duration-500 relative overflow-hidden group">
       
       {/* Header com Resumo */}
       <div className="flex items-center justify-between mb-6 relative z-10">
@@ -146,11 +148,11 @@ export const HistoryChart = ({ data }: { data: HistoryChartItem[] }) => {
               </defs>
             )}
 
-            <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke={palette.grid} vertical={false} />
 
             <XAxis
               dataKey="date"
-              stroke="#475569"
+              stroke={palette.axis}
               fontSize={10}
               fontWeight="bold"
               tickLine={false}
@@ -160,7 +162,7 @@ export const HistoryChart = ({ data }: { data: HistoryChartItem[] }) => {
             />
 
             <YAxis
-              stroke="#475569"
+              stroke={palette.axis}
               fontSize={10}
               fontWeight="bold"
               tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`}
@@ -171,15 +173,15 @@ export const HistoryChart = ({ data }: { data: HistoryChartItem[] }) => {
             <Tooltip
               cursor={{ stroke: viewMode === 'total' ? '#22d3ee' : '#a855f7', strokeWidth: 1, strokeDasharray: '4 4' }}
               contentStyle={{
-                backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                backgroundColor: palette.tooltipBg,
                 backdropFilter: 'blur(10px)',
-                borderColor: '#334155',
+                borderColor: palette.tooltipBorder,
                 borderRadius: '12px',
-                boxShadow: '0 10px 30px -5px rgba(0, 0, 0, 0.7)',
-                border: '1px solid rgba(148, 163, 184, 0.1)'
+                boxShadow: '0 10px 30px -5px rgba(0, 0, 0, 0.25)',
+                border: '1px solid rgba(148, 163, 184, 0.2)'
               }}
               itemStyle={{ fontSize: '11px', fontWeight: 'bold', paddingTop: '4px' }}
-              labelStyle={{ color: '#94a3b8', marginBottom: '8px', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', borderBottom: '1px solid #334155', paddingBottom: '4px' }}
+              labelStyle={{ color: palette.tooltipLabel, marginBottom: '8px', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', borderBottom: `1px solid ${palette.tooltipLabelBorder}`, paddingBottom: '4px' }}
               formatter={(value: any, name: any) => {
                 if (name === 'Patrimônio') return [formatMoney(value), 'TOTAL'];
                 if (name === 'IPCA_6') return [formatMoney(value), 'IPCA + 6% EST.'];
@@ -192,7 +194,7 @@ export const HistoryChart = ({ data }: { data: HistoryChartItem[] }) => {
               <>
                 <Area type="monotone" dataKey="Investido" stroke="#64748b" strokeWidth={2} strokeDasharray="4 4" fill="transparent" name="Investido" animationDuration={1000} activeDot={false} />
                 <Area type="monotone" dataKey="IPCA_6" stroke="#f59e0b" strokeWidth={2} strokeDasharray="3 3" fill="transparent" name="IPCA_6" animationDuration={1200} activeDot={false} />
-                <Area type="monotone" dataKey="Patrimônio" stroke="#22d3ee" strokeWidth={3} fill="url(#colorPatrimonio)" name="Patrimônio" animationDuration={1500} activeDot={{ r: 6, strokeWidth: 0, fill: '#fff' }} />
+                 <Area type="monotone" dataKey="Patrimônio" stroke="#22d3ee" strokeWidth={3} fill="url(#colorPatrimonio)" name="Patrimônio" animationDuration={1500} activeDot={{ r: 6, strokeWidth: 0, fill: palette.activeDotFill }} />
               </>
             ) : (
               assetClasses.map((cls, idx) => (
@@ -206,7 +208,7 @@ export const HistoryChart = ({ data }: { data: HistoryChartItem[] }) => {
                   fill={getColor(cls, idx)}
                   fillOpacity={0.4}
                   animationDuration={1500}
-                  activeDot={{ r: 4, strokeWidth: 0, fill: '#fff' }}
+                  activeDot={{ r: 4, strokeWidth: 0, fill: palette.activeDotFill }}
                 />
               ))
             )}

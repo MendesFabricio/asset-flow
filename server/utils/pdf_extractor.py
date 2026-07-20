@@ -52,7 +52,7 @@ def extract_kpis_from_pdf(pdf_path_or_url: str, is_fii: bool = True) -> dict:
             
         # 2. Abre o PDF e busca páginas com palavras-chave relevantes
         doc = fitz.open(target_path)
-        keywords = ["dre", "resultado", "distribuição", "rendimento", "receita", "lucro", "ebitda", "vacância", "patrimônio", "aluguel"] if is_fii else ["receita líquida", "ebitda", "lucro líquido", "dívida", "margem", "capex", "dre", "balanço"]
+        keywords = ["dre", "resultado", "distribuição", "rendimento", "receita", "lucro", "ebitda", "vacância", "patrimônio", "aluguel", "rating", "duration", "cdi", "ipca", "indexador", "prazo médio"] if is_fii else ["receita líquida", "ebitda", "lucro líquido", "dívida", "margem", "capex", "dre", "balanço"]
         
         target_pages = []
         for i, page in enumerate(doc):
@@ -81,6 +81,10 @@ def extract_kpis_from_pdf(pdf_path_or_url: str, is_fii: bool = True) -> dict:
             "  \"valor_patrimonial\": 0.0, # valor da cota patrimonial em R$\n"
             "  \"vacancia_fisica_pct\": 0.0, # percentual de vacância física (0 a 100)\n"
             "  \"vacancia_financeira_pct\": 0.0, # percentual de vacância financeira\n"
+            "  \"credit_rating\": \"\", # Rating de crédito médio (ex: AAA, AA, BBB). Vazio se não houver\n"
+            "  \"duration_years\": 0.0, # Prazo médio / Duration da carteira em anos\n"
+            "  \"indexer_cdi_pct\": 0.0, # % da carteira atrelada ao CDI\n"
+            "  \"indexer_ipca_pct\": 0.0, # % da carteira atrelada ao IPCA\n"
             "  \"observacao_geral\": \"Breve comentário sobre os destaques\"\n"
             "}"
             if is_fii else

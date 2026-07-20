@@ -11,6 +11,7 @@ import {
 import { formatMoney } from '../lib/format';
 import { apiCall } from '../lib/api';
 import { ModalShell } from './ModalShell';
+import { useChartPalette } from '../lib/chartPalette';
 
 interface Params {
   aporte_mensal: number;
@@ -83,6 +84,7 @@ export function IncomeProjectionModal({ onClose }: Props) {
   const [result, setResult] = useState<ProjectionResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const palette = useChartPalette();
 
   const runProjection = useCallback(async () => {
     setLoading(true);
@@ -223,10 +225,10 @@ export function IncomeProjectionModal({ onClose }: Props) {
                           <stop offset="95%" stopColor="#14b8a6" stopOpacity={0} />
                         </linearGradient>
                       </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-                      <XAxis dataKey="ano" tick={{ fill: '#475569', fontSize: 9 }} tickLine={false} axisLine={false} tickFormatter={v => `Ano ${v}`} interval={Math.floor(result.timeline.length / 5)} />
-                      <YAxis yAxisId="pat" tick={{ fill: '#475569', fontSize: 9 }} tickLine={false} axisLine={false} tickFormatter={v => `R$${(v / 1000).toFixed(0)}k`} />
-                      <YAxis yAxisId="renda" orientation="right" tick={{ fill: '#475569', fontSize: 9 }} tickLine={false} axisLine={false} tickFormatter={v => `R$${(v / 1000).toFixed(1)}k`} />
+                      <CartesianGrid strokeDasharray="3 3" stroke={palette.grid} vertical={false} />
+                      <XAxis dataKey="ano" tick={{ fill: palette.axis, fontSize: 9 }} tickLine={false} axisLine={false} tickFormatter={v => `Ano ${v}`} interval={Math.floor(result.timeline.length / 5)} />
+                      <YAxis yAxisId="pat" tick={{ fill: palette.axis, fontSize: 9 }} tickLine={false} axisLine={false} tickFormatter={v => `R$${(v / 1000).toFixed(0)}k`} />
+                      <YAxis yAxisId="renda" orientation="right" tick={{ fill: palette.axis, fontSize: 9 }} tickLine={false} axisLine={false} tickFormatter={v => `R$${(v / 1000).toFixed(1)}k`} />
                       <Tooltip content={<CustomTooltip />} />
                       <Area yAxisId="pat" type="monotone" dataKey="patrimonio" name="Patrimônio" stroke="#10b981" strokeWidth={2} fill="url(#patriGrad)" dot={false} />
                       <Area yAxisId="renda" type="monotone" dataKey="renda_mensal_projetada" name="Renda Mensal" stroke="#14b8a6" strokeWidth={2} fill="url(#rendaGrad)" dot={false} />

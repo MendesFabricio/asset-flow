@@ -4,7 +4,7 @@ import {
 } from 'recharts';
 import {
   TrendingUp, TrendingDown, ShieldAlert, Target, Zap, Activity,
-  AlertTriangle, BarChart3, Info, Scale
+  AlertTriangle, BarChart3, Info, Scale, HelpCircle
 } from 'lucide-react';
 import { apiCall } from '@/lib/api';
 import { formatMoney } from '@/lib/format';
@@ -32,7 +32,12 @@ interface RiskMetrics {
   cvar_95_monthly_pct: number;
   tracking_error_pct: number;
   drawdown_chart: { date: string; drawdown: number }[];
-  sectors_alloc?: { sector: string; value: number; percent: number }[];
+  sectors_alloc?: { 
+    sector: string; 
+    value: number; 
+    percent: number; 
+    assets?: { ticker: string; value: number; percent: number }[]; 
+  }[];
   leverage_ratio?: number;
   leveraged_assets?: { ticker: string; leverage: number; value: number }[];
   usd_exposure_pct?: number;
@@ -189,16 +194,23 @@ export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
   const drawdownMax = Math.max(0, ...drawdownChart.map(d => d.drawdown));
 
   return (
-    <div className="bg-slate-950 border border-slate-900 rounded-2xl overflow-hidden">
+    <div className="bg-slate-950 border border-slate-900 rounded-2xl">
       {/* Header */}
-      <div className="px-5 py-4 border-b border-slate-900 flex items-center justify-between bg-gradient-to-r from-slate-950 via-indigo-950/20 to-slate-950">
-        <div className="flex items-center gap-2.5">
+      <div className="px-5 py-4 border-b border-slate-900 flex items-center justify-between bg-gradient-to-r from-slate-950 via-indigo-950/20 to-slate-950 rounded-t-2xl">
+        <div className="flex items-center gap-2.5 group relative cursor-pointer">
           <div className="p-1.5 bg-indigo-500/10 rounded-lg border border-indigo-500/20">
             <Activity size={16} className="text-indigo-400" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-white">Atribuição de Performance</h3>
+            <h3 className="text-sm font-bold text-white flex items-center gap-2">
+              Atribuição de Performance
+              <HelpCircle size={14} className="text-slate-500" />
+            </h3>
             <p className="text-[10px] text-slate-500">vs. {data?.benchmark ?? 'IBOV'} - {data?.periodo ?? '12m'} - {data?.n_pregoes ?? 0} pregões</p>
+          </div>
+          
+          <div className="absolute top-full left-0 mt-2 hidden group-hover:block w-72 p-3 bg-slate-900 text-slate-300 text-xs rounded shadow-xl border border-slate-700 z-50">
+            Exibe o risco real do portfólio comparado ao benchmark e divide o retorno entre o gerado pelo mercado (Beta) e o gerado ativamente (Alpha).
           </div>
         </div>
         <div className="flex items-center gap-1.5 bg-slate-800/50 border border-slate-700 rounded-lg px-2.5 py-1">
@@ -396,11 +408,22 @@ export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
                       <span className="text-slate-300">{s.sector}</span>
                       <span className="text-slate-400 font-mono">{s.percent}% <span className="text-[8px] text-slate-600">({formatMoney(s.value)})</span></span>
                     </div>
-                    <div className="w-full h-1.5 bg-slate-900 rounded-full overflow-hidden">
+                    <div className="w-full h-1.5 bg-slate-900 rounded-full relative group cursor-pointer">
                       <div 
                         className="h-full bg-indigo-500 rounded-full" 
                         style={{ width: `${s.percent}%` }}
                       />
+                      {s.assets && s.assets.length > 0 && (
+                        <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block w-48 p-2 bg-slate-900 rounded shadow-xl border border-slate-700 z-50 pointer-events-none">
+                          <div className="font-bold text-white mb-1 border-b border-slate-800 pb-1 text-[10px] uppercase tracking-wider">{s.sector}</div>
+                          {s.assets.map(a => (
+                            <div key={a.ticker} className="flex justify-between items-center py-0.5 text-[10px]">
+                              <span className="text-slate-300">{a.ticker}</span>
+                              <span className="font-mono text-slate-400">{a.percent}%</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}

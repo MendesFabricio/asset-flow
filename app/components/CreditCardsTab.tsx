@@ -11,6 +11,7 @@ import { CreditCardInstallmentItem, CreditCardsDashboardData } from '../types';
 import { apiCall } from '../lib/api';
 import { StatementImportModal } from './StatementImportModal';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
+import { useChartPalette } from '../lib/chartPalette';
 
 interface CardItem {
   id: number;
@@ -74,6 +75,7 @@ const getCategoryFromDescription = (desc: string): string => {
 };
 
 export function CreditCardsTab() {
+  const palette = useChartPalette();
   const [cards, setCards] = useState<CardItem[]>([]);
   const [selectedCard, setSelectedCard] = useState<CardItem | null>(null);
   const [expenses, setExpenses] = useState<ExpenseItem[]>([]);
@@ -259,7 +261,7 @@ export function CreditCardsTab() {
     <div className="space-y-6">
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-[#0f172a] border border-[#1e293b] rounded-xl p-5 relative overflow-hidden shadow-lg">
+        <div className="bg-surface-card border border-slate-800 rounded-xl p-5 relative overflow-hidden shadow-lg">
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs text-slate-400 font-semibold tracking-wider uppercase">{displayLimitLabel}</p>
@@ -271,7 +273,7 @@ export function CreditCardsTab() {
           </div>
         </div>
 
-        <div className="bg-[#0f172a] border border-[#1e293b] rounded-xl p-5 relative overflow-hidden shadow-lg">
+        <div className="bg-surface-card border border-slate-800 rounded-xl p-5 relative overflow-hidden shadow-lg">
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs text-slate-400 font-semibold tracking-wider uppercase">{displaySpentLabel}</p>
@@ -283,7 +285,7 @@ export function CreditCardsTab() {
           </div>
         </div>
 
-        <div className="bg-[#0f172a] border border-[#1e293b] rounded-xl p-5 relative overflow-hidden shadow-lg">
+        <div className="bg-surface-card border border-slate-800 rounded-xl p-5 relative overflow-hidden shadow-lg">
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs text-slate-400 font-semibold tracking-wider uppercase">{displayPendingLabel}</p>
@@ -299,7 +301,7 @@ export function CreditCardsTab() {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Sidebar Cartões */}
         <div className="lg:col-span-1 space-y-4">
-          <div className="bg-[#0f172a] border border-[#1e293b] rounded-xl p-4 shadow-lg space-y-4">
+          <div className="bg-surface-card border border-slate-800 rounded-xl p-4 shadow-lg space-y-4">
             <div className="flex justify-between items-center">
               <h4 className="text-sm font-bold text-white uppercase tracking-wider">Meus Cartões</h4>
               <div className="flex items-center gap-1.5">
@@ -383,7 +385,7 @@ export function CreditCardsTab() {
           </div>
 
           {/* Faturas Mensais */}
-          <div className="bg-[#0f172a] border border-[#1e293b] rounded-xl p-4 shadow-lg space-y-3">
+          <div className="bg-surface-card border border-slate-800 rounded-xl p-4 shadow-lg space-y-3">
             <h4 className="text-sm font-bold text-white uppercase tracking-wider flex items-center justify-between">
               <span>Histórico de Faturas</span>
               {selectedCard && <span className="text-[10px] font-normal text-slate-400">{selectedCard.name}</span>}
@@ -451,7 +453,7 @@ export function CreditCardsTab() {
         </div>
 
         {/* Detalhes do Cartão Selecionado */}
-        <div className="lg:col-span-3 bg-[#0f172a] border border-[#1e293b] rounded-xl p-5 shadow-lg space-y-5">
+        <div className="lg:col-span-3 bg-surface-card border border-slate-800 rounded-xl p-5 shadow-lg space-y-5">
           {selectedCard ? (
             <>
               <div className="flex justify-between items-center border-b border-slate-800 pb-4">
@@ -517,8 +519,8 @@ export function CreditCardsTab() {
                         </Pie>
                         <Tooltip
                           formatter={(value: any) => [formatMoney(Number(value || 0)), '']}
-                          contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '0.75rem', color: '#fff' }}
-                          itemStyle={{ color: '#fff' }}
+                          contentStyle={{ backgroundColor: palette.tooltipBg, borderColor: palette.tooltipBorder, borderRadius: '0.75rem', color: palette.tooltipLabel }}
+                          itemStyle={{ color: palette.tooltipLabel }}
                         />
                         <Legend 
                           layout="vertical" 
@@ -628,7 +630,7 @@ export function CreditCardsTab() {
       {/* MODAL: Adicionar Cartão */}
       {showAddCard && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#0f172a] border border-[#1e293b] rounded-xl w-full max-w-md p-6 relative shadow-2xl">
+          <div className="bg-surface-card border border-slate-800 rounded-xl w-full max-w-md p-6 relative shadow-2xl">
             <button 
               onClick={() => setShowAddCard(false)}
               className="absolute top-4 right-4 text-slate-400 hover:text-white"
@@ -703,7 +705,7 @@ export function CreditCardsTab() {
       {/* MODAL: Registrar Despesa */}
       {showAddExpense && selectedCard && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#0f172a] border border-[#1e293b] rounded-xl w-full max-w-md p-6 relative shadow-2xl">
+          <div className="bg-surface-card border border-slate-800 rounded-xl w-full max-w-md p-6 relative shadow-2xl">
             <button 
               onClick={() => setShowAddExpense(false)}
               className="absolute top-4 right-4 text-slate-400 hover:text-white"

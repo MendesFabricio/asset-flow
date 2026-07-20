@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify
 import yfinance as yf
 import time
 import logging
+from datetime import datetime, timezone
 from utils.http_client import get_secure_session
 
 market_bp = Blueprint('market', __name__)
@@ -86,7 +87,11 @@ def update_market_cache():
                     if len(series) >= 1:
                         atual = float(series.iloc[-1])
                         variacao = 0.0
-                        if len(series) >= 2:
+                        
+                        last_date_str = series.index[-1].strftime('%Y-%m-%d')
+                        today_str = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+                        
+                        if len(series) >= 2 and last_date_str == today_str:
                             anterior = float(series.iloc[-2])
                             variacao = ((atual - anterior) / anterior) * 100
                             

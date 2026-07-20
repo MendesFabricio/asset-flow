@@ -2,6 +2,7 @@
 import logging
 from db.models import get_active_positions
 from domain.quant.helpers import _to_yf_ticker, _align_prices_to_b3, _get_current_user_id, _extract_close_prices
+from domain.quant.constants import VARIABLE_ASSET_CATEGORIES
 
 def calculate_smart_rebalance(session, fetch_prices, monthly_contribution: float = 0.0) -> dict:
     logging.info(f"⚖️ Smart Rebalance (aporte R$ {monthly_contribution:.2f})...")
@@ -44,7 +45,7 @@ def calculate_smart_rebalance(session, fetch_prices, monthly_contribution: float
 
     corr_penalty = {a["ticker"]: 0.0 for a in assets_data}
     try:
-        eq = [a for a in assets_data if a["category"] in ["Ação", "FII", "ETF", "Internacional", "Cripto"]]
+        eq = [a for a in assets_data if a["category"] in VARIABLE_ASSET_CATEGORIES]
         if len(eq) >= 2:
             tickers_yf = [_to_yf_ticker(a["ticker"], a["category"]) for a in eq]
             raw = fetch_prices(tickers_yf, period="6mo")

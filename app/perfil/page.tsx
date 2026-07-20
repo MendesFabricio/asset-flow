@@ -100,14 +100,14 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0b0f19] text-slate-200 font-sans flex items-center justify-center">
+      <div className="min-h-screen bg-surface text-slate-200 font-sans flex items-center justify-center">
         <div className="text-slate-400">Carregando perfil...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#0b0f19] text-slate-200 font-sans p-4 md:p-6">
+    <div className="min-h-screen bg-surface text-slate-200 font-sans p-4 md:p-6">
       <div className="max-w-2xl mx-auto">
         <div className="mb-6">
           <Link

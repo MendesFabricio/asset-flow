@@ -16,6 +16,7 @@ import {
   Tooltip as ChartTooltip, 
   Legend 
 } from 'recharts';
+import { useChartPalette } from '../lib/chartPalette';
 
 interface Evento {
   ticker: string;
@@ -46,6 +47,7 @@ interface SeasonalityRow {
 }
 
 export default function ProventosPage() {
+  const palette = useChartPalette();
   const [activeTab, setActiveTab] = useState<'calendar' | 'analytics' | 'yoc' | 'seasonality' | 'extrato'>('calendar');
   const [events, setEvents] = useState<Evento[]>([]);
   const [history, setHistory] = useState<Evento[]>([]);
@@ -175,7 +177,7 @@ export default function ProventosPage() {
   }, [yocHistory, selectedYocTicker]);
 
   return (
-    <div className="min-h-screen bg-[#0b0f19] text-slate-200 p-4 md:p-8 font-sans">
+    <div className="min-h-screen bg-surface text-slate-200 p-4 md:p-8 font-sans">
       <div className="max-w-6xl mx-auto">
         
         {/* Header */}
@@ -436,12 +438,12 @@ export default function ProventosPage() {
                   <div className="h-72 w-full mt-4">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={selectedYocData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                        <XAxis dataKey="year" stroke="#475569" fontSize={11} />
-                        <YAxis stroke="#475569" fontSize={11} unit="%" />
+                        <CartesianGrid strokeDasharray="3 3" stroke={palette.grid} />
+                        <XAxis dataKey="year" stroke={palette.axis} fontSize={11} />
+                        <YAxis stroke={palette.axis} fontSize={11} unit="%" />
                         <ChartTooltip 
-                          contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.95)', border: '1px solid #1e293b', borderRadius: '12px' }}
-                          labelStyle={{ color: '#94a3b8', fontWeight: 'bold' }}
+                          contentStyle={{ backgroundColor: palette.tooltipBg, border: `1px solid ${palette.tooltipBorder}`, borderRadius: '12px' }}
+                          labelStyle={{ color: palette.tooltipLabel, fontWeight: 'bold' }}
                           formatter={(value: any) => [`${value}%`, 'Yield on Cost']}
                         />
                         <Legend wrapperStyle={{ fontSize: '11px', color: '#94a3b8' }} />

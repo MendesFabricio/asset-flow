@@ -54,7 +54,7 @@ export function MorningBriefing() {
 
   if (loading) {
     return (
-      <div className="bg-slate-900/40 border border-slate-800/80 backdrop-blur-md rounded-2xl p-5 mb-6 animate-pulse">
+      <div className="bg-surface-card border border-slate-800/80 backdrop-blur-md rounded-2xl p-5 mb-6 animate-pulse">
         <div className="flex justify-between items-center mb-3">
           <div className="h-5 bg-slate-800 rounded w-40" />
           <div className="flex gap-2">
@@ -73,7 +73,7 @@ export function MorningBriefing() {
 
   if (error || !data) {
     return (
-      <div className="bg-slate-900/40 border border-red-900/30 backdrop-blur-md rounded-2xl p-4 mb-6 flex justify-between items-center gap-3">
+      <div className="bg-surface-card border border-red-900/30 backdrop-blur-md rounded-2xl p-4 mb-6 flex justify-between items-center gap-3">
         <div className="flex items-center gap-2 text-red-400">
           <AlertCircle size={16} />
           <span className="text-xs font-medium">{error || 'Briefing temporariamente indisponível.'}</span>
@@ -89,7 +89,7 @@ export function MorningBriefing() {
   }
 
   return (
-    <div className="bg-gradient-to-b from-slate-950 via-slate-900/90 to-slate-950 border border-slate-800/80 backdrop-blur-md rounded-2xl p-5 shadow-2xl transition-all hover:border-blue-500/30 h-[650px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-800">
+    <div className="bg-gradient-to-b from-surface-card via-surface-input to-surface-card border border-slate-800/80 backdrop-blur-md rounded-2xl p-5 shadow-2xl transition-all hover:border-blue-500/30 h-[650px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-800">
       <div className="flex flex-col justify-between items-start gap-4 border-b border-slate-800/60 pb-4 mb-4">
         <div className="flex items-center gap-2.5">
           <div className="p-1.5 bg-blue-500/10 rounded-lg border border-blue-500/20 text-blue-400">
@@ -103,12 +103,12 @@ export function MorningBriefing() {
 
         <div className="flex items-center gap-2 flex-wrap">
           {data.selic_rate && (
-            <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-slate-900 text-slate-400 border border-slate-800">
+            <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-surface-input text-slate-400 border border-slate-800">
               Selic: <span className="font-mono text-blue-400">{data.selic_rate}</span>
             </span>
           )}
           {data.dolar_rate && (
-            <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-slate-900 text-slate-400 border border-slate-800">
+            <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-surface-input text-slate-400 border border-slate-800">
               Dólar: <span className="font-mono text-emerald-400">
                 {String(data.dolar_rate).includes('R$') ? data.dolar_rate : `R$ ${Number(data.dolar_rate).toFixed(2)}`}
               </span>
@@ -135,7 +135,7 @@ export function MorningBriefing() {
       </div>
 
       {data.action && (
-        <div className="mt-3 p-3 rounded-xl bg-emerald-950/40 border border-emerald-500/30 text-emerald-300">
+        <div className="mt-3 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300">
           <div className="flex items-center gap-2 mb-1">
             <Target size={14} />
             <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Ação Recomendada</span>
@@ -145,7 +145,7 @@ export function MorningBriefing() {
       )}
 
       {data.risk_metrics && Object.keys(data.risk_metrics).length > 0 && (
-        <div className="mt-3 p-3 rounded-xl bg-slate-950/60 border border-slate-850">
+        <div className="mt-3 p-3 rounded-xl bg-surface-input border border-slate-800">
           <div className="flex items-center gap-2 mb-2">
             <BarChart3 size={14} className="text-indigo-400" />
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Métricas de Risco</span>
@@ -174,7 +174,7 @@ export function MorningBriefing() {
           </button>
           
           {showCoT && (
-            <div className="mt-2.5 p-3 rounded-xl bg-slate-950/60 border border-slate-850 text-[11px] text-slate-400 leading-relaxed animate-in fade-in slide-in-from-top-1">
+            <div className="mt-2.5 p-3 rounded-xl bg-surface-input border border-slate-800 text-[11px] text-slate-400 leading-relaxed animate-in fade-in slide-in-from-top-1">
               <Markdown text={data.rationale} />
             </div>
           )}

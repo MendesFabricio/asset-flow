@@ -112,7 +112,7 @@ export function FixedIncomeTab() {
     <div className="space-y-6">
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-[#0f172a] border border-[#1e293b] rounded-xl p-5 shadow-lg">
+        <div className="bg-surface-card border border-slate-800 rounded-xl p-5 shadow-lg">
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs text-slate-400 font-semibold tracking-wider uppercase">Total Aplicado</p>
@@ -124,7 +124,7 @@ export function FixedIncomeTab() {
           </div>
         </div>
 
-        <div className="bg-[#0f172a] border border-[#1e293b] rounded-xl p-5 shadow-lg">
+        <div className="bg-surface-card border border-slate-800 rounded-xl p-5 shadow-lg">
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs text-slate-400 font-semibold tracking-wider uppercase">Saldo Bruto Atual</p>
@@ -136,7 +136,7 @@ export function FixedIncomeTab() {
           </div>
         </div>
 
-        <div className="bg-[#0f172a] border border-[#1e293b] rounded-xl p-5 shadow-lg">
+        <div className="bg-surface-card border border-slate-800 rounded-xl p-5 shadow-lg">
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs text-slate-400 font-semibold tracking-wider uppercase">Saldo Líquido Est.</p>
@@ -148,7 +148,7 @@ export function FixedIncomeTab() {
           </div>
         </div>
 
-        <div className="bg-[#0f172a] border border-[#1e293b] rounded-xl p-5 shadow-lg">
+        <div className="bg-surface-card border border-slate-800 rounded-xl p-5 shadow-lg">
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs text-slate-400 font-semibold tracking-wider uppercase">Rendimento Líquido</p>
@@ -162,7 +162,7 @@ export function FixedIncomeTab() {
       </div>
 
       {/* Main Container */}
-      <div className="bg-[#0f172a] border border-[#1e293b] rounded-xl p-5 shadow-lg space-y-4">
+      <div className="bg-surface-card border border-slate-800 rounded-xl p-5 shadow-lg space-y-4">
         <div className="flex justify-between items-center border-b border-slate-800 pb-4">
           <h3 className="text-lg font-bold text-white uppercase tracking-wider">Meus Títulos de Renda Fixa</h3>
           <button 
@@ -249,7 +249,7 @@ export function FixedIncomeTab() {
       {/* MODAL: Adicionar Título */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#0f172a] border border-[#1e293b] rounded-xl w-full max-w-md p-6 relative shadow-2xl">
+          <div className="bg-surface-card border border-slate-800 rounded-xl w-full max-w-md p-6 relative shadow-2xl">
             <button 
               onClick={() => setShowAddModal(false)}
               className="absolute top-4 right-4 text-slate-400 hover:text-white"

@@ -6,7 +6,7 @@ import {
 } from 'recharts';
 import { usePrivacy } from '@/context/PrivacyContext';
 import { Card } from '@/components/ui/Card';
-import { BrainCircuit, Info } from 'lucide-react';
+import { BrainCircuit, Info, HelpCircle } from 'lucide-react';
 
 // 🛡️ Interface para os pontos de dados estruturados do gráfico
 interface SimulationDataPoint {
@@ -73,7 +73,7 @@ export const MonteCarloChart = React.memo(function MonteCarloChart() {
   if (data.length === 0) return null;
 
   return (
-    <Card className="flex flex-col !bg-slate-950 !border-slate-900 shadow-2xl p-6 animate-in fade-in duration-500">
+    <Card className="flex flex-col bg-surface-card !border-slate-900 shadow-2xl p-6 animate-in fade-in duration-500">
 
       {/* Cabeçalho Sincronizado */}
       <div className="flex justify-between items-start mb-8">
@@ -82,8 +82,14 @@ export const MonteCarloChart = React.memo(function MonteCarloChart() {
             <BrainCircuit size={16} className="text-purple-400" />
           </div>
           <div>
-            <h3 className="font-bold text-slate-200 text-xs uppercase tracking-widest leading-none">
+            <h3 className="font-bold text-slate-200 text-xs uppercase tracking-widest leading-none flex items-center gap-2">
               Simulação de Monte Carlo
+              <div className="relative group/tt flex items-center cursor-pointer normal-case">
+                <HelpCircle size={14} className="text-slate-500 hover:text-purple-400 transition-colors" />
+                <div className="absolute bottom-full left-0 mb-2 hidden group-hover/tt:block w-64 p-2 bg-slate-900 text-slate-300 text-[10px] rounded shadow-xl border border-slate-700 z-50 font-normal">
+                  Projeta matematicamente 1.000 futuros possíveis para sua carteira com base na volatilidade histórica. Mostra o cenário mais provável (tendência) e as extremidades (otimista/pessimista) para o próximo ano.
+                </div>
+              </div>
             </h3>
             <div className="flex items-center gap-1.5 mt-2 text-slate-500">
               <Info size={10} />
