@@ -82,7 +82,7 @@ export function UnifiedImportModal({ isOpen, onClose, onSuccess }: UnifiedImport
 
     try {
       if (importMode === 'brokerage') {
-        let allNewTxs: ParsedTransaction[] = [];
+        const allNewTxs: ParsedTransaction[] = [];
         let lastDate = noteDate;
         
         for (const file of pdfFiles) {
@@ -112,9 +112,9 @@ export function UnifiedImportModal({ isOpen, onClose, onSuccess }: UnifiedImport
         }
       } else {
         // B3 Mode
-        let allB3Txs: ParsedTransaction[] = [];
-        let allDividends: ParsedTransaction[] = [];
-        let allCorporateEvents: ParsedTransaction[] = [];
+        const allB3Txs: ParsedTransaction[] = [];
+        const allDividends: ParsedTransaction[] = [];
+        const allCorporateEvents: ParsedTransaction[] = [];
 
         for (const file of pdfFiles) {
           const formData = new FormData();
