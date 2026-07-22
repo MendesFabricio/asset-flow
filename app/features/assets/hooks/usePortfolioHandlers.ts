@@ -13,7 +13,6 @@ export function usePortfolioHandlers(
   notify: (msg: string, type?: 'success' | 'error') => void
 ) {
   const setEditingAsset = useModalStore(state => state.setEditingAsset);
-  const setIfModalOpen = useModalStore(state => state.setIfModalOpen);
   const setSmartModalOpen = useModalStore(state => state.setSmartModalOpen);
   const setAddModalOpen = useModalStore(state => state.setAddModalOpen);
   const { isHidden } = usePrivacy() as { isHidden: boolean };
@@ -71,7 +70,6 @@ export function usePortfolioHandlers(
     if (assetToEdit) setEditingAsset(assetToEdit);
   }, [setEditingAsset]);
 
-  const handleOpenIfModal = useCallback(() => setIfModalOpen(true), [setIfModalOpen]);
   const handleOpenSmartModal = useCallback(() => setSmartModalOpen(true), [setSmartModalOpen]);
   const handleOpenAddModal = useCallback(() => setAddModalOpen(true), [setAddModalOpen]);
 
@@ -81,7 +79,6 @@ export function usePortfolioHandlers(
     handleUpdateFundamentals,
     handleManualRefresh,
     handleFixAsset,
-    handleOpenIfModal,
     handleOpenSmartModal,
     handleOpenAddModal,
   }), [
@@ -90,7 +87,6 @@ export function usePortfolioHandlers(
     handleUpdateFundamentals,
     handleManualRefresh,
     handleFixAsset,
-    handleOpenIfModal,
     handleOpenSmartModal,
     handleOpenAddModal,
   ]);

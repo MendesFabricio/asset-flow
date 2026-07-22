@@ -63,7 +63,7 @@ def fetch_price_history(tickers: list, period: str = "1y"):
         secure_session = get_secure_session(timeout=15.0)
         data = yf.download(
             tickers, period=period, group_by="ticker",
-            progress=False, auto_adjust=True, threads=False,
+            progress=False, auto_adjust=False, threads=False,
             session=secure_session
         )
         with _CACHE_LOCK:

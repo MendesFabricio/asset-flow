@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, String, Float, Numeric, ForeignKey, DateTime, Date, Boolean, event, Index, text, UniqueConstraint
+from sqlalchemy import create_engine, Column, Integer, String, Float, Numeric, ForeignKey, DateTime, Date, Boolean, event, Index, text, UniqueConstraint, JSON
 import logging
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker, scoped_session
 from sqlalchemy.engine import Engine
@@ -57,6 +57,7 @@ class User(Base):
     card_installments = relationship("CardInstallment", back_populates="user", cascade="all, delete-orphan")
     fixed_incomes = relationship("FixedIncome", back_populates="user", cascade="all, delete-orphan")
     refund_configs = relationship("RefundConfig", back_populates="user", cascade="all, delete-orphan")
+    tax_profile = relationship("TaxProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
 
 # 🛡️ PRAGMAS DE PRODUÇÃO: Otimizações críticas de concorrência e performance para SQLite
 @event.listens_for(Engine, "connect")
@@ -152,11 +153,51 @@ class AssetTransaction(Base):
     quantity = Column(Numeric(18, 4), nullable=False)
     unit_price = Column(Numeric(18, 4), nullable=False)
     total_value = Column(Numeric(18, 4), nullable=False)
+    cost_basis = Column(Numeric(18, 4), nullable=True) # Custo médio no momento da transação (usado para calcular lucro na VENDA)
+    is_day_trade = Column(Boolean, default=False)
     transaction_date = Column(DateTime, default=datetime.now)
     created_at = Column(DateTime, default=datetime.now)
+    is_option = Column(Boolean, default=False)
+    option_meta = Column(JSON, nullable=True)
+    
+    corporate_event_id = Column(Integer, ForeignKey('corporate_events.id', ondelete="SET NULL"), nullable=True, index=True)
 
     position = relationship("Position", back_populates="transactions")
     user = relationship("User")
+    corporate_event = relationship("CorporateEvent", back_populates="transactions")
+
+class CorporateEvent(Base):
+    __tablename__ = 'corporate_events'
+    id = Column(Integer, primary_key=True)
+    asset_id = Column(Integer, ForeignKey('assets.id', ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"), nullable=False, index=True)
+    
+    type = Column(String, nullable=False) # SPLIT, INPLIT, BONUS, SPIN_OFF, TICKER_CHANGE, FRACTION
+    factor = Column(Numeric(18, 4), nullable=True)
+    percent = Column(Numeric(18, 4), nullable=True)
+    unit_cost = Column(Numeric(18, 4), nullable=True)
+    new_ticker = Column(String, nullable=True)
+    received_qty = Column(Numeric(18, 4), nullable=True)
+    date = Column(Date, default=datetime.now, index=True)
+    source = Column(String, default="manual")
+    cost_percent = Column(Numeric(18, 4), nullable=True)
+    raw_data = Column(JSON, nullable=True)
+    
+    asset = relationship("Asset")
+    user = relationship("User")
+    transactions = relationship("AssetTransaction", back_populates="corporate_event")
+
+class TaxProfile(Base):
+    __tablename__ = 'tax_profiles'
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"), nullable=False, unique=True, index=True)
+    
+    accumulated_loss_stocks_st = Column(Numeric(18, 4), default=0.0) # Prejuízo Swing Trade Ações
+    accumulated_loss_stocks_dt = Column(Numeric(18, 4), default=0.0) # Prejuízo Day Trade Ações
+    accumulated_loss_fiis = Column(Numeric(18, 4), default=0.0) # Prejuízo FIIs
+    accumulated_darf_balance = Column(Numeric(18, 4), default=0.0) # Saldo DARF < 10,00 para acumular para o mês seguinte
+    
+    user = relationship("User", back_populates="tax_profile")
 
 class MarketData(Base):
     __tablename__ = 'market_data'
@@ -190,6 +231,7 @@ class Dividend(Base):
     date_com = Column(Date, nullable=False, index=True)
     
     date_payment = Column(Date, nullable=True)
+    type = Column(String, default="Dividendo")
     value_per_share = Column(Numeric(18, 4), nullable=False) 
     quantity_at_date = Column(Numeric(18, 4), nullable=False) 
     total_value = Column(Numeric(18, 4), nullable=False) 
@@ -202,6 +244,7 @@ class Dividend(Base):
     __table_args__ = (
         Index('idx_dividends_asset_date_com', 'asset_id', 'date_com'),
         Index('idx_dividends_asset_date_com_desc', 'asset_id', text('date_com DESC')),
+        UniqueConstraint('user_id', 'asset_id', 'date_payment', 'type', 'total_value', name='_dividend_unique_uc'),
     )
 
 class PortfolioSnapshot(Base):
@@ -220,6 +263,30 @@ class PortfolioSnapshot(Base):
     breakdown = Column(String, nullable=True)
 
     user = relationship("User", back_populates="portfolio_snapshots")
+
+class MonthlyPortfolioSnapshot(Base):
+    __tablename__ = 'monthly_portfolio_snapshot'
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"), nullable=False, index=True)
+    
+    year = Column(Integer, nullable=False)
+    month = Column(Integer, nullable=False)
+    
+    total_invested_cost = Column(Numeric(18, 4), nullable=False)
+    total_market_value = Column(Numeric(18, 4), nullable=False)
+    realized_pnl = Column(Numeric(18, 4), default=0.00)
+    unrealized_pnl = Column(Numeric(18, 4), default=0.00)
+    
+    asset_performance = Column(String, nullable=True)
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    user = relationship("User")
+
+    __table_args__ = (
+        UniqueConstraint('user_id', 'year', 'month', name='_user_year_month_uc'),
+    )
 
 class RefundConfig(Base):
     __tablename__ = "refund_configs"
@@ -612,6 +679,9 @@ class DatabaseStateProxy:
 
     def get(self, k, default=None):
         return get_sync_state_db(self.key).get(k, default)
+        
+    def get_all(self):
+        return get_sync_state_db(self.key)
 
 def init_db():
     import os

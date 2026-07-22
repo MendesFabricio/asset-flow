@@ -4,17 +4,18 @@ import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   ChevronDown, Briefcase, FileText, TrendingUp, PieChart, 
-  Layers, Brain, RefreshCw, Calendar, Settings, Terminal
+  Layers, Brain, RefreshCw, Calendar, Settings, Terminal, ShieldCheck
 } from 'lucide-react';
 import { useToast } from '@/context/ToastContext';
+import { UnifiedImportModal } from '@/features/transactions/components/UnifiedImportModal';
 
 interface ToolsMenuProps {
   onSyncReports: () => void;
   onUpdateFundamentals: () => void;
   onManualRefresh: () => void;
-  onOpenIfModal: () => void;
   onOpenSmartModal: () => void;
   onOpenAddModal: () => void;
+  onOpenCorporateAction?: () => void;
   syncStatus: { status: 'idle' | 'processing' | 'success' | 'error'; message: string };
   fundamentalsStatus: { status: 'idle' | 'processing' | 'success' | 'error'; message: string };
   loading: boolean;
@@ -26,9 +27,9 @@ export function ToolsMenu({
   onSyncReports,
   onUpdateFundamentals,
   onManualRefresh,
-  onOpenIfModal,
   onOpenSmartModal,
   onOpenAddModal,
+  onOpenCorporateAction,
   syncStatus,
   fundamentalsStatus,
   loading,
@@ -37,6 +38,7 @@ export function ToolsMenu({
 }: ToolsMenuProps) {
   const { notify } = useToast();
   const [isOpen, setIsOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   
   const syncingReports = syncStatus.status === 'processing';
@@ -105,7 +107,7 @@ export function ToolsMenu({
                 <button
                   type="button"
                   onClick={() => {
-                    notify('Funcionalidade "Importação OCR" em desenvolvimento. Em breve disponível no AssetFlow Pro!', 'info');
+                    setIsImportModalOpen(true);
                     setIsOpen(false);
                   }}
                   className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-slate-900/60 transition-colors flex items-center gap-2.5 text-xs text-slate-200"
@@ -113,12 +115,32 @@ export function ToolsMenu({
                   <FileText size={14} className="text-blue-400" />
                   <div>
                     <p className="font-bold flex items-center gap-1.5">
-                      <span>Importação OCR</span>
-                      <span className="px-1 py-0.2 bg-blue-500/10 border border-blue-500/20 text-[8px] text-blue-400 rounded-md font-bold uppercase">Breve</span>
+                      <span>Importação de Notas (B3/Corretagem)</span>
+                      <span className="px-1 py-0.2 bg-blue-500/10 border border-blue-500/20 text-[8px] text-blue-400 rounded-md font-bold uppercase">Novo</span>
                     </p>
-                    <p className="text-[9px] text-slate-500">Leitor inteligente de notas de corretagem</p>
+                    <p className="text-[9px] text-slate-500">Leitor OCR SINACOR & Conciliação B3</p>
                   </div>
                 </button>
+
+                {onOpenCorporateAction && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onOpenCorporateAction();
+                      setIsOpen(false);
+                    }}
+                    className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-slate-900/60 transition-colors flex items-center gap-2.5 text-xs text-slate-200"
+                  >
+                    <Layers size={14} className="text-purple-400" />
+                    <div>
+                      <p className="font-bold flex items-center gap-1.5">
+                        <span>Eventos Corporativos</span>
+                        <span className="px-1 py-0.2 bg-purple-500/10 border border-purple-500/20 text-[8px] text-purple-400 rounded-md font-bold uppercase">Novo</span>
+                      </p>
+                      <p className="text-[9px] text-slate-500">Splits, Inplits, Bonificações e Incorporações</p>
+                    </div>
+                  </button>
+                )}
               </div>
             </div>
 
@@ -143,20 +165,18 @@ export function ToolsMenu({
                   </div>
                 </Link>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    onOpenIfModal();
-                    setIsOpen(false);
-                  }}
+                <Link
+                  href="/tax"
+                  onClick={() => setIsOpen(false)}
                   className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-slate-900/60 transition-colors flex items-center gap-2.5 text-xs text-slate-200"
                 >
-                  <PieChart size={14} className="text-emerald-400" />
+                  <FileText size={14} className="text-rose-400" />
                   <div>
-                    <p className="font-bold">Projeção de Independência</p>
-                    <p className="text-[9px] text-slate-500">Simule a conquista da sua liberdade</p>
+                    <p className="font-bold">Imposto de Renda (DARF)</p>
+                    <p className="text-[9px] text-slate-500">Gestão de DARF e IRPF Anual</p>
                   </div>
-                </button>
+                </Link>
+
 
                 <button
                   type="button"
@@ -246,6 +266,15 @@ export function ToolsMenu({
           </div>
         </div>
       )}
+
+      <UnifiedImportModal 
+        isOpen={isImportModalOpen} 
+        onClose={() => setIsImportModalOpen(false)} 
+        onSuccess={() => {
+          setIsImportModalOpen(false);
+          onManualRefresh();
+        }}
+      />
     </div>
   );
 }

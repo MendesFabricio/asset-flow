@@ -28,6 +28,15 @@ const nextConfig: NextConfig = {
   },
   // Liberar o acesso de cross-origin resources do Ngrok para os assets carregarem
   allowedDevOrigins: [process.env.NGROK_DOMAIN || 'jorge-craftless-questionably.ngrok-free.dev'],
+  webpack: (config, { dev }) => {
+    if (dev) {
+      config.watchOptions = {
+        poll: 1000,
+        aggregateTimeout: 300,
+      };
+    }
+    return config;
+  },
 };
 
 export default withSentryConfig(nextConfig, {

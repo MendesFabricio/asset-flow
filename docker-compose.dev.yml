@@ -68,6 +68,7 @@ services:
     environment:
       - NEXT_PUBLIC_API_URL=
       - WATCHPACK_POLLING=true
+      - CHOKIDAR_USEPOLLING=true
       - NEXT_PUBLIC_SENTRY_DSN=
       - SENTRY_DSN=http://ac68cc0ad8f54496961aec4e3d48d227@glitchtip:8000/1
       - ENVIRONMENT=development

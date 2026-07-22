@@ -1,10 +1,79 @@
-from flask import Blueprint, jsonify, g
+from flask import Blueprint, jsonify, g, request
 from db.models import Dividend, Asset, Session, get_active_positions # ⚡ Importada a factory controlada thread-safe
 import logging
 from services import PortfolioService
 
 dividends_bp = Blueprint('dividends', __name__)
 service = PortfolioService()
+
+@dividends_bp.route('/api/dividends', methods=['POST'])
+def add_dividend():
+    from datetime import datetime
+    data = request.json or {}
+    ticker = data.get('ticker')
+    amount = data.get('amount')
+    date_str = data.get('date')
+    
+    if not ticker or amount is None or not date_str:
+        return jsonify({"msg": "Missing required fields"}), 400
+        
+    try:
+        amount = float(amount)
+        tx_date = datetime.strptime(date_str.split('T')[0], '%Y-%m-%d').date()
+        qty = float(data.get('quantity', 1))
+    except Exception as e:
+        return jsonify({"msg": "Invalid date or amount format"}), 400
+
+    with Session() as session:
+        try:
+            asset = session.query(Asset).filter_by(ticker=ticker).first()
+            if not asset:
+                from utils.ticker_helper import to_yf_ticker
+                import yfinance as yf
+                # Try to auto-create asset like add_transaction does
+                yf_ticker = to_yf_ticker(ticker, "Ação")
+                try:
+                    _ = yf.Ticker(yf_ticker).fast_info['lastPrice']
+                except Exception:
+                    pass
+                from db.models import Category
+                category = session.query(Category).filter_by(name="Ação").first()
+                if not category:
+                    category = session.query(Category).first()
+                asset = Asset(ticker=ticker, category_id=category.id, currency="BRL")
+                session.add(asset)
+                session.flush()
+
+            # Check duplicate
+            duplicate = session.query(Dividend).filter_by(
+                asset_id=asset.id,
+                user_id=g.user_id,
+                date_com=tx_date,
+                total_value=amount
+            ).first()
+            
+            if duplicate:
+                return jsonify({"msg": "Duplicate dividend already exists."}), 409
+                
+            div = Dividend(
+                asset_id=asset.id,
+                user_id=g.user_id,
+                date_com=tx_date,
+                date_payment=tx_date,
+                value_per_share=(amount / qty) if qty > 0 else amount,
+                quantity_at_date=qty,
+                total_value=amount,
+                status="PAGO"
+            )
+            session.add(div)
+            from db.models import safe_commit
+            safe_commit(session)
+            return jsonify({"msg": "Success", "id": div.id}), 201
+        except Exception as e:
+            session.rollback()
+            logging.error(f"❌ Error adding dividend: {e}")
+            return jsonify({"msg": str(e)}), 500
+
 
 @dividends_bp.route('/api/dividends/history', methods=['GET'])
 def get_dividend_history():

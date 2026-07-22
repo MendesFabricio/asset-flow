@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, memo } from 'react';
 import { Menu, X } from 'lucide-react';
+import Link from 'next/link';
 import { Logo } from './Logo';
 import { MarketStatus } from './MarketStatus';
 import { MarketTicker } from './MarketTicker';
@@ -23,9 +24,9 @@ interface HeaderProps {
   onSyncReports: () => void;
   onUpdateFundamentals: () => void;
   onManualRefresh: () => void;
-  onOpenIfModal: () => void;
   onOpenSmartModal: () => void;
   onOpenAddModal: () => void;
+  onOpenCorporateAction: () => void;
   onFixAsset: (id: number) => void;
   loading: boolean;
   isRefetching: boolean;
@@ -41,9 +42,9 @@ export const Header = memo(({
   onSyncReports,
   onUpdateFundamentals,
   onManualRefresh,
-  onOpenIfModal,
   onOpenSmartModal,
   onOpenAddModal,
+  onOpenCorporateAction,
   onFixAsset,
   loading,
   isRefetching,
@@ -91,9 +92,9 @@ export const Header = memo(({
               onSyncReports={onSyncReports}
               onUpdateFundamentals={onUpdateFundamentals}
               onManualRefresh={onManualRefresh}
-              onOpenIfModal={onOpenIfModal}
               onOpenSmartModal={onOpenSmartModal}
               onOpenAddModal={onOpenAddModal}
+              onOpenCorporateAction={onOpenCorporateAction}
               syncStatus={syncStatus}
               fundamentalsStatus={fundamentalsStatus}
               loading={loading}
@@ -177,6 +178,13 @@ export const Header = memo(({
           <div className="flex flex-col gap-2">
             <span className="text-[10px] uppercase font-bold text-slate-500 mb-1">Análises & Sincronias</span>
             <div className="flex flex-col gap-1">
+              <Link
+                href="/tax"
+                onClick={() => setMobileMenuOpen(false)}
+                className="w-full text-left px-2 py-2 text-xs font-bold rounded-lg hover:bg-slate-900 text-slate-300 hover:text-white"
+              >
+                Imposto de Renda (DARF)
+              </Link>
               <button
                 type="button"
                 onClick={() => {
@@ -186,16 +194,6 @@ export const Header = memo(({
                 className="w-full text-left px-2 py-2 text-xs font-bold rounded-lg hover:bg-slate-900 text-slate-300 hover:text-white"
               >
                 Otimização de Aportes
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  onOpenIfModal();
-                  setMobileMenuOpen(false);
-                }}
-                className="w-full text-left px-2 py-2 text-xs font-bold rounded-lg hover:bg-slate-900 text-slate-300 hover:text-white"
-              >
-                Projeção de Independência
               </button>
               <button
                 type="button"

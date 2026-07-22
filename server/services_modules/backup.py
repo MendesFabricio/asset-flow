@@ -86,11 +86,10 @@ class BackupService:
                 benchmark_val = Decimal(str(s.total_invested or 0)) * Decimal(str(1.105 ** years_elapsed))
                 
                 item = {
-                    "date": s.date.strftime("%d/%m"), 
+                    "date": s.date.strftime("%d/%m/%y"), 
                     "Patrimônio": float(s.total_equity or 0),
                     "Investido": float(s.total_invested or 0),
-                    "Lucro": float(s.profit or 0),
-                    "IPCA_6": float(round(benchmark_val, 2))
+                    "Lucro": float(s.profit or 0)
                 }
                 
                 has_valid_bd = False

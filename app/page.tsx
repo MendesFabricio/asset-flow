@@ -32,7 +32,6 @@ import {
 } from 'lucide-react';
 
 const RiskRadarModal = dynamic(() => import('./components/RiskRadarModal').then(mod => mod.RiskRadarModal), { ssr: false });
-const IncomeProjectionModal = dynamic(() => import('./components/IncomeProjectionModal').then(mod => mod.IncomeProjectionModal), { ssr: false, loading: () => <ModalSkeleton /> });
 
 const portfolioTabs: TabItem[] = [
   { id: 'Resumo', icon: <Layers size={14} />, label: 'Resumo' },
@@ -105,9 +104,9 @@ export default function Home() {
           onSyncReports={handlers.handleSyncReports}
           onUpdateFundamentals={handlers.handleUpdateFundamentals}
           onManualRefresh={handleManualRefresh}
-          onOpenIfModal={handlers.handleOpenIfModal}
           onOpenSmartModal={handlers.handleOpenSmartModal}
           onOpenAddModal={handlers.handleOpenAddModal}
+          onOpenCorporateAction={() => {}}
           onFixAsset={handleFixAsset}
           loading={true}
           isRefetching={false}
@@ -129,9 +128,9 @@ export default function Home() {
         onSyncReports={handlers.handleSyncReports}
         onUpdateFundamentals={handlers.handleUpdateFundamentals}
         onManualRefresh={handleManualRefresh}
-        onOpenIfModal={handlers.handleOpenIfModal}
         onOpenSmartModal={handlers.handleOpenSmartModal}
         onOpenAddModal={handlers.handleOpenAddModal}
+        onOpenCorporateAction={() => modals.setCorporateActionModalOpen(true)}
         onFixAsset={handleFixAsset}
         loading={loading}
         isRefetching={isRefetching}
@@ -176,11 +175,13 @@ export default function Home() {
           newsTicker={modals.newsTicker}
           isAddModalOpen={modals.isAddModalOpen}
           isSmartModalOpen={modals.isSmartModalOpen}
+          isCorporateActionModalOpen={modals.isCorporateActionModalOpen}
           onCloseEditing={() => modals.setEditingAsset(null)}
           onCloseDetails={() => modals.setSelectedDetailsAsset(null)}
           onCloseNews={() => modals.setNewsTicker(null)}
           onCloseAdd={() => modals.setAddModalOpen(false)}
           onCloseSmart={() => modals.setSmartModalOpen(false)}
+          onCloseCorporateAction={() => modals.setCorporateActionModalOpen(false)}
           onRefetch={refetch}
         />
 
@@ -189,7 +190,6 @@ export default function Home() {
         <div className="text-center text-[10px] text-slate-600 mt-12 mb-4">AssetFlow v1.0</div>
       </div>
 
-      {modals.isIfModalOpen && <IncomeProjectionModal onClose={() => modals.setIfModalOpen(false)} />}
 
       {isRadarModalOpen && (
         <RiskRadarModal isOpen={true} onClose={closeRadarModal} alertas={data?.alertas || []} />
