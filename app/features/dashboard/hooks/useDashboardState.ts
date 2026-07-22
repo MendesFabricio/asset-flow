@@ -15,19 +15,20 @@ export function useDashboardState() {
 
   const isAddModalOpen = useModalStore(state => state.isAddModalOpen);
   const isSmartModalOpen = useModalStore(state => state.isSmartModalOpen);
-  const isIfModalOpen = useModalStore(state => state.isIfModalOpen);
   const editingAsset = useModalStore(state => state.editingAsset);
   const selectedDetailsAsset = useModalStore(state => state.selectedDetailsAsset);
   const newsTicker = useModalStore(state => state.newsTicker);
   const setAddModalOpen = useModalStore(state => state.setAddModalOpen);
   const setSmartModalOpen = useModalStore(state => state.setSmartModalOpen);
-  const setIfModalOpen = useModalStore(state => state.setIfModalOpen);
   const setEditingAsset = useModalStore(state => state.setEditingAsset);
   const setSelectedDetailsAsset = useModalStore(state => state.setSelectedDetailsAsset);
   const setNewsTicker = useModalStore(state => state.setNewsTicker);
 
   const openRadarModal = useCallback(() => setIsRadarModalOpen(true), []);
   const closeRadarModal = useCallback(() => setIsRadarModalOpen(false), []);
+
+  const isCorporateActionModalOpen = useModalStore(state => state.isCorporateActionModalOpen);
+  const setCorporateActionModalOpen = useModalStore(state => state.setCorporateActionModalOpen);
 
   return {
     tab,
@@ -42,13 +43,13 @@ export function useDashboardState() {
     modals: {
       isAddModalOpen,
       isSmartModalOpen,
-      isIfModalOpen,
+      isCorporateActionModalOpen,
       editingAsset,
       selectedDetailsAsset,
       newsTicker,
       setAddModalOpen,
       setSmartModalOpen,
-      setIfModalOpen,
+      setCorporateActionModalOpen,
       setEditingAsset,
       setSelectedDetailsAsset,
       setNewsTicker,

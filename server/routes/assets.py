@@ -201,7 +201,9 @@ def add_asset_transaction():
             tx_type=body.type,
             quantity=body.quantity,
             unit_price=body.unit_price,
-            date=body.date
+            date=body.date,
+            category=body.category,
+            force_duplicate=body.force_duplicate
         )
         
         def _background_update():
@@ -225,6 +227,16 @@ def add_asset_transaction():
 def get_asset_transactions(ticker):
     try:
         history = service.get_transaction_history(ticker.upper())
+        return jsonify(history)
+    except Exception as e:
+        return jsonify({"status": "Erro", "msg": str(e)}), 500
+
+@assets_bp.route('/api/all-asset-transactions', methods=['GET'])
+def get_all_asset_transactions():
+    try:
+        if not hasattr(service, 'get_all_transactions_history'):
+            return jsonify([])
+        history = service.get_all_transactions_history()
         return jsonify(history)
     except Exception as e:
         return jsonify({"status": "Erro", "msg": str(e)}), 500
@@ -308,29 +320,31 @@ def smart_rebalance():
         logging.error(f"❌ Erro no smart-rebalance: {e}", exc_info=True)
         return jsonify({"status": "Erro", "msg": str(e)}), 500
 
-@assets_bp.route('/api/project-income', methods=['POST'])
-def project_income():
-    """
-    Projeção de Independência Financeira via juros compostos.
-    Retorna timeline anual de patrimônio e renda projetada,
-    marcos de FI (anos para atingir R$3k, R$5k, R$10k/mês etc.)
 
-    Body JSON: {
-      "aporte_mensal": 2000.0,
-      "anos": 20,
-      "retorno_anual_pct": 12.0,
-      "dy_anual_pct": 6.0
-    }
-    """
+@assets_bp.route('/api/corporate-action', methods=['POST'])
+def corporate_action():
     try:
-        body = request.get_json(silent=True) or {}
-        result = service.calculate_income_projection(
-            monthly_contribution=float(body.get("aporte_mensal", 1000.0)),
-            years=int(body.get("anos", 20)),
-            annual_return_pct=float(body.get("retorno_anual_pct", 12.0)),
-            annual_dividend_yield_pct=float(body.get("dy_anual_pct", 6.0)),
-        )
-        return jsonify(result)
+        body = request.json or {}
+        ticker = body.get('ticker')
+        action_type = body.get('type')
+        
+        if not ticker or not action_type:
+            return jsonify({"status": "Erro", "msg": "Ticker e Tipo de Evento são obrigatórios"}), 400
+            
+        msg = service.add_corporate_action(ticker, action_type, body)
+        
+        def _background_update():
+            try:
+                service.take_daily_snapshot() 
+            except Exception as e:
+                logging.warning(f"⚠️ Falha ao computar snapshot pós-evento em background: {e}")
+                
+        from services import background_task_executor
+        background_task_executor.submit(_background_update)
+        
+        return jsonify({"status": "Sucesso", "msg": msg})
+    except ValueError as e:
+        return jsonify({"status": "Erro", "msg": str(e)}), 400
     except Exception as e:
-        logging.error(f"❌ Erro na projeção de income: {e}", exc_info=True)
+        logging.error(f"❌ Erro na rota corporate-action: {e}")
         return jsonify({"status": "Erro", "msg": str(e)}), 500

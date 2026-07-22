@@ -31,3 +31,5 @@ class AssetTransactionCreate(BaseModel):
     quantity: float = Field(..., gt=0)
     unit_price: float = Field(..., gt=0)
     date: Optional[str] = Field(None, description="ISO date string for transaction_date")
+    category: Optional[str] = Field(None, description="Suggested category for auto-creation")
+    force_duplicate: Optional[bool] = Field(False, description="If true, bypass duplicate check")

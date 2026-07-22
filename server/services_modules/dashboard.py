@@ -143,6 +143,11 @@ class DashboardService:
                         "last_report_type": pos.last_report_type,
                         "fundamentalist_data": pos.last_report_type,
                         "mdata_date": mdata_date_str,
+                        "vi_graham": float(item["metrics"].get("vi_graham", 0)),
+                        "mg_graham": float(item["metrics"].get("mg_graham", 0)),
+                        "p_vp": float(item["metrics"].get("p_vp", 0)),
+                        "magic_number": int(item["metrics"].get("magic_number", 0)),
+                        "renda_mensal_est": float(item["metrics"].get("renda_mensal_est", 0)),
                     })
 
                 alertas = build_alerts(ativos_proc, cat_totals, cat_metas, resumo, self, session)

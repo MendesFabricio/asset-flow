@@ -358,8 +358,15 @@ export const EditModal = ({ isOpen, onClose, onSave, ativo, allAssets = [] }: Ed
                           {new Date(tx.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
                         </td>
                         <td className="px-3 py-2">
-                          <span className={`px-1.5 py-0.5 rounded font-bold ${tx.type === 'BUY' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
-                            {tx.type === 'BUY' ? 'COMPRA' : 'VENDA'}
+                          <span className={`px-1.5 py-0.5 rounded font-bold ${
+                            tx.type === 'BUY' ? 'bg-emerald-500/10 text-emerald-400' :
+                            tx.type === 'SELL' ? 'bg-red-500/10 text-red-400' :
+                            'bg-purple-500/10 text-purple-400'
+                          }`}>
+                            {tx.type === 'BUY' ? 'COMPRA' : 
+                             tx.type === 'SELL' ? 'VENDA' : 
+                             tx.type === 'AMORTIZATION' ? 'AMORTIZAÇÃO' :
+                             String(tx.type).replace('_', ' ')}
                           </span>
                         </td>
                         <td className="px-3 py-2 text-right text-slate-300 font-mono">

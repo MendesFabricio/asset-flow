@@ -19,6 +19,10 @@ const HistoryChart = dynamic(
   () => import('@/components/HistoryChart').then((mod) => mod.HistoryChart),
   { ssr: false, loading: () => <HistoryChartSkeleton /> }
 );
+const MonthlyPnLChart = dynamic(
+  () => import('@/features/evolution/components/MonthlyPnLChart'),
+  { ssr: false, loading: () => <div className="h-64 bg-slate-100 dark:bg-slate-800 animate-pulse rounded-xl"></div> }
+);
 const QuantDashboard = dynamic(
   () => import('@/features/quant/components/QuantDashboard').then((mod) => mod.QuantDashboard),
   { ssr: false, loading: () => <QuantSkeleton /> }
@@ -88,8 +92,11 @@ export function DashboardTabContent({
       );
     case 'Evolução':
       return (
-        <div className="animate-in fade-in duration-500 min-h-[400px] w-full">
-          <HistoryChart data={history} />
+        <div className="animate-in fade-in duration-500 w-full flex flex-col gap-6">
+          <div className="min-h-[400px]">
+            <HistoryChart data={history} />
+          </div>
+          <MonthlyPnLChart />
         </div>
       );
 

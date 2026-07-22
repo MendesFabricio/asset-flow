@@ -41,10 +41,10 @@ export const PrivacyProvider = ({ children }: { children: ReactNode }) => {
       const decrypted = deobscureValue(saved);
 
       if (decrypted === 'true') {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
+         
         setIsHidden(true);
       } else if (saved === 'true') {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
+         
         setIsHidden(true);
         localStorage.setItem('assetflow_privacy', obscureValue('true'));
       }

@@ -48,8 +48,11 @@ from routes.credit_cards import cards_bp
 from routes.fixed_income import fixed_income_bp
 from routes.statement_import import statement_import_bp
 from routes.auth import auth_bp
+from routes.ocr_import import ocr_import_bp
 from infrastructure.assets_icon import assets_icon_bp
 from routes.scheduler import scheduler_bp
+from routes.tax import tax_bp
+from routes.portfolio import portfolio_bp
 
 
 
@@ -192,6 +195,9 @@ app.register_blueprint(cards_bp)
 app.register_blueprint(fixed_income_bp)
 app.register_blueprint(statement_import_bp)
 app.register_blueprint(scheduler_bp, url_prefix='/api/scheduler')
+app.register_blueprint(ocr_import_bp)
+app.register_blueprint(tax_bp)
+app.register_blueprint(portfolio_bp)
 logging.info("✅ Todos os blueprints registrados com sucesso.")
 
 

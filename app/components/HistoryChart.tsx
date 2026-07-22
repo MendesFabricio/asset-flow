@@ -10,7 +10,6 @@ interface HistoryChartItem {
   date: string;
   Patrimônio: number;
   Investido: number;
-  IPCA_6?: number;
   [key: string]: any; // Allow dynamic asset classes
 }
 
@@ -36,7 +35,7 @@ export const HistoryChart = ({ data }: { data: HistoryChartItem[] }) => {
     const keys = new Set<string>();
     data.forEach(item => {
       Object.keys(item).forEach(key => {
-        if (!['date', 'Patrimônio', 'Investido', 'IPCA_6', 'Lucro'].includes(key)) {
+        if (!['date', 'Patrimônio', 'Investido', 'Lucro'].includes(key)) {
           keys.add(key);
         }
       });
@@ -119,10 +118,6 @@ export const HistoryChart = ({ data }: { data: HistoryChartItem[] }) => {
                   <div className="w-2 h-2 rounded-full bg-slate-500" />
                   <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Aportes</span>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.8)]" />
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">IPCA+6%</span>
-                </div>
               </>
             ) : (
               assetClasses.map((cls, idx) => (
@@ -184,7 +179,6 @@ export const HistoryChart = ({ data }: { data: HistoryChartItem[] }) => {
               labelStyle={{ color: palette.tooltipLabel, marginBottom: '8px', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', borderBottom: `1px solid ${palette.tooltipLabelBorder}`, paddingBottom: '4px' }}
               formatter={(value: any, name: any) => {
                 if (name === 'Patrimônio') return [formatMoney(value), 'TOTAL'];
-                if (name === 'IPCA_6') return [formatMoney(value), 'IPCA + 6% EST.'];
                 if (name === 'Investido') return [formatMoney(value), 'APORTADO'];
                 return [formatMoney(value), String(name).toUpperCase()];
               }}
@@ -193,8 +187,7 @@ export const HistoryChart = ({ data }: { data: HistoryChartItem[] }) => {
             {viewMode === 'total' ? (
               <>
                 <Area type="monotone" dataKey="Investido" stroke="#64748b" strokeWidth={2} strokeDasharray="4 4" fill="transparent" name="Investido" animationDuration={1000} activeDot={false} />
-                <Area type="monotone" dataKey="IPCA_6" stroke="#f59e0b" strokeWidth={2} strokeDasharray="3 3" fill="transparent" name="IPCA_6" animationDuration={1200} activeDot={false} />
-                 <Area type="monotone" dataKey="Patrimônio" stroke="#22d3ee" strokeWidth={3} fill="url(#colorPatrimonio)" name="Patrimônio" animationDuration={1500} activeDot={{ r: 6, strokeWidth: 0, fill: palette.activeDotFill }} />
+                <Area type="monotone" dataKey="Patrimônio" stroke="#22d3ee" strokeWidth={3} fill="url(#colorPatrimonio)" name="Patrimônio" animationDuration={1500} activeDot={{ r: 6, strokeWidth: 0, fill: palette.activeDotFill }} />
               </>
             ) : (
               assetClasses.map((cls, idx) => (

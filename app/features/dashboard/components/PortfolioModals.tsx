@@ -12,6 +12,10 @@ const AddAssetModal = dynamic(
   () => import('@/features/assets/components/AddAssetModal').then((mod) => mod.AddAssetModal),
   { ssr: false, loading: () => <ModalSkeleton /> }
 );
+const CorporateActionGlobalModal = dynamic(
+  () => import('@/features/assets/components/CorporateActionGlobalModal').then((mod) => mod.CorporateActionGlobalModal),
+  { ssr: false, loading: () => <ModalSkeleton /> }
+);
 const AssetNewsPanel = dynamic(
   () => import('@/features/news/AssetNewsPanel').then((mod) => mod.AssetNewsPanel),
   { ssr: false, loading: () => <NewsPanelSkeleton /> }
@@ -32,11 +36,13 @@ interface PortfolioModalsProps {
   newsTicker: string | null;
   isAddModalOpen: boolean;
   isSmartModalOpen: boolean;
+  isCorporateActionModalOpen: boolean;
   onCloseEditing: () => void;
   onCloseDetails: () => void;
   onCloseNews: () => void;
   onCloseAdd: () => void;
   onCloseSmart: () => void;
+  onCloseCorporateAction: () => void;
   onRefetch: () => void;
 }
 
@@ -47,11 +53,13 @@ export function PortfolioModals({
   newsTicker,
   isAddModalOpen,
   isSmartModalOpen,
+  isCorporateActionModalOpen,
   onCloseEditing,
   onCloseDetails,
   onCloseNews,
   onCloseAdd,
   onCloseSmart,
+  onCloseCorporateAction,
   onRefetch,
 }: PortfolioModalsProps) {
   return (
@@ -67,6 +75,9 @@ export function PortfolioModals({
       )}
       {isAddModalOpen && (
         <AddAssetModal isOpen={true} onClose={onCloseAdd} onSuccess={onRefetch} />
+      )}
+      {isCorporateActionModalOpen && (
+        <CorporateActionGlobalModal isOpen={true} onClose={onCloseCorporateAction} onSuccess={onRefetch} assets={ativos} />
       )}
       {!!newsTicker && (
         <AssetNewsPanel ticker={newsTicker} onClose={onCloseNews} />
