@@ -41,6 +41,7 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <head>
+        <meta name="admaven-placement" content="BqTUGqHnE" />
         <link rel="preconnect" href="http://backend:5328" />
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
