@@ -169,7 +169,7 @@ export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalP
         script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
         script.type = 'text/javascript';
         script.async = true;
-        script.innerHTML = JSON.stringify({
+        script.textContent = JSON.stringify({
             "autosize": true,
             "symbol": tvSymbol,
             "interval": "D",

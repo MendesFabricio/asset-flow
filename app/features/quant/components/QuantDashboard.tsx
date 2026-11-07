@@ -47,7 +47,7 @@ import { useQuantData } from '../hooks/useQuantData';
 import { useDcaSimulation } from '../hooks/useDcaSimulation';
 import { useQuantReports } from '../hooks/useQuantReports';
 
-export function QuantDashboard() {
+export const QuantDashboard = React.memo(function QuantDashboard() {
   const { notify } = useToast();
   const [activeTab, setActiveTab] = useState<'performance' | 'optimization' | 'simulations' | 'reports'>('performance');
 
@@ -1150,4 +1150,4 @@ export function QuantDashboard() {
       )}
     </div>
   );
-}
+});

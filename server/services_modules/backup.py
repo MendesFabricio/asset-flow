@@ -73,8 +73,8 @@ class BackupService:
                         latest_breakdown = json.loads(s.breakdown)
                         if latest_breakdown:
                             break
-                    except:
-                        pass
+                    except Exception as e:
+                        logging.warning(f"Failed to parse breakdown for history: {e}")
             
             latest_total = sum(latest_breakdown.values()) if latest_breakdown else 0
             fractions = {k: v / latest_total for k, v in latest_breakdown.items()} if latest_total > 0 else {}
@@ -99,8 +99,8 @@ class BackupService:
                         if bd:
                             item.update(bd)
                             has_valid_bd = True
-                    except:
-                        pass
+                    except Exception as e:
+                        logging.warning(f"Failed to parse breakdown for item: {e}")
                 
                 if not has_valid_bd and fractions and item["Patrimônio"] > 0:
                     for k, frac in fractions.items():

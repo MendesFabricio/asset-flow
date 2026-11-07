@@ -6,6 +6,7 @@ from services_modules.backup import BackupService
 import traceback
 import threading
 from datetime import timedelta, date
+import logging
 
 portfolio_bp = Blueprint('portfolio', __name__)
 
@@ -100,7 +101,7 @@ def _run_history_sync(user_id):
                                 dt = date_idx.date() if hasattr(date_idx, 'date') else date_idx
                                 md_cache[asset_id][dt] = float(row['Close'])
                 except Exception as e:
-                    print(f"Error fetching historical prices: {e}")
+                    logging.error(f"Error fetching historical prices: {e}", exc_info=True)
                 
             def get_price_on_date(asset_id, d):
                 # Search backwards for the closest price
@@ -193,7 +194,7 @@ def _run_history_sync(user_id):
             session.commit()
     except Exception as e:
         HISTORY_SYNC_STATE.update({"status": "error", "message": f"Erro: {str(e)}"})
-        traceback.print_exc()
+        logging.error(f"Fatal error in history sync thread: {e}", exc_info=True)
 
 @portfolio_bp.route('/api/portfolio/recalculate-history', methods=['POST'])
 def recalculate_history():

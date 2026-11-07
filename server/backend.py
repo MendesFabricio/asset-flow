@@ -17,7 +17,7 @@ from db.models import init_db, DatabaseStateProxy, get_sync_state_db, update_syn
 from db.lock import DistributedLock
 from db.session import Session
 from services import PortfolioService
-from utils.cvm_processor import CVMProcessor
+
 
 # Importações dos Blueprints
 from routes.dashboard import dashboard_bp

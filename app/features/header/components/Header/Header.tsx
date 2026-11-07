@@ -100,6 +100,7 @@ export const Header = memo(({
               loading={loading}
               isRefetching={isRefetching}
               showRefreshSuccess={showRefreshSuccess}
+              ativos={ativos}
             />
             <NewAssetButton onClick={onOpenAddModal} />
             <Notifications onFixAsset={onFixAsset} />

@@ -4,10 +4,12 @@ import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   ChevronDown, Briefcase, FileText, TrendingUp, PieChart, 
-  Layers, Brain, RefreshCw, Calendar, Settings, Terminal, ShieldCheck
+  Layers, Brain, RefreshCw, Calendar, Settings, Terminal, ShieldCheck,
+  Download
 } from 'lucide-react';
 import { useToast } from '@/context/ToastContext';
 import { UnifiedImportModal } from '@/features/transactions/components/UnifiedImportModal';
+import { Asset } from '@/types';
 
 interface ToolsMenuProps {
   onSyncReports: () => void;
@@ -21,6 +23,39 @@ interface ToolsMenuProps {
   loading: boolean;
   isRefetching: boolean;
   showRefreshSuccess: boolean;
+  ativos?: Asset[];
+}
+
+function exportPortfolioCSV(ativos: Asset[]) {
+  const totalGeral = ativos.reduce((acc, a) => acc + (a.total_atual || 0), 0);
+
+  const header = ['Ticker', 'Tipo', 'Quantidade', 'Preço Médio (R$)', 'Valor Investido (R$)', 'Preço Atual (R$)', 'Valor Atual (R$)', 'Lucro/Prejuízo (R$)', 'Lucro/Prejuízo (%)', '% na Carteira'];
+  const rows = ativos.map((a) => {
+    const pctCarteira = totalGeral > 0 ? ((a.total_atual || 0) / totalGeral) * 100 : 0;
+    return [
+      a.ticker,
+      a.tipo,
+      a.qtd.toString().replace('.', ','),
+      (a.pm || 0).toFixed(2).replace('.', ','),
+      (a.total_investido || 0).toFixed(2).replace('.', ','),
+      (a.preco_atual || 0).toFixed(2).replace('.', ','),
+      (a.total_atual || 0).toFixed(2).replace('.', ','),
+      (a.lucro_valor || 0).toFixed(2).replace('.', ','),
+      (a.lucro_pct || 0).toFixed(2).replace('.', ','),
+      pctCarteira.toFixed(2).replace('.', ','),
+    ];
+  });
+
+  const csv = [header, ...rows].map((row) => row.map((cell) => `"${cell}"`).join(';')).join('\n');
+  const bom = '\uFEFF'; // UTF-8 BOM para Excel
+  const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  const date = new Date().toISOString().split('T')[0];
+  link.href = url;
+  link.download = `carteira_${date}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 export function ToolsMenu({
@@ -34,7 +69,8 @@ export function ToolsMenu({
   fundamentalsStatus,
   loading,
   isRefetching,
-  showRefreshSuccess
+  showRefreshSuccess,
+  ativos = [],
 }: ToolsMenuProps) {
   const { notify } = useToast();
   const [isOpen, setIsOpen] = useState(false);
@@ -119,6 +155,26 @@ export function ToolsMenu({
                       <span className="px-1 py-0.2 bg-blue-500/10 border border-blue-500/20 text-[8px] text-blue-400 rounded-md font-bold uppercase">Novo</span>
                     </p>
                     <p className="text-[9px] text-slate-500">Leitor OCR SINACOR & Conciliação B3</p>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (ativos.length === 0) {
+                      notify('Nenhuma posição encontrada para exportar.', 'info');
+                    } else {
+                      exportPortfolioCSV(ativos);
+                      notify(`Carteira exportada com ${ativos.length} posições.`, 'success');
+                    }
+                    setIsOpen(false);
+                  }}
+                  className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-slate-900/60 transition-colors flex items-center gap-2.5 text-xs text-slate-200"
+                >
+                  <Download size={14} className="text-emerald-400" />
+                  <div>
+                    <p className="font-bold">Exportar Posições (CSV)</p>
+                    <p className="text-[9px] text-slate-500">Valor investido, atual, qtd e % da carteira</p>
                   </div>
                 </button>
 

@@ -100,24 +100,3 @@ def get_asset_icon(ticker):
         logging.error(f"Erro no fallback para {ticker}: {e}")
         
     return "", 404
-
-@assets_icon_bp.route('/api/assets/icon/<ticker>', methods=['POST'])
-def upload_asset_icon(ticker):
-    """
-    Faz upload manual de um ícone para um ativo específico na base local.
-    """
-    ticker = ticker.upper().strip()
-    if 'file' not in request.files:
-        return jsonify({"status": "Erro", "msg": "Nenhum arquivo enviado."}), 400
-        
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({"status": "Erro", "msg": "Arquivo vazio."}), 400
-        
-    try:
-        local_path = os.path.join(ICONS_DIR, f"{ticker}.png")
-        file.save(local_path)
-        return jsonify({"status": "Sucesso", "msg": "Ícone salvo localmente com sucesso."})
-    except Exception as e:
-        logging.error(f"Erro ao salvar upload de {ticker}: {e}")
-        return jsonify({"status": "Erro", "msg": str(e)}), 500

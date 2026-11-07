@@ -27,24 +27,26 @@ export default function LoginPage() {
         body: JSON.stringify({ username, password }),
       });
 
-      const data = await res.json();
-      console.log('[LOGIN DEBUG] status:', res.status, 'data:', JSON.stringify(data));
+      let data: { success?: boolean; message?: string; user?: { username: string } } = {};
+      try {
+        data = await res.json();
+      } catch {
+        // Resposta não foi JSON (ex: página de erro HTML)
+      }
 
       if (res.ok && data.success) {
         if (isRegistering) {
-          setSuccess('Conta criada com sucesso! Faça login abaixo.');
+          setSuccess('Conta criada com sucesso! Faça login.');
           setIsRegistering(false);
           setPassword('');
           setLoading(false);
         } else {
-          // Salva dados básicos no localStorage para o header saber o nome
-          localStorage.setItem('assetflow_username', data.user.username);
-          // O cookie httpOnly é setado automaticamente pelo route handler do Next.js
-          router.push('/'); // Redireciona para o dashboard
+          localStorage.setItem('assetflow_username', data.user?.username || username);
+          router.push('/');
           router.refresh();
         }
       } else {
-        setError(data.message || 'Ocorreu um erro. Tente novamente.');
+        setError(data.message || (res.status === 404 ? 'Serviço de autenticação indisponível (404).' : 'Ocorreu um erro. Tente novamente.'));
         setLoading(false);
       }
     } catch {
@@ -54,39 +56,49 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-surface flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-slate-900/50 border border-slate-800 rounded-2xl p-8 shadow-2xl backdrop-blur-sm animate-in fade-in zoom-in-95 duration-300">
+    <div className="min-h-screen bg-[#07090e] text-slate-100 flex items-center justify-center p-4 selection:bg-indigo-500/30 selection:text-indigo-200">
+      {/* Background ambient glow */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[350px] bg-indigo-500/10 blur-[120px] rounded-full" />
+      </div>
+
+      <div className="relative w-full max-w-[390px] bg-slate-900/60 border border-white/[0.08] rounded-2xl p-8 shadow-2xl backdrop-blur-xl transition-all">
         
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-600/20 text-blue-500 mb-4 border border-blue-500/20">
-            <Wallet size={32} />
+        {/* Header */}
+        <div className="text-center mb-7">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-indigo-500/10 text-indigo-400 mb-3.5 border border-indigo-500/20 shadow-inner">
+            <Wallet size={22} className="stroke-[2.2]" />
           </div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">AssetFlow <span className="text-blue-500">Pro</span></h1>
-          <p className="text-slate-500 text-sm mt-2">
-            {isRegistering ? 'Crie sua conta privada isolada.' : 'Faça login com suas credenciais.'}
+          <h1 className="text-xl font-semibold tracking-tight text-white">
+            AssetFlow <span className="text-indigo-400 font-medium">Pro</span>
+          </h1>
+          <p className="text-slate-400 text-xs mt-1.5 font-normal">
+            {isRegistering ? 'Crie sua conta para gerenciar seus ativos' : 'Acesse seu painel financeiro'}
           </p>
         </div>
 
+        {/* Feedback Messages */}
         {success && (
-          <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs rounded-xl p-3 mb-4 text-center">
+          <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs rounded-lg p-3 mb-4 text-center font-medium">
             {success}
           </div>
         )}
 
         {error && (
-          <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs rounded-xl p-3 mb-4 text-center">
+          <div className="bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs rounded-lg p-3 mb-4 text-center font-medium">
             {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1">
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="space-y-3.5">
+          <div>
             <div className="relative">
-              <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+              <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
               <input 
                 type="text" 
-                placeholder="Nome de usuário"
-                className="w-full bg-slate-950 border border-slate-700 rounded-xl py-3 pl-10 pr-4 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all placeholder:text-slate-600 text-sm"
+                placeholder="Usuário"
+                className="w-full bg-slate-950/60 border border-white/[0.08] rounded-xl py-2.5 pl-10 pr-4 text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/40 transition-all"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 autoFocus
@@ -95,13 +107,13 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <div className="space-y-1">
+          <div>
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+              <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
               <input 
                 type="password" 
-                placeholder="Senha secreta"
-                className="w-full bg-slate-950 border border-slate-700 rounded-xl py-3 pl-10 pr-4 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all placeholder:text-slate-600 text-sm"
+                placeholder="Senha"
+                className="w-full bg-slate-950/60 border border-white/[0.08] rounded-xl py-2.5 pl-10 pr-4 text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/40 transition-all"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -112,19 +124,20 @@ export default function LoginPage() {
           <button 
             type="submit" 
             disabled={loading || !username || !password}
-            className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed group text-sm"
+            className="w-full mt-2 bg-indigo-600 hover:bg-indigo-500 active:scale-[0.99] text-white font-medium py-2.5 rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed text-xs shadow-lg shadow-indigo-600/20"
           >
             {loading ? (
-              'Aguarde...'
+              'Autenticando...'
             ) : isRegistering ? (
-              <>Criar Conta <UserPlus size={18} /></>
+              <>Criar Conta <UserPlus size={15} /></>
             ) : (
-              <>Entrar <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" /></>
+              <>Entrar <ArrowRight size={15} /></>
             )}
           </button>
         </form>
 
-        <div className="mt-6 pt-6 border-t border-slate-800/80 text-center">
+        {/* Switch Register/Login */}
+        <div className="mt-6 pt-5 border-t border-white/[0.06] text-center">
           <button
             type="button"
             onClick={() => {
@@ -132,19 +145,16 @@ export default function LoginPage() {
               setError('');
               setSuccess('');
             }}
-            className="text-xs text-blue-400 hover:text-blue-300 font-medium transition-colors inline-flex items-center gap-1.5"
+            className="text-xs text-slate-400 hover:text-white transition-colors inline-flex items-center gap-1.5"
           >
             {isRegistering ? (
-              <>Já tem uma conta? <span className="underline">Fazer Login</span> <LogIn size={14} /></>
+              <>Já tem conta? <span className="text-indigo-400 hover:underline">Fazer login</span></>
             ) : (
-              <>Não possui conta privada? <span className="underline">Registrar-se</span> <UserPlus size={14} /></>
+              <>Não tem conta? <span className="text-indigo-400 hover:underline">Registrar-se</span></>
             )}
           </button>
         </div>
 
-        <div className="mt-8 text-center">
-          <p className="text-[10px] text-slate-700 uppercase tracking-widest">Secure Multi-User Environment</p>
-        </div>
       </div>
     </div>
   );

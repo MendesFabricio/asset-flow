@@ -48,7 +48,7 @@ const themeInitScript = `
       document.body.classList.remove('light-theme');
       root.classList.add('dark');
     }
-  } catch (e) {}
+  } catch (e) { console.error('Error applying theme', e); }
 })();
 `;
 
