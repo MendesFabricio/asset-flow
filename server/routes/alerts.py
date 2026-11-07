@@ -1,7 +1,7 @@
 # server/routes/alerts.py
 import re
 from flask import Blueprint, jsonify, g, request
-from db.models import Asset, Position, Category
+from db.models import Asset, Position, Category, get_active_positions
 from services import Session
 from datetime import datetime
 import logging
@@ -29,7 +29,7 @@ def get_alerts():
     
     with Session() as session:
         try:
-            positions = session.query(Position).filter_by(user_id=g.user_id).join(Asset).join(Category).filter(Position.quantity > 0).all()
+            positions = get_active_positions(session, g.user_id).all()
             today = datetime.now()
 
             for pos in positions:

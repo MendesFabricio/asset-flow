@@ -46,7 +46,7 @@ def get_rebalance_bands():
                     selectinload(Position.asset)
                     .selectinload(Asset.market_data),
                 )
-                .filter_by(user_id=g.user_id, quantity=Position.quantity > 0)
+                .filter(Position.user_id == g.user_id, Position.quantity > 0)
                 .all()
             )
             if not positions:
@@ -275,8 +275,7 @@ def get_momentum_ranking():
 
 
 def calculate_local_fear_greed(session, user_id=None):
-    from db.models import Position, Asset
-    from sqlalchemy.orm import joinedload
+    from db.models import Position, Asset, get_active_positions
     from flask import has_request_context, g
     
     uid = user_id
@@ -289,10 +288,7 @@ def calculate_local_fear_greed(session, user_id=None):
     if not uid:
         return {"score": 50, "label": "Neutro", "avg_rsi": 50, "above_sma_pct": 50, "drawdown_score": 50}
         
-    positions = session.query(Position).options(
-        joinedload(Position.asset).joinedload(Asset.category),
-        joinedload(Position.asset).selectinload(Asset.market_data)
-    ).filter(Position.user_id == uid, Position.quantity > 0).all()
+    positions = get_active_positions(session, uid).all()
     
     variable_assets = []
     total_var_value = 0.0
@@ -517,7 +513,7 @@ def analyze_pdf_endpoint():
                 if "indexer_ipca_pct" in kpis and kpis["indexer_ipca_pct"] is not None:
                     position.asset.indexer_ipca_pct = float(kpis["indexer_ipca_pct"])
                     
-                position.asset.ai_updated_at = datetime.utcnow()
+                position.asset.ai_updated_at = datetime.now()
                 session.commit()
                 
             return jsonify(res)

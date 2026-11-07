@@ -8,8 +8,27 @@ import { ThemeProvider } from "./context/ThemeContext";
 import { ToastProvider } from "./context/ToastContext";
 
 export const metadata: Metadata = {
-  title: 'AssetFlow Pro | Gestão Inteligente',
-  description: 'Controle de patrimônio, dividendos e rebalanceamento de carteira.',
+  title: 'AssetFlow Pro | Gestão Inteligente de Investimentos & Carteira',
+  description: 'Controle completo de patrimônio, dividendos, análise quantitativa e rebalanceamento inteligente de carteira com IA.',
+  keywords: ['investimentos', 'carteira', 'dividendos', 'ações', 'FIIs', 'renda fixa', 'rebalanceamento', 'gestão patrimonial'],
+  authors: [{ name: 'AssetFlow Team' }],
+  robots: {
+    index: true,
+    follow: true,
+  },
+  openGraph: {
+    title: 'AssetFlow Pro | Gestão Inteligente de Carteira',
+    description: 'Controle de patrimônio, dividendos, renda fixa, cartões e análise quantitativa avançada com IA.',
+    url: 'https://assetflowpro.duckdns.org',
+    siteName: 'AssetFlow Pro',
+    locale: 'pt_BR',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'AssetFlow Pro | Gestão Inteligente de Carteira',
+    description: 'Plataforma inteligente de controle financeiro e rebalanceamento de carteira.',
+  },
 };
 
 const themeInitScript = `
@@ -29,7 +48,7 @@ const themeInitScript = `
       document.body.classList.remove('light-theme');
       root.classList.add('dark');
     }
-  } catch (e) {}
+  } catch (e) { console.error('Error applying theme', e); }
 })();
 `;
 
@@ -41,8 +60,7 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <head>
-        <meta name="admaven-placement" content="BqTUGqHnE" />
-        <link rel="preconnect" href="http://backend:5328" />
+        {process.env.NEXT_PUBLIC_API_URL && <link rel="preconnect" href={process.env.NEXT_PUBLIC_API_URL} />}
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body className={`${GeistSans.variable} ${GeistMono.variable} font-sans antialiased bg-[#0b0f19] text-slate-200 transition-colors duration-300`}>

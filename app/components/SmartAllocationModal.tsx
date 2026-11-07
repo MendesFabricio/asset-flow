@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import { useState, useCallback } from 'react';
 import { Calculator, Sparkles, AlertTriangle, Activity, RefreshCw } from 'lucide-react';
 
@@ -159,6 +159,23 @@ export const SmartAllocationModal = ({ isOpen, onClose }: SmartAllocationModalPr
                 />
               </div>
             </div>
+            
+            {/* Range Slider para Aporte */}
+            <div className="w-full max-w-sm px-2">
+              <input
+                type="range"
+                min="0"
+                max="50000"
+                step="500"
+                value={parseCurrency(amountStr)}
+                onChange={(e) => setAmountStr(Number(e.target.value).toLocaleString('pt-BR', { minimumFractionDigits: 2 }))}
+                className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-purple-500 focus:outline-none"
+              />
+              <div className="flex justify-between text-[9px] text-slate-500 mt-1 uppercase font-bold tracking-wider">
+                <span>R$ 0</span>
+                <span>R$ 50k</span>
+              </div>
+            </div>
 
             <button
               onClick={handleSimulate}
@@ -238,7 +255,12 @@ export const SmartAllocationModal = ({ isOpen, onClose }: SmartAllocationModalPr
                       <div className="flex justify-between text-[10px] text-slate-500">
                         <span>Atual {s.current_pct.toFixed(1)}% → Meta {s.target_pct.toFixed(1)}%</span>
                         {s.corr_penalty > 0 && (
-                          <span className="text-amber-500">Penalidade corr. -{(s.corr_penalty * 100).toFixed(1)}%</span>
+                          <div className="relative group/cp flex items-center gap-1 text-amber-500 cursor-help">
+                            <span>Penalidade corr. -{(s.corr_penalty * 100).toFixed(1)}%</span>
+                            <div className="absolute bottom-full right-0 mb-1 hidden group-hover/cp:block w-48 p-2 bg-slate-900 text-slate-300 text-[9px] rounded shadow-xl border border-slate-700 z-50 font-normal leading-tight normal-case">
+                              Ativo muito correlacionado aos que você já tem na carteira. O algoritmo reduz o peso recomendado para aumentar sua diversificação real.
+                            </div>
+                          </div>
                         )}
                       </div>
                       <div className="h-1 bg-slate-800 rounded-full overflow-hidden">

@@ -30,26 +30,27 @@ class IntegrationService:
         from utils.http_client import get_secure_session
         secure_session = get_secure_session(timeout=10.0)
         today = datetime.now().date()
-        for pos_item in positions_info:
-            ticker_raw = pos_item["ticker"]
-            asset_id = pos_item["asset_id"]
-            user_id = pos_item["user_id"]
-            qty = pos_item["quantity"]
-            category_name = pos_item["category_name"]
-            
-            ticker_yahoo = to_yf_ticker(ticker_raw, category_name)
-            try:
-                stock = yf.Ticker(ticker_yahoo, session=secure_session)
-                divs = stock.dividends
-                if not divs.empty:
-                    cutoff = today - timedelta(days=180)
-                    recent_divs = divs[divs.index.date >= cutoff]
-                    for date_com_dt, value in recent_divs.items():
-                        date_com = date_com_dt.date()
+        
+        with Session() as session:
+            for pos_item in positions_info:
+                ticker_raw = pos_item["ticker"]
+                asset_id = pos_item["asset_id"]
+                user_id = pos_item["user_id"]
+                qty = pos_item["quantity"]
+                category_name = pos_item["category_name"]
+                
+                ticker_yahoo = to_yf_ticker(ticker_raw, category_name)
+                try:
+                    stock = yf.Ticker(ticker_yahoo, session=secure_session)
+                    divs = stock.dividends
+                    if not divs.empty:
+                        cutoff = today - timedelta(days=180)
+                        recent_divs = divs[divs.index.date >= cutoff]
+                        added_any = False
                         
-                        # Abre sessão atômica curta e isolada apenas para dar o INSERT/COMMIT
-                        session = Session()
-                        try:
+                        for date_com_dt, value in recent_divs.items():
+                            date_com = date_com_dt.date()
+                            
                             exists = session.query(Dividend).filter_by(
                                 asset_id=asset_id,
                                 user_id=user_id,
@@ -69,12 +70,14 @@ class IntegrationService:
                                     status="PAGO" if date_com < today else "A RECEBER"
                                 )
                                 session.add(new_div)
+                                added_any = True
                                 logging.info(f"🆕 Novo dividendo registrado para {ticker_raw}: R$ {value:.4f} em {date_com}")
-                                safe_commit(session)
-                        finally:
-                            session.close()
-            except Exception as ex:
-                logging.warning(f"Erro ao verificar dividendos de {ticker_raw}: {ex}")
+                        
+                        if added_any:
+                            safe_commit(session)
+                except Exception as ex:
+                    session.rollback()
+                    logging.warning(f"Erro ao verificar dividendos de {ticker_raw}: {ex}")
         return True
 
     def validate_ticker_on_yahoo(self, ticker):

@@ -165,21 +165,21 @@ export const AddAssetModal = ({ isOpen, onClose, onSuccess }: AddAssetModalProps
                 setFormData({ ...formData, ticker: e.target.value.toUpperCase() });
                 setShowSuggestions(true);
               }}
-              className="w-full bg-slate-800/30 border border-slate-700/50 rounded-lg p-3 text-white placeholder:text-slate-500 focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 outline-none font-mono uppercase transition-all shadow-sm hover:bg-slate-800/40"
+              className="w-full bg-slate-100/70 dark:bg-slate-800/30 border border-slate-300 dark:border-slate-700/50 rounded-lg p-3 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 outline-none font-mono uppercase transition-all shadow-sm hover:bg-slate-100 dark:hover:bg-slate-800/40"
             />
-            <Search size={16} className="absolute right-3 top-3.5 text-slate-600" />
+            <Search size={16} className="absolute right-3 top-3.5 text-slate-400 dark:text-slate-600" />
             
             {showSuggestions && formData.ticker && filteredTickers.length > 0 && (
-              <div className="absolute z-10 w-full mt-2 bg-slate-900/95 backdrop-blur-md border border-slate-800 rounded-lg shadow-2xl shadow-black/50 max-h-48 overflow-y-auto">
+              <div className="absolute z-20 w-full mt-2 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/90 dark:border-slate-800 rounded-xl shadow-2xl shadow-slate-900/15 dark:shadow-black/50 max-h-48 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/50">
                 {filteredTickers.map((t) => (
                   <div
                     key={t.ticker}
                     onClick={() => handleSelectTicker(t)}
-                    className="flex justify-between items-center p-3 hover:bg-slate-800/80 cursor-pointer border-b border-slate-800/50 last:border-0 transition-colors"
+                    className="flex justify-between items-center p-3 hover:bg-slate-100/90 dark:hover:bg-slate-800/80 cursor-pointer transition-colors"
                   >
                     <div>
-                      <div className="font-mono text-sm text-white font-bold">{t.ticker}</div>
-                      <div className="text-xs text-slate-400 mt-0.5">{t.name}</div>
+                      <div className="font-mono text-sm text-slate-900 dark:text-white font-bold">{t.ticker}</div>
+                      <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{t.name}</div>
                     </div>
                     <Badge label={t.type} variant="blue" />
                   </div>
@@ -195,25 +195,25 @@ export const AddAssetModal = ({ isOpen, onClose, onSuccess }: AddAssetModalProps
             name="type"
             value={formData.type}
             onChange={handleChange}
-            className="w-full bg-slate-800/30 border border-slate-700/50 rounded-lg p-3 text-white focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 outline-none appearance-none cursor-pointer transition-all shadow-sm hover:bg-slate-800/40"
+            className="w-full bg-slate-100/70 dark:bg-slate-800/30 border border-slate-300 dark:border-slate-700/50 rounded-lg p-3 text-slate-900 dark:text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 outline-none appearance-none cursor-pointer transition-all shadow-sm hover:bg-slate-100 dark:hover:bg-slate-800/40"
           >
-            <option value="Ação">Ação</option>
-            <option value="FII">Fundo Imobiliário (FII)</option>
-            <option value="Internacional">Internacional</option>
-            <option value="Cripto">Criptomoeda</option>
-            <option value="Renda Fixa">Renda Fixa</option>
-            <option value="Reserva">Reserva Financeira</option>
+            <option value="Ação" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Ação</option>
+            <option value="FII" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Fundo Imobiliário (FII)</option>
+            <option value="Internacional" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Internacional</option>
+            <option value="Cripto" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Criptomoeda</option>
+            <option value="Renda Fixa" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Renda Fixa</option>
+            <option value="Reserva" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Reserva Financeira</option>
           </select>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1.5">
             <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Quantidade</label>
-            <input name="quantity" type="number" step="0.000001" value={formData.quantity} onChange={handleChange} className="w-full bg-slate-800/30 border border-slate-700/50 rounded-lg p-3 text-white font-mono focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 outline-none transition-all shadow-sm hover:bg-slate-800/40" />
+            <input name="quantity" type="number" step="0.000001" value={formData.quantity} onChange={handleChange} className="w-full bg-slate-100/70 dark:bg-slate-800/30 border border-slate-300 dark:border-slate-700/50 rounded-lg p-3 text-slate-900 dark:text-white font-mono focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 outline-none transition-all shadow-sm hover:bg-slate-100 dark:hover:bg-slate-800/40" />
           </div>
           <div className="space-y-1.5">
             <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Preço Médio / Atual</label>
-            <input name="average_price" type="number" step="0.01" value={formData.average_price} onChange={handleChange} className="w-full bg-slate-800/30 border border-slate-700/50 rounded-lg p-3 text-white font-mono focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 outline-none transition-all shadow-sm hover:bg-slate-800/40" />
+            <input name="average_price" type="number" step="0.01" value={formData.average_price} onChange={handleChange} className="w-full bg-slate-100/70 dark:bg-slate-800/30 border border-slate-300 dark:border-slate-700/50 rounded-lg p-3 text-slate-900 dark:text-white font-mono focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 outline-none transition-all shadow-sm hover:bg-slate-100 dark:hover:bg-slate-800/40" />
           </div>
         </div>
 
@@ -226,13 +226,13 @@ export const AddAssetModal = ({ isOpen, onClose, onSuccess }: AddAssetModalProps
             name="target_percent" type="range" min="0" max="100" step="1"
             value={formData.target_percent}
             onChange={(e) => setFormData({ ...formData, target_percent: Number(e.target.value) })}
-            className="w-full h-1.5 bg-slate-800/50 rounded-lg appearance-none cursor-pointer accent-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+            className="w-full h-1.5 bg-slate-200 dark:bg-slate-800/50 rounded-lg appearance-none cursor-pointer accent-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
           />
         </div>
       </div>
 
-      <div className="mt-8 flex justify-end gap-3 border-t border-slate-800/50 pt-5">
-        <button onClick={onClose} className="px-5 py-2.5 text-[11px] font-bold uppercase tracking-wider text-slate-400 hover:text-white rounded-lg transition-colors">
+      <div className="mt-8 flex justify-end gap-3 border-t border-slate-200/80 dark:border-slate-800/50 pt-5">
+        <button onClick={onClose} className="px-5 py-2.5 text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-lg transition-colors">
           Cancelar
         </button>
         <button

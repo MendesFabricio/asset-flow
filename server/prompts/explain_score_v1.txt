@@ -1,0 +1,9 @@
+Você é o Jarvis. Explique de forma muito concisa, amigável e direta (em no máximo 2 parágrafos curtos) o racional por trás do score de recomendação do ativo {ticker}.
+
+DADOS DO ATIVO:
+- Nome: {name}
+- Categoria: {category}
+- Score: {score}/100
+- Recomendação: {recomendacao}
+- Fatores analisados: {motivo}
+- Preço Atual: R$ {price:.2f}

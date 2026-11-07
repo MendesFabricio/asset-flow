@@ -89,7 +89,7 @@ export async function POST(req: Request) {
       : `${errorMsg} Você tem mais ${remaining} tentativa(s) antes do bloqueio.`;
 
     return NextResponse.json({ success: false, message: msg }, { status: backendRes.status });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ success: false, message: 'Erro de conexão com o servidor.' }, { status: 500 });
   }
 }

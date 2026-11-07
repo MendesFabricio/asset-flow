@@ -1,0 +1,120 @@
+name: AssetFlow CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  # ---------------------------------------------------------
+  # Job 1: Testes e Linter do Frontend (Next.js & React)
+  # ---------------------------------------------------------
+  frontend-check:
+    name: 🎨 Frontend Check (Lint & Vitest)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout do Repositório
+        uses: actions/checkout@v4
+
+      - name: 🟢 Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: 📦 Instalar Dependências
+        run: npm ci
+
+      - name: 🔍 Checar Tipos TypeScript
+        run: npx tsc --noEmit --skipLibCheck
+
+      - name: 🧪 Executar Testes Unitários (Vitest)
+        run: npm run test
+
+  # ---------------------------------------------------------
+  # Job 2: Testes Unitários do Backend (Flask & Python)
+  # ---------------------------------------------------------
+  backend-check:
+    name: 🐍 Backend Check (Flask & PyTest)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout do Repositório
+        uses: actions/checkout@v4
+
+      - name: 🐍 Configurar Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 📦 Instalar Dependências do Backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r server/requirements.txt
+
+      - name: 🧪 Executar Testes Unitários do Backend
+        env:
+          SECRET_KEY: 'test_secret_key_ci'
+          ENVIRONMENT: 'testing'
+        run: |
+          python -m unittest discover -s server/tests -p "test_*.py"
+
+  # ---------------------------------------------------------
+  # Job 3: Validação de Build do Docker Subsystem
+  # ---------------------------------------------------------
+  docker-build-check:
+    name: 🐳 Docker Build Verification
+    needs: [frontend-check, backend-check]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout do Repositório
+        uses: actions/checkout@v4
+
+      - name: 🛠️ Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 🏗️ Validar Build do Backend Container
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: server/Dockerfile
+          target: backend
+          push: false
+          tags: assetflow-backend:ci
+
+      - name: 🏗️ Validar Build do Frontend Container
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile
+          push: false
+          tags: assetflow-frontend:ci
+
+  # ---------------------------------------------------------
+  # Job 4: Automação de Deploy em Produção (Disparado apenas na Main)
+  # ---------------------------------------------------------
+  deploy:
+    name: 🚀 Deploy Automatizado (Produção)
+    needs: [docker-build-check]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 🚀 Notificar Início de Deploy
+        run: echo " deploying new commit to production server..."
+      
+      # Exemplo de SSH remote deploy configurável via Secrets do GitHub
+      # - name: 🔑 Executar Deploy via SSH
+      #   uses: appleboy/ssh-action@master
+      #   with:
+      #     host: ${{ secrets.PROD_SERVER_IP }}
+      #     username: ${{ secrets.PROD_SERVER_USER }}
+      #     key: ${{ secrets.PROD_SSH_KEY }}
+      #     script: |
+      #       cd /opt/asset-flow
+      #       git pull origin main
+      #       docker compose -f docker-compose.prod.yml up -d --build

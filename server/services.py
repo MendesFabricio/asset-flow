@@ -13,7 +13,7 @@ from decimal import Decimal
 from concurrent.futures import ThreadPoolExecutor
 
 # Fila global para tarefas de background pesadas (evita exaustão de SQLite / GIL)
-background_task_executor = ThreadPoolExecutor(max_workers=1)
+background_task_executor = ThreadPoolExecutor(max_workers=4)
 
 # Sub-módulos refatorados do novo pacote
 from services_modules.cache_helper import CacheHelperService
@@ -51,11 +51,7 @@ class PortfolioService(
             with cls._instance_lock:
                 if not cls._instance:
                     cls._instance = super(PortfolioService, cls).__new__(cls)
-                    cls._instance._init_once()
         return cls._instance
-
-    def _init_once(self):
-        pass
 
     @property
     def current_user_id(self):
@@ -86,53 +82,52 @@ class PortfolioService(
             if (now - USD_CACHE["last_update"]) < 3600:
                 return USD_CACHE["rate"]
 
-        session = Session()
-        try:
-            cache_record = session.query(SystemCache).filter_by(key="usd_rate").first()
-            if cache_record:
-                age = datetime.now() - cache_record.updated_at
-                if age < timedelta(hours=1):
+        with Session() as session:
+            try:
+                cache_record = session.query(SystemCache).filter_by(key="usd_rate").first()
+                if cache_record:
+                    age = datetime.now() - cache_record.updated_at
+                    if age < timedelta(hours=1):
+                        rate = Decimal(str(cache_record.value))
+                        with USD_LOCK:
+                            USD_CACHE["rate"] = rate
+                            USD_CACHE["last_update"] = now
+                        return rate
+    
+                logging.info("🌐 Cache MISS (USD Rate): buscando cotação de BRL=X...")
+                from utils.http_client import get_secure_session
+                secure_session = get_secure_session(timeout=10.0)
+                ticker = yf.Ticker("BRL=X", session=secure_session)
+                data = ticker.history(period="1d")
+                if not data.empty: 
+                    rate_val = float(data['Close'].iloc[-1])
+                    rate = Decimal(str(rate_val))
+                    
+                    if not cache_record:
+                        cache_record = SystemCache(key="usd_rate", value=str(rate_val), updated_at=datetime.now())
+                        session.add(cache_record)
+                    else:
+                        cache_record.value = str(rate_val)
+                        cache_record.updated_at = datetime.now()
+                    safe_commit(session)
+                    
+                    with USD_LOCK:
+                        USD_CACHE["rate"] = rate
+                        USD_CACHE["last_update"] = now
+                    return rate
+                    
+                if cache_record:
                     rate = Decimal(str(cache_record.value))
                     with USD_LOCK:
                         USD_CACHE["rate"] = rate
                         USD_CACHE["last_update"] = now
                     return rate
-
-            logging.info("🌐 Cache MISS (USD Rate): buscando cotação de BRL=X...")
-            from utils.http_client import get_secure_session
-            secure_session = get_secure_session(timeout=10.0)
-            ticker = yf.Ticker("BRL=X", session=secure_session)
-            data = ticker.history(period="1d")
-            if not data.empty: 
-                rate_val = float(data['Close'].iloc[-1])
-                rate = Decimal(str(rate_val))
-                
-                if not cache_record:
-                    cache_record = SystemCache(key="usd_rate", value=str(rate_val), updated_at=datetime.now())
-                    session.add(cache_record)
-                else:
-                    cache_record.value = str(rate_val)
-                    cache_record.updated_at = datetime.now()
-                safe_commit(session)
-                
-                with USD_LOCK:
-                    USD_CACHE["rate"] = rate
-                    USD_CACHE["last_update"] = now
-                return rate
-                
-            if cache_record:
-                rate = Decimal(str(cache_record.value))
-                with USD_LOCK:
-                    USD_CACHE["rate"] = rate
-                    USD_CACHE["last_update"] = now
-                return rate
-        except Exception as e:
-            logging.warning(f"⚠️ Erro ao atualizar cotação do Dólar (usando fallback): {e}")
-            try:
-                db_record = session.query(SystemCache).filter_by(key="usd_rate").first()
-                if db_record:
-                    return Decimal(str(db_record.value))
-            except Exception:
-                pass
-        # 💡 CORREÇÃO CRÍTICA: Removido o encerramento forçado de sessão para preservar o contexto do chamador
+            except Exception as e:
+                logging.warning(f"⚠️ Erro ao atualizar cotação do Dólar (usando fallback): {e}")
+                try:
+                    db_record = session.query(SystemCache).filter_by(key="usd_rate").first()
+                    if db_record:
+                        return Decimal(str(db_record.value))
+                except Exception:
+                    pass
         return USD_CACHE["rate"]

@@ -7,6 +7,7 @@ import { Shield, Wallet } from 'lucide-react';
 import { formatMoney } from '../lib/format';
 
 import { CATEGORY_COLORS } from '../lib/colors';
+import { usePrivacy } from '../context/PrivacyContext';
 
 interface PortfolioDonutChartProps {
   ativos: Asset[];
@@ -31,6 +32,8 @@ export const PortfolioDonutChart: React.FC<PortfolioDonutChartProps> = ({ ativos
 
   const totalValue = useMemo(() => data.reduce((acc, curr) => acc + curr.value, 0), [data]);
 
+  const { isHidden } = usePrivacy();
+
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
@@ -42,7 +45,7 @@ export const PortfolioDonutChart: React.FC<PortfolioDonutChartProps> = ({ ativos
             {data.name}
           </p>
           <p className="text-xs text-slate-400 font-mono">
-            {formatMoney(data.value)} <span className="text-slate-500 ml-1">({percent}%)</span>
+            {isHidden ? '••••••' : formatMoney(data.value)} <span className="text-slate-500 ml-1">({percent}%)</span>
           </p>
         </div>
       );

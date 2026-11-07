@@ -22,31 +22,15 @@ _yahoo_cache = {
 
 def get_system_metrics():
     try:
-        cores = os.cpu_count() or 1
-        load1, load5, load15 = os.getloadavg()
-        cpu_percent = (load1 / cores) * 100
-
-        with open('/proc/meminfo', 'r') as f:
-            lines = f.readlines()
-        meminfo = {}
-        for line in lines:
-            parts = line.split(':')
-            if len(parts) == 2:
-                meminfo[parts[0].strip()] = int(parts[1].strip().split()[0])
-        
-        total = meminfo.get('MemTotal', 0)
-        free = meminfo.get('MemFree', 0)
-        buffers = meminfo.get('Buffers', 0)
-        cached = meminfo.get('Cached', 0)
-        
-        used = total - free - buffers - cached
-        mem_percent = (used / total) * 100 if total > 0 else 0
+        import psutil
+        cpu_percent = psutil.cpu_percent(interval=None)
+        mem = psutil.virtual_memory()
         
         return {
             "cpu_percent": round(cpu_percent, 1),
-            "mem_percent": round(mem_percent, 1),
-            "mem_total_gb": round(total / 1024 / 1024, 1),
-            "mem_used_gb": round(used / 1024 / 1024, 1)
+            "mem_percent": round(mem.percent, 1),
+            "mem_total_gb": round(mem.total / (1024 ** 3), 1),
+            "mem_used_gb": round(mem.used / (1024 ** 3), 1)
         }
     except Exception as e:
         return {

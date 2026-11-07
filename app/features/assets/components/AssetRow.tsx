@@ -12,6 +12,7 @@ import { AssetResultCell } from './asset-row/AssetResultCell';
 import { AssetMetaCell } from './asset-row/AssetMetaCell';
 import { AssetRecommendationCell } from './asset-row/AssetRecommendationCell';
 import { AssetIndicatorsCell } from './asset-row/AssetIndicatorsCell';
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 
 interface AssetRowProps {
   ativo: Asset;
@@ -84,7 +85,9 @@ export const AssetRow = React.memo(({ ativo, tab, onEdit, onViewNews, onViewDeta
         />
         {showIndicators && <AssetIndicatorsCell ativo={ativo} tab={tab} />}
       </tr>
-      <ReportModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} ativo={ativo} />
+      <ErrorBoundary>
+        <ReportModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} ativo={ativo} />
+      </ErrorBoundary>
     </>
   );
 });

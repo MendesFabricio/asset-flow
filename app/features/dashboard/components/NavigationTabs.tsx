@@ -31,8 +31,8 @@ function TabButton({
       aria-pressed={active}
       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-300 border focus:outline-none shadow-none ring-0 overflow-hidden ${
         active
-          ? 'bg-accent/15 text-accent border-accent/40'
-          : 'bg-slate-900/45 text-slate-400 border-slate-800/80 hover:text-slate-200 hover:border-slate-700/50'
+          ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/40 shadow-sm'
+          : 'bg-slate-200/80 dark:bg-slate-900/45 text-slate-700 dark:text-slate-400 border-slate-300 dark:border-slate-800/80 hover:bg-slate-300/60 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200'
       }`}
     >
       {tab.icon}

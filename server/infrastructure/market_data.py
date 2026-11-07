@@ -163,6 +163,8 @@ def update_fundamentals(dolar_rate_callback, state_dict=None):
     consecutive_failures = 0
     count = 0
     secure_session = get_secure_session(timeout=15.0)
+    
+    updates_batch = []
 
     for asset_data in assets_info:
         asset_id = asset_data["id"]
@@ -249,21 +251,15 @@ def update_fundamentals(dolar_rate_callback, state_dict=None):
             duration_ticker = time.monotonic() - start_ticker_time
             logging.info(f"⏱️ Chamadas yfinance para {ticker_raw} processadas em {duration_ticker:.2f}s")
 
-            # 2. Agora com os dados obtidos, abre uma sessão rápida apenas para atualizar o ativo no banco
-            session = Session()
-            try:
-                db_asset = session.query(Asset).filter_by(id=asset_id).first()
-                if db_asset:
-                    db_asset.upcoming_split = upcoming_split_val
-                    for pos in db_asset.positions:
-                        if lpa != 0: pos.manual_lpa = round(lpa, 2)
-                        if vpa != 0: pos.manual_vpa = round(vpa, 2)
-                        if dy_calculated >= 0:
-                            pos.manual_dy = round(dy_calculated, 4)
-                    safe_commit(session)
-                    consecutive_failures = 0 # Reseta após sucesso real
-            finally:
-                Session.remove()
+            # Armazena os dados para o update em batch posterior
+            updates_batch.append({
+                "asset_id": asset_id,
+                "upcoming_split": upcoming_split_val,
+                "lpa": lpa,
+                "vpa": vpa,
+                "dy_calculated": dy_calculated
+            })
+            consecutive_failures = 0 # Reseta após sucesso real
                 
             count += 1
             if state_dict is not None:
@@ -283,7 +279,27 @@ def update_fundamentals(dolar_rate_callback, state_dict=None):
             count += 1
             if state_dict is not None: state_dict["progress"] = count
             
-    logging.info(f"🏁 Varredura fundamentalista concluída: {count} registros atualizados.")
+    # 3. Aplica todos os updates acumulados em uma única sessão atômica
+    if updates_batch:
+        session = Session()
+        try:
+            for upd in updates_batch:
+                db_asset = session.query(Asset).filter_by(id=upd["asset_id"]).first()
+                if db_asset:
+                    db_asset.upcoming_split = upd["upcoming_split"]
+                    for pos in db_asset.positions:
+                        if upd["lpa"] != 0: pos.manual_lpa = round(upd["lpa"], 2)
+                        if upd["vpa"] != 0: pos.manual_vpa = round(upd["vpa"], 2)
+                        if upd["dy_calculated"] >= 0:
+                            pos.manual_dy = round(upd["dy_calculated"], 4)
+            safe_commit(session)
+        except Exception as e:
+            session.rollback()
+            logging.error(f"❌ Erro no bulk update de fundamentos: {e}")
+        finally:
+            Session.remove()
+
+    logging.info(f"🏁 Varredura fundamentalista concluída: {count} registros atualizados no banco em lote.")
     return {"status": "Sucesso", "msg": f"Sucesso! {total} ativos reavaliados via Yahoo Finance."}
 
 def sync_reports_with_fnet(session, state_dict=None):

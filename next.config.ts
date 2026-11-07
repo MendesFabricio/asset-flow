@@ -15,19 +15,15 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
-        source: '/api/:path((?!sync/stream|ai/chat).*)',
+        source: '/api/:path((?!sync/stream|ai/chat|auth).*)',
         destination: 'http://backend:5328/api/:path*',
       },
     ];
   },
   output: "standalone",
   experimental: {
-    // Para aceitar qualquer subdomínio do ngrok no modo de desenvolvimento
-    allowedRevalidateHeaderKeys: ['x-vercel-protection-bypass'],
     optimizePackageImports: ['lucide-react', 'recharts'],
   },
-  // Liberar o acesso de cross-origin resources do Ngrok para os assets carregarem
-  allowedDevOrigins: [process.env.NGROK_DOMAIN || 'jorge-craftless-questionably.ngrok-free.dev'],
   webpack: (config, { dev }) => {
     if (dev) {
       config.watchOptions = {

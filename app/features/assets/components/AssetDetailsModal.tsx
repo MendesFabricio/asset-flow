@@ -150,7 +150,7 @@ export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalP
         if (!isOpen || !asset || !containerRef.current) return;
 
         // 1. Limpa o container antes de criar um novo gráfico
-        containerRef.current.innerHTML = '';
+        containerRef.current.replaceChildren();
 
         // 2. Define o símbolo correto para o TradingView
         let tvSymbol = asset.ticker;
@@ -169,7 +169,7 @@ export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalP
         script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
         script.type = 'text/javascript';
         script.async = true;
-        script.innerHTML = JSON.stringify({
+        script.textContent = JSON.stringify({
             "autosize": true,
             "symbol": tvSymbol,
             "interval": "D",
@@ -186,14 +186,14 @@ export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalP
             "calendar": false,
             "hide_volume": true,
             "support_host": "https://www.tradingview.com"
-        });
+        }).replace(/</g, '\\u003c');
 
         const container = containerRef.current;
         container.appendChild(script);
 
         return () => {
             if (container) {
-                container.innerHTML = '';
+                container.replaceChildren();
             }
         };
     }, [isOpen, asset]);

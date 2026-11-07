@@ -48,27 +48,35 @@ export function AssetNewsPanel({ ticker, onClose }: Props) {
   };
 
   useEffect(() => {
+    const controller = new AbortController();
+
     if (ticker) {
       setTimeout(() => setLoading(true), 0);
-      apiCall<NewsResponse>(`/api/news/${ticker}`)
+      apiCall<NewsResponse>(`/api/news/${ticker}`, { signal: controller.signal })
         .then(data => {
           setNews(data.news || []);
           setAiSentiment(data.ai_sentiment || null);
           setLoading(false);
         })
         .catch(err => {
+          if (err.name === 'AbortError' || err.message?.includes('AbortError')) return;
           console.error("Erro ao carregar notícias:", err);
           setLoading(false);
         });
     }
+
+    return () => {
+      controller.abort();
+    };
   }, [ticker]);
 
   useEffect(() => {
     let intervalId: NodeJS.Timeout | null = null;
+    const controller = new AbortController();
 
     if (ticker && aiSentiment?.status === 'processing') {
       intervalId = setInterval(() => {
-        apiCall<NewsResponse>(`/api/news/${ticker}`)
+        apiCall<NewsResponse>(`/api/news/${ticker}`, { signal: controller.signal })
           .then(data => {
             setAiSentiment(data.ai_sentiment || null);
             if (data.news && data.news.length > 0) {
@@ -76,6 +84,7 @@ export function AssetNewsPanel({ ticker, onClose }: Props) {
             }
           })
           .catch(err => {
+            if (err.name === 'AbortError' || err.message?.includes('AbortError')) return;
             console.error("Erro no polling de sentimento da IA:", err);
           });
       }, 10000);
@@ -83,13 +92,14 @@ export function AssetNewsPanel({ ticker, onClose }: Props) {
 
     return () => {
       if (intervalId) clearInterval(intervalId);
+      controller.abort();
     };
   }, [ticker, aiSentiment?.status]);
 
   if (!ticker) return null;
 
   return (
-    <div className="fixed inset-y-0 right-0 w-96 bg-[#0b0f19] border-l border-slate-800 shadow-[-20px_0_50px_rgba(0,0,0,0.5)] transform transition-transform duration-300 ease-in-out z-50 p-6 overflow-y-auto flex flex-col">
+    <div className="fixed inset-y-0 right-0 w-full sm:w-96 bg-[#0b0f19] border-l border-slate-800 shadow-[-20px_0_50px_rgba(0,0,0,0.5)] transform transition-transform duration-300 ease-in-out z-50 p-6 overflow-y-auto flex flex-col h-full">
 
       <div className="flex justify-between items-center mb-8">
         <div className="flex flex-col gap-1">

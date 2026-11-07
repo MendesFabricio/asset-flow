@@ -18,8 +18,10 @@ import threading
 import time
 import logging
 import yfinance as yf
+from collections import OrderedDict
 
-_CACHE: dict = {}
+MAX_CACHE_SIZE = 50
+_CACHE: OrderedDict = OrderedDict()
 _CACHE_LOCK = threading.Lock()          # Protege o dict _CACHE
 _KEY_LOCKS: dict[str, threading.Lock] = {}
 _KEY_LOCKS_META = threading.Lock()     # Protege o dict _KEY_LOCKS
@@ -45,6 +47,7 @@ def fetch_price_history(tickers: list, period: str = "1y"):
     with _CACHE_LOCK:
         entry = _CACHE.get(cache_key)
         if entry and time.monotonic() < entry[1]:
+            _CACHE.move_to_end(cache_key)
             logging.info(f"💾 Cache HIT: {len(tickers)} tickers ({period})")
             return entry[0]
 
@@ -55,6 +58,7 @@ def fetch_price_history(tickers: list, period: str = "1y"):
         with _CACHE_LOCK:
             entry = _CACHE.get(cache_key)
             if entry and time.monotonic() < entry[1]:
+                _CACHE.move_to_end(cache_key)
                 logging.info(f"💾 Cache HIT (2nd check): {len(tickers)} tickers")
                 return entry[0]
 
@@ -67,7 +71,11 @@ def fetch_price_history(tickers: list, period: str = "1y"):
             session=secure_session
         )
         with _CACHE_LOCK:
+            if cache_key in _CACHE:
+                _CACHE.move_to_end(cache_key)
             _CACHE[cache_key] = (data, time.monotonic() + PRICE_CACHE_TTL)
+            if len(_CACHE) > MAX_CACHE_SIZE:
+                _CACHE.popitem(last=False)
 
     return data
 

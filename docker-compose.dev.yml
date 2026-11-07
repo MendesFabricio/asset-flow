@@ -30,6 +30,14 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+    networks:
+      - default
+      - gateway_net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.assetflow-backend.rule=Host(`api.assetflow.localhost`) || Host(`api.assetflow.192.168.3.11.nip.io`)"
+      - "traefik.http.routers.assetflow-backend.entrypoints=web"
+      - "traefik.http.services.assetflow-backend.loadbalancer.server.port=5328"
 
   # --- WORKER DEV (APScheduler) ---
   worker:
@@ -52,6 +60,8 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+    networks:
+      - default
 
   # --- FRONTEND DEV (Next.js) ---
   frontend:
@@ -64,7 +74,8 @@ services:
     volumes:
       - .:/app
       - node_modules:/app/node_modules
-    command: sh -c "npm install && npm run dev"
+      - next_cache:/app/.next
+    command: sh -c "npm install && npx next dev"
     environment:
       - NEXT_PUBLIC_API_URL=
       - WATCHPACK_POLLING=true
@@ -72,9 +83,23 @@ services:
       - NEXT_PUBLIC_SENTRY_DSN=
       - SENTRY_DSN=http://ac68cc0ad8f54496961aec4e3d48d227@glitchtip:8000/1
       - ENVIRONMENT=development
-
-
+      - TURBOPACK=0
+      - BACKEND_URL=http://backend:5328
+    networks:
+      - default
+      - gateway_net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.assetflow-frontend.rule=Host(`assetflow.localhost`) || Host(`assetflow.192.168.3.11.nip.io`)"
+      - "traefik.http.routers.assetflow-frontend.entrypoints=web"
+      - "traefik.http.services.assetflow-frontend.loadbalancer.server.port=3000"
 
 volumes:
   sqlite_data:
   node_modules:
+  next_cache:
+
+networks:
+  default:
+  gateway_net:
+    external: true

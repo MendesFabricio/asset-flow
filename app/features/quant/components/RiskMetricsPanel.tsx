@@ -129,14 +129,16 @@ export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    abortRef.current = new AbortController();
+    let mounted = true;
+    const controller = new AbortController();
+    abortRef.current = controller;
 
     setLoading(true);
-
     setError(null);
 
-    apiCall<RiskMetrics>('/api/risk-metrics', { signal: abortRef.current.signal })
+    apiCall<RiskMetrics>('/api/risk-metrics', { signal: controller.signal })
       .then((d: RiskMetrics) => {
+        if (!mounted) return;
         if (d.status === 'Sucesso') setData(d);
         else {
           setData(null);
@@ -144,14 +146,20 @@ export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
         }
       })
       .catch(e => {
+        if (!mounted) return;
         if (e.name !== 'AbortError') {
           setData(null);
-          setError('Falha ao conectar ao servidor.');
+          setError(e.message || 'Falha ao conectar ao servidor.');
         }
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
 
-    return () => abortRef.current?.abort();
+    return () => {
+      mounted = false;
+      controller.abort();
+    };
   }, []);
 
   if (loading) {

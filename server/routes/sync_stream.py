@@ -42,7 +42,10 @@ def sync_stream():
                     last_payload = current_payload
                     yield f"data: {json.dumps(current_payload)}\n\n"
                 
-                time.sleep(1.0)
+                # Intervalo adaptativo: 300ms quando em processamento (real-time fluido), 2.0s quando ocioso
+                is_active = (cvm_sync.get("status") == "processing") or (yahoo_sync.get("status") == "processing")
+                sleep_interval = 0.3 if is_active else 2.0
+                time.sleep(sleep_interval)
                 
             logging.info("🔌 [SSE] Sessão de streaming expirou por limite de tempo máximo (30min).")
             yield "data: {\"status\": \"timeout\", \"message\": \"Conexão SSE renovada.\"}\n\n"
@@ -58,3 +61,16 @@ def sync_stream():
         'Access-Control-Allow-Origin': '*',
     }
     return Response(stream_with_context(event_generator()), mimetype='text/event-stream', headers=headers)
+
+@sync_stream_bp.route('/api/sync-status', methods=['GET'])
+def get_sync_status():
+    """Retorna o estado pontual de sincronia em JSON."""
+    from flask import jsonify
+    cvm_sync = get_sync_state_db("cvm_sync")
+    yahoo_sync = get_sync_state_db("yahoo_sync")
+    return jsonify({
+        "status": "Sucesso",
+        "message": "Estado de sincronia carregado com sucesso.",
+        "cvm_sync": cvm_sync,
+        "yahoo_sync": yahoo_sync
+    })

@@ -15,17 +15,35 @@ auth_bp = Blueprint('auth', __name__)
 _rate_limit_store = defaultdict(list)
 
 def is_rate_limited(ip: str, limit: int = 5, window_seconds: int = 60) -> bool:
-    """Verifica e limpa tentativas de requisições, retornando True se excedeu o limite."""
+    """Verifica e limpa tentativas de requisições, retornando True se excedeu o limite em DB persistente."""
     if current_app.config.get("TESTING"):
         return False
     now = time.time()
-    # Filtra apenas tentativas dentro da janela temporal
-    attempts = [t for t in _rate_limit_store[ip] if now - t < window_seconds]
-    _rate_limit_store[ip] = attempts
-    if len(attempts) >= limit:
-        return True
-    _rate_limit_store[ip].append(now)
-    return False
+    cache_key = f"rate_limit:{ip}"
+    try:
+        with Session() as session:
+            from db.models import SystemCache
+            entry = session.query(SystemCache).filter_by(key=cache_key).first()
+            import json
+            timestamps = json.loads(entry.value) if entry and entry.value else []
+            valid_timestamps = [t for t in timestamps if now - t < window_seconds]
+            if len(valid_timestamps) >= limit:
+                return True
+            valid_timestamps.append(now)
+            if entry:
+                entry.value = json.dumps(valid_timestamps)
+            else:
+                session.add(SystemCache(key=cache_key, value=json.dumps(valid_timestamps)))
+            safe_commit(session)
+            return False
+    except Exception as e:
+        logging.warning(f"⚠️ Falha no rate limiter persistente (fallback in-memory): {e}")
+        attempts = [t for t in _rate_limit_store[ip] if now - t < window_seconds]
+        _rate_limit_store[ip] = attempts
+        if len(attempts) >= limit:
+            return True
+        _rate_limit_store[ip].append(now)
+        return False
 
 def validate_password_complexity(password: str) -> bool:
     """Valida se a senha tem pelo menos 8 caracteres, 1 número, 1 maiúscula e 1 especial."""
@@ -191,36 +209,40 @@ def update_profile():
         data = request.get_json() or {}
         
         with Session() as session:
-            user = session.query(User).filter_by(id=int(user_id)).first()
-            if not user:
-                return jsonify({"status": "Erro", "msg": "Usuário não encontrado."}), 404
-            
-            if "username" in data:
-                new_username = data["username"].strip()
-                if not new_username or len(new_username) < 3:
-                    return jsonify({"status": "Erro", "msg": "Nome de usuário deve ter pelo menos 3 caracteres."}), 400
+            try:
+                user = session.query(User).filter_by(id=int(user_id)).first()
+                if not user:
+                    return jsonify({"status": "Erro", "msg": "Usuário não encontrado."}), 404
                 
-                exists = session.query(User).filter(User.username.ilike(new_username)).filter(User.id != user.id).first()
-                if exists:
-                    return jsonify({"status": "Erro", "msg": "Este nome de usuário já está sendo utilizado."}), 409
+                if "username" in data:
+                    new_username = data["username"].strip()
+                    if not new_username or len(new_username) < 3:
+                        return jsonify({"status": "Erro", "msg": "Nome de usuário deve ter pelo menos 3 caracteres."}), 400
+                    
+                    exists = session.query(User).filter(User.username.ilike(new_username)).filter(User.id != user.id).first()
+                    if exists:
+                        return jsonify({"status": "Erro", "msg": "Este nome de usuário já está sendo utilizado."}), 409
+                    
+                    user.username = new_username
                 
-                user.username = new_username
-            
-            safe_commit(session)
-            logging.info(f"👤 Perfil atualizado para usuário ID {user.id}")
-            
-            return jsonify({
-                "status": "Sucesso",
-                "msg": "Perfil atualizado com sucesso.",
-                "data": {
-                    "id": user.id,
-                    "username": user.username,
-                    "created_at": user.created_at.isoformat() if user.created_at else None,
-                }
-            })
-    except Exception as e:
-        session.rollback()
-        logging.error(f"Erro ao atualizar perfil: {e}")
+                safe_commit(session)
+                logging.info(f"👤 Perfil atualizado para usuário ID {user.id}")
+                
+                return jsonify({
+                    "status": "Sucesso",
+                    "msg": "Perfil atualizado com sucesso.",
+                    "data": {
+                        "id": user.id,
+                        "username": user.username,
+                        "created_at": user.created_at.isoformat() if user.created_at else None,
+                    }
+                })
+            except Exception as e:
+                session.rollback()
+                logging.error(f"Erro ao atualizar perfil: {e}")
+                return jsonify({"status": "Erro", "msg": "Erro interno do servidor."}), 500
+    except Exception as outer_e:
+        logging.error(f"Erro externo ao atualizar perfil: {outer_e}")
         return jsonify({"status": "Erro", "msg": "Erro interno do servidor."}), 500
 
 @auth_bp.route('/api/auth/profile/password', methods=['PUT'])
@@ -244,22 +266,26 @@ def change_password():
             }), 400
         
         with Session() as session:
-            user = session.query(User).filter_by(id=int(user_id)).first()
-            if not user:
-                return jsonify({"status": "Erro", "msg": "Usuário não encontrado."}), 404
-            
-            if not check_password_hash(user.password_hash, current_password):
-                return jsonify({"status": "Erro", "msg": "Senha atual incorreta."}), 401
-            
-            user.password_hash = generate_password_hash(new_password)
-            safe_commit(session)
-            logging.info(f"🔐 Senha alterada para usuário ID {user.id}")
-            
-            return jsonify({
-                "status": "Sucesso",
-                "msg": "Senha alterada com sucesso."
-            })
-    except Exception as e:
-        session.rollback()
-        logging.error(f"Erro ao alterar senha: {e}")
+            try:
+                user = session.query(User).filter_by(id=int(user_id)).first()
+                if not user:
+                    return jsonify({"status": "Erro", "msg": "Usuário não encontrado."}), 404
+                
+                if not check_password_hash(user.password_hash, current_password):
+                    return jsonify({"status": "Erro", "msg": "Senha atual incorreta."}), 401
+                
+                user.password_hash = generate_password_hash(new_password)
+                safe_commit(session)
+                logging.info(f"🔐 Senha alterada para usuário ID {user.id}")
+                
+                return jsonify({
+                    "status": "Sucesso",
+                    "msg": "Senha alterada com sucesso."
+                })
+            except Exception as e:
+                session.rollback()
+                logging.error(f"Erro ao alterar senha: {e}")
+                return jsonify({"status": "Erro", "msg": "Erro interno do servidor."}), 500
+    except Exception as outer_e:
+        logging.error(f"Erro externo ao alterar senha: {outer_e}")
         return jsonify({"status": "Erro", "msg": "Erro interno do servidor."}), 500

@@ -6,6 +6,7 @@ import {
   TrendingUp, ArrowUpRight, Percent, ShieldCheck
 } from 'lucide-react';
 import { formatMoney } from '../lib/format';
+import { ConfirmDialog } from './ui/ConfirmDialog';
 
 interface FixedIncomeItem {
   id: number;
@@ -31,6 +32,7 @@ interface FixedIncomeItem {
 export function FixedIncomeTab() {
   const [titles, setTitles] = useState<FixedIncomeItem[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [deleteId, setDeleteId] = useState<number | null>(null);
   const [form, setForm] = useState({
     ticker: '',
     name: '',
@@ -89,7 +91,6 @@ export function FixedIncomeTab() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Deseja excluir este título de renda fixa?')) return;
     try {
       const res = await fetch(`/api/fixed-income/${id}`, {
         method: 'DELETE'
@@ -99,6 +100,8 @@ export function FixedIncomeTab() {
       }
     } catch (e) {
       console.error(e);
+    } finally {
+      setDeleteId(null);
     }
   };
 
@@ -224,7 +227,7 @@ export function FixedIncomeTab() {
                     <td className="py-3.5 px-4 text-right font-bold text-emerald-400">{formatMoney(t.net_value)}</td>
                     <td className="py-3.5 px-4 text-center">
                       <button 
-                        onClick={() => handleDelete(t.id)}
+                        onClick={() => setDeleteId(t.id)}
                         className="text-slate-500 hover:text-rose-400 p-1 rounded transition"
                       >
                         <Trash2 size={14} />
@@ -368,6 +371,15 @@ export function FixedIncomeTab() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={deleteId !== null}
+        title="Excluir Título"
+        message="Deseja excluir este título de renda fixa permanentemente?"
+        confirmLabel="Excluir"
+        onConfirm={() => deleteId !== null && handleDelete(deleteId)}
+        onCancel={() => setDeleteId(null)}
+      />
     </div>
   );
 }

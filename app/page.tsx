@@ -1,6 +1,6 @@
 'use client';
 import dynamic from 'next/dynamic';
-import { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { usePrivacy } from './context/PrivacyContext';
 import { useToast } from './context/ToastContext';
 import { formatMoney } from './lib/format';
@@ -8,6 +8,7 @@ import { Header } from './features/header/components/Header';
 import { AssetsTable } from './components/AssetsTable';
 import { SkeletonLoading } from './components/ui/Skeletons';
 import { ModalSkeleton } from './components/ui/Skeletons';
+import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import { useAssetData } from './features/assets/hooks/useAssetData';
 import { usePortfolioHandlers } from './features/assets/hooks/usePortfolioHandlers';
 import { usePortfolioMetrics } from './features/assets/hooks/usePortfolioMetrics';
@@ -92,6 +93,10 @@ export default function Home() {
     handlers.handleFixAsset(assetId, data?.ativos || []);
   }, [handlers, data?.ativos]);
 
+  const handleEditAsset = useCallback((a: any) => modals.setEditingAsset(a), [modals]);
+  const handleViewNews = useCallback((ticker: string) => modals.setNewsTicker(ticker), [modals]);
+  const handleViewDetails = useCallback((a: any) => modals.setSelectedDetailsAsset(a), [modals]);
+
   if (loading) {
     return (
       <main className="min-h-screen bg-[#0b0f19] text-slate-200 font-sans selection:bg-blue-500/30 pb-20 relative">
@@ -147,43 +152,47 @@ export default function Home() {
       <div id="main-content" tabIndex={-1} className="max-w-7xl mx-auto p-4 md:p-6 outline-none">
         
         {['Resumo', 'Evolução', 'Financeiro', 'Quantitativo', 'Jarvis', 'Cartoes', 'Renda Fixa'].includes(tab) && (
-          <DashboardTabContent
-            tab={tab}
-            metrics={metrics}
-            isHidden={isHidden}
-            ativos={data?.ativos || []}
-            categorias={data?.categorias || []}
-            history={history}
-            onOpenRadar={openRadarModal}
-            onUpdate={refetch}
-          />
+          <ErrorBoundary>
+            <DashboardTabContent
+              tab={tab}
+              metrics={metrics}
+              isHidden={isHidden}
+              ativos={data?.ativos || []}
+              categorias={data?.categorias || []}
+              history={history}
+              onOpenRadar={openRadarModal}
+              onUpdate={refetch}
+            />
+          </ErrorBoundary>
         )}
 
         {/* The AssetsTable component internally checks if it should render based on the tab */}
         <AssetsTable
           assets={data?.ativos || []}
           tab={tab}
-          onEdit={(a) => modals.setEditingAsset(a)}
-          onViewNews={(ticker) => modals.setNewsTicker(ticker)}
-          onViewDetails={(a) => modals.setSelectedDetailsAsset(a)}
+          onEdit={handleEditAsset}
+          onViewNews={handleViewNews}
+          onViewDetails={handleViewDetails}
         />
 
-        <PortfolioModals
-          ativos={data?.ativos || []}
-          editingAsset={modals.editingAsset}
-          selectedDetailsAsset={modals.selectedDetailsAsset}
-          newsTicker={modals.newsTicker}
-          isAddModalOpen={modals.isAddModalOpen}
-          isSmartModalOpen={modals.isSmartModalOpen}
-          isCorporateActionModalOpen={modals.isCorporateActionModalOpen}
-          onCloseEditing={() => modals.setEditingAsset(null)}
-          onCloseDetails={() => modals.setSelectedDetailsAsset(null)}
-          onCloseNews={() => modals.setNewsTicker(null)}
-          onCloseAdd={() => modals.setAddModalOpen(false)}
-          onCloseSmart={() => modals.setSmartModalOpen(false)}
-          onCloseCorporateAction={() => modals.setCorporateActionModalOpen(false)}
-          onRefetch={refetch}
-        />
+        <ErrorBoundary>
+          <PortfolioModals
+            ativos={data?.ativos || []}
+            editingAsset={modals.editingAsset}
+            selectedDetailsAsset={modals.selectedDetailsAsset}
+            newsTicker={modals.newsTicker}
+            isAddModalOpen={modals.isAddModalOpen}
+            isSmartModalOpen={modals.isSmartModalOpen}
+            isCorporateActionModalOpen={modals.isCorporateActionModalOpen}
+            onCloseEditing={() => modals.setEditingAsset(null)}
+            onCloseDetails={() => modals.setSelectedDetailsAsset(null)}
+            onCloseNews={() => modals.setNewsTicker(null)}
+            onCloseAdd={() => modals.setAddModalOpen(false)}
+            onCloseSmart={() => modals.setSmartModalOpen(false)}
+            onCloseCorporateAction={() => modals.setCorporateActionModalOpen(false)}
+            onRefetch={refetch}
+          />
+        </ErrorBoundary>
 
         <SyncStatusIndicators syncStatus={syncStatus} fundamentalsStatus={fundamentalsStatus} />
 
@@ -192,7 +201,9 @@ export default function Home() {
 
 
       {isRadarModalOpen && (
-        <RiskRadarModal isOpen={true} onClose={closeRadarModal} alertas={data?.alertas || []} />
+        <ErrorBoundary>
+          <RiskRadarModal isOpen={true} onClose={closeRadarModal} alertas={data?.alertas || []} />
+        </ErrorBoundary>
       )}
     </main>
   );

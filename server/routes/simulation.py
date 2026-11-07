@@ -13,8 +13,9 @@ from flask import Blueprint, jsonify, g, request
 from services import PortfolioService
 from db.models import Session, Asset, Position, SystemCache, safe_commit
 from domain.quant.helpers import get_risk_free_rate
-from infrastructure.gemini_service import MODEL_NAME
-import google.generativeai as genai
+from infrastructure.gemini_service import MODEL_NAME, get_genai_client
+from google import genai
+from google.genai import types
 from sqlalchemy.orm import joinedload
 from routes.news import get_daily_sector_summary
 
@@ -154,13 +155,12 @@ def _run_morning_brief_bg(user_id: int, context: dict, cache_key: str):
         prompt = _build_enhanced_morning_brief_prompt(context)
         
         try:
-            model = genai.GenerativeModel(
-                model_name=MODEL_NAME,
-                generation_config=genai.GenerationConfig(
-                    response_mime_type="application/json"
-                )
+            client = get_genai_client()
+            response = client.models.generate_content(
+                model=MODEL_NAME,
+                contents=prompt,
+                config=types.GenerateContentConfig(response_mime_type="application/json")
             )
-            response = model.generate_content(prompt)
             parsed = json.loads(response.text.strip())
             
             brief_data = {
@@ -215,28 +215,14 @@ def _build_enhanced_morning_brief_prompt(context: dict) -> str:
     news_text = "Sem notícias relevantes."
     sentiment_text = "Sem sentimento anormal."
 
-    prompt = f"""Você é o Jarvis, o gestor de portfólio de inteligência artificial do AssetFlow.
-Sua missão é elaborar um Briefing Matinal de Risco e Alocação para o dia {date_str}.
-
-[CONTEXTO MACROECONÔMICO]
-- Taxa Básica de Juros (Selic Meta): {selic_pct:.2f}%
-- Cotação do Dólar (USD/BRL): R$ {dolar:.2f}
-
-[CARTEIRA DO INVESTIDOR — Ativos em custódia]
-{holdings_text}
-
-[TAREFA E REGRAS ESTRITAS]
-- Escreva uma visão de mercado super curta (MÁXIMO de 50 palavras).
-- NÃO USE LISTAS DE BULLET POINTS (proibido usar marcadores).
-- NUNCA liste os ativos da carteira um por um.
-- Fale APENAS do impacto macro (Selic/Dólar) de forma abrangente para o investidor.
-- Responda estritamente em JSON contendo as chaves exatas:
-  - 'brief_text': Texto de 1 parágrafo contendo seu insight.
-  - 'rationale': Seu raciocínio interno.
-  - 'action': 1 frase curta de recomendação.
-  - 'risk_metrics': {{}} (deixe vazio).
-"""
-    return prompt
+    from utils.prompt_loader import load_prompt
+    template = load_prompt("morning_brief_v1.txt")
+    return template.format(
+        date_str=date_str,
+        selic_pct=selic_pct,
+        dolar=dolar,
+        holdings_text=holdings_text
+    )
 
 
 @simulation_bp.route('/api/ai/morning-brief', methods=['GET', 'POST'])

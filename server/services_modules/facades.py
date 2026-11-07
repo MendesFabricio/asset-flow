@@ -131,13 +131,13 @@ class FacadeService:
         try:
             import json
             from db.models import SystemCache
-            session = Session()
-            rec = session.query(SystemCache).filter_by(key=key).first()
-            if rec:
-                from datetime import datetime, timedelta
-                if datetime.now() - rec.updated_at < timedelta(seconds=ttl_seconds):
-                    return json.loads(rec.value)
-            return None
+            with Session() as session:
+                rec = session.query(SystemCache).filter_by(key=key).first()
+                if rec:
+                    from datetime import datetime, timedelta
+                    if datetime.now() - rec.updated_at < timedelta(seconds=ttl_seconds):
+                        return json.loads(rec.value)
+                return None
         except Exception:
             return None
 

@@ -46,14 +46,14 @@ export const MarketTicker = React.memo(() => {
     };
   }, []);
 
-  const activeTickers = [
+  const activeTickers = React.useMemo(() => [
     { label: 'IBOV', key: 'ibov', data: indices.ibov, format: (v: number) => v.toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + ' pts' },
     { label: 'IFIX', key: 'ifix', data: indices.ifix, format: (v: number) => v.toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + ' pts' },
     { label: 'NASDAQ', key: 'nasdaq', data: indices.nasdaq, format: (v: number) => v.toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + ' pts' },
     { label: 'S&P 500', key: 'sp500', data: indices.sp500, format: (v: number) => v.toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + ' pts' },
     { label: 'DÓLAR', key: 'dolar', data: indices.dolar, format: (v: number) => 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 4, maximumFractionDigits: 4 }) },
     { label: 'BTC', key: 'btc', data: indices.btc, format: (v: number) => 'US$ ' + v.toLocaleString('pt-BR', { maximumFractionDigits: 0 }) }
-  ].filter(t => t.data) as Array<{ label: string; key: string; data: IndexData; format: (v: number) => string }>;
+  ].filter(t => t.data) as Array<{ label: string; key: string; data: IndexData; format: (v: number) => string }>, [indices]);
 
   // Rotação do carrossel
   useEffect(() => {

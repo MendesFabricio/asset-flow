@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react';
 
 interface PrivacyContextType {
@@ -40,13 +40,12 @@ export const PrivacyProvider = ({ children }: { children: ReactNode }) => {
     if (saved) {
       const decrypted = deobscureValue(saved);
 
-      if (decrypted === 'true') {
-         
+      if (saved === 'true' || saved === 'false') {
+        // Upgrade legacy value
+        setIsHidden(saved === 'true');
+        localStorage.setItem('assetflow_privacy', obscureValue(saved));
+      } else if (decrypted === 'true') {
         setIsHidden(true);
-      } else if (saved === 'true') {
-         
-        setIsHidden(true);
-        localStorage.setItem('assetflow_privacy', obscureValue('true'));
       }
     }
   }, []);

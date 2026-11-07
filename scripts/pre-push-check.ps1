@@ -1,7 +1,7 @@
-﻿#!/usr/bin/env pwsh
+#!/usr/bin/env pwsh
 # ============================================================
 # pre-push-check.ps1
-# Script de validação local antes do git push
+# Script de validacao local antes do git push
 # Rode:
 #   .\scripts\pre-push-check.ps1
 # ============================================================
@@ -10,21 +10,21 @@ $ErrorActionPreference = "Continue"
 $failures = @()
 
 function Write-Check($msg) {
-    Write-Host "  🔍 $msg" -ForegroundColor Cyan
+    Write-Host "  [?] $msg" -ForegroundColor Cyan
 }
 
 function Write-Pass($msg) {
-    Write-Host "  ✅ $msg" -ForegroundColor Green
+    Write-Host "  [OK] $msg" -ForegroundColor Green
 }
 
 function Write-Fail($msg) {
-    Write-Host "  ❌ $msg" -ForegroundColor Red
+    Write-Host "  [X] $msg" -ForegroundColor Red
     $script:failures += $msg
 }
 
 Write-Host ""
 Write-Host "==========================================" -ForegroundColor Magenta
-Write-Host "  AssetFlow — Pre-Push Validation" -ForegroundColor Magenta
+Write-Host "  AssetFlow - Pre-Push Validation" -ForegroundColor Magenta
 Write-Host "==========================================" -ForegroundColor Magenta
 Write-Host ""
 
@@ -36,7 +36,7 @@ Write-Check "Verificando Node.js..."
 $node = Get-Command node -ErrorAction SilentlyContinue
 
 if (-not $node) {
-    Write-Fail "Node.js não encontrado."
+    Write-Fail "Node.js nao encontrado."
 }
 else {
     Write-Pass "Node.js encontrado"
@@ -50,7 +50,7 @@ Write-Check "Verificando npm..."
 $npm = Get-Command npm -ErrorAction SilentlyContinue
 
 if (-not $npm) {
-    Write-Fail "npm não encontrado."
+    Write-Fail "npm nao encontrado."
 }
 else {
     Write-Pass "npm encontrado"
@@ -64,7 +64,7 @@ Write-Check "Verificando npx..."
 $npx = Get-Command npx -ErrorAction SilentlyContinue
 
 if (-not $npx) {
-    Write-Fail "npx não encontrado."
+    Write-Fail "npx nao encontrado."
 }
 else {
     Write-Pass "npx encontrado"
@@ -125,7 +125,7 @@ if ($publicGit) {
     Write-Pass "public/: rastreada pelo git"
 }
 else {
-    Write-Fail "public/ não rastreada pelo git."
+    Write-Fail "public/ nao rastreada pelo git."
 }
 
 # ----------------------------------------------------------
@@ -147,17 +147,37 @@ else {
 }
 
 # ----------------------------------------------------------
+# Pytest (Backend)
+# ----------------------------------------------------------
+Write-Check "Pytest (Testes do Backend)..."
+
+$pytestOut = docker compose exec backend pytest 2>&1
+
+if ($LASTEXITCODE -eq 0) {
+    Write-Pass "Pytest: todos os testes passaram"
+}
+else {
+    Write-Fail "Pytest: falhas encontradas nos testes do backend"
+
+    $pytestOut |
+    Select-Object -Last 30 |
+    ForEach-Object {
+        Write-Host "     $_" -ForegroundColor DarkRed
+    }
+}
+
+# ----------------------------------------------------------
 # Git Status
 # ----------------------------------------------------------
-Write-Check "Verificando repositório Git..."
+Write-Check "Verificando repositorio Git..."
 
 $gitStatus = git status --porcelain
 
 if ($LASTEXITCODE -eq 0) {
-    Write-Pass "Repositório Git OK"
+    Write-Pass "Repositorio Git OK"
 }
 else {
-    Write-Fail "Erro ao verificar o repositório Git."
+    Write-Fail "Erro ao verificar o repositorio Git."
 }
 
 # ----------------------------------------------------------
@@ -170,8 +190,8 @@ Write-Host "==========================================" -ForegroundColor Magenta
 if ($failures.Count -eq 0) {
 
     Write-Host ""
-    Write-Host "  🚀 TUDO OK!" -ForegroundColor Green
-    Write-Host "  Pode executar o git push com segurança." -ForegroundColor Green
+    Write-Host "  [SUCCESS] TUDO OK!" -ForegroundColor Green
+    Write-Host "  Pode executar o git push com seguranca." -ForegroundColor Green
     Write-Host ""
 
     exit 0
@@ -179,10 +199,10 @@ if ($failures.Count -eq 0) {
 else {
 
     Write-Host ""
-    Write-Host "  🚫 $($failures.Count) verificação(ões) falharam:" -ForegroundColor Red
+    Write-Host "  [FAIL] $($failures.Count) verificacao(oes) falharam:" -ForegroundColor Red
 
     $failures | ForEach-Object {
-        Write-Host "     • $_" -ForegroundColor Red
+        Write-Host "       $_" -ForegroundColor Red
     }
 
     Write-Host ""

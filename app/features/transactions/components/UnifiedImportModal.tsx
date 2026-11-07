@@ -350,24 +350,24 @@ export function UnifiedImportModal({ isOpen, onClose, onSuccess }: UnifiedImport
   return createPortal(
     <div className="fixed inset-0 z-[200] overflow-y-auto">
       <div className="flex min-h-screen items-center justify-center p-4">
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={onClose} />
+        <div className="fixed inset-0 bg-slate-950/40 dark:bg-slate-950/80 backdrop-blur-sm" onClick={onClose} />
 
-        <div className="relative w-full max-w-5xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl flex flex-col text-left my-8">
+        <div className="relative w-full max-w-5xl bg-white/85 dark:bg-slate-900/90 backdrop-blur-2xl border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-2xl shadow-slate-900/10 dark:shadow-black/60 flex flex-col text-left my-8">
           {/* Header */}
-          <div className="flex items-center justify-between p-5 border-b border-slate-800 shrink-0 bg-slate-900/95 sticky top-0 z-10 rounded-t-2xl">
+          <div className="flex items-center justify-between p-5 border-b border-slate-200/80 dark:border-slate-800 shrink-0 bg-white/70 dark:bg-slate-900/95 backdrop-blur-xl sticky top-0 z-10 rounded-t-2xl">
             <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${importMode === 'brokerage' ? 'bg-blue-500/10 text-blue-400' : 'bg-purple-500/10 text-purple-400'}`}>
+              <div className={`p-2 rounded-lg ${importMode === 'brokerage' ? 'bg-blue-500/10 text-blue-500 dark:text-blue-400' : 'bg-purple-500/10 text-purple-500 dark:text-purple-400'}`}>
                 {importMode === 'brokerage' ? <FileText size={20} /> : <ShieldCheck size={20} />}
               </div>
               <div>
-                <h2 className="text-xl font-bold font-heading text-white">Importação e Conciliação</h2>
+                <h2 className="text-xl font-bold font-heading text-slate-900 dark:text-white">Importação e Conciliação</h2>
                 <div className="flex items-center gap-4 mt-2">
-                  <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
-                    <input type="radio" name="mode" checked={importMode === 'brokerage'} onChange={() => { setImportMode('brokerage'); setBrokerageTxs([]); setB3Transactions([]); setDividends([]); setCorporateEvents([]); }} className="text-blue-500 bg-slate-800 border-slate-700" />
+                  <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300 cursor-pointer">
+                    <input type="radio" name="mode" checked={importMode === 'brokerage'} onChange={() => { setImportMode('brokerage'); setBrokerageTxs([]); setB3Transactions([]); setDividends([]); setCorporateEvents([]); }} className="text-blue-500 bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700" />
                     Nota de Corretagem
                   </label>
-                  <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
-                    <input type="radio" name="mode" checked={importMode === 'b3'} onChange={() => { setImportMode('b3'); setBrokerageTxs([]); setB3Transactions([]); setDividends([]); setCorporateEvents([]); }} className="text-purple-500 bg-slate-800 border-slate-700" />
+                  <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300 cursor-pointer">
+                    <input type="radio" name="mode" checked={importMode === 'b3'} onChange={() => { setImportMode('b3'); setBrokerageTxs([]); setB3Transactions([]); setDividends([]); setCorporateEvents([]); }} className="text-purple-500 bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700" />
                     Extrato B3
                   </label>
                 </div>
@@ -375,11 +375,11 @@ export function UnifiedImportModal({ isOpen, onClose, onSuccess }: UnifiedImport
             </div>
             <div className="flex items-center gap-2">
                {hasLoadedData && (
-                <button onClick={() => fileInputRef.current?.click()} disabled={isUploading} className="px-3 py-1.5 text-xs font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors flex items-center gap-1.5">
+                <button onClick={() => fileInputRef.current?.click()} disabled={isUploading} className="px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 rounded-lg transition-colors flex items-center gap-1.5">
                   <Upload size={14} /> Outro Arquivo
                 </button>
               )}
-              <button onClick={onClose} className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors">
+              <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-800 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                 <X size={20} />
               </button>
             </div>
@@ -390,14 +390,14 @@ export function UnifiedImportModal({ isOpen, onClose, onSuccess }: UnifiedImport
           {/* Body */}
           <div className="p-5 overflow-y-auto max-h-[65vh]">
             {!hasLoadedData ? (
-              <div className="flex flex-col items-center justify-center py-16 px-4 border-2 border-dashed border-slate-800 rounded-xl">
-                <div className="p-4 bg-slate-800/50 rounded-full text-slate-400 mb-4">
+              <div className="flex flex-col items-center justify-center py-16 px-4 border-2 border-dashed border-slate-300 dark:border-slate-800 rounded-xl bg-slate-50/50 dark:bg-slate-900/30 backdrop-blur-sm">
+                <div className="p-4 bg-slate-200/60 dark:bg-slate-800/50 rounded-full text-slate-600 dark:text-slate-400 mb-4">
                   <Upload size={32} />
                 </div>
-                <h3 className="text-base font-semibold text-white mb-2">
+                <h3 className="text-base font-semibold text-slate-900 dark:text-white mb-2">
                   {importMode === 'brokerage' ? 'Selecione suas Notas de Corretagem' : 'Selecione o Extrato da B3'}
                 </h3>
-                <p className="text-sm text-slate-400 text-center max-w-md mb-6">
+                <p className="text-sm text-slate-600 dark:text-slate-400 text-center max-w-md mb-6">
                   {importMode === 'brokerage' 
                     ? 'Envie as notas de corretagem (padrão SINACOR) em PDF. As operações serão extraídas automaticamente.'
                     : 'Faça o download dos seus extratos de movimentação na Área logada da B3 e envie aqui para conciliação.'}
@@ -405,7 +405,7 @@ export function UnifiedImportModal({ isOpen, onClose, onSuccess }: UnifiedImport
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isUploading}
-                  className={`px-6 py-3 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 text-white ${importMode === 'brokerage' ? 'bg-blue-600 hover:bg-blue-500' : 'bg-purple-600 hover:bg-purple-500'}`}
+                  className={`px-6 py-3 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 text-white shadow-md ${importMode === 'brokerage' ? 'bg-blue-600 hover:bg-blue-500' : 'bg-purple-600 hover:bg-purple-500'}`}
                 >
                   {isUploading ? (
                     <><div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />Processando...</>
@@ -418,31 +418,31 @@ export function UnifiedImportModal({ isOpen, onClose, onSuccess }: UnifiedImport
                 <div className="text-xs text-amber-400/80 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2 mb-2">
                   ⚠️ As notas SINACOR mostram o <strong>nome abreviado</strong> da empresa, não o ticker. Verifique e corrija os tickers antes de importar.
                 </div>
-                <div className="border border-slate-800 rounded-xl overflow-hidden">
+                <div className="border border-slate-200/80 dark:border-slate-800 rounded-xl overflow-hidden">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-950/50 text-slate-400 border-b border-slate-800">
+                    <thead className="bg-slate-100/80 dark:bg-slate-950/50 text-slate-700 dark:text-slate-400 border-b border-slate-200/80 dark:border-slate-800">
                       <tr>
                         <th className="px-3 py-2.5 font-medium">Op.</th>
                         <th className="px-3 py-2.5 font-medium">Data</th>
-                        <th className="px-3 py-2.5 font-medium">Ticker <span className="text-amber-400">(editável)</span></th>
+                        <th className="px-3 py-2.5 font-medium">Ticker <span className="text-amber-500 dark:text-amber-400">(editável)</span></th>
                         <th className="px-3 py-2.5 font-medium">Categoria</th>
                         <th className="px-3 py-2.5 font-medium text-right">Qtd</th>
                         <th className="px-3 py-2.5 font-medium text-right">Total</th>
                         <th className="px-3 py-2.5"></th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-800/50">
+                    <tbody className="divide-y divide-slate-200/60 dark:divide-slate-800/50">
                       {brokerageTxs.map((tx, idx) => {
                         if (tx.error === 'SUCCESS') return null;
                         return (
                           <React.Fragment key={idx}>
-                            <tr className={`group ${tx.error ? 'bg-rose-500/5' : 'hover:bg-slate-800/20'}`}>
+                            <tr className={`group ${tx.error ? 'bg-rose-500/5' : 'hover:bg-slate-100/60 dark:hover:bg-slate-800/20'}`}>
                               <td className="px-3 py-2">
-                                <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${tx.type === 'BUY' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
+                                <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${tx.type === 'BUY' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'}`}>
                                   {tx.type === 'BUY' ? 'C' : 'V'}
                                 </span>
                               </td>
-                              <td className="px-3 py-2 text-slate-300 font-mono">
+                              <td className="px-3 py-2 text-slate-700 dark:text-slate-300 font-mono">
                                 {tx.date ? tx.date.split('-').reverse().join('/') : '-'}
                               </td>
                               <td className="px-3 py-2">
@@ -455,11 +455,11 @@ export function UnifiedImportModal({ isOpen, onClose, onSuccess }: UnifiedImport
                                     setBrokerageTxs(updated);
                                   }}
                                   placeholder="Ex: PETR4"
-                                  className="w-24 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs font-mono font-bold text-white focus:outline-none focus:border-blue-500"
+                                  className="w-24 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded px-2 py-1 text-xs font-mono font-bold text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
                                 />
                                 {tx.name && <div className="text-[9px] text-slate-500 mt-0.5 truncate max-w-[100px]">{tx.name}</div>}
                                 {parseOption(tx.ticker) && (
-                                  <span className={`inline-flex items-center px-1.5 py-0.5 mt-0.5 rounded text-[8px] font-bold uppercase ${parseOption(tx.ticker)?.type === 'CALL' ? 'bg-blue-500/10 text-blue-400' : 'bg-fuchsia-500/10 text-fuchsia-400'}`}>
+                                  <span className={`inline-flex items-center px-1.5 py-0.5 mt-0.5 rounded text-[8px] font-bold uppercase ${parseOption(tx.ticker)?.type === 'CALL' ? 'bg-blue-500/10 text-blue-500 dark:text-blue-400' : 'bg-fuchsia-500/10 text-fuchsia-500 dark:text-fuchsia-400'}`}>
                                     {parseOption(tx.ticker)?.type} {parseOption(tx.ticker)?.strike}
                                   </span>
                                 )}
@@ -472,7 +472,7 @@ export function UnifiedImportModal({ isOpen, onClose, onSuccess }: UnifiedImport
                                     updated[idx].category = e.target.value;
                                     setBrokerageTxs(updated);
                                   }}
-                                  className="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-white focus:outline-none"
+                                  className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded px-2 py-1 text-xs text-slate-900 dark:text-white focus:outline-none"
                                 >
                                   <option value="Ação">Ação</option>
                                   <option value="FII">FII</option>
@@ -482,8 +482,8 @@ export function UnifiedImportModal({ isOpen, onClose, onSuccess }: UnifiedImport
                                   <option value="Opções">Opções</option>
                                 </select>
                               </td>
-                              <td className="px-3 py-2 text-right text-slate-300">{tx.quantity}</td>
-                              <td className="px-3 py-2 text-right font-medium text-slate-200">{fmt(tx.total_value)}</td>
+                              <td className="px-3 py-2 text-right text-slate-700 dark:text-slate-300">{tx.quantity}</td>
+                              <td className="px-3 py-2 text-right font-medium text-slate-900 dark:text-slate-200">{fmt(tx.total_value)}</td>
                               <td className="px-3 py-2 text-right">
                                 <button onClick={() => setBrokerageTxs(prev => prev.filter((_, i) => i !== idx))} className="text-slate-500 hover:text-rose-400 transition-colors">
                                   <Trash2 size={14} />
@@ -716,8 +716,8 @@ export function UnifiedImportModal({ isOpen, onClose, onSuccess }: UnifiedImport
 
           {/* Footer */}
           {hasLoadedData && (
-            <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-800 bg-slate-900/50 rounded-b-xl mt-auto">
-              <button onClick={onClose} disabled={isImporting} className="px-4 py-2 text-sm text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors">
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/50 backdrop-blur-md rounded-b-2xl mt-auto">
+              <button onClick={onClose} disabled={isImporting} className="px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800 rounded-lg transition-colors">
                 Fechar
               </button>
               

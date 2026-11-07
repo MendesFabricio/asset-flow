@@ -1,7 +1,5 @@
-from pydantic import BaseModel, Field, validator
-from datetime import datetime
-from decimal import Decimal
-from typing import Optional
+from pydantic import BaseModel, Field
+from typing import Optional, Dict, Any
 
 class FixedIncomeCreate(BaseModel):
     ticker: str = Field(..., min_length=1, max_length=20)
@@ -33,3 +31,21 @@ class AssetTransactionCreate(BaseModel):
     date: Optional[str] = Field(None, description="ISO date string for transaction_date")
     category: Optional[str] = Field(None, description="Suggested category for auto-creation")
     force_duplicate: Optional[bool] = Field(False, description="If true, bypass duplicate check")
+
+class DebtorCreate(BaseModel):
+    nome: str = Field(..., min_length=1, max_length=100)
+    telefone: Optional[str] = Field(None, max_length=30)
+    observacoes: Optional[str] = Field(None, max_length=500)
+
+class ReceivableLoanCreate(BaseModel):
+    descricao: str = Field(..., min_length=1, max_length=200)
+    valor_total: float = Field(..., gt=0)
+    categoria: Optional[str] = Field(None, max_length=50)
+    is_parcelado: Optional[bool] = False
+    total_parcelas: Optional[int] = Field(1, ge=1, le=120)
+    observacoes: Optional[str] = Field(None, max_length=500)
+
+class CorporateEventCreate(BaseModel):
+    ticker: str = Field(..., min_length=1, max_length=20)
+    action_type: str = Field(..., pattern="^(SPLIT|INPLIT|BONUS|SPIN_OFF|TICKER_CHANGE|AMORTIZATION)$")
+    payload: Dict[str, Any] = Field(default_factory=dict)

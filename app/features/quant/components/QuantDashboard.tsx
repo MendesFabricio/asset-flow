@@ -47,7 +47,7 @@ import { useQuantData } from '../hooks/useQuantData';
 import { useDcaSimulation } from '../hooks/useDcaSimulation';
 import { useQuantReports } from '../hooks/useQuantReports';
 
-export function QuantDashboard() {
+export const QuantDashboard = React.memo(function QuantDashboard() {
   const { notify } = useToast();
   const [activeTab, setActiveTab] = useState<'performance' | 'optimization' | 'simulations' | 'reports'>('performance');
 
@@ -100,6 +100,13 @@ export function QuantDashboard() {
       fetchReportsAndFG();
     }
   }, [activeTab, fetchReportsAndFG]);
+
+  const tabs = useMemo(() => [
+    { id: 'performance', label: 'Risco & Performance', icon: <Activity size={14} /> },
+    { id: 'optimization', label: 'Otimização', icon: <Target size={14} /> },
+    { id: 'simulations', label: 'Simuladores', icon: <TrendingUp size={14} /> },
+    { id: 'reports', label: 'Relatórios & Sentimento', icon: <Brain size={14} /> }
+  ], []);
 
   // Format Recharts Point Tooltip
   const scatterTooltipFormatter = (value: any, name: any) => {
@@ -264,12 +271,7 @@ export function QuantDashboard() {
         {/* TAB CONTROLS (SEGMENTED CONTROL PREMIUM) */}
         <div className="w-full xl:w-auto p-1 bg-surface-card/50 rounded-xl border border-slate-800/60 shadow-inner">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-1">
-            {[
-              { id: 'performance', label: 'Risco & Performance', icon: <Activity size={14} /> },
-              { id: 'optimization', label: 'Otimização', icon: <Target size={14} /> },
-              { id: 'simulations', label: 'Simuladores', icon: <TrendingUp size={14} /> },
-              { id: 'reports', label: 'Relatórios & Sentimento', icon: <Brain size={14} /> }
-            ].map((tab) => {
+            {tabs.map((tab) => {
               const isActive = activeTab === tab.id;
               return (
                 <button
@@ -1148,4 +1150,4 @@ export function QuantDashboard() {
       )}
     </div>
   );
-}
+});

@@ -46,6 +46,8 @@ interface PortfolioModalsProps {
   onRefetch: () => void;
 }
 
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
+
 export function PortfolioModals({
   ativos,
   editingAsset,
@@ -65,32 +67,44 @@ export function PortfolioModals({
   return (
     <>
       {!!editingAsset && (
-        <EditModal
-          isOpen={true}
-          onClose={onCloseEditing}
-          onSave={onRefetch}
-          ativo={editingAsset}
-          allAssets={ativos}
-        />
+        <ErrorBoundary>
+          <EditModal
+            isOpen={true}
+            onClose={onCloseEditing}
+            onSave={onRefetch}
+            ativo={editingAsset}
+            allAssets={ativos}
+          />
+        </ErrorBoundary>
       )}
       {isAddModalOpen && (
-        <AddAssetModal isOpen={true} onClose={onCloseAdd} onSuccess={onRefetch} />
+        <ErrorBoundary>
+          <AddAssetModal isOpen={true} onClose={onCloseAdd} onSuccess={onRefetch} />
+        </ErrorBoundary>
       )}
       {isCorporateActionModalOpen && (
-        <CorporateActionGlobalModal isOpen={true} onClose={onCloseCorporateAction} onSuccess={onRefetch} assets={ativos} />
+        <ErrorBoundary>
+          <CorporateActionGlobalModal isOpen={true} onClose={onCloseCorporateAction} onSuccess={onRefetch} assets={ativos} />
+        </ErrorBoundary>
       )}
       {!!newsTicker && (
-        <AssetNewsPanel ticker={newsTicker} onClose={onCloseNews} />
+        <ErrorBoundary>
+          <AssetNewsPanel ticker={newsTicker} onClose={onCloseNews} />
+        </ErrorBoundary>
       )}
       {isSmartModalOpen && (
-        <SmartAllocationModal isOpen={true} onClose={onCloseSmart} />
+        <ErrorBoundary>
+          <SmartAllocationModal isOpen={true} onClose={onCloseSmart} />
+        </ErrorBoundary>
       )}
       {!!selectedDetailsAsset && (
-        <AssetDetailsModal
-          isOpen={true}
-          onClose={onCloseDetails}
-          asset={selectedDetailsAsset}
-        />
+        <ErrorBoundary>
+          <AssetDetailsModal
+            isOpen={true}
+            onClose={onCloseDetails}
+            asset={selectedDetailsAsset}
+          />
+        </ErrorBoundary>
       )}
     </>
   );

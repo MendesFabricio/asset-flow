@@ -3,7 +3,7 @@ import logging
 import traceback
 from decimal import Decimal
 from sqlalchemy.orm import joinedload
-from db.models import Asset, Category, get_active_positions
+from db.models import Asset, Category, Position, get_active_positions
 from utils.formatters import extract_position_metrics
 from db.session import Session
 
@@ -15,11 +15,11 @@ from datetime import datetime, timezone
 class DashboardService:
     def get_dashboard_data(self):
         user_id = getattr(self, 'current_user_id', None)
+        dolar_rate = self.get_usd_rate()
         with Session() as session:
             try:
                 positions = get_active_positions(session, user_id).all()
                 categories = session.query(Category).all()
-                dolar_rate = self.get_usd_rate()
                 
                 resumo = {
                     "Total": Decimal('0.0'),
@@ -171,6 +171,7 @@ class DashboardService:
 
     def get_single_asset_score_data(self, ticker):
         user_id = getattr(self, 'current_user_id', None)
+        dolar_rate = self.get_usd_rate()
         with Session() as session:
             pos = get_active_positions(session, user_id).join(Asset).filter(Asset.ticker == ticker).first()
             if not pos:
@@ -178,7 +179,6 @@ class DashboardService:
                 
             asset = pos.asset
             mdata = asset.market_data[0] if asset.market_data else None
-            dolar_rate = self.get_usd_rate()
             
             try:
                 qtd = Decimal(str(pos.quantity or 0))

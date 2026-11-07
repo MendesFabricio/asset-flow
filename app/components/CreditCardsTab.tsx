@@ -10,8 +10,12 @@ import { formatMoney } from '../lib/format';
 import { CreditCardInstallmentItem, CreditCardsDashboardData } from '../types';
 import { apiCall } from '../lib/api';
 import { StatementImportModal } from './StatementImportModal';
-import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
+import { ErrorBoundary } from './ui/ErrorBoundary';
+import { ConfirmDialog } from './ui/ConfirmDialog';
 import { useChartPalette } from '../lib/chartPalette';
+import { CreditCardKpiCards } from './credit-cards/CreditCardKpiCards';
+import { CreditCardSidebar } from './credit-cards/CreditCardSidebar';
+import { CreditCardCategoryChart } from './credit-cards/CreditCardCategoryChart';
 
 interface CardItem {
   id: number;
@@ -53,20 +57,23 @@ const getCategoryFromDescription = (desc: string): string => {
   if (d.includes('TRANSAÇÃO (') || d.includes('PIX') || d.includes('TRANSFER') || d.includes('TED') || d.includes('DOC')) {
     return 'Transferências/Pessoas';
   }
-  if (d.includes('IFOOD') || d.includes('COFFEE') || d.includes('RESTAURANTE') || d.includes('PADARIA') || d.includes('BURGER') || d.includes('SUSHI') || d.includes('PIZZA') || d.includes('CAFE') || d.includes('CAFÉ') || d.includes('LANCHE') || d.includes('MERCADO') || d.includes('SUPERMERCADO') || d.includes('ASSAI') || d.includes('CARREFOUR') || d.includes('ATACADAO')) {
+  if (d.includes('IFOOD') || d.includes('RAPPI') || d.includes('DELIVERY') || d.includes('COFFEE') || d.includes('RESTAURANTE') || d.includes('PADARIA') || d.includes('BURGER') || d.includes('SUSHI') || d.includes('PIZZA') || d.includes('CAFE') || d.includes('CAFÉ') || d.includes('LANCHE') || d.includes('MERCADO') || d.includes('SUPERMERCADO') || d.includes('ASSAI') || d.includes('CARREFOUR') || d.includes('ATACADAO') || d.includes('HORTIFRUTI') || d.includes('BAR') || d.includes('CHURRASCARIA') || d.includes('GIRAFFAS') || d.includes('HABIBS')) {
     return 'Alimentação';
   }
-  if (d.includes('UBER') || d.includes('99') || d.includes('POSTO') || d.includes('SHELL') || d.includes('IPIRANGA') || d.includes('PETROBRAS') || d.includes('ESTACIONAMENTO') || d.includes('SEM PARAR') || d.includes('VELOE') || d.includes('METRO') || d.includes('ONIBUS')) {
+  if (d.includes('UBER') || d.includes('99') || d.includes('INDRIVE') || d.includes('POSTO') || d.includes('SHELL') || d.includes('IPIRANGA') || d.includes('PETROBRAS') || d.includes('ESTACIONAMENTO') || d.includes('SEM PARAR') || d.includes('VELOE') || d.includes('METRO') || d.includes('ONIBUS') || d.includes('GASOLINA') || d.includes('ETANOL')) {
     return 'Transporte';
   }
-  if (d.includes('DROGARIA') || d.includes('FARMACIA') || d.includes('FARMÁCIA') || d.includes('PACHECO') || d.includes('RAIA') || d.includes('PAGUE MENOS') || d.includes('SAO PAULO') || d.includes('CONSULTA') || d.includes('MEDICO') || d.includes('HOSPITAL') || d.includes('CLINICA')) {
+  if (d.includes('DROGARIA') || d.includes('FARMACIA') || d.includes('FARMÁCIA') || d.includes('PACHECO') || d.includes('RAIA') || d.includes('DROGASIL') || d.includes('PAGUE MENOS') || d.includes('ULTRAFARMA') || d.includes('CONSULTA') || d.includes('MEDICO') || d.includes('HOSPITAL') || d.includes('CLINICA') || d.includes('EXAME') || d.includes('ODONTO') || d.includes('LABORATORIO')) {
     return 'Saúde/Farmácia';
   }
-  if (d.includes('CINEMA') || d.includes('INGRESSO') || d.includes('SHOW') || d.includes('SYMPLA') || d.includes('EVENTO')) {
-    return 'Lazer/Entretenimento';
+  if (d.includes('CINEMA') || d.includes('INGRESSO') || d.includes('SHOW') || d.includes('SYMPLA') || d.includes('EVENTO') || d.includes('NETFLIX') || d.includes('SPOTIFY') || d.includes('STEAM') || d.includes('PLAYSTATION') || d.includes('XBOX') || d.includes('DISNEY') || d.includes('HBO') || d.includes('GLOBOPLAY') || d.includes('GYMPASS') || d.includes('SMART FIT')) {
+    return 'Lazer/Assinaturas';
   }
-  if (d.includes('NETFLIX') || d.includes('SPOTIFY') || d.includes('AMAZON') || d.includes('APPLE') || d.includes('GOOGLE') || d.includes('GLOBOPLAY') || d.includes('HBO') || d.includes('DISNEY') || d.includes('VIVO') || d.includes('CLARO') || d.includes('TIM') || d.includes('ENERGIA')) {
-    return 'Serviços/Assinaturas';
+  if (d.includes('AMAZON') || d.includes('MERCADOLIVRE') || d.includes('MERCADO LIVRE') || d.includes('SHOPEE') || d.includes('SHEIN') || d.includes('MAGAZINE') || d.includes('MAGALU') || d.includes('CASAS BAHIA') || d.includes('ZARA') || d.includes('RENNER') || d.includes('RIACHUELO') || d.includes('CENTAURO') || d.includes('NETSHOES') || d.includes('KABUM')) {
+    return 'Compras/Varejo';
+  }
+  if (d.includes('ENEL') || d.includes('SABESP') || d.includes('CEMIG') || d.includes('CPFL') || d.includes('COMGAS') || d.includes('VIVO') || d.includes('CLARO') || d.includes('TIM') || d.includes('ALUGUEL') || d.includes('CONDOMINIO') || d.includes('IPTU') || d.includes('IPVA')) {
+    return 'Serviços/Utilitários';
   }
   if (d.includes('FATURA') || d.includes('PAGAMENTO DE FATURA')) {
     return 'Fatura/Cartão';
@@ -87,6 +94,7 @@ export function CreditCardsTab() {
   const [showAddCard, setShowAddCard] = useState(false);
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [deleteCardId, setDeleteCardId] = useState<number | null>(null);
 
   // Forms
   const [cardForm, setCardForm] = useState({ name: '', limit: '', closing_day: '5', due_day: '15' });
@@ -199,7 +207,6 @@ export function CreditCardsTab() {
   };
 
   const handleDeleteCard = async (cardId: number) => {
-    if (!confirm('Deseja excluir este cartão e todas as despesas associadas?')) return;
     try {
       await apiCall(`/api/credit-cards/${cardId}`, {
         method: 'DELETE'
@@ -208,6 +215,8 @@ export function CreditCardsTab() {
       loadAllData();
     } catch (e) {
       console.error(e);
+    } finally {
+      setDeleteCardId(null);
     }
   };
 
@@ -260,129 +269,26 @@ export function CreditCardsTab() {
   return (
     <div className="space-y-6">
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-surface-card border border-slate-800 rounded-xl p-5 relative overflow-hidden shadow-lg">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-xs text-slate-400 font-semibold tracking-wider uppercase">{displayLimitLabel}</p>
-              <h3 className="text-2xl font-bold text-white mt-1">{formatMoney(displayLimit)}</h3>
-            </div>
-            <div className="p-2 bg-indigo-500/10 text-indigo-400 rounded-lg">
-              <CreditCard size={18} />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-surface-card border border-slate-800 rounded-xl p-5 relative overflow-hidden shadow-lg">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-xs text-slate-400 font-semibold tracking-wider uppercase">{displaySpentLabel}</p>
-              <h3 className="text-2xl font-bold text-rose-400 mt-1">{formatMoney(displaySpent)}</h3>
-            </div>
-            <div className="p-2 bg-rose-500/10 text-rose-400 rounded-lg">
-              <DollarSign size={18} />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-surface-card border border-slate-800 rounded-xl p-5 relative overflow-hidden shadow-lg">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-xs text-slate-400 font-semibold tracking-wider uppercase">{displayPendingLabel}</p>
-              <h3 className="text-2xl font-bold text-amber-400 mt-1">{formatMoney(displayPending)}</h3>
-            </div>
-            <div className="p-2 bg-amber-500/10 text-amber-400 rounded-lg">
-              <Clock size={18} />
-            </div>
-          </div>
-        </div>
-      </div>
+      <CreditCardKpiCards
+        displayLimitLabel={displayLimitLabel}
+        displayLimit={displayLimit}
+        displaySpentLabel={displaySpentLabel}
+        displaySpent={displaySpent}
+        displayPendingLabel={displayPendingLabel}
+        displayPending={displayPending}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Sidebar Cartões */}
         <div className="lg:col-span-1 space-y-4">
-          <div className="bg-surface-card border border-slate-800 rounded-xl p-4 shadow-lg space-y-4">
-            <div className="flex justify-between items-center">
-              <h4 className="text-sm font-bold text-white uppercase tracking-wider">Meus Cartões</h4>
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() => setShowImportModal(true)}
-                  title="Importar fatura em PDF/Excel"
-                  className="flex items-center gap-1 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium px-2.5 py-1 rounded-lg transition shadow"
-                >
-                  <FileText size={13} /> Importar
-                </button>
-                <button 
-                  onClick={() => setShowAddCard(true)}
-                  title="Adicionar novo cartão"
-                  className="p-1 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg transition"
-                >
-                  <Plus size={16} />
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              {cards.map((c) => (
-                <div 
-                  key={c.id}
-                  onClick={() => setSelectedCard(c)}
-                  className={`p-3 rounded-lg border text-left cursor-pointer transition flex justify-between items-center ${
-                    selectedCard?.id === c.id 
-                      ? 'bg-indigo-500/10 border-indigo-500 text-white' 
-                      : 'bg-slate-900/40 border-slate-800 hover:border-slate-700 text-slate-300'
-                  }`}
-                >
-                  <div>
-                    <p className="font-semibold text-sm">{c.name}</p>
-                    <p className="text-xs text-slate-400">Limite: {formatMoney(c.limit)}</p>
-                  </div>
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteCard(c.id);
-                    }}
-                    className="text-slate-500 hover:text-rose-400 p-1 rounded transition"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              ))}
-
-              {cards.length > 1 && (
-                <div 
-                  onClick={() => setSelectedCard({
-                    id: 0,
-                    name: 'TOTAL',
-                    limit: cards.reduce((acc, c) => acc + Number(c.limit || 0), 0),
-                    closing_day: 1,
-                    due_day: 1
-                  })}
-                  className={`p-3 rounded-lg border text-left cursor-pointer transition flex justify-between items-center ${
-                    selectedCard?.id === 0 
-                      ? 'bg-indigo-500/10 border-indigo-500 text-white shadow-md shadow-indigo-500/10' 
-                      : 'bg-slate-900/40 border-slate-800 hover:border-slate-700 text-slate-300'
-                  }`}
-                >
-                  <div>
-                    <p className="font-semibold text-sm flex items-center gap-1.5 text-indigo-300">
-                      <span>TOTAL</span>
-                      <span className="text-[10px] font-normal bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded border border-indigo-500/30">
-                        Consolidado
-                      </span>
-                    </p>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      Limite: {formatMoney(cards.reduce((acc, c) => acc + Number(c.limit || 0), 0))}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {cards.length === 0 && (
-                <p className="text-xs text-slate-400 text-center py-4">Nenhum cartão cadastrado.</p>
-              )}
-            </div>
-          </div>
+          <CreditCardSidebar
+            cards={cards}
+            selectedCard={selectedCard}
+            onSelectCard={setSelectedCard}
+            onDeleteCard={(id) => setDeleteCardId(id)}
+            onOpenAddCard={() => setShowAddCard(true)}
+            onOpenImport={() => setShowImportModal(true)}
+          />
 
           {/* Faturas Mensais */}
           <div className="bg-surface-card border border-slate-800 rounded-xl p-4 shadow-lg space-y-3">
@@ -395,19 +301,20 @@ export function CreditCardsTab() {
                 cardInvoices.map((f) => {
                   const isSelected = selectedInvoiceMonth === f.invoice_month;
                   return (
-                    <div 
+                    <button 
                       key={f.invoice_month} 
+                      type="button"
                       onClick={() => {
                         setSelectedInvoiceMonth(f.invoice_month);
                         loadExpensesByMonth(selectedCard.id, f.invoice_month);
                       }}
-                      className={`p-2.5 rounded border flex justify-between items-center cursor-pointer transition ${
+                      className={`w-full p-2.5 rounded border flex justify-between items-center cursor-pointer transition ${
                         isSelected 
                           ? 'bg-blue-600/15 border-blue-500 shadow-sm shadow-blue-500/10' 
                           : 'bg-slate-900/60 border-slate-800 hover:border-slate-700'
                       }`}
                     >
-                      <div>
+                      <div className="text-left">
                         <p className={`text-xs font-bold ${isSelected ? 'text-blue-300' : 'text-slate-200'}`}>
                           {formatInvoiceMonthLabel(f.invoice_month)}
                         </p>
@@ -421,7 +328,7 @@ export function CreditCardsTab() {
                       }`}>
                         {f.status === 'PAID' ? 'Paga' : f.status === 'PARTIAL' ? 'Parcial' : f.total === 0 ? 'Zerada' : 'Aberta'}
                       </span>
-                    </div>
+                    </button>
                   );
                 })
               ) : (
@@ -496,42 +403,7 @@ export function CreditCardsTab() {
 
               {/* Gráfico de Pizza por Categoria */}
               {expenses.length > 0 ? (
-                <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
-                  <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-3 flex items-center justify-between">
-                    <span>🥧 Composição da Fatura de {formatInvoiceMonthLabel(selectedInvoiceMonth)}</span>
-                    <span className="text-[11px] text-slate-400 font-normal">Total analisado: {formatMoney(Object.values(categoryTotals).reduce((a, b) => a + b, 0))}</span>
-                  </h4>
-                  <div className="h-52 w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={chartData}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={42}
-                          outerRadius={70}
-                          paddingAngle={4}
-                          dataKey="value"
-                        >
-                          {chartData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip
-                          formatter={(value: any) => [formatMoney(Number(value || 0)), '']}
-                          contentStyle={{ backgroundColor: palette.tooltipBg, borderColor: palette.tooltipBorder, borderRadius: '0.75rem', color: palette.tooltipLabel }}
-                          itemStyle={{ color: palette.tooltipLabel }}
-                        />
-                        <Legend 
-                          layout="vertical" 
-                          verticalAlign="middle" 
-                          align="right"
-                          wrapperStyle={{ fontSize: '11px', color: '#94a3b8' }}
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
+                <CreditCardCategoryChart chartData={chartData} colors={COLORS} />
               ) : selectedInvoiceMonth ? (
                 <div className="bg-slate-900/40 border border-slate-800/80 rounded-xl p-6 text-center my-2">
                   <div className="w-10 h-10 rounded-full bg-slate-800/80 text-slate-400 flex items-center justify-center mx-auto mb-2">
@@ -583,8 +455,9 @@ export function CreditCardsTab() {
                         {/* Parcelas */}
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-2 border-t border-slate-800/60">
                           {e.installments && e.installments.map((inst) => (
-                            <div 
+                            <button 
                               key={inst.id}
+                              type="button"
                               onClick={() => handleToggleInstallmentStatus(inst.id, inst.status)}
                               className={`p-2 rounded border text-left cursor-pointer transition flex items-center justify-between ${
                                 inst.status === 'PAID'
@@ -604,7 +477,7 @@ export function CreditCardsTab() {
                               ) : (
                                 <Clock size={14} className="text-amber-400" />
                               )}
-                            </div>
+                            </button>
                           ))}
                         </div>
                       </div>
@@ -774,18 +647,29 @@ export function CreditCardsTab() {
       )}
 
       {/* Modal de Importação de Relatório / Extrato */}
-      <StatementImportModal
-        isOpen={showImportModal}
-        onClose={() => setShowImportModal(false)}
-        cards={cards}
-        preSelectedCardId={selectedCard?.id || null}
-        onSuccess={() => {
-          setShowImportModal(false);
-          loadAllData();
-          if (selectedCard) {
-            loadCardInvoicesAndExpenses(selectedCard.id, selectedInvoiceMonth || undefined);
-          }
-        }}
+      <ErrorBoundary>
+        <StatementImportModal
+          isOpen={showImportModal}
+          onClose={() => setShowImportModal(false)}
+          cards={cards}
+          preSelectedCardId={selectedCard?.id || null}
+          onSuccess={() => {
+            setShowImportModal(false);
+            loadAllData();
+            if (selectedCard) {
+              loadCardInvoicesAndExpenses(selectedCard.id, selectedInvoiceMonth || undefined);
+            }
+          }}
+        />
+      </ErrorBoundary>
+
+      <ConfirmDialog
+        isOpen={deleteCardId !== null}
+        title="Excluir Cartão"
+        message="Deseja excluir este cartão e todas as despesas associadas permanentemente?"
+        confirmLabel="Excluir"
+        onConfirm={() => deleteCardId !== null && handleDeleteCard(deleteCardId)}
+        onCancel={() => setDeleteCardId(null)}
       />
     </div>
   );

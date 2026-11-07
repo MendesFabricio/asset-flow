@@ -2,7 +2,6 @@ import pytest
 from schemas import (
     FixedIncomeCreate,
     CreditCardCreate,
-    CardExpenseCreate,
     RefundConfigUpdate,
 )
 

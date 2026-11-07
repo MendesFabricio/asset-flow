@@ -14,7 +14,7 @@ interface AssetsTableProps {
   onRefresh?: () => void;
 }
 
-export function AssetsTable({ assets, tab, onEdit, onViewNews, onViewDetails, onRefresh }: AssetsTableProps) {
+export const AssetsTable = React.memo(({ assets, tab, onEdit, onViewNews, onViewDetails, onRefresh }: AssetsTableProps) => {
   const [search, setSearch] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [isPending, startTransition] = useTransition();
@@ -164,4 +164,6 @@ export function AssetsTable({ assets, tab, onEdit, onViewNews, onViewDetails, on
       </div>
     </div>
   );
-}
+});
+
+AssetsTable.displayName = 'AssetsTable';

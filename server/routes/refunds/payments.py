@@ -120,10 +120,10 @@ def pay_installment(id):
         safe_commit(db)
         return jsonify({"msg": "Pagamento registrado com sucesso!"})
 
-@refunds_bp.route('/installments/batch-pay', methods=['POST'])
+@refunds_bp.route('/installments/pay-batch', methods=['POST'])
 def pay_batch():
     data = request.json or {}
-    ids = data.get('installment_ids', [])
+    ids = data.get('ids', data.get('installment_ids', []))
     forma_pagamento = data.get('forma_pagamento', 'Pix')
     
     if not ids or not isinstance(ids, list):
@@ -149,7 +149,7 @@ def pay_batch():
         safe_commit(db)
         return jsonify({"msg": f"{count} parcelas quitadas com sucesso!"})
 
-@refunds_bp.route('/debtors/<int:id>/pay', methods=['POST'])
+@refunds_bp.route('/debtors/<int:id>/pay-global', methods=['POST'])
 def pay_global_debtor(id):
     data = request.json or {}
     forma_pagamento = data.get('forma_pagamento', 'Pix')

@@ -42,7 +42,7 @@ def toggle_job(job_id):
                 return jsonify({"status": "Erro", "msg": "Job não encontrado"}), 404
             
             job.is_active = not job.is_active
-            job.updated_at = datetime.utcnow()
+            job.updated_at = datetime.now()
             safe_commit(session)
             
             status = "ativado" if job.is_active else "desativado"
@@ -75,7 +75,7 @@ def update_job(job_id):
             if 'is_active' in data:
                 job.is_active = bool(data['is_active'])
             
-            job.updated_at = datetime.utcnow()
+            job.updated_at = datetime.now()
             safe_commit(session)
             
             logging.info(f"🔧 Job {job.name} atualizado por usuário {g.user_id}")
@@ -102,10 +102,10 @@ def run_job(job_id):
                 return jsonify({"status": "Erro", "msg": "Job não encontrado"}), 404
             
             # Sinaliza ao worker que uma execução manual foi solicitada
-            job.last_run_at = datetime.utcnow()
+            job.last_run_at = datetime.now()
             job.last_run_status = "pending_manual"
             job.last_run_message = "Execução manual solicitada..."
-            job.updated_at = datetime.utcnow()
+            job.updated_at = datetime.now()
             safe_commit(session)
             
             logging.info(f"▶️ Job {job.name} executado manualmente por usuário {g.user_id}")

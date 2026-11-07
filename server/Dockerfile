@@ -26,7 +26,7 @@ FROM python:3.11-slim AS base
 
 WORKDIR /app
 
-# Instala bibliotecas de runtime necessárias (se houver, e.g. libpq) sem os headers de desenvolvimento
+# Instala bibliotecas de runtime necessárias
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
@@ -38,19 +38,24 @@ ENV PATH="/opt/venv/bin:$PATH"
 # Copia as pastas necessárias da aplicação
 COPY server /app/server
 
+# Cria usuário e grupo não-root para execução segura em container
+RUN groupadd -g 1001 appgroup && \
+    useradd -u 1001 -g appgroup -s /bin/sh -m appuser && \
+    mkdir -p /app/data /app/backups && \
+    chown -R appuser:appgroup /app
+
 # Configurações do Python e diretório raiz
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
 WORKDIR /app/server
-
+USER appuser
 
 # --- Estágio 3: Backend (Flask + Gunicorn) ---
 FROM base AS backend
 EXPOSE 5328
 CMD ["gunicorn", "--bind", "0.0.0.0:5328", "--workers", "2", "--threads", "4", "--timeout", "120", "backend:app"]
-
 
 # --- Estágio 4: Worker (Background Tasks) ---
 FROM base AS worker

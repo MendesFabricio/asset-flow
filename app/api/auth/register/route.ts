@@ -34,7 +34,7 @@ export async function POST(req: Request) {
       success: false,
       message: errorMsg
     }, { status: backendRes.status });
-  } catch (error) {
+  } catch {
     return NextResponse.json({
       success: false,
       message: 'Erro ao conectar-se com o servidor do backend.'

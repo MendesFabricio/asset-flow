@@ -168,8 +168,8 @@ def get_daily_sector_summary():
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
             }
             
-            from infrastructure.gemini_service import MODEL_NAME
-            import google.generativeai as genai
+            from infrastructure.gemini_service import MODEL_NAME, get_genai_client
+            client = get_genai_client()
             
             for sector, url in sectors.items():
                 titles = []
@@ -186,20 +186,13 @@ def get_daily_sector_summary():
                     summaries[sector] = "Sem notícias relevantes encontradas nas últimas horas."
                     continue
                     
-                # Chama o Gemini para consolidar o sumário
-                prompt = (
-                    f"Você é o assistente financeiro Jarvis.\n"
-                    f"Consolide os seguintes títulos de notícias recentes sobre o setor '{sector}' em um resumo de 2 ou 3 tópicos curtos e objetivos (máximo 60 palavras no total).\n"
-                    f"Foque apenas no impacto financeiro relevante. Responda em português, usando bullet points simples (-).\n\n"
-                    f"Títulos:\n" + "\n".join([f"- {t}" for t in titles])
-                )
+                from utils.prompt_loader import load_prompt
+                template = load_prompt("daily_sector_summary_v1.txt")
+                titles_text = "\n".join([f"- {t}" for t in titles])
+                prompt = template.format(sector=sector, titles_text=titles_text)
                 
                 try:
-                    model = genai.GenerativeModel(
-                        model_name=MODEL_NAME,
-                        system_instruction="Você é o analista financeiro Jarvis. Retorne apenas o resumo em português."
-                    )
-                    ai_res = model.generate_content(prompt)
+                    ai_res = client.models.generate_content(model=MODEL_NAME, contents=prompt)
                     summaries[sector] = ai_res.text.strip()
                 except Exception as ai_err:
                     logging.warning(f"Erro ao gerar resumo de {sector} no Gemini: {ai_err}")

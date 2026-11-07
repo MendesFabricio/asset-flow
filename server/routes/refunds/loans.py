@@ -62,7 +62,16 @@ def handle_loans():
             valor_parcela = valor_total / total_parcelas
             
             for i in range(total_parcelas):
-                fatura_atual = add_months(fatura_inicial, i)
+                if i == 0:
+                    fatura_atual = fatura_inicial
+                else:
+                    parts = fatura_inicial.split('-')
+                    y = int(parts[0])
+                    m = int(parts[1]) + i
+                    y += (m - 1) // 12
+                    m = (m - 1) % 12 + 1
+                    fatura_atual = f"{y}-{m:02d}"
+                    
                 vencimento_atual = get_due_date_for_fatura_helper(fatura_atual, config.vencimento_dia)
                 
                 inst = LoanInstallment(

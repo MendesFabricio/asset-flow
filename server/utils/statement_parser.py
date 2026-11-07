@@ -85,7 +85,9 @@ def sanitize_and_categorize(description: str, tx_type: str = "") -> tuple[str, s
     if any(k in desc_lower or k in type_lower for k in ["resgate", "cdb", "tesouro", "investimento", "valor adicionado na conta"]):
         return desc_clean, "Investimentos/Resgate"
         
-    return desc_clean, "Outros"
+    from utils.categorizer_engine import categorizer_engine
+    ml_cat, confidence, _ = categorizer_engine.classify(desc_clean)
+    return desc_clean, ml_cat
 
 def categorize_transaction(description: str, tx_type: str = "") -> str:
     _, category = sanitize_and_categorize(description, tx_type)

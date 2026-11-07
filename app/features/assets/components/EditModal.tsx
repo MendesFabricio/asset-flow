@@ -5,6 +5,7 @@ import { Asset, AssetTransaction } from '@/types';
 import { apiCall } from '@/lib/api';
 import { ModalShell } from '@/components/ModalShell';
 import { formatMoney } from '@/lib/format';
+import { Skeleton } from '@/components/ui/Skeleton';
 
 interface EditModalProps {
   isOpen: boolean;
@@ -116,6 +117,17 @@ export const EditModal = ({ isOpen, onClose, onSave, ativo, allAssets = [] }: Ed
         .finally(() => setLoadingHistory(false));
     }
   }, [isOpen, ativo, activeTab]);
+
+  const handleDeleteTransaction = async (txId: number) => {
+    if (!confirm('Deseja realmente apagar esta transação do histórico?')) return;
+    try {
+      await apiCall(`/api/asset-transactions/${txId}`, { method: 'DELETE' });
+      setTransactions(prev => prev.filter(t => t.id !== txId));
+      onSave();
+    } catch (err) {
+      console.error('Erro ao excluir transação:', err);
+    }
+  };
 
   // -- Settings Handlers --
   const handleAdjustValue = (field: keyof typeof settingsData, delta: number, precision = 2) => {
@@ -337,8 +349,11 @@ export const EditModal = ({ isOpen, onClose, onSave, ativo, allAssets = [] }: Ed
         {activeTab === 'HISTORY' && (
           <div className="max-h-[300px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-800">
             {loadingHistory ? (
-              <div className="flex items-center justify-center text-slate-500 gap-2 py-10">
-                <Activity className="animate-spin" /> Carregando...
+              <div className="space-y-2 p-4">
+                <Skeleton className="h-8 w-full" />
+                <Skeleton className="h-8 w-full" />
+                <Skeleton className="h-8 w-full" />
+                <Skeleton className="h-8 w-full" />
               </div>
             ) : transactions.length > 0 ? (
               <div className="border border-slate-800/80 rounded-lg overflow-hidden shadow-sm">
@@ -349,6 +364,7 @@ export const EditModal = ({ isOpen, onClose, onSave, ativo, allAssets = [] }: Ed
                       <th className="px-3 py-2">Tipo</th>
                       <th className="px-3 py-2 text-right">Qtd</th>
                       <th className="px-3 py-2 text-right">Preço</th>
+                      <th className="px-3 py-2 text-center w-10">Ações</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/50">
@@ -374,6 +390,16 @@ export const EditModal = ({ isOpen, onClose, onSave, ativo, allAssets = [] }: Ed
                         </td>
                         <td className="px-3 py-2 text-right text-slate-300 font-mono">
                           {formatMoney(tx.unit_price)}
+                        </td>
+                        <td className="px-3 py-2 text-center">
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteTransaction(tx.id)}
+                            title="Apagar esta transação"
+                            className="p-1 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded transition-all"
+                          >
+                            <Trash2 size={13} />
+                          </button>
                         </td>
                       </tr>
                     ))}

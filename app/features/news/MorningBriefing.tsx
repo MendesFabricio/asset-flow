@@ -22,19 +22,20 @@ export function MorningBriefing() {
   const [showCoT, setShowCoT] = useState(false);
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const fetchBrief = async (force = false) => {
+  const fetchBrief = async (force = false, signal?: AbortSignal) => {
     setLoading(true);
     setError(null);
     if (pollRef.current) clearTimeout(pollRef.current);
     try {
       const endpoint = force ? '/api/ai/morning-brief?force=true' : '/api/ai/morning-brief';
-      const result = await apiCall<BriefData>(endpoint, { timeout: 30000 });
+      const result = await apiCall<BriefData>(endpoint, { timeout: 30000, signal });
       setData(result);
       // Se IA ainda processando, sonda novamente em 20s (menos agressivo)
       if (result.status === 'Processando') {
-        pollRef.current = setTimeout(() => fetchBrief(false), 20000);
+        pollRef.current = setTimeout(() => fetchBrief(false, signal), 20000);
       }
     } catch (e: any) {
+      if (e.name === 'AbortError' || e.message?.includes('AbortError')) return;
       console.error(e);
       setError('Falha ao conectar com o serviço de inteligência.');
     } finally {
@@ -43,11 +44,13 @@ export function MorningBriefing() {
   };
 
   useEffect(() => {
+    const controller = new AbortController();
     // Atraso de 5s para não disparar junto com MarketTicker (3s) e outros componentes do header
-    const init = setTimeout(() => fetchBrief(), 5000);
+    const init = setTimeout(() => fetchBrief(false, controller.signal), 5000);
     return () => {
       clearTimeout(init);
       if (pollRef.current) clearTimeout(pollRef.current);
+      controller.abort();
     };
   }, []);
 

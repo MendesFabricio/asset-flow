@@ -67,21 +67,44 @@ class PortfolioCrudService:
                     session.flush() 
                 
                 exists = session.query(Position).filter_by(asset_id=asset.id, user_id=user_id).first()
-                if exists: 
-                    raise ValueError("Ativo já existe na sua carteira!")
-                
-                pos = Position(
-                    asset_id=asset.id, 
-                    user_id=user_id,
-                    quantity=Decimal(str(qtd)), 
-                    average_price=Decimal(str(pm)),
-                    target_percent=Decimal(str(meta)) 
-                )
-                session.add(pos)
+                if exists:
+                    if exists.quantity > 0 or exists.target_percent > 0:
+                        raise ValueError("Ativo já existe na sua carteira!")
+                    else:
+                        # Posição inativa na carteira: reativa atualizando quantidade e meta
+                        exists.quantity = Decimal(str(qtd))
+                        exists.average_price = Decimal(str(pm))
+                        exists.target_percent = Decimal(str(meta))
+                        pos = exists
+                else:
+                    pos = Position(
+                        asset_id=asset.id, 
+                        user_id=user_id,
+                        quantity=Decimal(str(qtd)), 
+                        average_price=Decimal(str(pm)),
+                        target_percent=Decimal(str(meta)) 
+                    )
+                    session.add(pos)
+                    session.flush()
+
+                # Se a quantidade inicial for maior que 0, registra a transação de compra inicial no histórico
+                if Decimal(str(qtd)) > 0:
+                    from db.models import AssetTransaction
+                    tx = AssetTransaction(
+                        position_id=pos.id,
+                        user_id=user_id,
+                        ticker=ticker,
+                        type="BUY",
+                        quantity=Decimal(str(qtd)),
+                        unit_price=Decimal(str(pm)),
+                        total_value=Decimal(str(qtd)) * Decimal(str(pm)),
+                        transaction_date=datetime.now()
+                    )
+                    session.add(tx)
                 
                 self._invalidate_quant_cache(session)
                 safe_commit(session)
-                return f"Ativo {ticker} criado com sucesso na carteira!"
+                return f"Ativo {ticker} adicionado com sucesso na carteira!"
             except Exception as e:
                 session.rollback()
                 logging.error(f"❌ Falha ao injetar novo ativo no ecossistema: {e}")
@@ -258,12 +281,66 @@ class PortfolioCrudService:
                 ]
             except Exception:
                 return []
-                
-    def get_all_transactions_history(self):
-        from db.models import AssetTransaction
+
+    def delete_transaction(self, tx_id: int):
+        from db.models import AssetTransaction, Position
         user_id = self.current_user_id
         with Session() as session:
-            txs = session.query(AssetTransaction).filter_by(user_id=user_id).order_by(AssetTransaction.transaction_date.desc()).all()
+            try:
+                tx = session.query(AssetTransaction).filter_by(id=tx_id, user_id=user_id).first()
+                if not tx:
+                    raise ValueError(f"Transação ID {tx_id} não encontrada.")
+                
+                pos_id = tx.position_id
+                session.delete(tx)
+                session.flush()
+
+                # Recalcula a posição baseada em todas as transações restantes
+                pos = session.query(Position).filter_by(id=pos_id, user_id=user_id).first()
+                if pos:
+                    remaining_txs = session.query(AssetTransaction).filter_by(
+                        position_id=pos.id, user_id=user_id
+                    ).order_by(AssetTransaction.transaction_date.asc(), AssetTransaction.id.asc()).all()
+
+                    running_qty = Decimal("0.0")
+                    running_pm = Decimal("0.0")
+
+                    for t in remaining_txs:
+                        if t.type == "BUY":
+                            total_val = t.total_value
+                            new_qty = running_qty + t.quantity
+                            if new_qty > 0:
+                                running_pm = ((running_qty * running_pm) + total_val) / new_qty
+                            running_qty = new_qty
+                        elif t.type == "SELL":
+                            t.cost_basis = running_pm
+                            running_qty -= t.quantity
+                            if running_qty <= 0:
+                                running_qty = Decimal("0.0")
+                                running_pm = Decimal("0.0")
+                        elif t.type in ["SPLIT", "INPLIT", "BONUS", "AMORTIZATION"]:
+                            running_qty = t.quantity
+                            running_pm = t.unit_price
+
+                    pos.quantity = running_qty
+                    pos.average_price = running_pm
+
+                self._invalidate_quant_cache(session)
+                safe_commit(session)
+                return True
+            except Exception as e:
+                session.rollback()
+                logging.error(f"❌ Falha ao excluir transação ID {tx_id}: {e}")
+                raise
+                
+    def get_all_transactions_history(self):
+        from db.models import AssetTransaction, Position, Asset
+        from sqlalchemy.orm import joinedload
+        user_id = self.current_user_id
+        with Session() as session:
+            txs = session.query(AssetTransaction).options(
+                joinedload(AssetTransaction.position).joinedload(Position.asset)
+            ).filter_by(user_id=user_id).order_by(AssetTransaction.transaction_date.desc()).all()
             return [
                     {
                         "id": t.id,

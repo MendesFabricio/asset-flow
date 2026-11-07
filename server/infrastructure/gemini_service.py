@@ -7,24 +7,28 @@ import logging
 import threading
 import json
 import os
+import sys
 from datetime import datetime
 from sqlalchemy.orm import sessionmaker
-import google.generativeai as genai
-from google.generativeai.types import content_types
+from google import genai
+from google.genai import types
 
 from db.models import engine, Asset
 
 SessionLocal = sessionmaker(bind=engine)
 
-# Configurar a API Key
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
-else:
-    logging.warning("⚠️ GEMINI_API_KEY não encontrada no ambiente!")
-
-# Usaremos o modelo rápido por padrão
 MODEL_NAME = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+
+def get_genai_client():
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        is_testing = os.getenv("FLASK_ENV") == "testing" or "pytest" in sys.modules
+        if is_testing:
+            logging.warning("⚠️ GEMINI_API_KEY não encontrada no ambiente de teste! Retornando None.")
+            return None
+        else:
+            raise ValueError("GEMINI_API_KEY não configurada no ambiente! Adicione a chave no arquivo .env.")
+    return genai.Client(api_key=api_key)
 
 def get_gemini_tools() -> list:
     """
@@ -106,35 +110,24 @@ def _run_sentiment_analysis(asset_id: int, ticker: str, news_titles: list, posit
             except Exception as cvm_err:
                 pass
         
-        prompt = (
-            f"Você é um analista financeiro sênior especializado em inteligência de mercado do ativo {ticker} brasileiro.\n"
-            f"Sua missão é assessorar o investidor avaliando o impacto das notícias frente à sua exposição financeira real no ativo {ticker}:\n"
-            f"Exposição do Investidor em {ticker}:\n"
-            f"- Quantidade em Carteira: {qty:.2f} cotas/ações\n"
-            f"- Preço Médio de Aquisição: R$ {avg_price:.2f}\n"
-            f"- Meta de Alocação de Portfólio: {target_pct:.1f}%\n\n"
-        )
-        if cvm_context:
-            prompt += f"=== CONTEXTO ADICIONAL DE EVENTOS CVM ===\n{cvm_context}\n\n"
-
-        prompt += (
-            "Notícias recentes coletadas:\n"
-            + "\n".join(f"- {title}" for title in news_titles) + "\n\n"
-            f"Regras estritas de comportamento:\n"
-            f"1. A análise do raciocínio técnico ('rationale') deve focar exclusivamente em {ticker} e ponderar as notícias frente à quantidade e custo médio do investidor.\n"
-            f"2. NUNCA faça comentários macro generalistas sobre o mercado global ou outras empresas.\n"
-            f"3. Responda estritamente em formato JSON contendo exatamente as chaves a seguir:\n"
-            f"   - 'rationale': Uma análise Chain-of-Thought (Cadeia de Pensamento) detalhada em português ponderando risco, preço médio e notícias.\n"
-            f"   - 'summary': Um resumo executivo conciso em português do impacto direto sobre o ativo {ticker} (máximo 2 parágrafos).\n"
-            f"   - 'sentiment': Classificação de sentimento do ativo {ticker} (exclusivamente entre: 'Positivo', 'Negativo', 'Neutro').\n"
+        from utils.prompt_loader import load_prompt
+        template = load_prompt("sentiment_analysis_v1.txt")
+        cvm_section = f"=== CONTEXTO ADICIONAL DE EVENTOS CVM ===\n{cvm_context}\n\n" if cvm_context else ""
+        news_list_str = "\n".join(f"- {title}" for title in news_titles)
+        prompt = template.format(
+            ticker=ticker,
+            qty=qty,
+            avg_price=avg_price,
+            target_pct=target_pct,
+            cvm_context_section=cvm_section,
+            news_list=news_list_str
         )
 
-        model = genai.GenerativeModel(MODEL_NAME)
-        
-        # 3. Faz a requisição forçando saída JSON
-        response = model.generate_content(
-            prompt,
-            generation_config=genai.GenerationConfig(
+        client = get_genai_client()
+        response = client.models.generate_content(
+            model=MODEL_NAME,
+            contents=prompt,
+            config=types.GenerateContentConfig(
                 response_mime_type="application/json",
                 temperature=0.2
             )

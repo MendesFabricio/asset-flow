@@ -25,6 +25,8 @@ def calculate_risk_metrics(session, fetch_prices, allow_compute=True) -> dict:
     logging.info("📐 Calculando métricas de risco...")
     import pandas as pd
 
+    from sqlalchemy.orm import joinedload
+    from db.models import Position, Asset
     positions = get_active_positions(session, uid).all()
     tickers_yf, weights_val, total_value = [], [], 0.0
 

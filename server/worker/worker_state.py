@@ -22,7 +22,7 @@ def seed_jobs_if_empty():
                         cron_expression=info.get("default_cron"),
                         interval_minutes=info.get("default_interval"),
                         is_active=True,
-                        last_run_at=datetime.utcnow(),
+                        last_run_at=datetime.now(),
                         last_run_status="idle",
                         last_run_message="Aguardando primeira execução"
                     )
@@ -45,7 +45,7 @@ def sync_scheduler_state(scheduler):
                     logging.info(f"⚡ Executando job {job.name} manualmente solicitado...")
                     job.last_run_status = "running"
                     job.last_run_message = "Executando (manual)..."
-                    job.updated_at = datetime.utcnow()
+                    job.updated_at = datetime.now()
                     safe_commit(session)
                     
                     func = JOB_REGISTRY[job.name]["func"]

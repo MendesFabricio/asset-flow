@@ -85,7 +85,7 @@ export const CorrelationHeatmap = React.memo(function CorrelationHeatmap() {
 
       {/* Grid de Correlação */}
       <div className="overflow-x-auto w-full">
-        <div className="min-w-[600px] p-2">
+        <div className="w-full min-w-max p-2">
           {/* Header Row */}
           <div className="flex mb-1">
             {/* Célula em branco superior esquerda */}

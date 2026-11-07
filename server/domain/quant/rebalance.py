@@ -83,9 +83,8 @@ def calculate_smart_rebalance(session, fetch_prices, monthly_contribution: float
         cat = a["category"]
         if cat == "Reserva":
             lot_size = 0
-        elif cat == "Ação":
-            lot_size = 100
         else:
+            # Ações, FIIs e Renda Fixa aceitam compras em unidades inteiras (1 un. via Mercado Fracionário)
             lot_size = 1
         suggestions.append({
             "ticker": a["ticker"], "category": cat,

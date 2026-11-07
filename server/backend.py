@@ -3,30 +3,23 @@ import time
 import atexit
 import threading
 import logging
+import decimal
 import sentry_sdk
 
+from flask import Flask, jsonify, request, g
+from flask_cors import CORS
+from flask.json.provider import DefaultJSONProvider
 from sentry_sdk.integrations.logging import LoggingIntegration
 from sentry_sdk.integrations.flask import FlaskIntegration
 
-sentry_logging = LoggingIntegration(
-    level=logging.INFO,        # Capture info and above as breadcrumbs
-    event_level=logging.ERROR  # Send ONLY errors and above as events
-)
+# Importações de Infraestrutura e Persistência
+from db.models import init_db, DatabaseStateProxy, get_sync_state_db, update_sync_state_db
+from db.lock import DistributedLock
+from db.session import Session
+from services import PortfolioService
 
-_sentry_dsn = os.environ.get("SENTRY_DSN")
-if _sentry_dsn:
-    sentry_sdk.init(
-        dsn=_sentry_dsn,
-        traces_sample_rate=0.01,
-        auto_session_tracking=False,
-        integrations=[sentry_logging, FlaskIntegration()],
-    )
 
-from flask import Flask, jsonify
-from flask_cors import CORS
-from concurrent.futures import ThreadPoolExecutor, as_completed  # ⚡ Motor de paralelismo para background
-
-# Importação de Blueprints
+# Importações dos Blueprints
 from routes.dashboard import dashboard_bp
 from routes.assets import assets_bp
 from routes.news import news_bp
@@ -34,8 +27,6 @@ from routes.calendar import calendar_bp
 from routes.alerts import alerts_bp
 from routes.dividends import dividends_bp
 from routes.maintenance import maintenance_bp
-from services import PortfolioService
-from utils.cvm_processor import CVMProcessor
 from routes.refunds import refunds_bp
 from routes.market import market_bp
 from routes.alerts_price import price_alerts_bp
@@ -47,14 +38,13 @@ from routes.quant_analysis import quant_bp
 from routes.credit_cards import cards_bp
 from routes.fixed_income import fixed_income_bp
 from routes.statement_import import statement_import_bp
-from routes.auth import auth_bp
+from routes.auth import auth_bp, verify_session_token
 from routes.ocr_import import ocr_import_bp
 from infrastructure.assets_icon import assets_icon_bp
 from routes.scheduler import scheduler_bp
 from routes.tax import tax_bp
 from routes.portfolio import portfolio_bp
-
-
+from routes.categorize import categorize_bp
 
 logging.basicConfig(
     level=logging.INFO,
@@ -62,15 +52,9 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 
-from db.models import init_db, DatabaseStateProxy, get_sync_state_db
-try:
-    init_db()
-    logging.info("✅ Banco de dados inicializado com sucesso.")
-except Exception as e:
-    logging.error(f"❌ Falha crítica na inicialização do banco de dados: {e}", exc_info=True)
-
-import decimal
-from flask.json.provider import DefaultJSONProvider
+# 🧠 MÁQUINA DE ESTADO PERSISTENTE
+SYNC_STATE = DatabaseStateProxy("cvm_sync")
+_SYNC_LOCK = DistributedLock("cvm_sync", timeout=300)
 
 class CustomJSONProvider(DefaultJSONProvider):
     def default(self, o):
@@ -78,311 +62,178 @@ class CustomJSONProvider(DefaultJSONProvider):
             return float(o)
         return super().default(o)
 
-app = Flask(__name__)
-app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "asset_flow_dev_secret_key_default_value_change_in_prod")
-if app.config["SECRET_KEY"] == "asset_flow_dev_secret_key_default_value_change_in_prod":
-    logging.warning("⚠️ SECRET_KEY não definida no ambiente! Utilizando chave padrão (insegura p/ prod).")
-
-app.json = CustomJSONProvider(app)
-allowed_origins = os.environ.get("ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",")
-CORS(app, resources={r"/api/*": {"origins": allowed_origins}})
-
-# 🧠 MÁQUINA DE ESTADO PERSISTENTE: Controla o progresso real da sincronia em SQLite (stateless)
-SYNC_STATE = DatabaseStateProxy("cvm_sync")
-from db.lock import DistributedLock
-_SYNC_LOCK = DistributedLock("cvm_sync", timeout=300)
-
-# 🚀 STARTUP RECOVERY: Reseta estados "processing" órfãos do banco que ficaram presos após reinício do container.
-# Sem esse reset, o frontend fica com o spinner girando para sempre após um restart, porque não há lock ativo
-# mas o banco ainda lembra o estado "processing" da sessão anterior.
 def _reset_orphaned_sync_states():
-    from db.models import update_sync_state_db
+    """Reseta estados 'processing' órfãos do banco presos após reinício do container."""
     idle_state = {"status": "idle", "progress": 0, "total": 0, "message": "Sistema pronto."}
     for key in ("cvm_sync", "yahoo_sync"):
         try:
             current = get_sync_state_db(key)
             if current.get("status") == "processing":
-                logging.warning(f"⚠️ [STARTUP] Estado órfão '{key}' detectado como 'processing' sem lock ativo. Resetando para idle.")
+                logging.warning(f"⚠️ [STARTUP] Estado órfão '{key}' detectado como 'processing'. Resetando para idle.")
                 update_sync_state_db(key, **idle_state)
         except Exception as e:
-            logging.warning(f"⚠️ [STARTUP] Falha ao checar/resetar estado orphão '{key}': {e}")
+            logging.warning(f"⚠️ [STARTUP] Falha ao resetar estado órfão '{key}': {e}")
 
-_reset_orphaned_sync_states()
+def create_app(config_object=None) -> Flask:
+    """Fábrica de Aplicação Flask (Application Factory Pattern)."""
+    
+    # 1. Sentry Integration
+    _sentry_dsn = os.environ.get("SENTRY_DSN")
+    if _sentry_dsn:
+        sentry_logging = LoggingIntegration(level=logging.INFO, event_level=logging.ERROR)
+        sentry_sdk.init(
+            dsn=_sentry_dsn,
+            traces_sample_rate=0.01,
+            auto_session_tracking=False,
+            integrations=[sentry_logging, FlaskIntegration()],
+        )
 
-@app.teardown_appcontext
-def shutdown_session(exception=None):
-    from db.session import Session
-    Session.remove()
-
-def _update_sync_state(**kwargs):
-    """Atualiza o SYNC_STATE de forma persistente."""
-    SYNC_STATE.update(kwargs)
-
-def _get_sync_state() -> dict:
-    """Retorna o status atual da sincronia."""
-    return get_sync_state_db("cvm_sync")
-
-@app.before_request
-def require_authentication():
-    from flask import request, g
-    logging.info(f"📥 {request.method} {request.path} - IP: {request.remote_addr}")
-    # Bypasses OPTIONS preflight, health check and auth endpoints
-    if request.method == "OPTIONS" or request.path in ["/api/health", "/api/auth/login", "/api/auth/register", "/api/auth/logout", "/api/sync/stream"]:
-        return
-    if request.method == "GET" and request.path.startswith("/api/assets/icon/"):
-        return
-        
-    auth_header = request.headers.get("Authorization")
-    token = None
-    if auth_header and auth_header.startswith("Bearer "):
-        token = auth_header.split(" ")[1]
-        
-    if not token:
-        token = request.cookies.get("assetflow_session")
-        
-    if not token:
-        return jsonify({"status": "Erro", "msg": "Token de autenticação ausente."}), 401
-        
-    from routes.auth import verify_session_token
-    user_data = verify_session_token(token)
-    if not user_data:
-        return jsonify({"status": "Erro", "msg": "Sessão inválida ou expirada. Efetue login novamente."}), 401
-        
-    from db.session import Session
-    from db.models import User
-    with Session() as session:
-        user_exists = session.query(User).filter_by(id=user_data["user_id"]).first()
-        if not user_exists:
-            return jsonify({"status": "Erro", "msg": "Sessão expirada ou usuário não existe mais no sistema. Por favor, faça login novamente."}), 401
-            
-    g.user_id = user_data["user_id"]
-    g.username = user_data["username"]
-
-@app.errorhandler(Exception)
-def handle_global_exception(e):
-    from flask import request
-    logging.error(f"💥 Erro crítico global interceptado em {request.method} {request.url}: {str(e)}", exc_info=True)
+    # 2. Inicialização do Banco de Dados
     try:
-        import sentry_sdk
-        sentry_sdk.capture_exception(e)
-    except Exception:
-        pass
-    return jsonify({
-        "status": "Erro",
-        "msg": "Ocorreu um erro interno no servidor de dados do AssetFlow."
-    }), 500
+        init_db()
+        logging.info("✅ Banco de dados inicializado com sucesso.")
+    except Exception as e:
+        logging.error(f"❌ Falha na inicialização do banco: {e}", exc_info=True)
 
-# Registro de Blueprints
-logging.info("🔧 Registrando blueprints...")
-app.register_blueprint(auth_bp)
-app.register_blueprint(dashboard_bp)
-app.register_blueprint(assets_bp)
-app.register_blueprint(assets_icon_bp)
-app.register_blueprint(news_bp)
-app.register_blueprint(calendar_bp)
-app.register_blueprint(alerts_bp)
-app.register_blueprint(dividends_bp)
-app.register_blueprint(maintenance_bp)
-app.register_blueprint(refunds_bp, url_prefix='/api/refunds')
-app.register_blueprint(market_bp, url_prefix='/api/market')
-app.register_blueprint(price_alerts_bp)
-app.register_blueprint(health_bp)
-app.register_blueprint(sync_stream_bp)
-app.register_blueprint(simulation_bp)
-app.register_blueprint(ai_bp)
-app.register_blueprint(quant_bp)
-app.register_blueprint(cards_bp)
-app.register_blueprint(fixed_income_bp)
-app.register_blueprint(statement_import_bp)
-app.register_blueprint(scheduler_bp, url_prefix='/api/scheduler')
-app.register_blueprint(ocr_import_bp)
-app.register_blueprint(tax_bp)
-app.register_blueprint(portfolio_bp)
-logging.info("✅ Todos os blueprints registrados com sucesso.")
+    _reset_orphaned_sync_states()
 
+    # 3. Criação e Configuração da Instância Flask
+    app = Flask(__name__)
+    app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "asset_flow_dev_secret_key_default_value_change_in_prod")
+    if app.config["SECRET_KEY"] == "asset_flow_dev_secret_key_default_value_change_in_prod":
+        logging.warning("⚠️ SECRET_KEY não definida no ambiente! Utilizando chave padrão de desenvolvimento.")
 
+    if config_object:
+        app.config.update(config_object)
 
-service = PortfolioService()
+    app.json = CustomJSONProvider(app)
+    allowed_origins = os.environ.get("ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",")
+    CORS(app, resources={r"/api/*": {"origins": allowed_origins}})
 
-# --- GRACEFUL SHUTDOWN: Fecha pools HTTP de forma determinística ---
+    # 4. Context Teardown & Request Handlers
+    @app.teardown_appcontext
+    def shutdown_session(exception=None):
+        Session.remove()
+
+    @app.before_request
+    def require_authentication():
+        logging.info(f"📥 {request.method} {request.path} - IP: {request.remote_addr}")
+        if app.config.get("TESTING"):
+            g.user_id = 1
+            g.username = "test_user"
+            return
+
+        if request.method == "OPTIONS" or request.path in ["/api/health", "/api/auth/login", "/api/auth/register", "/api/auth/logout", "/api/sync/stream"]:
+            return
+        if request.method == "GET" and request.path.startswith("/api/assets/icon/"):
+            return
+            
+        auth_header = request.headers.get("Authorization")
+        token = None
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split(" ")[1]
+        if not token:
+            token = request.cookies.get("assetflow_session")
+            
+        if not token:
+            return jsonify({"status": "Erro", "msg": "Token de autenticação ausente."}), 401
+            
+        user_data = verify_session_token(token)
+        if not user_data:
+            return jsonify({"status": "Erro", "msg": "Sessão inválida ou expirada. Efetue login novamente."}), 401
+            
+        from db.models import User
+        with Session() as session:
+            user_exists = session.query(User).filter_by(id=user_data["user_id"]).first()
+            if not user_exists:
+                return jsonify({"status": "Erro", "msg": "Sessão expirada ou usuário não existe no sistema."}), 401
+                
+        g.user_id = user_data["user_id"]
+        g.username = user_data["username"]
+
+    @app.after_request
+    def add_security_and_cache_headers(response):
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "SAMEORIGIN"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+            "style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' https://raw.githubusercontent.com data:; "
+            "connect-src 'self' http://localhost:5328 http://127.0.0.1:5328; "
+            "font-src 'self' data:; "
+            "frame-ancestors 'none';"
+        )
+        
+        if request.path.startswith("/api/assets/icon/"):
+            response.headers["Cache-Control"] = "public, max-age=86400"
+        elif request.path.startswith("/api/"):
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+            
+        return response
+
+    @app.errorhandler(Exception)
+    def handle_global_exception(e):
+        from werkzeug.exceptions import HTTPException
+        if isinstance(e, HTTPException):
+            return e
+        logging.error(f"💥 Erro crítico global em {request.method} {request.url}: {str(e)}", exc_info=True)
+        try:
+            sentry_sdk.capture_exception(e)
+        except Exception:
+            pass
+        return jsonify({"status": "Erro", "msg": "Ocorreu um erro interno no servidor de dados do AssetFlow."}), 500
+
+    # 5. Registro de Blueprints
+    logging.info("🔧 Registrando blueprints...")
+    app.register_blueprint(auth_bp)
+    app.register_blueprint(dashboard_bp)
+    app.register_blueprint(assets_bp)
+    app.register_blueprint(assets_icon_bp)
+    app.register_blueprint(news_bp)
+    app.register_blueprint(calendar_bp)
+    app.register_blueprint(alerts_bp)
+    app.register_blueprint(dividends_bp)
+    app.register_blueprint(maintenance_bp)
+    app.register_blueprint(refunds_bp, url_prefix='/api/refunds')
+    app.register_blueprint(market_bp, url_prefix='/api/market')
+    app.register_blueprint(price_alerts_bp)
+    app.register_blueprint(health_bp)
+    app.register_blueprint(sync_stream_bp)
+    app.register_blueprint(simulation_bp)
+    app.register_blueprint(ai_bp)
+    app.register_blueprint(quant_bp)
+    app.register_blueprint(cards_bp)
+    app.register_blueprint(fixed_income_bp)
+    app.register_blueprint(statement_import_bp)
+    app.register_blueprint(scheduler_bp, url_prefix='/api/scheduler')
+    app.register_blueprint(ocr_import_bp)
+    app.register_blueprint(tax_bp)
+    app.register_blueprint(portfolio_bp)
+    app.register_blueprint(categorize_bp)
+    logging.info("✅ Todos os blueprints registrados com sucesso.")
+
+    return app
+
+# Instância padrão em escopo de módulo para servidores WSGI (Gunicorn: `backend:app`)
+app = create_app()
 
 @atexit.register
 def cleanup_http_sessions():
-    """🔌 FIX 1.5: Fecha pools de HTTP na saída do processo, evitando CLOSE_WAIT no kernel."""
+    """Fecha pools HTTP na saída do processo."""
     try:
         from crawlers.b3_fnet import B3FnetCrawler
         if B3FnetCrawler._session:
             B3FnetCrawler._session.close()
-            logging.info("🔌 Pool HTTP FNET fechado graciosamente.")
     except Exception:
         pass
     try:
         from crawlers.cvm_enet import CVMEnetCrawler
         if CVMEnetCrawler._session:
             CVMEnetCrawler._session.close()
-            logging.info("🔌 Pool HTTP CVM ENET fechado graciosamente.")
     except Exception:
         pass
-
-
-# --- TRABALHADOR ASSÍNCRONO COM PARALELISMO MULTITHREAD ---
-
-def async_sync_worker(flask_app):
-    """🛠️ Thread Mestre: Executa FNET sequencial e paraleliza a esteira pesada de CSVs da CVM"""
-
-    try:
-        logging.info("⏳ [BACKGROUND TASK] Iniciando esteira otimizada de relatórios...")
-
-        # 1. Sincroniza FIIs (FNET)
-        _update_sync_state(message="Sincronizando relatórios de FIIs na B3...")
-        
-        # 🔒 CORREÇÃO CRÍTICA: Abre a sessão thread-safe exigida pelo método do processador
-        from services import Session as ScopedSession
-        with ScopedSession() as db_session:
-            fnet_result = service.sync_reports_with_fnet(db_session, SYNC_STATE)
-            
-        logging.info(f"📊 [BACKGROUND TASK] FNET concluído: {fnet_result.get('msg')}")
-
-        # 2. Coleta de Ativos (Ações CVM)
-        # 🔒 FIX 1.3: Importa o scoped_session do services (thread-safe via threading.local)
-        # em vez do sessionmaker simples de db.models que era compartilhado entre threads.
-        from db.models import Asset
-        tickers_para_processar = []
-
-        # Abre uma sessão curta apenas para ler os códigos brutos, evitando manter o banco preso
-        with ScopedSession() as db_session:
-            acoes_cvm = db_session.query(Asset).filter(
-                Asset.cvm_code != None, Asset.cvm_code != ""
-            ).all()
-            # Converte para tipos primitivos para que as threads usem de forma isolada e segura
-            tickers_para_processar = [(acao.ticker, acao.cvm_code) for acao in acoes_cvm]
-
-        total_acoes = len(tickers_para_processar)
-        if total_acoes == 0:
-            _update_sync_state(status="success", message="Sincronização finalizada! Nenhuma ação CVM pendente.")
-            return
-
-        # Atualiza o estado global para o front-end saber o tamanho do desafio
-        _update_sync_state(
-            total=total_acoes,
-            progress=0,
-            message=f"Aquecendo motores paralelos para {total_acoes} ações..."
-        )
-
-        # ⚡ WORKER INTERNO PARALELO: Processa a leitura física do ZIP/CSV fora da thread principal
-        def process_single_cvm_item(ticker, cvm_code):
-            CVMProcessor.get_dashboard_data(cvm_code)
-            return ticker
-
-        count_cvm = 0
-        # Dispara até 2 workers simultâneos (evita contenção no SQLite)
-        with ThreadPoolExecutor(max_workers=2) as executor:
-            futures = {executor.submit(process_single_cvm_item, t, c): t for t, c in tickers_para_processar}
-
-            for future in as_completed(futures):
-                ticker_concluido = futures[future]
-                try:
-                    future.result()  # Captura falhas dentro do worker
-                    count_cvm += 1
-                    # 📈 EVOLUÇÃO EM TEMPO REAL: Alimenta o estado do progresso
-                    _update_sync_state(
-                        progress=count_cvm,
-                        message=f"Processado {ticker_concluido} ({count_cvm}/{total_acoes})"
-                    )
-                    logging.info(f"📊 [BACKGROUND TASK] Concluído em paralelo: {ticker_concluido}")
-                except Exception as cell_err:
-                    logging.error(f"⚠️ Erro ao processar papel {ticker_concluido} na thread: {cell_err}")
-
-        # Sincronização concluída com sucesso total!
-        _update_sync_state(
-            status="success",
-            message=f"Sucesso! {total_acoes} ações e FIIs atualizados."
-        )
-        logging.info("🏁 [BACKGROUND TASK] Sincronia paralela finalizada com sucesso total!")
-
-        # 🔄 RESET AUTOMÁTICO: Agenda a volta ao estado 'idle' após 5 segundos
-        def auto_reset():
-            time.sleep(5.0)
-            _update_sync_state(status="idle", progress=0, total=0, message="Sistema pronto.")
-        threading.Thread(target=auto_reset, daemon=True).start()
-
-    except Exception as e:
-        logging.error(f"❌ Erro catastrófico na esteira em background: {str(e)}", exc_info=True)
-        _update_sync_state(status="error", message=f"Falha na sincronização: {str(e)}")
-
-        # 🔄 RESET AUTOMÁTICO EM CASO DE ERRO: Agenda a volta ao estado 'idle' após 5 segundos
-        def auto_reset_err():
-            time.sleep(5.0)
-            _update_sync_state(status="idle", progress=0, total=0, message="Sistema pronto.")
-        threading.Thread(target=auto_reset_err, daemon=True).start()
-
-
-# --- ROTAS DE SINCRONIZAÇÃO E LONG-POLLING ---
-
-@app.route('/api/sync-status', methods=['GET'])
-def get_sync_status():
-    """📡 ROTA DE CHECAGEM: O front-end bate aqui repetidamente para ler o progresso real"""
-    return jsonify(_get_sync_state())
-
-@app.route('/api/sync-reports', methods=['POST'])
-def sync_reports():
-    is_locked = _SYNC_LOCK.locked()
-    db_status = SYNC_STATE.get("status")
-    
-    if db_status == "processing" and not is_locked:
-        logging.warning("⚠️ Estado órfão de processamento no CVM detectado (sem lock ativo). Forçando reset para idle.")
-        SYNC_STATE.update({"status": "idle", "message": "Sistema pronto."})
-        db_status = "idle"
-
-    if not _SYNC_LOCK.acquire(blocking=False):
-        return jsonify({
-            "status": "Aviso",
-            "msg": "Uma sincronização já está em andamento. Aguarde a conclusão."
-        }), 409
-        
-    if db_status == "processing":
-        _SYNC_LOCK.release()
-        return jsonify({
-            "status": "Aviso",
-            "msg": "Uma sincronização já está em andamento no banco. Aguarde a conclusão."
-        }), 409
-
-    try:
-        # Prepara a máquina de estados no banco
-        SYNC_STATE.update({
-            "status": "processing",
-            "progress": 0,
-            "total": 0,
-            "message": "Iniciando barramento de sincronização assíncrona..."
-        })
-
-        logging.info("🚀 Gatilho manual disparado. Resetando máquina de estados e iniciando threads...")
-
-        def run_worker_and_release(flask_app):
-            try:
-                async_sync_worker(flask_app)
-            finally:
-                if _SYNC_LOCK.locked():
-                    _SYNC_LOCK.release()
-
-        threading.Thread(
-            target=run_worker_and_release,
-            args=(app._get_current_object() if hasattr(app, '_get_current_object') else app,),
-            daemon=True
-        ).start()
-
-        return jsonify({
-            "status": "Sucesso",
-            "msg": "Processo de inteligência fundamentalista iniciado!"
-        }), 202
-
-    except Exception as e:
-        logging.error(f"❌ Erro ao agendar a execução da sincronia: {str(e)}", exc_info=True)
-        if _SYNC_LOCK.locked():
-            _SYNC_LOCK.release()
-        _update_sync_state(status="error")
-        return jsonify({"status": "Erro", "msg": str(e)}), 500
-
 
 if __name__ == '__main__':
     debug_mode = os.environ.get("FLASK_DEBUG", "0") == "1"

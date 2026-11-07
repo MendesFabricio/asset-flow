@@ -109,18 +109,16 @@ def extract_kpis_from_pdf(pdf_path_or_url: str, is_fii: bool = True) -> dict:
         )
         
         # Faz requisição local ao Gemini
-        from infrastructure.gemini_service import MODEL_NAME
-        import google.generativeai as genai
+        from infrastructure.gemini_service import MODEL_NAME, get_genai_client
+        from google.genai import types
         
         try:
-            model = genai.GenerativeModel(
-                model_name=MODEL_NAME,
-                system_instruction="Você é um parser JSON estrito de relatórios financeiros de RI. Não responda com texto livre, apenas com o JSON bruto.",
-                generation_config=genai.GenerationConfig(
-                    response_mime_type="application/json"
-                )
+            client = get_genai_client()
+            response = client.models.generate_content(
+                model=MODEL_NAME,
+                contents=prompt,
+                config=types.GenerateContentConfig(response_mime_type="application/json")
             )
-            response = model.generate_content(prompt)
             content = response.text.strip()
             parsed = json.loads(content)
             return {"status": "Sucesso", "kpis": parsed}

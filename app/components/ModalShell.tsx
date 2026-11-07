@@ -96,7 +96,7 @@ export function ModalShell({
 
   const content = (
     <div
-      className="fixed inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+      className="fixed inset-0 flex items-center justify-center bg-slate-950/40 dark:bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200"
       style={{ zIndex }}
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
@@ -107,26 +107,26 @@ export function ModalShell({
         role="dialog"
         aria-modal="true"
         tabIndex={-1}
-        className={`relative w-full ${maxWidthMap[maxWidth]} max-h-[90vh] overflow-y-auto bg-surface-card border border-slate-800 rounded-2xl shadow-2xl flex flex-col outline-none`}
+        className={`relative w-full ${maxWidthMap[maxWidth]} max-h-[90vh] overflow-y-auto bg-white/90 dark:bg-slate-900/90 backdrop-blur-2xl border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-2xl shadow-slate-900/10 dark:shadow-black/60 flex flex-col outline-none`}
       >
         {/* Header */}
-        <div className="sticky top-0 z-10 bg-surface-card/95 backdrop-blur-md border-b border-slate-800 px-6 py-4 flex items-center justify-between shrink-0">
+        <div className="sticky top-0 z-10 bg-white/80 dark:bg-slate-900/95 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-800 px-6 py-4 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             {icon && (
-              <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-emerald-400 flex items-center justify-center">
+              <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
                 {icon}
               </div>
             )}
             <div>
-              <h2 className="text-base font-bold text-white">{title}</h2>
-              {subtitle && <p className="text-xs text-slate-500">{subtitle}</p>}
+              <h2 className="text-base font-bold text-slate-900 dark:text-white">{title}</h2>
+              {subtitle && <p className="text-xs text-slate-600 dark:text-slate-400">{subtitle}</p>}
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
             aria-label="Fechar"
-            className="p-2 rounded-lg hover:bg-surface-input text-slate-400 hover:text-white transition-colors"
+            className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
           >
             <X size={18} />
           </button>

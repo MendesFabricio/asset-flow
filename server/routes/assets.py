@@ -24,7 +24,7 @@ service = PortfolioService()
 # --- Schemas de Validação ---
 from schemas import AssetTransactionCreate
 class AssetInput(BaseModel):
-    ticker: str = Field(..., min_length=1, strip_whitespace=True)
+    ticker: str = Field(..., min_length=1, json_schema_extra={"strip_whitespace": True})
     category: str = Field(..., min_length=1)
     qtd: float = Field(ge=0, default=0)
     pm: float = Field(ge=0, default=0)
@@ -159,12 +159,12 @@ def validate_ticker():
     
     if not result['valid']:
         return jsonify({
-            "valid": True, 
+            "valid": False, 
             "ticker": ticker.upper(), 
             "manual": True, 
             "msg": "Ativo não encontrado no Yahoo. Será cadastrado como Manual."
-        })
-    return jsonify(result)
+        }), 200
+    return jsonify(result), 200
 
 @assets_bp.route('/api/delete_asset', methods=['POST'])
 def delete_asset():
@@ -228,6 +228,16 @@ def get_asset_transactions(ticker):
     try:
         history = service.get_transaction_history(ticker.upper())
         return jsonify(history)
+    except Exception as e:
+        return jsonify({"status": "Erro", "msg": str(e)}), 500
+
+@assets_bp.route('/api/asset-transactions/<int:tx_id>', methods=['DELETE'])
+def delete_asset_transaction(tx_id):
+    try:
+        service.delete_transaction(tx_id)
+        return jsonify({"status": "Sucesso", "msg": "Transação excluída e posição recalculada com sucesso."})
+    except ValueError as e:
+        return jsonify({"status": "Erro", "msg": str(e)}), 404
     except Exception as e:
         return jsonify({"status": "Erro", "msg": str(e)}), 500
 

@@ -49,3 +49,10 @@ def test_daily_summary_endpoint(client):
             mock_feed.return_value = MagicMock(entries=[])
             response = client.get('/api/news/daily-summary')
             assert response.status_code == 200
+
+def test_delete_transaction_endpoint(client):
+    with patch('routes.assets.service.delete_transaction', return_value=True):
+        response = client.delete('/api/asset-transactions/999')
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["status"] == "Sucesso"

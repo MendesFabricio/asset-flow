@@ -1,4 +1,13 @@
 assetflowpro.duckdns.org {
+    header {
+        X-Frame-Options "SAMEORIGIN"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' https://raw.githubusercontent.com data:; connect-src 'self'; font-src 'self' data:; frame-ancestors 'none';"
+    }
+
     # Proxy direto para Server-Sent Events (SSE) e stream do Jarvis sem bufferização
     reverse_proxy /api/sync/stream backend:5328 {
         flush_interval -1
