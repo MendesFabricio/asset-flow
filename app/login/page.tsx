@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Lock, User, ArrowRight, Wallet, UserPlus, LogIn } from 'lucide-react';
+import { Lock, User, ArrowRight, Wallet, UserPlus } from 'lucide-react';
 
 export default function LoginPage() {
   const [isRegistering, setIsRegistering] = useState(false);

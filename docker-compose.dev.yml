@@ -1,5 +1,5 @@
 x-shared-env: &shared-env
-  SECRET_KEY:
+  SECRET_KEY: ${SECRET_KEY:-asset_flow_dev_secret_key_default_value_change_in_prod}
   SENTRY_DSN: http://ac68cc0ad8f54496961aec4e3d48d227@glitchtip:8000/1
   ENVIRONMENT: development
 
@@ -77,6 +77,7 @@ services:
       - next_cache:/app/.next
     command: sh -c "npm install && npx next dev"
     environment:
+      - SECRET_KEY=${SECRET_KEY:-asset_flow_dev_secret_key_default_value_change_in_prod}
       - NEXT_PUBLIC_API_URL=
       - WATCHPACK_POLLING=true
       - CHOKIDAR_USEPOLLING=true

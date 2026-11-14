@@ -1,9 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
-
 // Force Next.js rebuild
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   const backendUrl = 'http://backend:5328/api/sync/stream';
   
   try {

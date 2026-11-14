@@ -4,7 +4,6 @@ import dynamic from 'next/dynamic';
 import { ReactNode } from 'react';
 import {
   HistoryChartSkeleton,
-  HeatmapSkeleton,
   QuantSkeleton,
   FixedIncomeSkeleton,
   ReceivablesSkeleton,

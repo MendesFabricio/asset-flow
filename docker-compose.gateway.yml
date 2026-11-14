@@ -1,0 +1,112 @@
+# ---------------------------------------------------------
+# ARQUIVO: docker-compose.gateway.yml
+# Deploy do AssetFlow Pro na rede externa gateway_net, atrás do
+# Traefik do diretório _gateway.
+#
+# Uso:
+#   docker compose -f docker-compose.gateway.yml up -d --build
+#   docker compose -f docker-compose.gateway.yml config   # valida
+#
+# Acesso:
+#   http://assetflow.localhost
+#   http://assetflow.192.168.3.11.nip.io
+#
+# O SECRET_KEY precisa ser o mesmo no backend e no frontend: o
+# middleware do Next valida a assinatura do cookie de sessão.
+#
+# Este compose usa o container assetflow_frontend: ao trocar do
+# docker-compose.dev.yml (ssetflow_frontend_dev) para cá, ajuste o
+# campo container do card em _gateway/config/homepage/services.yaml.
+# ---------------------------------------------------------
+name: asset-flow
+
+x-shared-env: &shared-env
+  SECRET_KEY: ${SECRET_KEY:-asset_flow_dev_secret_key_default_value_change_in_prod}
+  SENTRY_DSN: ""
+  ENVIRONMENT: production
+
+services:
+  # --- BACKEND (Flask / Gunicorn) ---
+  backend:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+      target: backend
+    container_name: assetflow_backend
+    restart: unless-stopped
+    command: sh -c "alembic upgrade head && gunicorn --bind 0.0.0.0:5328 -k gthread --workers 2 --threads 8 --timeout 300 --graceful-timeout 30 backend:app"
+    volumes:
+      - sqlite_data:/app/data
+      - ./backups:/app/backups
+    environment:
+      <<: *shared-env
+      PYTHONPATH: /app
+      FLASK_DEBUG: "0"
+      LOCKS_DIR: /app/data/locks
+      ALLOWED_ORIGINS: http://assetflow.localhost,http://assetflow.192.168.3.11.nip.io
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:5328/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - default
+
+  # --- WORKER (APScheduler) ---
+  worker:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+      target: worker
+    container_name: assetflow_worker
+    restart: unless-stopped
+    command: sh -c "cd /app/server/worker && python worker.py"
+    volumes:
+      - sqlite_data:/app/data
+      - ./backups:/app/backups
+    environment:
+      <<: *shared-env
+      PYTHONPATH: /app:/app/server
+      WORKER_HEARTBEAT_PATH: /app/data/worker_heartbeat.txt
+      LOCKS_DIR: /app/data/locks
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - default
+
+  # --- FRONTEND (Next.js standalone) ---
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: assetflow_frontend
+    restart: unless-stopped
+    environment:
+      <<: *shared-env
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: "1"
+      BACKEND_URL: http://backend:5328
+      NEXT_PUBLIC_API_URL: ""
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - default
+      - gateway_net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=gateway_net"
+      - "traefik.http.routers.asset-flow.rule=Host(`assetflow.localhost`) || Host(`assetflow.192.168.3.11.nip.io`)"
+      - "traefik.http.routers.asset-flow.entrypoints=web"
+      - "traefik.http.routers.asset-flow.service=asset-flow"
+      - "traefik.http.services.asset-flow.loadbalancer.server.port=3000"
+
+volumes:
+  sqlite_data:
+
+networks:
+  default:
+  gateway_net:
+    external: true

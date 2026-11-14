@@ -30,32 +30,27 @@ export const StatCard = React.memo(({
   let semanticColor = "text-accent";
   let semanticBg = "bg-accent/10";
   let semanticBorder = "border-accent/20";
-  let semanticShadow = "shadow-accent/10";
   let semanticGradient = "from-accent/20 to-transparent"; // Degradê mais forte
 
   if (colorClass.includes("purple") || colorClass.includes("indigo")) {
     semanticColor = "text-indigo-400";
     semanticBg = "bg-indigo-500/10";
     semanticBorder = "border-indigo-500/20";
-    semanticShadow = "shadow-indigo-900/10";
     semanticGradient = "from-indigo-500/20 to-transparent";
   } else if (colorClass.includes("green") || colorClass.includes("emerald")) {
     semanticColor = "text-status-success";
     semanticBg = "bg-status-success/10";
     semanticBorder = "border-status-success/20";
-    semanticShadow = "shadow-status-success/10";
     semanticGradient = "from-status-success/20 to-transparent";
   } else if (colorClass.includes("red") || colorClass.includes("rose")) {
     semanticColor = "text-status-error";
     semanticBg = "bg-status-error/10";
     semanticBorder = "border-status-error/20";
-    semanticShadow = "shadow-status-error/10";
     semanticGradient = "from-status-error/20 to-transparent";
   } else if (colorClass.includes("amber") || colorClass.includes("yellow")) {
     semanticColor = "text-status-warning";
     semanticBg = "bg-status-warning/10";
     semanticBorder = "border-status-warning/20";
-    semanticShadow = "shadow-status-warning/10";
     semanticGradient = "from-status-warning/20 to-transparent";
   }
 

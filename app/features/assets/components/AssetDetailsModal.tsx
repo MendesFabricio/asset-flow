@@ -78,7 +78,7 @@ export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalP
             } else {
                 setStatusMsg({ type: 'error', text: data.message || 'Erro ao criar alerta.' });
             }
-        } catch (err) {
+        } catch {
             setStatusMsg({ type: 'error', text: 'Erro ao conectar no servidor.' });
         } finally {
             setLoadingAlert(false);

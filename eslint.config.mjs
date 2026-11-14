@@ -12,6 +12,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Artefatos locais (caches python, relatorios, backups) nao tem JS para lintar.
+    ".pytest_cache/**",
+    "server/**",
+    "graphify-out/**",
+    "backups/**",
   ]),
   // Bloco de customização de regras para manter a qualidade estrita do código
   {

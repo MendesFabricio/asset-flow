@@ -1,7 +1,7 @@
 'use client';
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Upload, X, Check, AlertTriangle, ShieldCheck, FileText, Trash2, AlertCircle, ExternalLink, Settings } from 'lucide-react';
+import { Upload, X, Check, AlertTriangle, ShieldCheck, FileText, Trash2, AlertCircle, Settings } from 'lucide-react';
 import { useToast } from '@/context/ToastContext';
 import { apiCall } from '@/lib/api';
 import { Asset } from '@/types';
@@ -236,7 +236,6 @@ export function UnifiedImportModal({ isOpen, onClose, onSuccess }: UnifiedImport
         } catch {}
       }
 
-      const remaining = newDividends.filter(d => d.error !== 'SUCCESS' && !d.db_matched);
       setDividends(newDividends); // Keep them but marked as SUCCESS
 
       if (successCount > 0) {

@@ -14,7 +14,7 @@ interface AssetsTableProps {
   onRefresh?: () => void;
 }
 
-export const AssetsTable = React.memo(({ assets, tab, onEdit, onViewNews, onViewDetails, onRefresh }: AssetsTableProps) => {
+export const AssetsTable = React.memo(({ assets, tab, onEdit, onViewNews, onViewDetails }: AssetsTableProps) => {
   const [search, setSearch] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [isPending, startTransition] = useTransition();

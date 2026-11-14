@@ -1,10 +1,8 @@
 'use client';
 import { Fragment, useState, useEffect } from 'react';
-import { Dialog, Transition } from '@headlessui/react';
-import { X, Plus, Search, AlertCircle } from 'lucide-react';
+import { Plus, Search, AlertCircle } from 'lucide-react';
 import { apiCall } from '@/lib/api';
 // Importação dos componentes do seu novo UI Kit
-import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { ModalShell } from '@/components/ModalShell';
 

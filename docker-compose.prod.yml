@@ -130,6 +130,7 @@ services:
       - NODE_ENV=production
       - NEXT_TELEMETRY_DISABLED=1
       - NODE_OPTIONS=--max-old-space-size=2048
+      - SECRET_KEY=${SECRET_KEY:-}
       - NEXT_PUBLIC_API_URL=
       - NEXT_PUBLIC_BACKEND_URL=
       - SENTRY_DSN=

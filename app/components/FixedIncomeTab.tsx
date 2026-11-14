@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  Plus, Landmark, Calendar, Trash2, X, 
-  TrendingUp, ArrowUpRight, Percent, ShieldCheck
+  Plus, Landmark, Trash2, X, 
+  TrendingUp, ArrowUpRight, ShieldCheck
 } from 'lucide-react';
 import { formatMoney } from '../lib/format';
 import { ConfirmDialog } from './ui/ConfirmDialog';

@@ -20,7 +20,6 @@ export interface AssetRowStats {
     return useMemo(() => {
       const isUSD = ativo.currency === 'USD';
       
-      const isWeekend = new Date().getDay() === 0 || new Date().getDay() === 6;
       let variacaoIntraday = ativo.change_percent ?? 0;
       
       const todayDate = new Date().toISOString().split('T')[0];

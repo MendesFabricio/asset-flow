@@ -7,7 +7,6 @@ import { formatMoney } from './lib/format';
 import { Header } from './features/header/components/Header';
 import { AssetsTable } from './components/AssetsTable';
 import { SkeletonLoading } from './components/ui/Skeletons';
-import { ModalSkeleton } from './components/ui/Skeletons';
 import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import { useAssetData } from './features/assets/hooks/useAssetData';
 import { usePortfolioHandlers } from './features/assets/hooks/usePortfolioHandlers';
@@ -23,7 +22,6 @@ import {
   Building2,
   CreditCard,
   Globe,
-  Grip,
   Landmark,
   Layers,
   LineChart,

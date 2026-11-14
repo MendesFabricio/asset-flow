@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Save, Calculator, Trash2, DollarSign, Plus, Minus, Activity } from 'lucide-react';
+import { Save, Calculator, Trash2, DollarSign, Plus, Minus } from 'lucide-react';
 import { Asset, AssetTransaction } from '@/types';
 import { apiCall } from '@/lib/api';
 import { ModalShell } from '@/components/ModalShell';

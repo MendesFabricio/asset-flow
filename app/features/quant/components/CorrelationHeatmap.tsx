@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { apiCall } from '@/lib/api';
 import { Card } from '@/components/ui/Card';
-import { BrainCircuit, Info, AlertTriangle } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 
 interface CorrelationResponse {
   status: string;

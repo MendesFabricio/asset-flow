@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Send, Brain, Sparkles, User, RefreshCw, ArrowRight } from 'lucide-react';
+import { Send, Brain, User, RefreshCw, ArrowRight } from 'lucide-react';
 import { apiCall } from '@/lib/api';
 import { Markdown } from '@/components/ui/Markdown';
 

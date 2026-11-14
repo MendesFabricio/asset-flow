@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
   X, Upload, FileText, CheckCircle, AlertCircle, 
-  DollarSign, Calendar, CreditCard, Loader2, ArrowLeft,
-  CheckSquare, Square, Trash2
+  Calendar, CreditCard, Loader2, ArrowLeft,
+  CheckSquare, Square
 } from 'lucide-react';
 import { formatMoney } from '../lib/format';
 import { apiCall } from '../lib/api';
@@ -196,7 +196,7 @@ export function StatementImportModal({
         }))
       };
 
-      const res = await apiCall<{ status: string; msg: string }>('/api/statements/import-batch', {
+      await apiCall<{ status: string; msg: string }>('/api/statements/import-batch', {
         method: 'POST',
         body: JSON.stringify(payload),
         headers: {

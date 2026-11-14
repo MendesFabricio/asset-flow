@@ -3,8 +3,8 @@
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { 
-  ChevronDown, Briefcase, FileText, TrendingUp, PieChart, 
-  Layers, Brain, RefreshCw, Calendar, Settings, Terminal, ShieldCheck,
+  ChevronDown, Briefcase, FileText, TrendingUp, 
+  Layers, Brain, RefreshCw, Calendar, Settings, Terminal,
   Download
 } from 'lucide-react';
 import { useToast } from '@/context/ToastContext';
@@ -63,7 +63,6 @@ export function ToolsMenu({
   onUpdateFundamentals,
   onManualRefresh,
   onOpenSmartModal,
-  onOpenAddModal,
   onOpenCorporateAction,
   syncStatus,
   fundamentalsStatus,

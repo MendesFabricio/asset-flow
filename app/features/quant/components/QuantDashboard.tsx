@@ -40,7 +40,6 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts';
-import { KellyData } from '@/types';
 
 import { useToast } from '@/context/ToastContext';
 import { useQuantData } from '../hooks/useQuantData';
@@ -397,8 +396,8 @@ export const QuantDashboard = React.memo(function QuantDashboard() {
                   <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Distribuição de Pesos</div>
                   <div className="flex flex-col gap-2.5 max-h-[220px] overflow-y-auto pr-1">
                     {Object.entries(selectedOptimalPt.weights)
-                      .filter(([_, w]) => w > 0.1)
-                      .sort(([_, wa], [__, wb]) => wb - wa)
+                      .filter(([, w]) => w > 0.1)
+                      .sort(([, wa], [, wb]) => wb - wa)
                       .map(([ticker, weight]) => (
                         <div key={ticker} className="flex flex-col gap-1">
                           <div className="flex justify-between text-xs font-semibold">

@@ -66,12 +66,27 @@ Os serviços expostos são:
 * **Backend API:** [http://localhost:5328/api/health](http://localhost:5328/api/health)
 * **Ollama Service:** [http://localhost:11434](http://localhost:11434)
 
+### Publicação no gateway (Traefik)
+
+```bash
+docker compose -f docker-compose.gateway.yml up -d --build
+docker compose -f docker-compose.gateway.yml config   # valida o arquivo
+```
+
+Frontend, backend e worker sobem na rede externa `gateway_net`, atrás do Traefik
+do `_gateway`, em `http://assetflow.localhost` e
+`http://assetflow.192.168.3.11.nip.io`. O card do painel Homepage fica em
+`_gateway\config\homepage\services.yaml` (container `assetflow_frontend`).
+
+O `SECRET_KEY` precisa ser idêntico no backend e no frontend: o middleware do
+Next valida a assinatura do cookie de sessão antes de liberar qualquer página.
+
 ---
 
 ## 🧭 Documentação Adicional do Repositório
 
 Para detalhes específicos sobre cada subsistema, consulte os READMEs internos:
-* 🖥️ [Frontend Web App](file:///c:/Users/Fabricio/asset-flow/app/README.md)
-* ⚙️ [Servidor Backend](file:///c:/Users/Fabricio/asset-flow/server/README.md)
-* 💾 [Camada de Banco de Dados](file:///c:/Users/Fabricio/asset-flow/database/README.md)
-* 🗺️ [Roteiro de Desenvolvimento (ROADMAP)](file:///c:/Users/Fabricio/asset-flow/ROADMAP.md)
+* 🖥️ [Frontend Web App](app/README.md)
+* ⚙️ [Servidor Backend](server/README.md)
+* 💾 [Camada de Banco de Dados](server/db/README.md)
+* 🗺️ [Padrão e Convenções do Projeto](AGENTS.md)

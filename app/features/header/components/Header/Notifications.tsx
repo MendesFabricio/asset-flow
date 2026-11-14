@@ -212,7 +212,6 @@ export function Notifications({ onFixAsset }: NotificationsProps) {
     return 'Resolver';
   };
 
-  const hasCritical = alerts.some(a => a.severity >= 4);
 
   return (
     <div className="relative select-none">

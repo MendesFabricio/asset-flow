@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { portfolioService, MonthlyEvolutionData, SyncStatus } from '@/services/portfolio';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { formatMoney } from '@/lib/format';
-import { RefreshCw, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { RefreshCw, Loader2 } from 'lucide-react';
 
 export default function MonthlyPnLChart() {
   const [data, setData] = useState<MonthlyEvolutionData[]>([]);

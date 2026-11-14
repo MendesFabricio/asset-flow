@@ -2,9 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  Plus, CheckCircle, CreditCard, Calendar, Trash2, X, Wallet, 
-  TrendingUp, AlertCircle, DollarSign, FileText,
-  Clock, CheckSquare
+  Plus, CheckCircle, Calendar, X, 
+  FileText,
+  Clock
 } from 'lucide-react';
 import { formatMoney } from '../lib/format';
 import { CreditCardInstallmentItem, CreditCardsDashboardData } from '../types';
@@ -12,7 +12,6 @@ import { apiCall } from '../lib/api';
 import { StatementImportModal } from './StatementImportModal';
 import { ErrorBoundary } from './ui/ErrorBoundary';
 import { ConfirmDialog } from './ui/ConfirmDialog';
-import { useChartPalette } from '../lib/chartPalette';
 import { CreditCardKpiCards } from './credit-cards/CreditCardKpiCards';
 import { CreditCardSidebar } from './credit-cards/CreditCardSidebar';
 import { CreditCardCategoryChart } from './credit-cards/CreditCardCategoryChart';
@@ -82,7 +81,6 @@ const getCategoryFromDescription = (desc: string): string => {
 };
 
 export function CreditCardsTab() {
-  const palette = useChartPalette();
   const [cards, setCards] = useState<CardItem[]>([]);
   const [selectedCard, setSelectedCard] = useState<CardItem | null>(null);
   const [expenses, setExpenses] = useState<ExpenseItem[]>([]);
