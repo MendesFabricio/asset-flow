@@ -229,13 +229,13 @@ def _build_ollama_context(portfolio_ctx: dict, mentioned: list[dict], message: s
         portfolio_ctx.get("resumo_texto", ""),
     ]
 
-    acima = portfolio_ctx.get("ativos_acima_da_meta") or []
+    acima = [a for a in (portfolio_ctx.get("ativos_acima_da_meta") or []) if a.get("categoria") != "Reserva"]
     if acima:
         lines = [
             f"- {a['ticker']} ({a['categoria']}): Atual {a['atual_global_pct']:.2f}% vs Meta {a['meta_global_pct']:.2f}% (Excesso +{a['excesso_pct']:.2f}%, Total {_fmt_brl(a['valor_total_brl'])}, Lucro {a['rentabilidade_pct']:.2f}%)"
             for a in acima[:10]
         ]
-        parts.append("\n[ATIVOS ACIMA DA META / MAIOR CONCENTRAÇÃO (TOP 10)]\n" + "\n".join(lines))
+        parts.append("\n[ATIVOS ACIMA DA META — CANDIDATOS A REDUÇÃO/VENDA (exclui Reserva)] (TOP 10)\n" + "\n".join(lines))
 
     abaixo = portfolio_ctx.get("ativos_abaixo_da_meta") or []
     if abaixo:
@@ -448,8 +448,11 @@ def chat():
                     ollama_context = _build_ollama_context(portfolio_ctx, mentioned, message)
                     system_with_context = f"{SYSTEM_PROMPT}\n\n{ollama_context}"
                     ollama_messages = [{"role": "system", "content": system_with_context}]
-                    for msg in history_list[-10:-1]:
-                        ollama_messages.append({"role": msg["role"], "content": msg["content"]})
+                    for msg in history_list[-5:-1]:
+                        content = msg["content"]
+                        if msg["role"] == "assistant" and len(content) > 400:
+                            content = content[:400] + "..."
+                        ollama_messages.append({"role": msg["role"], "content": content})
                     ollama_messages.append({"role": "user", "content": message})
 
                     full_response = ""
