@@ -45,7 +45,17 @@ interface RiskMetrics {
   usd_hedge_suggestion?: string;
   upside_capture_pct?: number;
   downside_capture_pct?: number;
-  fii_credit_map?: { ticker: string; rating: string; duration: number | null; indexers: Record<string, number> }[];
+  fii_credit_map?: {
+    ticker: string;
+    category?: string;
+    rating: string;
+    duration: number | null;
+    indexers: Record<string, number>;
+    p_vp?: string | null;
+    alavancagem?: string | null;
+    caixa_pct?: string | null;
+    has_report_pdf?: boolean;
+  }[];
   interpretacao: {
     beta: string;
     sharpe: string;
@@ -126,19 +136,16 @@ export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeSubTab, setActiveSubTab] = useState<'overview' | 'exposure' | 'credit'>('overview');
+  const [analyzingTicker, setAnalyzingTicker] = useState<string | null>(null);
+  const [analyzeMsg, setAnalyzeMsg] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  useEffect(() => {
-    let mounted = true;
-    const controller = new AbortController();
-    abortRef.current = controller;
-
+  const loadRiskMetrics = (signal?: AbortSignal) => {
     setLoading(true);
     setError(null);
 
-    apiCall<RiskMetrics>('/api/risk-metrics', { signal: controller.signal })
+    apiCall<RiskMetrics>('/api/risk-metrics', signal ? { signal } : undefined)
       .then((d: RiskMetrics) => {
-        if (!mounted) return;
         if (d.status === 'Sucesso') setData(d);
         else {
           setData(null);
@@ -146,21 +153,47 @@ export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
         }
       })
       .catch(e => {
-        if (!mounted) return;
         if (e.name !== 'AbortError') {
           setData(null);
           setError(e.message || 'Falha ao conectar ao servidor.');
         }
       })
       .finally(() => {
-        if (mounted) setLoading(false);
+        setLoading(false);
       });
+  };
+
+  useEffect(() => {
+    const controller = new AbortController();
+    abortRef.current = controller;
+    loadRiskMetrics(controller.signal);
 
     return () => {
-      mounted = false;
       controller.abort();
     };
   }, []);
+
+  const handleAnalyzePdf = async (ticker: string) => {
+    setAnalyzingTicker(ticker);
+    setAnalyzeMsg(null);
+    try {
+      const res = await apiCall<{ status: string; msg?: string }>('/api/ai/analyze-pdf', {
+        method: 'POST',
+        body: JSON.stringify({ ticker }),
+      });
+      if (res.status === 'Sucesso' || res.status === 'Aviso') {
+        setAnalyzeMsg(`${ticker}: dados extraídos do relatório oficial.`);
+        loadRiskMetrics();
+      } else {
+        setAnalyzeMsg(`${ticker}: ${res.msg || 'não foi possível extrair do PDF.'}`);
+      }
+    } catch (e: unknown) {
+      const err = e as { message?: string };
+      setAnalyzeMsg(`${ticker}: ${err?.message || 'falha ao analisar relatório.'}`);
+    } finally {
+      setAnalyzingTicker(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -540,31 +573,71 @@ export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
           <>
           {data?.fii_credit_map && data.fii_credit_map.length > 0 ? (
             <div className="bg-slate-950/30 p-4 rounded-xl border border-slate-800/50 h-full mt-2">
-              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                <ShieldAlert size={12} className="text-indigo-400" />
-                Mapa de Risco de Crédito (FIIs & Renda Fixa)
-              </h4>
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                  <ShieldAlert size={12} className="text-indigo-400" />
+                  Mapa de Risco de Crédito &amp; Saúde (FIIs &amp; Renda Fixa)
+                </h4>
+                {analyzeMsg && (
+                  <span className="text-[10px] text-indigo-300 font-medium">{analyzeMsg}</span>
+                )}
+              </div>
               <div className="overflow-x-auto w-full">
-                <table className="w-full text-[9px] text-slate-400 uppercase tracking-wider font-semibold text-left border-collapse">
+                <table className="w-full text-[10px] text-slate-400 uppercase tracking-wider font-semibold text-left border-collapse">
                   <thead>
                     <tr className="border-b border-slate-900 pb-1 text-slate-500">
-                      <th className="py-1">Ativo</th>
-                      <th className="py-1">Rating Médio</th>
-                      <th className="py-1 text-right">Duration</th>
-                      <th className="py-1 text-right">Indexadores</th>
+                      <th className="py-1.5">Ativo</th>
+                      <th className="py-1.5 text-right">P/VP</th>
+                      <th className="py-1.5 text-right">Alavancagem</th>
+                      <th className="py-1.5 text-right">Caixa (% PL)</th>
+                      <th className="py-1.5 text-right">Rating / Prazo</th>
+                      <th className="py-1.5 text-right">Indexadores</th>
+                      <th className="py-1.5 text-right">PDF</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-900">
-                    {data.fii_credit_map.map((f, i) => (
-                      <tr key={i} className="hover:bg-slate-900/20">
-                        <td className="py-1.5 text-white font-mono font-bold">{f.ticker}</td>
-                        <td className="py-1.5 text-indigo-400">{f.rating}</td>
-                        <td className="py-1.5 text-right font-mono">{f.duration !== null && f.duration !== undefined ? `${f.duration} anos` : 'N/D'}</td>
-                        <td className="py-1.5 text-right font-mono text-[8px] text-slate-500">
-                          {Object.keys(f.indexers).length > 0 ? Object.entries(f.indexers).map(([k, v]) => `${k}:${v}%`).join(" | ") : 'N/D'}
-                        </td>
-                      </tr>
-                    ))}
+                    {data.fii_credit_map.map((f, i) => {
+                      const hasCredit = f.rating !== 'N/D' || (f.duration !== null && f.duration !== undefined);
+                      return (
+                        <tr key={i} className="hover:bg-slate-900/20">
+                          <td className="py-2 text-white font-mono font-bold">
+                            <span>{f.ticker}</span>
+                            {f.category && (
+                              <span className="ml-2 text-[8px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">
+                                {f.category}
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-2 text-right font-mono text-slate-200">{f.p_vp || '—'}</td>
+                          <td className="py-2 text-right font-mono text-amber-400">{f.alavancagem || '—'}</td>
+                          <td className="py-2 text-right font-mono text-emerald-400">{f.caixa_pct || '—'}</td>
+                          <td className="py-2 text-right font-mono text-indigo-400">
+                            {hasCredit
+                              ? `${f.rating}${f.duration !== null && f.duration !== undefined ? ` · ${f.duration}a` : ''}`
+                              : 'N/D'}
+                          </td>
+                          <td className="py-2 text-right font-mono text-[9px] text-slate-400">
+                            {Object.keys(f.indexers).length > 0
+                              ? Object.entries(f.indexers).map(([k, v]) => `${k}:${v}%`).join(' | ')
+                              : 'N/D'}
+                          </td>
+                          <td className="py-2 text-right">
+                            {f.has_report_pdf && !hasCredit ? (
+                              <button
+                                type="button"
+                                disabled={analyzingTicker === f.ticker}
+                                onClick={() => handleAnalyzePdf(f.ticker)}
+                                className="px-2 py-0.5 rounded bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/30 text-[9px] font-bold uppercase disabled:opacity-50"
+                              >
+                                {analyzingTicker === f.ticker ? 'Lendo...' : 'Ler PDF'}
+                              </button>
+                            ) : (
+                              <span className="text-slate-600">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

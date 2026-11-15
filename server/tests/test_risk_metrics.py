@@ -97,3 +97,29 @@ def test_calculate_risk_metrics_insufficient_history(mock_positions, mock_sessio
     res = calculate_risk_metrics(mock_session, fetch_prices=short_fetch_prices, allow_compute=True)
     
     assert "indispon" in res["msg"].lower() or "insuficiente" in res["msg"].lower()
+
+
+def test_extract_fnet_health_parses_cards_and_vpa_fallback():
+    import json
+    from domain.quant.risk import _extract_fnet_health
+
+    pos = MagicMock()
+    pos.last_report_type = json.dumps({
+        "fundamentalist": {
+            "cards_indicadores": [
+                {"titulo": "P/VP", "valor_formatado": "0.93"},
+                {"titulo": "Passivo Total", "subtitulo": "Alavancagem: 12.50%"},
+                {"titulo": "Disponibilidades (Caixa)", "subtitulo": "4.20% do PL"},
+            ]
+        }
+    })
+    health = _extract_fnet_health(pos)
+    assert health == {"p_vp": "0.93", "alavancagem": "12.50%", "caixa_pct": "4.20%"}
+
+    pos_fallback = MagicMock()
+    pos_fallback.last_report_type = None
+    pos_fallback.manual_vpa = 100.0
+    pos_fallback.asset.market_data = [MagicMock(price=92.0)]
+    health_fb = _extract_fnet_health(pos_fallback)
+    assert health_fb["p_vp"] == "0.92"
+    assert health_fb["alavancagem"] is None

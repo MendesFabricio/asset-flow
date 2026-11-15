@@ -6,6 +6,37 @@ from datetime import datetime, timedelta
 from db.models import SystemCache, safe_commit, get_active_positions
 from domain.quant.helpers import _to_yf_ticker, _align_prices_to_b3, get_risk_free_rate, _get_current_user_id, _extract_close_prices, _calculate_ewma_covariance, classify_asset_sector
 
+def _extract_fnet_health(pos) -> dict:
+    """Extrai P/VP, Alavancagem e Caixa (% PL) reais do Informe Mensal B3 salvo em pos.last_report_type."""
+    health = {"p_vp": None, "alavancagem": None, "caixa_pct": None}
+    raw_report = getattr(pos, "last_report_type", None)
+    if isinstance(raw_report, str) and raw_report.strip().startswith("{"):
+        try:
+            parsed = json.loads(raw_report)
+            cards = (parsed.get("fundamentalist") or {}).get("cards_indicadores") or []
+            for card in cards:
+                if not isinstance(card, dict):
+                    continue
+                title = str(card.get("titulo") or "").strip().lower()
+                val = card.get("valor_formatado")
+                sub = str(card.get("subtitulo") or "")
+                if title == "p/vp" and val:
+                    health["p_vp"] = str(val)
+                elif "passivo" in title and ":" in sub:
+                    health["alavancagem"] = sub.split(":", 1)[1].strip()
+                elif "disponibilidades" in title and sub:
+                    health["caixa_pct"] = sub.replace("do PL", "").strip()
+        except Exception:
+            pass
+    if health["p_vp"] is None:
+        vpa = float(getattr(pos, "manual_vpa", 0) or 0)
+        mdata = pos.asset.market_data if pos.asset and pos.asset.market_data else []
+        price = float(mdata[0].price or 0) if mdata else 0.0
+        if vpa > 0 and price > 0:
+            health["p_vp"] = f"{price / vpa:.2f}"
+    return health
+
+
 def calculate_risk_metrics(session, fetch_prices, allow_compute=True, dolar_rate: float = 1.0) -> dict:
     uid = _get_current_user_id()
     cache_key = f"risk_metrics_{uid}" if uid is not None else "risk_metrics"
@@ -337,11 +368,17 @@ def calculate_risk_metrics(session, fetch_prices, allow_compute=True, dolar_rate
             if cdi is not None: indexers["CDI"] = cdi
             if ipca is not None: indexers["IPCA"] = ipca
 
+        fnet_health = _extract_fnet_health(pos)
         fii_credit_map.append({
             "ticker": ticker,
+            "category": pos.asset.category.name,
             "rating": rating,
             "duration": duration,
-            "indexers": indexers
+            "indexers": indexers,
+            "p_vp": fnet_health["p_vp"],
+            "alavancagem": fnet_health["alavancagem"],
+            "caixa_pct": fnet_health["caixa_pct"],
+            "has_report_pdf": bool(getattr(pos, "last_report_url", None)),
         })
 
     result = {

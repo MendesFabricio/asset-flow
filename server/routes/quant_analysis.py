@@ -519,6 +519,7 @@ def analyze_pdf_endpoint():
                     position.asset.indexer_ipca_pct = float(kpis["indexer_ipca_pct"])
                     
                 position.asset.ai_updated_at = datetime.now()
+                session.query(SystemCache).filter_by(key=f"risk_metrics_{g.user_id}").delete()
                 session.commit()
                 
             return jsonify(res)
