@@ -257,28 +257,43 @@ class PortfolioCrudService:
 
     def get_transaction_history(self, ticker):
         from db.models import AssetTransaction
+        from domain.portfolio.monthly_snapshot import apply_transaction_to_position_state
+
         user_id = self.current_user_id
         with Session() as session:
             try:
                 asset = session.query(Asset).filter_by(ticker=ticker).first()
                 if not asset:
                     return []
-                
+
                 pos = session.query(Position).filter_by(asset_id=asset.id, user_id=user_id).first()
                 if not pos:
                     return []
 
-                transactions = session.query(AssetTransaction).filter_by(position_id=pos.id, user_id=user_id).order_by(AssetTransaction.transaction_date.desc()).all()
-                return [
-                    {
+                transactions = (
+                    session.query(AssetTransaction)
+                    .filter_by(position_id=pos.id, user_id=user_id)
+                    .order_by(AssetTransaction.transaction_date.asc(), AssetTransaction.id.asc())
+                    .all()
+                )
+                state = {"quantity": Decimal("0"), "total_cost": Decimal("0")}
+                history = []
+                for t in transactions:
+                    prev_qty = state["quantity"]
+                    apply_transaction_to_position_state(state, t, use_decimal=True)
+                    entry = {
                         "id": t.id,
                         "type": t.type,
                         "quantity": float(t.quantity),
                         "unit_price": float(t.unit_price),
                         "total_value": float(t.total_value),
-                        "date": t.transaction_date.isoformat()
-                    } for t in transactions
-                ]
+                        "date": t.transaction_date.isoformat(),
+                    }
+                    if (t.type or "").upper() in ("BONUS", "SPLIT", "INPLIT"):
+                        entry["delta_quantity"] = round(float(Decimal(str(t.quantity or 0)) - prev_qty), 4)
+                    history.append(entry)
+                history.reverse()
+                return history
             except Exception:
                 return []
 

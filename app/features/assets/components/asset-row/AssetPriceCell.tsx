@@ -5,11 +5,23 @@ import { AssetRowStats } from './useAssetRowStats';
 
 interface AssetPriceCellProps {
   stats: AssetRowStats;
+  isReserva?: boolean;
   onShowFin: (e: MouseEvent) => void;
   onHide: () => void;
 }
 
-export function AssetPriceCell({ stats, onShowFin, onHide }: AssetPriceCellProps) {
+export function AssetPriceCell({ stats, isReserva = false, onShowFin, onHide }: AssetPriceCellProps) {
+  if (isReserva) {
+    return (
+      <td className="px-6 py-5 text-right hidden sm:table-cell">
+        <div className="flex flex-col items-end">
+          <span className="text-text-muted font-mono text-sm">—</span>
+          <span className="text-[10px] text-text-muted">Caixa (R$)</span>
+        </div>
+      </td>
+    );
+  }
+
   const varValue = Number(stats.variacaoIntraday) || 0;
   const isZero = varValue === 0;
   const showVar = !isNaN(varValue);

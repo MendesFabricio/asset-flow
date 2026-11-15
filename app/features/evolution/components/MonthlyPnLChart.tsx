@@ -4,19 +4,26 @@ import { useEffect, useState } from 'react';
 import { portfolioService, MonthlyEvolutionData, SyncStatus } from '@/services/portfolio';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { formatMoney } from '@/lib/format';
+import { usePrivacy } from '@/context/PrivacyContext';
 import { RefreshCw, Loader2 } from 'lucide-react';
 
 export default function MonthlyPnLChart() {
+  const { isHidden } = usePrivacy() as { isHidden: boolean };
   const [data, setData] = useState<MonthlyEvolutionData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
   const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
 
   const fetchChartData = () => {
     setIsLoading(true);
+    setErrorMsg(null);
     portfolioService.getMonthlyEvolution()
       .then(setData)
-      .catch(console.error)
+      .catch((e) => {
+        console.error(e);
+        setErrorMsg('Não foi possível carregar a variação patrimonial mensal.');
+      })
       .finally(() => setIsLoading(false));
   };
 
@@ -37,6 +44,8 @@ export default function MonthlyPnLChart() {
           }
         } catch (e) {
           console.error("Failed to fetch sync status", e);
+          setErrorMsg('Erro ao verificar progresso da sincronização.');
+          setSyncStatus(null);
         }
       }, 2000);
     }
@@ -45,11 +54,13 @@ export default function MonthlyPnLChart() {
   }, [syncStatus?.status]);
 
   const handleRecalculate = async () => {
+    setErrorMsg(null);
     try {
       await portfolioService.recalculateHistory();
       setSyncStatus({ status: 'processing', progress: 0, total: 100, message: 'Iniciando...' });
     } catch (e) {
       console.error("Failed to start sync", e);
+      setErrorMsg('Não foi possível iniciar a sincronização do histórico.');
     }
   };
 
@@ -71,13 +82,13 @@ export default function MonthlyPnLChart() {
             <div className="flex justify-between items-center gap-4">
               <span className="text-slate-500 dark:text-slate-400 font-medium">Oscilação:</span>
               <span className={`font-bold ${isProfit ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                {variation > 0 ? '+' : ''}{formatMoney(variation)}
+                {isHidden ? 'R$ •••••' : `${variation > 0 ? '+' : ''}${formatMoney(variation)}`}
               </span>
             </div>
             <div className="flex justify-between items-center gap-6">
               <span className="text-slate-500 dark:text-slate-400 font-medium">Patrimônio:</span>
               <span className="font-bold text-slate-700 dark:text-slate-200">
-                {formatMoney(marketValue)}
+                {isHidden ? 'R$ •••••' : formatMoney(marketValue)}
               </span>
             </div>
           </div>
@@ -91,7 +102,7 @@ export default function MonthlyPnLChart() {
                     {assetPerformance.gainers.map((g: any) => (
                       <div key={g.ticker} className="flex justify-between items-center text-[11px]">
                         <span className="text-slate-700 dark:text-slate-300 font-medium">{g.ticker}</span>
-                        <span className="text-emerald-600 dark:text-emerald-400 font-semibold bg-emerald-500/10 px-1 py-0.5 rounded">+{formatMoney(g.variation)}</span>
+                        <span className="text-emerald-600 dark:text-emerald-400 font-semibold bg-emerald-500/10 px-1 py-0.5 rounded">{isHidden ? 'R$ •••••' : `+${formatMoney(g.variation)}`}</span>
                       </div>
                     ))}
                   </div>
@@ -104,7 +115,7 @@ export default function MonthlyPnLChart() {
                     {assetPerformance.losers.map((l: any) => (
                       <div key={l.ticker} className="flex justify-between items-center text-[11px]">
                         <span className="text-slate-700 dark:text-slate-300 font-medium">{l.ticker}</span>
-                        <span className="text-rose-600 dark:text-rose-400 font-semibold bg-rose-500/10 px-1 py-0.5 rounded">{formatMoney(l.variation)}</span>
+                        <span className="text-rose-600 dark:text-rose-400 font-semibold bg-rose-500/10 px-1 py-0.5 rounded">{isHidden ? 'R$ •••••' : formatMoney(l.variation)}</span>
                       </div>
                     ))}
                   </div>
@@ -167,6 +178,19 @@ export default function MonthlyPnLChart() {
         </div>
       </div>
 
+      {errorMsg && (
+        <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-2.5 text-sm text-rose-400">
+          <span>{errorMsg}</span>
+          <button
+            type="button"
+            onClick={fetchChartData}
+            className="text-xs font-semibold underline hover:text-rose-300"
+          >
+            Tentar novamente
+          </button>
+        </div>
+      )}
+
       <div className="h-80 w-full">
         {isLoading ? (
           <div className="h-full flex items-center justify-center">
@@ -190,7 +214,7 @@ export default function MonthlyPnLChart() {
               />
               <YAxis 
                 width={80}
-                tickFormatter={(value) => `R$ ${value}`}
+                tickFormatter={(value) => isHidden ? '••••' : `R$ ${value}`}
                 tick={{ fill: '#64748b', fontSize: 12 }}
                 tickLine={false}
                 axisLine={false}

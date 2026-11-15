@@ -15,7 +15,7 @@
 # middleware do Next valida a assinatura do cookie de sessão.
 #
 # Este compose usa o container assetflow_frontend: ao trocar do
-# docker-compose.dev.yml (ssetflow_frontend_dev) para cá, ajuste o
+# docker-compose.dev.yml (assetflow_frontend_dev) para cá, ajuste o
 # campo container do card em _gateway/config/homepage/services.yaml.
 # ---------------------------------------------------------
 name: asset-flow
@@ -38,6 +38,9 @@ services:
     volumes:
       - sqlite_data:/app/data
       - ./backups:/app/backups
+    env_file:
+      - path: .env
+        required: false
     environment:
       <<: *shared-env
       PYTHONPATH: /app
@@ -65,6 +68,9 @@ services:
     volumes:
       - sqlite_data:/app/data
       - ./backups:/app/backups
+    env_file:
+      - path: .env
+        required: false
     environment:
       <<: *shared-env
       PYTHONPATH: /app:/app/server

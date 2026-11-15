@@ -8,16 +8,20 @@ from utils.ticker_helper import to_yf_ticker
 import infrastructure.market_data as _market
 
 class IntegrationService:
-    def update_prices(self):
+    def update_prices(self, user_id=None):
+        uid = user_id if user_id is not None else self.current_user_id
         with Session() as session:
-            _market.update_prices(session, self._invalidate_price_cache)
+            _market.update_prices(session, self._invalidate_price_cache, user_id=uid)
 
-    def record_confirmed_dividends(self):
+    def record_confirmed_dividends(self, user_id=None):
         logging.info("📅 [SERVICE] Iniciando verificação automática de novos dividendos...")
+        uid = user_id if user_id is not None else self.current_user_id
         positions_info = []
-        from db.models import get_active_positions
         with Session() as session:
-            positions = get_active_positions(session, None).all()
+            query = session.query(Position).filter(Position.quantity > 0)
+            if uid is not None:
+                query = query.filter(Position.user_id == uid)
+            positions = query.all()
             for pos in positions:
                 positions_info.append({
                     "asset_id": pos.asset_id,
@@ -83,13 +87,15 @@ class IntegrationService:
     def validate_ticker_on_yahoo(self, ticker):
         return _market.validate_ticker_on_yahoo(ticker)
         
-    def sync_reports_with_fnet(self, session=None, state_dict=None):
+    def sync_reports_with_fnet(self, session=None, state_dict=None, user_id=None):
         """💡 CORREÇÃO CRÍTICA: Permite receber uma sessão explícita da thread injetada pelo backend."""
+        uid = user_id if user_id is not None else self.current_user_id
         if session is not None:
-            return _market.sync_reports_with_fnet(session, state_dict)
+            return _market.sync_reports_with_fnet(session, state_dict, user_id=uid)
             
         with Session() as session:
-            return _market.sync_reports_with_fnet(session, state_dict)
+            return _market.sync_reports_with_fnet(session, state_dict, user_id=uid)
 
-    def update_fundamentals(self, state_dict=None):
-        return _market.update_fundamentals(self.get_usd_rate, state_dict)
+    def update_fundamentals(self, state_dict=None, user_id=None):
+        uid = user_id if user_id is not None else self.current_user_id
+        return _market.update_fundamentals(self.get_usd_rate, state_dict, user_id=uid)

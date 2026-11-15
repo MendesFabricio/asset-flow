@@ -107,7 +107,8 @@ class FIIProcessor:
                     gest = dados_gerais.find('.//TipoGestao')
                     data['segmento'] = seg.text if seg is not None else "N/D"
                     data['gestao'] = gest.text if gest is not None else "N/D"
-                except:
+                except Exception as e:
+                    logging.warning(f"Falha ao extrair segmento/gestao do XML FII: {e}")
                     data['segmento'] = "N/D"; data['gestao'] = "N/D"
 
             # Estrutura Final

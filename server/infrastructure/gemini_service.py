@@ -30,6 +30,42 @@ def get_genai_client():
             raise ValueError("GEMINI_API_KEY não configurada no ambiente! Adicione a chave no arquivo .env.")
     return genai.Client(api_key=api_key)
 
+
+def generate_ai_text(
+    prompt: str,
+    system_prompt: str | None = None,
+    json_mode: bool = False,
+    temperature: float = 0.2,
+) -> tuple[str, str]:
+    """Gera texto usando Gemini quando configurado ou Ollama local como fallback."""
+    api_key = (os.getenv("GEMINI_API_KEY") or "").strip()
+    if api_key:
+        try:
+            client = get_genai_client()
+            if client is not None:
+                cfg_kwargs = {"temperature": temperature}
+                if json_mode:
+                    cfg_kwargs["response_mime_type"] = "application/json"
+                if system_prompt:
+                    cfg_kwargs["system_instruction"] = system_prompt
+                response = client.models.generate_content(
+                    model=MODEL_NAME,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(**cfg_kwargs),
+                )
+                return (response.text or "").strip(), "gemini"
+        except Exception as exc:
+            logging.warning(f"⚠️ Gemini falhou ({exc}); tentando fallback para Ollama local...")
+
+    from infrastructure.local_ai import generate_ollama_completion
+
+    text = generate_ollama_completion(
+        prompt=prompt,
+        system_prompt=system_prompt,
+        json_mode=json_mode,
+    )
+    return text, "ollama"
+
 def get_gemini_tools() -> list:
     """
     Retorna as definições das ferramentas compatíveis com o SDK do Google Generative AI.
@@ -123,17 +159,11 @@ def _run_sentiment_analysis(asset_id: int, ticker: str, news_titles: list, posit
             news_list=news_list_str
         )
 
-        client = get_genai_client()
-        response = client.models.generate_content(
-            model=MODEL_NAME,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                temperature=0.2
-            )
+        response_text, _provider = generate_ai_text(
+            prompt=prompt,
+            json_mode=True,
+            temperature=0.2,
         )
-
-        response_text = response.text.strip()
 
         # Parse do JSON
         try:

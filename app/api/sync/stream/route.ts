@@ -2,7 +2,7 @@
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  const backendUrl = 'http://backend:5328/api/sync/stream';
+  const backendUrl = `${process.env.BACKEND_URL || 'http://backend:5328'}/api/sync/stream`;
   
   try {
     const response = await fetch(backendUrl, {

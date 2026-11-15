@@ -4,7 +4,10 @@ import { verifySessionToken } from './app/lib/session';
 
 // Rotas públicas: login, auth e os proxies que o backend já protege.
 const PUBLIC_PREFIXES = ['/login', '/api/auth', '/api/health', '/api/sync/stream', '/api/ai/chat', '/_next'];
-const isPublic = (pathname: string) => PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix)) || pathname === '/favicon.ico';
+const isPublic = (pathname: string) =>
+  PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix)) ||
+  pathname === '/favicon.ico' ||
+  pathname === '/icon.svg';
 
 function deny(request: NextRequest, pathname: string) {
   // Se for rota de API, retorna 401 JSON em vez de redirect HTML
@@ -48,5 +51,5 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   // Executa o middleware em todas as rotas que não sejam recursos estáticos
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|icon.svg).*)'],
 };

@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Upload, X, Check, AlertTriangle, ShieldCheck, FileText, Trash2, AlertCircle, Settings } from 'lucide-react';
+import { Upload, X, Check, AlertTriangle, ShieldCheck, FileText, Trash2, AlertCircle, Settings, Database, Download } from 'lucide-react';
 import { useToast } from '@/context/ToastContext';
 import { apiCall } from '@/lib/api';
 import { Asset } from '@/types';
@@ -39,9 +39,12 @@ interface UnifiedImportModalProps {
 }
 
 export function UnifiedImportModal({ isOpen, onClose, onSuccess }: UnifiedImportModalProps) {
-  const [importMode, setImportMode] = useState<'brokerage' | 'b3'>('brokerage');
+  const [importMode, setImportMode] = useState<'brokerage' | 'b3' | 'backup'>('brokerage');
   const [isUploading, setIsUploading] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [backupPayload, setBackupPayload] = useState<Record<string, unknown> | null>(null);
+  const [backupMode, setBackupMode] = useState<'replace' | 'merge'>('replace');
+  const backupInputRef = useRef<HTMLInputElement>(null);
   
   // Brokerage Note State
   const [brokerageTxs, setBrokerageTxs] = useState<ParsedTransaction[]>([]);
@@ -342,6 +345,78 @@ export function UnifiedImportModal({ isOpen, onClose, onSuccess }: UnifiedImport
     toast('Evento ignorado.', 'success');
   };
 
+  const handleExportBackup = async () => {
+    try {
+      const res = await fetch('/api/portfolio/export-history');
+      if (!res.ok) throw new Error('Falha ao baixar histórico tratado');
+      const data = await res.json();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const today = new Date().toISOString().split('T')[0];
+      link.href = url;
+      link.download = `historico_tratado_${today}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      toast('Histórico tratado exportado com sucesso!', 'success');
+    } catch {
+      toast('Erro ao exportar histórico tratado.', 'error');
+    }
+  };
+
+  const handleBackupFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      if (
+        !data ||
+        typeof data !== 'object' ||
+        !data.schema_version ||
+        !Array.isArray(data.positions) ||
+        !Array.isArray(data.transactions)
+      ) {
+        toast('Arquivo JSON inválido: estrutura de histórico tratado não reconhecida.', 'error');
+        return;
+      }
+      setBackupPayload(data as Record<string, unknown>);
+      toast('Backup carregado para conferência.', 'success');
+    } catch {
+      toast('Não foi possível ler o arquivo JSON selecionado.', 'error');
+    }
+  };
+
+  const handleRestoreBackup = async () => {
+    if (!backupPayload) return;
+    setIsImporting(true);
+    try {
+      const res = await fetch('/api/portfolio/import-history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...backupPayload, mode: backupMode }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast(data.msg || 'Erro ao restaurar histórico tratado.', 'error');
+        return;
+      }
+      const imp = data.imported || {};
+      toast(
+        `Histórico restaurado! ${imp.positions ?? 0} posições, ${imp.transactions ?? 0} transações e ${imp.dividends ?? 0} proventos.`,
+        'success'
+      );
+      setBackupPayload(null);
+      onSuccess();
+      onClose();
+    } catch {
+      toast('Erro de conexão ao restaurar histórico tratado.', 'error');
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   const fmt = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
   const hasLoadedData = brokerageTxs.length > 0 || b3Transactions.length > 0 || dividends.length > 0 || corporateEvents.length > 0;
@@ -351,44 +426,138 @@ export function UnifiedImportModal({ isOpen, onClose, onSuccess }: UnifiedImport
       <div className="flex min-h-screen items-center justify-center p-4">
         <div className="fixed inset-0 bg-slate-950/40 dark:bg-slate-950/80 backdrop-blur-sm" onClick={onClose} />
 
-        <div className="relative w-full max-w-5xl bg-white/85 dark:bg-slate-900/90 backdrop-blur-2xl border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-2xl shadow-slate-900/10 dark:shadow-black/60 flex flex-col text-left my-8">
+        <div className="relative w-full max-w-5xl bg-surface-card/95 backdrop-blur-2xl border border-border-subtle rounded-2xl shadow-2xl shadow-black/60 flex flex-col text-left my-8">
           {/* Header */}
-          <div className="flex items-center justify-between p-5 border-b border-slate-200/80 dark:border-slate-800 shrink-0 bg-white/70 dark:bg-slate-900/95 backdrop-blur-xl sticky top-0 z-10 rounded-t-2xl">
+          <div className="flex items-center justify-between p-5 border-b border-border-subtle shrink-0 bg-surface-card/95 backdrop-blur-xl sticky top-0 z-10 rounded-t-2xl">
             <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${importMode === 'brokerage' ? 'bg-blue-500/10 text-blue-500 dark:text-blue-400' : 'bg-purple-500/10 text-purple-500 dark:text-purple-400'}`}>
-                {importMode === 'brokerage' ? <FileText size={20} /> : <ShieldCheck size={20} />}
+              <div className={`p-2 rounded-lg ${importMode === 'brokerage' ? 'bg-blue-500/10 text-blue-400' : importMode === 'b3' ? 'bg-purple-500/10 text-purple-400' : 'bg-accent-soft text-accent'}`}>
+                {importMode === 'brokerage' ? <FileText size={20} /> : importMode === 'b3' ? <ShieldCheck size={20} /> : <Database size={20} />}
               </div>
               <div>
-                <h2 className="text-xl font-bold font-heading text-slate-900 dark:text-white">Importação e Conciliação</h2>
-                <div className="flex items-center gap-4 mt-2">
-                  <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300 cursor-pointer">
-                    <input type="radio" name="mode" checked={importMode === 'brokerage'} onChange={() => { setImportMode('brokerage'); setBrokerageTxs([]); setB3Transactions([]); setDividends([]); setCorporateEvents([]); }} className="text-blue-500 bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700" />
+                <h2 className="text-xl font-bold font-heading text-text-primary">Importação e Conciliação</h2>
+                <div className="flex flex-wrap items-center gap-4 mt-2">
+                  <label className="flex items-center gap-2 text-sm text-text-muted hover:text-text-primary cursor-pointer">
+                    <input type="radio" name="mode" checked={importMode === 'brokerage'} onChange={() => { setImportMode('brokerage'); setBrokerageTxs([]); setB3Transactions([]); setDividends([]); setCorporateEvents([]); setBackupPayload(null); }} className="text-blue-500 bg-surface-input border-border-subtle" />
                     Nota de Corretagem
                   </label>
-                  <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300 cursor-pointer">
-                    <input type="radio" name="mode" checked={importMode === 'b3'} onChange={() => { setImportMode('b3'); setBrokerageTxs([]); setB3Transactions([]); setDividends([]); setCorporateEvents([]); }} className="text-purple-500 bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700" />
+                  <label className="flex items-center gap-2 text-sm text-text-muted hover:text-text-primary cursor-pointer">
+                    <input type="radio" name="mode" checked={importMode === 'b3'} onChange={() => { setImportMode('b3'); setBrokerageTxs([]); setB3Transactions([]); setDividends([]); setCorporateEvents([]); setBackupPayload(null); }} className="text-purple-500 bg-surface-input border-border-subtle" />
                     Extrato B3
+                  </label>
+                  <label className="flex items-center gap-2 text-sm text-text-muted hover:text-text-primary cursor-pointer">
+                    <input type="radio" name="mode" checked={importMode === 'backup'} onChange={() => { setImportMode('backup'); setBrokerageTxs([]); setB3Transactions([]); setDividends([]); setCorporateEvents([]); }} className="text-accent bg-surface-input border-border-subtle" />
+                    Histórico Tratado (Backup)
                   </label>
                 </div>
               </div>
             </div>
             <div className="flex items-center gap-2">
-               {hasLoadedData && (
-                <button onClick={() => fileInputRef.current?.click()} disabled={isUploading} className="px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 rounded-lg transition-colors flex items-center gap-1.5">
+               {hasLoadedData && importMode !== 'backup' && (
+                <button onClick={() => fileInputRef.current?.click()} disabled={isUploading} className="px-3 py-1.5 text-xs font-medium text-text-primary bg-surface-elevated hover:bg-surface-input border border-border-subtle rounded-lg transition-colors flex items-center gap-1.5">
                   <Upload size={14} /> Outro Arquivo
                 </button>
               )}
-              <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-800 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+              <button onClick={onClose} className="p-2 text-text-muted hover:text-text-primary rounded-lg hover:bg-surface-elevated transition-colors">
                 <X size={20} />
               </button>
             </div>
           </div>
 
           <input type="file" ref={fileInputRef} accept="application/pdf" multiple className="hidden" onChange={handleFileChange} disabled={isUploading} />
+          <input type="file" ref={backupInputRef} accept=".json,application/json" className="hidden" onChange={handleBackupFileChange} disabled={isImporting} />
 
           {/* Body */}
           <div className="p-5 overflow-y-auto max-h-[65vh]">
-            {!hasLoadedData ? (
+            {importMode === 'backup' ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-5 rounded-xl border border-border-subtle bg-surface flex flex-col justify-between gap-4">
+                  <div className="space-y-2">
+                    <div className="inline-flex p-2.5 rounded-lg bg-accent-soft text-accent">
+                      <Download size={20} />
+                    </div>
+                    <h3 className="text-base font-semibold text-text-primary">Baixar Histórico Tratado (.JSON)</h3>
+                    <p className="text-xs text-text-muted leading-relaxed">
+                      Exporta todas as transações conciliadas, eventos corporativos (desdobramentos, bonificações, cisões, trocas de ticker), proventos e posições atuais para migração sem retrabalho.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleExportBackup}
+                    className="w-full px-4 py-2.5 rounded-lg text-sm font-semibold bg-accent hover:opacity-90 text-white transition-opacity flex items-center justify-center gap-2"
+                  >
+                    <Download size={16} /> Baixar Histórico Tratado
+                  </button>
+                </div>
+
+                <div className="p-5 rounded-xl border border-border-subtle bg-surface flex flex-col justify-between gap-4">
+                  <div className="space-y-3">
+                    <div className="inline-flex p-2.5 rounded-lg bg-emerald-500/10 text-emerald-400">
+                      <Database size={20} />
+                    </div>
+                    <h3 className="text-base font-semibold text-text-primary">Restaurar / Importar Histórico (.JSON)</h3>
+                    <p className="text-xs text-text-muted leading-relaxed">
+                      Suba um arquivo JSON previamente exportado pelo AssetFlow para restaurar ou mesclar todo o seu histórico tratado.
+                    </p>
+
+                    <div className="flex items-center gap-4 pt-1">
+                      <label className="flex items-center gap-1.5 text-xs text-text-primary cursor-pointer">
+                        <input
+                          type="radio"
+                          name="backupMode"
+                          checked={backupMode === 'replace'}
+                          onChange={() => setBackupMode('replace')}
+                        />
+                        Substituir carteira atual
+                      </label>
+                      <label className="flex items-center gap-1.5 text-xs text-text-primary cursor-pointer">
+                        <input
+                          type="radio"
+                          name="backupMode"
+                          checked={backupMode === 'merge'}
+                          onChange={() => setBackupMode('merge')}
+                        />
+                        Mesclar sem duplicar
+                      </label>
+                    </div>
+
+                    {backupPayload && (
+                      <div className="p-3 rounded-lg bg-surface-card border border-border-subtle text-xs space-y-1">
+                        <div className="font-semibold text-status-success flex items-center gap-1.5">
+                          <Check size={14} /> Arquivo pronto para restauração
+                        </div>
+                        <div className="grid grid-cols-2 gap-1 text-text-muted pt-1">
+                          <span>Posições: <strong className="text-text-primary">{Array.isArray(backupPayload.positions) ? backupPayload.positions.length : 0}</strong></span>
+                          <span>Transações: <strong className="text-text-primary">{Array.isArray(backupPayload.transactions) ? backupPayload.transactions.length : 0}</strong></span>
+                          <span>Eventos Corp.: <strong className="text-text-primary">{Array.isArray(backupPayload.corporate_events) ? backupPayload.corporate_events.length : 0}</strong></span>
+                          <span>Proventos: <strong className="text-text-primary">{Array.isArray(backupPayload.dividends) ? backupPayload.dividends.length : 0}</strong></span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => backupInputRef.current?.click()}
+                      disabled={isImporting}
+                      className="flex-1 px-4 py-2.5 rounded-lg text-sm font-medium bg-surface-elevated hover:bg-surface-input border border-border-subtle text-text-primary transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Upload size={16} /> {backupPayload ? 'Trocar JSON' : 'Selecionar JSON'}
+                    </button>
+                    {backupPayload && (
+                      <button
+                        type="button"
+                        onClick={handleRestoreBackup}
+                        disabled={isImporting}
+                        className="flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold bg-status-success hover:opacity-90 text-white transition-opacity disabled:opacity-50"
+                      >
+                        {isImporting ? 'Restaurando...' : 'Confirmar Restauração'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : !hasLoadedData ? (
               <div className="flex flex-col items-center justify-center py-16 px-4 border-2 border-dashed border-slate-300 dark:border-slate-800 rounded-xl bg-slate-50/50 dark:bg-slate-900/30 backdrop-blur-sm">
                 <div className="p-4 bg-slate-200/60 dark:bg-slate-800/50 rounded-full text-slate-600 dark:text-slate-400 mb-4">
                   <Upload size={32} />
@@ -714,7 +883,7 @@ export function UnifiedImportModal({ isOpen, onClose, onSuccess }: UnifiedImport
           </div>
 
           {/* Footer */}
-          {hasLoadedData && (
+          {hasLoadedData && importMode !== 'backup' && (
             <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/50 backdrop-blur-md rounded-b-2xl mt-auto">
               <button onClick={onClose} disabled={isImporting} className="px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800 rounded-lg transition-colors">
                 Fechar

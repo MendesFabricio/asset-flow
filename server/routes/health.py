@@ -64,18 +64,26 @@ def healthcheck():
         detail_db = f"Falha ao conectar no SQLite: {str(e)}"
         logging.error(f"❌ [HEALTH] Erro SQLite: {e}")
 
-    # 2. Gemini Service (IA Cloud)
+    # 2. IA Service (Gemini Cloud ou Ollama Local)
     status_gemini = "online"
     detail_gemini = "Serviço de IA ativo e respondendo."
     try:
         from infrastructure.gemini_service import MODEL_NAME
+        from infrastructure.local_ai import get_ollama_status
         import os
         api_key = os.getenv("GEMINI_API_KEY")
-        if not api_key:
-            status_gemini = "offline"
-            detail_gemini = "API Key do Gemini não configurada."
-        else:
+        if api_key:
             detail_gemini = f"API Key presente. Modelo em uso: {MODEL_NAME}"
+        else:
+            ollama = get_ollama_status(timeout=1.5)
+            if ollama["available"] and ollama["model"]:
+                detail_gemini = f"IA Local (Ollama) ativa · Modelo: {ollama['model']}"
+            elif ollama["available"]:
+                status_gemini = "offline"
+                detail_gemini = f"Ollama ativo, mas sem modelo baixado. Rode: ollama pull {ollama['preferred_model']}"
+            else:
+                status_gemini = "offline"
+                detail_gemini = "API Key do Gemini não configurada e Ollama local offline."
     except Exception as e:
         status_gemini = "offline"
         detail_gemini = f"Falha ao validar serviço de IA: {str(e)}"

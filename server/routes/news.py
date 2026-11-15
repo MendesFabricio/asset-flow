@@ -168,8 +168,7 @@ def get_daily_sector_summary():
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
             }
             
-            from infrastructure.gemini_service import MODEL_NAME, get_genai_client
-            client = get_genai_client()
+            from infrastructure.gemini_service import generate_ai_text
             
             for sector, url in sectors.items():
                 titles = []
@@ -192,10 +191,10 @@ def get_daily_sector_summary():
                 prompt = template.format(sector=sector, titles_text=titles_text)
                 
                 try:
-                    ai_res = client.models.generate_content(model=MODEL_NAME, contents=prompt)
-                    summaries[sector] = ai_res.text.strip()
+                    summary_text, _provider = generate_ai_text(prompt, temperature=0.2)
+                    summaries[sector] = summary_text or "IA indisponível no momento."
                 except Exception as ai_err:
-                    logging.warning(f"Erro ao gerar resumo de {sector} no Gemini: {ai_err}")
+                    logging.warning(f"Erro ao gerar resumo de {sector} na IA: {ai_err}")
                     summaries[sector] = "IA indisponível no momento."
                     
             # 3. Salva no cache

@@ -94,7 +94,7 @@ export function PortfolioModals({
       )}
       {isSmartModalOpen && (
         <ErrorBoundary>
-          <SmartAllocationModal isOpen={true} onClose={onCloseSmart} />
+          <SmartAllocationModal isOpen={true} onClose={onCloseSmart} ativos={ativos} />
         </ErrorBoundary>
       )}
       {!!selectedDetailsAsset && (

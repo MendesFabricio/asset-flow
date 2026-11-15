@@ -60,9 +60,13 @@ export async function POST(req: Request) {
       });
       
       // Cria um cookie seguro que dura 7 dias contendo o token JWT assinado
+      const isSecure =
+        process.env.COOKIE_SECURE === 'true' ||
+        req.headers.get('x-forwarded-proto') === 'https';
+
       response.cookies.set('assetflow_session', token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: isSecure,
         sameSite: 'lax',
         maxAge: 60 * 60 * 24 * 7, // 7 dias
         path: '/',

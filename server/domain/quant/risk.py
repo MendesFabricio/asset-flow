@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from db.models import SystemCache, safe_commit, get_active_positions
 from domain.quant.helpers import _to_yf_ticker, _align_prices_to_b3, get_risk_free_rate, _get_current_user_id, _extract_close_prices, _calculate_ewma_covariance, classify_asset_sector
 
-def calculate_risk_metrics(session, fetch_prices, allow_compute=True) -> dict:
+def calculate_risk_metrics(session, fetch_prices, allow_compute=True, dolar_rate: float = 1.0) -> dict:
     uid = _get_current_user_id()
     cache_key = f"risk_metrics_{uid}" if uid is not None else "risk_metrics"
     try:
@@ -37,7 +37,8 @@ def calculate_risk_metrics(session, fetch_prices, allow_compute=True) -> dict:
         if cat in ["Renda Fixa", "Reserva"]:
             continue
         price = float(pos.asset.market_data[0].price or 0)
-        val = float(pos.quantity) * price
+        fator = dolar_rate if getattr(pos.asset, "currency", "BRL") == "USD" and dolar_rate > 0 else 1.0
+        val = float(pos.quantity) * price * fator
         if val <= 0:
             continue
         ticker_yf = _to_yf_ticker(pos.asset.ticker, cat)

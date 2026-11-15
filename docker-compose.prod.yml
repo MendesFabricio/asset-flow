@@ -60,7 +60,7 @@ services:
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://assetflowpro.duckdns.org}
       LOCKS_DIR: /app/data/locks
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:5328/api/health || exit 1"]
+      test: [ "CMD-SHELL", "curl -sf http://localhost:5328/api/health || exit 1" ]
       interval: 15s
       timeout: 5s
       retries: 3
@@ -132,11 +132,10 @@ services:
       - NODE_OPTIONS=--max-old-space-size=2048
       - SECRET_KEY=${SECRET_KEY:-}
       - NEXT_PUBLIC_API_URL=
-      - NEXT_PUBLIC_BACKEND_URL=
       - SENTRY_DSN=
       - ENVIRONMENT=production
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3000 || exit 1"]
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:3000 || exit 1" ]
       interval: 30s
       timeout: 15s
       retries: 5

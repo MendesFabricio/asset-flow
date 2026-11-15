@@ -178,9 +178,9 @@ export function SystemStatus() {
               Database
             )}
             {renderServiceRow(
-              'IA Jarvis (Gemini)', 
+              data?.services?.gemini?.message?.includes('Ollama') ? 'IA Jarvis (Local)' : 'IA Jarvis (Gemini)', 
               data?.services?.gemini?.status, 
-              data?.services?.gemini?.message || 'Validando API Key...',
+              data?.services?.gemini?.message || 'Validando IA...',
               Brain
             )}
           </div>

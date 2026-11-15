@@ -87,9 +87,13 @@ def extract_b3_extract_transactions(file_stream, filename=""):
             'Transferência - Liquidação', 'Resgate', 'Compra Opção de Compra', 'Venda Opção de Venda',
             'Compra Opção', 'Venda Opção', 'Opção de Compra', 'Opção de Venda', 'Exercício de Opção'
         ]
-        corporate_event_types = ['Leilão de Fração', 'Fração em Ativos', 'Bonificação em Ativos', 'Desdobramento', 'Grupamento', 'Cisão', 'Atualização']
+        corporate_event_types = [
+            'Leilão de Fração', 'Fração em Ativos', 'Bonificação em Ativos',
+            'Desdobramento', 'Desdobro', 'Grupamento', 'Cisão',
+            'Incorporação', 'Amortização', 'Atualização',
+        ]
 
-        op_pattern = r"(Rendimento|Dividendo|Juros Sobre Capital Próprio|Transferência - Liquidação|Leilão de Fração|Resgate|Fração em Ativos|Bonificação em Ativos|Desdobramento|Grupamento|Cisão|Atualização|Compra Opção de Compra|Venda Opção de Venda|Compra Opção|Venda Opção|Opção de Compra|Opção de Venda|Exercício de Opção)\s+([A-Z0-9]{4,8})\s+-\s+(.*?)\s+(\d+(?:,\d+)?)\s+R\$\s*([\d,.-]+)\s+R\$\s*([\d,.-]+)"
+        op_pattern = r"(Rendimento|Dividendo|Juros Sobre Capital Próprio|Transferência - Liquidação|Leilão de Fração|Resgate|Fração em Ativos|Bonificação em Ativos|Desdobramento|Desdobro|Grupamento|Cisão|Incorporação|Amortização|Atualização|Compra Opção de Compra|Venda Opção de Venda|Compra Opção|Venda Opção|Opção de Compra|Opção de Venda|Exercício de Opção)\s+([A-Z0-9]{4,8})\s+-\s+(.*?)\s+(\d+(?:,\d+)?)\s+R\$\s*([\d,.-]+)\s+R\$\s*([\d,.-]+)"
         date_pattern = r"(\d{2}) de (janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro) de (\d{4})"
 
         dividends = []
@@ -205,7 +209,8 @@ def extract_b3_extract_transactions(file_stream, filename=""):
             "status": "Sucesso",
             "dividends": dividends,
             "transactions": transactions,
-            "corporate_events_suggestions": corporate_events
+            "corporate_events_suggestions": corporate_events,
+            "corporate_events": corporate_events,
         }
 
     except Exception as e:
@@ -215,5 +220,6 @@ def extract_b3_extract_transactions(file_stream, filename=""):
             "msg": str(e),
             "dividends": [],
             "transactions": [],
-            "corporate_events_suggestions": []
+            "corporate_events_suggestions": [],
+            "corporate_events": [],
         }

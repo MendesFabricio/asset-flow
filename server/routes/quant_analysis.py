@@ -52,10 +52,12 @@ def get_rebalance_bands():
             if not positions:
                 return jsonify({"status": "Sucesso", "data": []})
 
+            dolar_rate = float(service.get_usd_rate() or 1.0)
             entire_portfolio_value = 0.0
             for pos in positions:
                 price = float(pos.asset.market_data[0].price or 0.0) if pos.asset and pos.asset.market_data else 0.0
-                entire_portfolio_value += float(pos.quantity) * price
+                fator = dolar_rate if pos.asset and getattr(pos.asset, "currency", "BRL") == "USD" and dolar_rate > 0 else 1.0
+                entire_portfolio_value += float(pos.quantity) * price * fator
 
             data = []
             for pos in positions:
@@ -66,7 +68,8 @@ def get_rebalance_bands():
                     continue
                     
                 price = float(pos.asset.market_data[0].price or 0.0) if pos.asset.market_data else 0.0
-                val = float(pos.quantity) * price
+                fator = dolar_rate if getattr(pos.asset, "currency", "BRL") == "USD" and dolar_rate > 0 else 1.0
+                val = float(pos.quantity) * price * fator
                 
                 weight_pct = (val / entire_portfolio_value * 100) if entire_portfolio_value > 0 else 0.0
                 
@@ -417,6 +420,7 @@ def generate_report():
             from utils.pdf_generator import generate_monthly_report_pdf
             
             dash_data = service.get_dashboard_data()
+            dash_data["dolar_rate"] = float(service.get_usd_rate() or 5.80)
             fg_data = calculate_local_fear_greed(session)
             
             dash_data["fear_greed_score"] = fg_data["score"]
@@ -445,10 +449,11 @@ def generate_report():
                     "vencimento_dia": int(inst.data_vencimento.day)
                 })
             dash_data["recebiveis"] = receivables_list
-
-            dash_data["comentario_ia"] = "Sua carteira está bem distribuída. Recomendamos verificar os ativos com recomendação de COMPRAR na aba 'Análise Quant' e ajustar os desvios."
             
-            date_str = datetime.now().strftime("%Y-%m-%d_%H-%M")
+            from services_modules.dashboard import _BRT_TZ
+            now_brt = datetime.now(_BRT_TZ)
+            dash_data["generated_at"] = now_brt.strftime("%d/%m/%Y %H:%M")
+            date_str = now_brt.strftime("%Y-%m-%d_%H-%M")
             filename = f"relatorio_patrimonial_{date_str}.pdf"
             
             base_dir = os.path.dirname(os.path.abspath(__file__))

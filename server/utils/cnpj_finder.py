@@ -6,7 +6,7 @@ class CNPJFinder:
     @staticmethod
     def find_by_ticker(ticker: str) -> Optional[str]:
         ticker = ticker.replace(".SA", "").strip().lower()
-        categorias = ["acoes", "fundos-imobiliarios", "fiagros", "fiinfras"]
+        categorias = ["acoes", "fundos-imobiliarios", "fiagros", "fiinfras", "etfs", "bdrs"]
         headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
         
         for cat in categorias:

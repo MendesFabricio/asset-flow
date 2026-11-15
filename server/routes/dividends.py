@@ -203,7 +203,7 @@ def get_dividend_analytics():
                     payout = min(100.0, round(payout, 2))
                 
                 # Consistência de Pagamento Score (número de trimestres com distribuição nos últimos 3 anos)
-                divs = pos.asset.dividends
+                divs = [d for d in pos.asset.dividends if d.user_id == g.user_id]
                 quarters = set()
                 for d in divs:
                     if d.date_com:
@@ -250,7 +250,7 @@ def get_yoc_history():
                 if avg_price <= 0:
                     continue
                 
-                divs = pos.asset.dividends
+                divs = [d for d in pos.asset.dividends if d.user_id == g.user_id]
                 year_map = {}
                 for d in divs:
                     if d.date_com:

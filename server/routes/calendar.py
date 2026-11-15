@@ -149,6 +149,7 @@ def get_calendar():
             active_ids = [pos.asset_id for pos in positions]
             
             future_divs = session.query(Dividend).filter(
+                Dividend.user_id == g.user_id,
                 Dividend.asset_id.in_(active_ids),
                 Dividend.date_com >= today
             ).all()

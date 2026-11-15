@@ -33,12 +33,17 @@ class BackupService:
                 for user in users:
                     self.current_user_id = user.id
                     dash = self.get_dashboard_data()
+                    resumo = dash.get('resumo') or {}
                     
-                    total_equity = Decimal(str(dash.get('totalPatrimonio', 0)))
-                    total_invested = Decimal(str(dash.get('totalInvestido', 0)))
+                    total_equity = Decimal(str(resumo.get('Total', 0)))
+                    total_invested = Decimal(str(resumo.get('TotalInvestido', 0)))
                     
-                    # Convert breakdown floats back to float (dash.categories returns a dict {str: value})
-                    breakdown = {k: float(v) for k, v in dash.get('categories', {}).items()}
+                    # Convert chart breakdown list [{"name": str, "value": float}] to dict {str: float}
+                    breakdown = {
+                        item['name']: float(item.get('value', 0))
+                        for item in (dash.get('grafico') or [])
+                        if isinstance(item, dict) and 'name' in item
+                    }
                     breakdown_str = json.dumps(breakdown)
                     
                     today = date.today()

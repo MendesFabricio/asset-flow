@@ -27,11 +27,11 @@ export function AssetInfoCell({
   return (
     <td className="px-6 py-5">
       <div className="flex items-center gap-3">
-        <div className="relative h-9 w-9 shrink-0 rounded-full bg-slate-800 overflow-hidden shadow-sm group-hover:scale-110 transition-transform duration-300">
+        <div className="relative h-9 w-9 shrink-0 rounded-full bg-slate-800/80 border border-slate-700/50 overflow-hidden shadow-sm group-hover:scale-110 transition-transform duration-300">
           {!imgError ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={`/api/assets/icon/${ativo.ticker}`}
+              src={`/api/assets/icon/${encodeURIComponent(ativo.ticker)}?v=2`}
               alt={ativo.ticker}
               className="h-full w-full object-cover"
               onError={() => setImgError(true)}
@@ -86,7 +86,13 @@ export function AssetInfoCell({
             </div>
           </div>
           <div className="text-[10px] text-slate-500 uppercase font-medium tracking-wide">
-            {ativo.tipo} • <PrivateValue value={`${ativo.qtd} UN`} className="tabular-nums" />
+            {ativo.tipo === 'Reserva' ? (
+              'RESERVA • CAIXINHA'
+            ) : (
+              <>
+                {ativo.tipo} • <PrivateValue value={`${ativo.qtd} UN`} className="tabular-nums" />
+              </>
+            )}
           </div>
         </div>
       </div>

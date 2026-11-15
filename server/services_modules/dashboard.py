@@ -10,7 +10,13 @@ from db.session import Session
 from .dashboard_metrics import calculate_fundamental_metrics, apply_strategy
 from .dashboard_alerts import build_alerts
 from utils.date_helper import get_invoice_month_helper as get_fatura_mes_helper
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+
+try:
+    from zoneinfo import ZoneInfo
+    _BRT_TZ = ZoneInfo("America/Sao_Paulo")
+except Exception:
+    _BRT_TZ = timezone(timedelta(hours=-3))
 
 class DashboardService:
     def get_dashboard_data(self):
@@ -95,8 +101,8 @@ class DashboardService:
                     else:
                         status_order = 3
 
-                    # Zero variation if not from today
-                    today_str = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+                    # Zero variation if not from today (America/Sao_Paulo, visible until 23:59 BRT)
+                    today_str = datetime.now(_BRT_TZ).strftime('%Y-%m-%d')
                     mdata_date_str = item.get("mdata_date")
                     final_change_percent = float(change_percent) if mdata_date_str == today_str else 0.0
 

@@ -17,16 +17,16 @@ def mock_session():
 def dummy_fetch_prices():
     def _fetch(tickers, period):
         # Create a dummy DataFrame with prices for PETR4 and ^BVSP
-        dates = pd.date_range(end=datetime.now(), periods=40, freq='B')
+        dates = pd.date_range(end=datetime.now(), periods=45, freq='B')
         
         # Trend up for PETR4, slightly up for ^BVSP
-        petr4_prices = np.linspace(20, 30, 40)
-        bvsp_prices = np.linspace(100000, 110000, 40)
+        petr4_prices = np.linspace(20, 30, 45)
+        bvsp_prices = np.linspace(100000, 110000, 45)
         
         # Add random noise
         np.random.seed(42)
-        petr4_prices *= (1 + np.random.normal(0, 0.01, 40))
-        bvsp_prices *= (1 + np.random.normal(0, 0.005, 40))
+        petr4_prices *= (1 + np.random.normal(0, 0.01, 45))
+        bvsp_prices *= (1 + np.random.normal(0, 0.005, 45))
         
         df = pd.DataFrame(index=dates)
         

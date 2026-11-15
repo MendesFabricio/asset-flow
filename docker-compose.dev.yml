@@ -19,6 +19,9 @@ services:
       - ./server:/app/server
       - sqlite_data:/app/data
       - ./backups:/app/backups
+    env_file:
+      - path: .env
+        required: false
     environment:
       <<: *shared-env
       PYTHONPATH: /app
@@ -52,6 +55,9 @@ services:
       - ./server:/app/server
       - sqlite_data:/app/data
       - ./backups:/app/backups
+    env_file:
+      - path: .env
+        required: false
     environment:
       <<: *shared-env
       PYTHONPATH: /app:/app/server

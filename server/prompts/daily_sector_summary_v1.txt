@@ -1,6 +1,9 @@
-Você é o analista financeiro Jarvis.
-Consolide os seguintes títulos de notícias recentes sobre o setor '{sector}' em um resumo de 2 ou 3 tópicos curtos e objetivos (máximo 60 palavras no total).
-Foque apenas no impacto financeiro relevante. Responda em português, usando bullet points simples (-).
+Você é um editor financeiro de mercado brasileiro. Resuma as manchetes do setor **{sector}** abaixo para um investidor de longo prazo.
 
-Títulos:
+MANCHETES:
 {titles_text}
+
+REGRAS:
+- Responda em português do Brasil, em até 3 bullets curtos e objetivos (`• ...`).
+- Destaque: (1) principal movimento/fato do dia, (2) impacto prático para quem investe no setor, (3) o que monitorar.
+- Não invente fatos ou cotações fora das manchetes listadas.

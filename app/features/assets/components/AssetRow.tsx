@@ -70,6 +70,7 @@ export const AssetRow = React.memo(({ ativo, tab, onEdit, onViewNews, onViewDeta
         <AssetValueCell ativo={ativo} />
         <AssetPriceCell
           stats={stats}
+          isReserva={ativo.tipo === 'Reserva'}
           onShowFin={(e: MouseEvent) => showTooltip(e, 'fin')}
           onHide={() => hideTooltip()}
         />

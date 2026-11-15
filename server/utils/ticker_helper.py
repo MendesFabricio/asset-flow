@@ -8,9 +8,7 @@ HISTORICAL_TICKER_MAP = {
     "BRML3": "ALOS3",
     "ALSO3": "ALOS3",
     "ALOS3": "ALOS3",
-    "SOMA3": "AZZA3",
     "ARZZ3": "AZZA3",
-    "HGTX3": "AZZA3",
     "SULA11": "RDOR3",
     "SULA3": "RDOR3",
     "SULA4": "RDOR3",
@@ -21,6 +19,21 @@ HISTORICAL_TICKER_MAP = {
     "IGTA3": "IGTI11",
     "GETT11": "SANB11",
     "AZUL4": "AZUL4",
+}
+
+LEGACY_YF_PROXY_MAP = {
+    "TRPL4": ("ISAE4.SA", 1.0, None),
+    "TRPL3": ("ISAE3.SA", 1.0, None),
+    "CPLE6": ("CPLE3.SA", 1.0, None),
+    "CPLE5": ("CPLE3.SA", 1.0, None),
+    "JBSS3": ("JBSS32.SA", 1.0, "2025-06-08"),
+    "SOMA3": ("AZZA3.SA", 0.1216, None),
+    "CNTO3": ("SBFG3.SA", 1.0, None),
+    "ELET3": ("AXIA3.SA", 1.0, None),
+    "ELET6": ("AXIA3.SA", 1.0, None),
+    "MRFG3": ("MBRF3.SA", 1.0, None),
+    "ENAT3": ("BRAV3.SA", 1.0, None),
+    "BTOW3": ("AMER3.SA", 1.0, None),
 }
 
 COMPANY_TO_TICKER = {
@@ -34,14 +47,22 @@ COMPANY_TO_TICKER = {
     "AUREN": "AURE3",
     "AZZAS 2154": "AZZA3",
     "AZZAS": "AZZA3",
+    "KLABIN S/A UNT": "KLBN11",
+    "KLABIN S/A PN": "KLBN4",
+    "KLABIN S/A ON": "KLBN3",
     "KLABIN": "KLBN11",
-    "RDVC CITY": "RADL3",
+    "RDVC CITY": "CCTY3",
     "FII IRIM": "IRIM11",
-    "FIC IE CAP": "CPTS11",
+    "FIC IE CAP": "CPTI11",
     "FIC INFR BTG": "BDIF11",
+    "COPEL ON": "CPLE3",
+    "COPEL PNA": "CPLE5",
+    "COPEL PNB": "CPLE6",
     "COPEL": "CPLE6",
     "GERDAU MET": "GOAU4",
     "GERDAU": "GGBR4",
+    "ITAUUNIBANCO ON": "ITUB3",
+    "ITAUUNIBANCO PN": "ITUB4",
     "ITAUUNIBANCO": "ITUB4",
     "PETROBRAS": "PETR4",
     "ROMI": "ROMI3",
@@ -53,6 +74,8 @@ COMPANY_TO_TICKER = {
     "B3": "B3SA3",
     "BANCO DO BRASIL": "BBAS3",
     "BRASIL": "BBAS3",
+    "ELETROBRAS PNB": "ELET6",
+    "ELETROBRAS ON": "ELET3",
     "ELETROBRAS": "ELET3",
     "ITAUSA": "ITSA4",
     "LOCALIZA": "RENT3",
@@ -74,6 +97,7 @@ COMPANY_TO_TICKER = {
     "MULTIPLAN": "MULT3",
     "BR MALLS PAR": "BRML3",
     "BR MALLS": "BRML3",
+    "JBS N.V": "JBSS32",
     "JBS": "JBSS3",
     "CIA HERING": "HGTX3",
     "HERING": "HGTX3",
@@ -94,6 +118,8 @@ COMPANY_TO_TICKER = {
     "ENERGISA": "ENGI11",
     "TOTVS": "TOTS3",
     "ENGIE BRASIL": "EGIE3",
+    "TRAN PAULIST PN": "TRPL4",
+    "TRAN PAULIST ON": "TRPL3",
     "TRAN PAULIST": "TRPL4",
     "TRAN": "TRPL4",
     "YDUQS PART": "YDUQ3",
@@ -122,12 +148,14 @@ COMPANY_TO_TICKER = {
     "HECTARE": "HCTR11",
     "ENERGIAS BR": "ENBR3",
     "ENERGIAS": "ENBR3",
-    "GRUPO SOMA": "AZZA3",
-    "GRUPO": "AZZA3",
+    "GRUPO SOMA": "SOMA3",
+    "GRUPO": "SOMA3",
     "OI": "OIBR3",
     "SANEPAR": "SAPR4",
     "ENJOEI": "ENJU3",
     "TC": "TRAD3",
+    "VIVER DO": "VIVR1",
+    "VIVER ON": "VIVR3",
     "VIVER": "VIVR3",
     "IOCHP-MAXION": "MYPK3",
     "IOCHP": "MYPK3",
@@ -137,18 +165,21 @@ COMPANY_TO_TICKER = {
     "TAESA": "TAEE11",
     "MOSAICO": "MOSI3",
     "LOJAS MARISA": "AMAR3",
+    "LOJAS AMERIC PN": "LAME4",
+    "LOJAS AMERIC ON": "LAME3",
     "LOJAS AMERIC": "AMER3",
     "LOJAS": "AMER3",
     "AMERICANAS": "AMER3",
-    "B2W DIGITAL": "AMER3",
-    "B2W": "AMER3",
+    "B2W DIGITAL": "BTOW3",
+    "B2W": "BTOW3",
+    "CVC BRASIL": "CVCB3",
     "MARFRIG": "MRFG3",
     "JHSF": "JHSF3",
     "CENTAURO": "CNTO3",
     "MELIUZ": "CASH3",
     "PLANOEPLANO": "PLPL3",
     "PLANO": "PLPL3",
-    "AERIS": "AERE3",
+    "AERIS": "AERI3",
     "APPLE": "AAPL34",
     "ISHARE SP500": "IVVB11",
     "ISHARE": "IVVB11",
@@ -157,22 +188,30 @@ COMPANY_TO_TICKER = {
     "TREND": "XINA11",
     "HASHDEX NCI": "HASH11",
     "HASHDEX": "HASH11",
-    "CORE US REIT": "BIVB39",
-    "CORE": "BIVB39",
-    "GOLD TRUST": "BIFRA39",
-    "GOLD": "BIFRA39",
+    "CORE US REIT": "BUSR39",
+    "CORE": "BUSR39",
+    "GOLD TRUST": "BEGD39",
+    "GOLD": "BEGD39",
     "ICE BIOTECH": "BIBB39",
     "ICE": "BIBB39",
     "INC ESG AWAR": "BEGE39",
     "INC": "BEGE39",
     "TRTMSCI EAFE": "BEFA39",
     "TRTMSCI": "BEFA39",
-    "COREMSCI EUR": "BEUR39",
-    "COREMSCI": "BEUR39",
-    "ETF BV COIN": "BTHC11",
-    "ETF BV ETHY": "ETHE11",
-    "INVESTOVWRA": "BIVB39",
+    "COREMSCI EUR": "BIEU39",
+    "COREMSCI": "BIEU39",
+    "ETF BV COIN": "COIN11",
+    "ETF BV ETHY": "ETHY11",
+    "INVESTOVWRA": "VWRA11",
 }
+
+_SORTED_COMPANY_TO_TICKER = sorted(
+    COMPANY_TO_TICKER.items(),
+    key=lambda kv: len(kv[0]),
+    reverse=True,
+)
+_OPTION_TICKER_RE = re.compile(r'\b([A-Z][A-Z0-9]{3}[A-X]\d{1,4}[A-Z]?)\b')
+_OPTION_FULL_RE = re.compile(r'^([A-Z][A-Z0-9]{3})([A-X])(\d{1,4})([A-Z]?)$')
 
 def clean_company_name(name: str) -> str:
     """Remove sufixos de ações (ON, PN, NM, N1, etc.) para isolar o nome da empresa."""
@@ -181,29 +220,33 @@ def clean_company_name(name: str) -> str:
     clean_parts = [p for p in parts if p not in words_to_remove]
     return " ".join(clean_parts).strip()
 
+def _match_company_map(text: str) -> str:
+    """Matches dictionary keys by longest key first with strict word boundaries."""
+    if not text:
+        return ""
+    for key, ticker in _SORTED_COMPANY_TO_TICKER:
+        if key == text:
+            return ticker
+        if re.search(r'(?<![A-Z0-9])' + re.escape(key) + r'(?![A-Z0-9])', text):
+            return ticker
+    return ""
+
 def resolve_ticker(name: str) -> str:
     """Tenta descobrir o ticker com base no nome usando o De/Para e regras heurísticas."""
     name_upper = name.upper().strip()
     
-    # 0. Tenta identificar se o nome contém um ticker de opção B3 (ex: PETRA350, COGNO380)
-    opt_match = re.search(r'\b([A-Z]{4}[A-X]\d{1,4})\b', name_upper)
+    # 0. Tenta identificar se o nome contém um ticker de opção B3 (ex: PETRA350, B3SAL131, ABEVN139E)
+    opt_match = _OPTION_TICKER_RE.search(name_upper)
     if opt_match:
         return opt_match.group(1)
         
-    found_ticker = ""
-    # 1. Tenta correspondência exata do nome original
-    for key, ticker in COMPANY_TO_TICKER.items():
-        if key == name_upper or key in name_upper:
-            found_ticker = ticker
-            break
+    # 1. Tenta correspondência exata ou por palavra inteira no nome original (preserva ON/PN/PNA/PNB/UNT)
+    found_ticker = _match_company_map(name_upper)
             
     if not found_ticker:
-        # 2. Limpa o nome removendo ON, PN, NM, etc. e procura
+        # 2. Limpa o nome removendo ON, PN, NM, etc. e procura novamente
         clean_name = clean_company_name(name_upper)
-        for key, ticker in COMPANY_TO_TICKER.items():
-            if key == clean_name or key in clean_name:
-                found_ticker = ticker
-                break
+        found_ticker = _match_company_map(clean_name)
                 
     if not found_ticker:
         # 3. Fallback heurístico caso não ache no dicionário
@@ -241,9 +284,20 @@ def to_yf_ticker(ticker: str, category_name: str) -> str:
         return f"{t}.SA"
     return t
 
+
+def get_yf_historical_proxy(ticker: str, category_name: str = "") -> tuple[str, float, str | None]:
+    """
+    Returns (yf_symbol, price_multiplier, max_date_iso) for historical price backfill.
+    Handles delisted legacy tickers whose history lives under the successor symbol on Yahoo Finance.
+    """
+    t = (ticker or "").strip().upper()
+    if t in LEGACY_YF_PROXY_MAP:
+        return LEGACY_YF_PROXY_MAP[t]
+    return (to_yf_ticker(t, category_name), 1.0, None)
+
 def extract_option_meta(ticker: str) -> dict:
     """
-    Extrai informações de uma opção da B3 a partir do ticker (ex: COGNO380).
+    Extrai informações de uma opção da B3 a partir do ticker (ex: COGNO380, B3SAL131, ABEVN139E).
     Retorna None se não for uma opção válida.
     """
     if not ticker:
@@ -251,12 +305,12 @@ def extract_option_meta(ticker: str) -> dict:
         
     t = ticker.strip().upper()
     
-    # Padrao: 4 letras + 1 letra + 1 a 3 digitos
-    match = re.match(r"^([A-Z]{4})([A-X])(\d{1,3})$", t)
+    # Padrão B3: 4 caracteres do ativo-base (ex: PETR, B3SA) + letra série A-X + strike (1-4 dígitos) + sufixo opcional E
+    match = _OPTION_FULL_RE.match(t)
     if not match:
         return None
         
-    underlying, month_letter, strike_str = match.groups()
+    underlying, month_letter, strike_str, _ = match.groups()
     strike = float(strike_str)
     
     month_ord = ord(month_letter)

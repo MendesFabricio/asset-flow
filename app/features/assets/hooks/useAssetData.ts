@@ -11,6 +11,8 @@ interface SyncStatusResponse {
   message: string;
 }
 
+const EMPTY_HISTORY: HistoryDataPoint[] = [];
+
 const fetcher = async (url: string) => {
   const res = await fetch(url);
   if (!res.ok) {
@@ -36,8 +38,9 @@ export function useAssetData() {
   const {
     data: history,
     error: errorHistory,
-    isLoading: loadingHistory
-  } = useSWR<HistoryDataPoint[]>('/api/history', fetcher);
+  } = useSWR<HistoryDataPoint[]>('/api/history', fetcher, {
+    revalidateOnFocus: false
+  });
 
   // Estados locais para controle de sincronização via SSE Streaming
   const [syncStatus, setSyncStatus] = useState<SyncStatusResponse>({
@@ -62,8 +65,7 @@ export function useAssetData() {
     const MAX_RETRY_DELAY = 30000;
 
     const connect = () => {
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5328';
-      eventSource = new EventSource(`${backendUrl}/api/sync/stream`);
+      eventSource = new EventSource('/api/sync/stream');
 
       eventSource.onmessage = (event) => {
         try {
@@ -138,8 +140,8 @@ export function useAssetData() {
 
   return {
     data,
-    history: history || [],
-    loading: loadingDashboard || loadingHistory,
+    history: history || EMPTY_HISTORY,
+    loading: loadingDashboard,
     error: errorDashboard ? errorDashboard.message : (errorHistory ? errorHistory.message : null),
     refetch: refreshAll,
     syncStatus,

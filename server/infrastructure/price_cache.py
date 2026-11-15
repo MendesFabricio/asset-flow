@@ -17,16 +17,19 @@ mantendo a mesma interface fetch_price_history/invalidate.
 import threading
 import time
 import logging
+import pandas as pd
 import yfinance as yf
 from collections import OrderedDict
 
 MAX_CACHE_SIZE = 50
 _CACHE: OrderedDict = OrderedDict()
-_CACHE_LOCK = threading.Lock()          # Protege o dict _CACHE
+_TICKER_CACHE: dict[tuple[str, str], tuple[pd.DataFrame, float]] = {}
+_CACHE_LOCK = threading.Lock()          # Protege os dicts _CACHE e _TICKER_CACHE
 _KEY_LOCKS: dict[str, threading.Lock] = {}
 _KEY_LOCKS_META = threading.Lock()     # Protege o dict _KEY_LOCKS
 
 PRICE_CACHE_TTL = 3600  # segundos
+
 
 def _get_key_lock(key: str) -> threading.Lock:
     with _KEY_LOCKS_META:
@@ -35,53 +38,97 @@ def _get_key_lock(key: str) -> threading.Lock:
         return _KEY_LOCKS[key]
 
 
+def _extract_ticker_slices(data: pd.DataFrame, requested: list[str]) -> dict[str, pd.DataFrame]:
+    """Extrai DataFrame OHLCV individual por ticker a partir do retorno do yf.download."""
+    slices: dict[str, pd.DataFrame] = {}
+    if data is None or data.empty:
+        return slices
+    if isinstance(data.columns, pd.MultiIndex):
+        lvl0 = set(data.columns.get_level_values(0))
+        for t in requested:
+            if t in lvl0:
+                sub = data[t].dropna(how="all")
+                if not sub.empty:
+                    slices[t] = sub
+    elif len(requested) == 1:
+        sub = data.dropna(how="all")
+        if not sub.empty:
+            slices[requested[0]] = sub
+    return slices
+
+
 def fetch_price_history(tickers: list, period: str = "1y"):
     """
-    Busca histórico de preços com cache TTL de 1h.
-    Double-checked locking por chave: apenas 1 download simultâneo
-    por conjunto único de tickers.
+    Busca histórico de preços com cache TTL de 1h por conjunto e por ticker.
+    Reaproveita tickers já baixados em chamadas anteriores e baixa apenas os faltantes
+    em paralelo (threads=True).
     """
-    cache_key = f"prices:{'|'.join(sorted(tickers))}:{period}"
+    unique_tickers = list(dict.fromkeys(tickers))
+    if not unique_tickers:
+        return pd.DataFrame()
 
-    # Fast path — sem I/O
+    cache_key = f"prices:{'|'.join(sorted(unique_tickers))}:{period}"
+    now = time.monotonic()
+
+    # Fast path — cache exato
     with _CACHE_LOCK:
         entry = _CACHE.get(cache_key)
-        if entry and time.monotonic() < entry[1]:
+        if entry and now < entry[1]:
             _CACHE.move_to_end(cache_key)
-            logging.info(f"💾 Cache HIT: {len(tickers)} tickers ({period})")
+            logging.info(f"💾 Cache HIT: {len(unique_tickers)} tickers ({period})")
             return entry[0]
 
-    # Slow path — serializado por chave (não bloqueia outras chaves)
     key_lock = _get_key_lock(cache_key)
     with key_lock:
-        # Double-check após obter lock de chave
+        now = time.monotonic()
         with _CACHE_LOCK:
             entry = _CACHE.get(cache_key)
-            if entry and time.monotonic() < entry[1]:
+            if entry and now < entry[1]:
                 _CACHE.move_to_end(cache_key)
-                logging.info(f"💾 Cache HIT (2nd check): {len(tickers)} tickers")
                 return entry[0]
 
-        logging.info(f"🌐 Cache MISS: baixando {len(tickers)} tickers ({period})...")
-        from utils.http_client import get_secure_session
-        secure_session = get_secure_session(timeout=15.0)
-        data = yf.download(
-            tickers, period=period, group_by="ticker",
-            progress=False, auto_adjust=False, threads=False,
-            session=secure_session
-        )
+            frames: dict[str, pd.DataFrame] = {}
+            missing: list[str] = []
+            for t in unique_tickers:
+                t_entry = _TICKER_CACHE.get((t, period))
+                if t_entry and now < t_entry[1]:
+                    frames[t] = t_entry[0]
+                else:
+                    missing.append(t)
+
+        if not missing:
+            logging.info(f"💾 Ticker Cache HIT (100%): {len(unique_tickers)} tickers ({period})")
+            combined = pd.concat(frames, axis=1)
+        else:
+            logging.info(f"🌐 Cache MISS: baixando {len(missing)}/{len(unique_tickers)} tickers ({period})...")
+            from utils.http_client import get_secure_session
+            secure_session = get_secure_session(timeout=15.0)
+            downloaded = yf.download(
+                missing, period=period, group_by="ticker",
+                progress=False, auto_adjust=False, threads=True,
+                session=secure_session,
+            )
+            new_slices = _extract_ticker_slices(downloaded, missing)
+            exp = time.monotonic() + PRICE_CACHE_TTL
+            with _CACHE_LOCK:
+                for t, df_slice in new_slices.items():
+                    _TICKER_CACHE[(t, period)] = (df_slice, exp)
+                    frames[t] = df_slice
+            combined = pd.concat(frames, axis=1) if frames else downloaded
+
         with _CACHE_LOCK:
             if cache_key in _CACHE:
                 _CACHE.move_to_end(cache_key)
-            _CACHE[cache_key] = (data, time.monotonic() + PRICE_CACHE_TTL)
+            _CACHE[cache_key] = (combined, time.monotonic() + PRICE_CACHE_TTL)
             if len(_CACHE) > MAX_CACHE_SIZE:
                 _CACHE.popitem(last=False)
 
-    return data
+    return combined
 
 
 def invalidate():
     """Limpa todo o cache (chamar após update_prices)."""
     with _CACHE_LOCK:
         _CACHE.clear()
+        _TICKER_CACHE.clear()
     logging.info("🔄 Cache de histórico invalidado.")

@@ -12,13 +12,20 @@ import yfinance as yf
 from db.models import Asset, Position, Category, MarketData
 from utils.ticker_helper import to_yf_ticker
 
-def update_prices(session, invalidate_cache_callback):
+def _active_assets_query(session, user_id=None):
+    """Return distinct Asset query restricted to currently held positions (quantity > 0)."""
+    query = session.query(Asset).join(Position).filter(Position.quantity > 0)
+    if user_id is not None:
+        query = query.filter(Position.user_id == user_id)
+    return query.distinct()
+
+def update_prices(session, invalidate_cache_callback, user_id=None):
     import pandas as pd
     from utils.http_client import get_secure_session
     logging.info(" odds 🔄 JOB: Iniciando atualização automática de cotações...")
     try:
         secure_session = get_secure_session(timeout=10.0)
-        assets = session.query(Asset).filter(Asset.ticker != 'Nubank Caixinha').all()
+        assets = _active_assets_query(session, user_id).filter(Asset.ticker != 'Nubank Caixinha').all()
         tickers_map = {}
         download_list = []
 
@@ -125,19 +132,19 @@ def validate_ticker_on_yahoo(ticker):
         logging.error(f"Erro ao validar existência do ticker {ticker} no Yahoo: {e}")
         return {"valid": False, "ticker": None}
 
-def update_fundamentals(dolar_rate_callback, state_dict=None):
+def update_fundamentals(dolar_rate_callback, state_dict=None, user_id=None):
     from db.session import Session
     from db.models import safe_commit
     from utils.http_client import get_secure_session
     
     logging.info("📊 JOB: Calculando Fundamentos via Yahoo Finance...")
     
-    # 1. Busca os IDs e metadados mínimos dos ativos do banco em uma sessão curta
+    # 1. Busca os IDs e metadados mínimos apenas dos ativos em carteira (quantity > 0)
     session = Session()
     assets_info = []
     try:
         assets = (
-            session.query(Asset)
+            _active_assets_query(session, user_id)
             .join(Category)
             .filter(Category.name.in_(['Ação', 'FII', 'Internacional', 'ETF', 'BDR']))
             .all()
@@ -288,6 +295,10 @@ def update_fundamentals(dolar_rate_callback, state_dict=None):
                 if db_asset:
                     db_asset.upcoming_split = upd["upcoming_split"]
                     for pos in db_asset.positions:
+                        if pos.quantity <= 0:
+                            continue
+                        if user_id is not None and pos.user_id != user_id:
+                            continue
                         if upd["lpa"] != 0: pos.manual_lpa = round(upd["lpa"], 2)
                         if upd["vpa"] != 0: pos.manual_vpa = round(upd["vpa"], 2)
                         if upd["dy_calculated"] >= 0:
@@ -302,7 +313,7 @@ def update_fundamentals(dolar_rate_callback, state_dict=None):
     logging.info(f"🏁 Varredura fundamentalista concluída: {count} registros atualizados no banco em lote.")
     return {"status": "Sucesso", "msg": f"Sucesso! {total} ativos reavaliados via Yahoo Finance."}
 
-def sync_reports_with_fnet(session, state_dict=None):
+def sync_reports_with_fnet(session, state_dict=None, user_id=None):
     from crawlers.b3_fnet import B3FnetCrawler
     from utils.cnpj_finder import CNPJFinder
     from utils.cvm_finder import CVMFinder 
@@ -310,9 +321,13 @@ def sync_reports_with_fnet(session, state_dict=None):
     from utils.fii_processor import FIIProcessor
 
     try:
-        assets_to_sync = session.query(Position).join(Asset).join(Category).filter(
+        query = session.query(Position).join(Asset).join(Category).filter(
+            Position.quantity > 0,
             Category.name.in_(["FII", "Ação"])
-        ).all()
+        )
+        if user_id is not None:
+            query = query.filter(Position.user_id == user_id)
+        assets_to_sync = query.all()
 
         total_assets = len(assets_to_sync)
         if state_dict is not None:
@@ -337,6 +352,16 @@ def sync_reports_with_fnet(session, state_dict=None):
                     "message": f"Sincronizando {ticker} ({index + 1}/{total_assets})..."
                 })
             
+            if not asset.name or asset.name.strip().upper() == ticker:
+                try:
+                    yf_symbol = ticker if asset.currency == "USD" else f"{ticker}.SA"
+                    info = yf.Ticker(yf_symbol).info or {}
+                    raw_name = info.get("shortName") or info.get("longName")
+                    if raw_name:
+                        asset.name = " ".join(str(raw_name).split())
+                except Exception:
+                    pass
+
             if not asset.cnpj or len(str(asset.cnpj)) < 14:
                 cnpj_encontrado = CNPJFinder.find_by_ticker(ticker)
                 if cnpj_encontrado:

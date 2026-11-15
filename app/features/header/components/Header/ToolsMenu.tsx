@@ -4,8 +4,8 @@ import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   ChevronDown, Briefcase, FileText, TrendingUp, 
-  Layers, Brain, RefreshCw, Calendar, Settings, Terminal,
-  Download
+  Layers, Brain, RefreshCw, Calendar, Settings,
+  Download, Database
 } from 'lucide-react';
 import { useToast } from '@/context/ToastContext';
 import { UnifiedImportModal } from '@/features/transactions/components/UnifiedImportModal';
@@ -56,6 +56,30 @@ function exportPortfolioCSV(ativos: Asset[]) {
   link.download = `carteira_${date}.csv`;
   link.click();
   URL.revokeObjectURL(url);
+}
+
+async function exportTreatedHistoryJSON(
+  notify: (msg: string, type?: 'success' | 'error' | 'info') => void
+) {
+  try {
+    const res = await fetch('/api/portfolio/export-history');
+    if (!res.ok) {
+      throw new Error('Falha ao baixar histórico tratado');
+    }
+    const payload = await res.json();
+    const jsonText = JSON.stringify(payload, null, 2);
+    const blob = new Blob([jsonText], { type: 'application/json;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const date = new Date().toISOString().split('T')[0];
+    link.href = url;
+    link.download = `historico_tratado_${date}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    notify('Histórico tratado exportado com sucesso!', 'success');
+  } catch {
+    notify('Erro ao exportar histórico tratado.', 'error');
+  }
 }
 
 export function ToolsMenu({
@@ -174,6 +198,21 @@ export function ToolsMenu({
                   <div>
                     <p className="font-bold">Exportar Posições (CSV)</p>
                     <p className="text-[9px] text-slate-500">Valor investido, atual, qtd e % da carteira</p>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setIsOpen(false);
+                    await exportTreatedHistoryJSON(notify);
+                  }}
+                  className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-surface-elevated transition-colors flex items-center gap-2.5 text-xs text-text-primary"
+                >
+                  <Database size={14} className="text-accent" />
+                  <div>
+                    <p className="font-bold">Exportar Histórico Tratado (JSON)</p>
+                    <p className="text-[9px] text-text-muted">Transações, eventos corporativos e proventos</p>
                   </div>
                 </button>
 
@@ -298,21 +337,6 @@ export function ToolsMenu({
                     <p className="text-[9px] text-slate-500 truncate">
                       {updatingFundamentals ? fundamentalsStatus.message : "Busca de dividendos históricos"}
                     </p>
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    notify('O console de logs do desenvolvedor está em desenvolvimento para o painel administrativo Pro.', 'info');
-                    setIsOpen(false);
-                  }}
-                  className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-slate-900/60 transition-colors flex items-center gap-2.5 text-xs text-slate-400 hover:text-slate-200"
-                >
-                  <Terminal size={14} className="text-slate-500" />
-                  <div>
-                    <p className="font-bold">Dev Console Logs</p>
-                    <p className="text-[9px] text-slate-500">Restrito a administrador local</p>
                   </div>
                 </button>
               </div>

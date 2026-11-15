@@ -57,17 +57,23 @@ export function Markdown({ text }: MarkdownProps) {
       parts = newParts;
     };
 
-    applyRegex(/\[([^\]]+)\]\(([^)]+)\)/g, (match, key) => (
-      <a 
-        key={key} 
-        href={match[2]} 
-        target="_blank" 
-        rel="noopener noreferrer" 
-        className="text-indigo-400 hover:text-indigo-300 underline font-medium"
-      >
-        {match[1]}
-      </a>
-    ));
+    applyRegex(/\[([^\]]+)\]\(([^)]+)\)/g, (match, key) => {
+      const href = match[2].trim();
+      if (!/^https?:\/\//i.test(href)) {
+        return <span key={key}>{match[1]}</span>;
+      }
+      return (
+        <a
+          key={key}
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-indigo-400 hover:text-indigo-300 underline font-medium"
+        >
+          {match[1]}
+        </a>
+      );
+    });
 
     applyRegex(/`([^`]+)`/g, (match, key) => (
       <code key={key} className="bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800 text-[10px] text-indigo-300 font-mono">

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { apiCall } from '@/lib/api';
 import {
   AlphaAttributionData,
+  Asset,
   RebalanceBandsData,
   EfficientFrontierData,
   FrontierPoint,
@@ -11,71 +12,102 @@ import {
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+function computeAllocMapping(assetsList: { ticker?: string; total_atual?: number | string }[]): Record<string, number> {
+  if (assetsList.length === 0) return {};
+  const totalVal = assetsList.reduce((acc, curr) => {
+    const val = parseFloat(String(curr.total_atual || 0));
+    return acc + (isNaN(val) ? 0 : val);
+  }, 0);
+  const mapping: Record<string, number> = {};
+  assetsList.forEach((a) => {
+    const val = parseFloat(String(a.total_atual || 0));
+    const pct = totalVal > 0 ? ((isNaN(val) ? 0 : val) / totalVal) * 100 : 0;
+    if (a.ticker) mapping[a.ticker.toUpperCase()] = pct;
+  });
+  return mapping;
+}
+
 /**
  * Carrega e mantém todos os dados quantitativos base (fronteira eficiente,
  * bandas de rebalanceamento, atribuição de alfa, Kelly, momentum, Sharpe),
  * além das alocações de otimização (Markowitz / Risk Parity / atual).
  */
-export function useQuantData(riskAversion: number) {
+export function useQuantData(riskAversion: number, ativos?: Asset[], activeTab: string = 'performance') {
   const [frontierData, setFrontierData] = useState<EfficientFrontierData | null>(null);
   const [rebalanceData, setRebalanceData] = useState<RebalanceBandsData | null>(null);
   const [attributionData, setAttributionData] = useState<AlphaAttributionData | null>(null);
   const [markowitz, setMarkowitz] = useState<Record<string, number>>({});
   const [riskParity, setRiskParity] = useState<Record<string, number>>({});
-  const [currentAlloc, setCurrentAlloc] = useState<Record<string, number>>({});
+  const [fetchedAlloc, setFetchedAlloc] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
+  const [optLoading, setOptLoading] = useState(false);
+  const [optLoaded, setOptLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const hasExternalAtivos = ativos !== undefined;
 
   useEffect(() => {
     setLoading(true);
     setError(null);
 
     Promise.all([
-      apiCall<EfficientFrontierData>('/api/quant/efficient-frontier'),
       apiCall<RebalanceBandsData>('/api/quant/rebalance-bands'),
       apiCall<AlphaAttributionData>('/api/quant/attribution-analysis'),
     ])
-      .then(([frontier, rebalance, attribution]) => {
-        setFrontierData(frontier.status === 'Sucesso' ? frontier : null);
+      .then(([rebalance, attribution]) => {
         setRebalanceData(rebalance.status === 'Sucesso' ? rebalance : null);
         setAttributionData(attribution.status === 'Sucesso' ? attribution : null);
       })
       .catch((err) => {
         console.error(err);
         setError('Erro ao carregar os dados quantitativos. Verifique a conexão com o servidor.');
-        setFrontierData(null);
         setRebalanceData(null);
         setAttributionData(null);
       })
       .finally(() => setLoading(false));
 
-    apiCall<{ status: string; weights: Record<string, number> }>('/api/simulation/optimize')
-      .then((res) => setMarkowitz(res.status === 'Sucesso' ? res.weights : {}))
-      .catch(() => setMarkowitz({}));
+    if (!hasExternalAtivos) {
+      apiCall<any[]>('/api/assets')
+        .then((res) => {
+          const assetsList = Array.isArray(res) ? res : [];
+          setFetchedAlloc(computeAllocMapping(assetsList));
+        })
+        .catch(() => {});
+    }
+  }, [hasExternalAtivos]);
 
-    apiCall<{ status: string; weights: Record<string, number> }>('/api/simulation/risk-parity')
-      .then((res) => setRiskParity(res.status === 'Sucesso' ? res.weights : {}))
-      .catch(() => setRiskParity({}));
-
-    apiCall<any[]>('/api/assets')
-      .then((res) => {
-        const assetsList = Array.isArray(res) ? res : [];
-        if (assetsList.length > 0) {
-          const totalVal = assetsList.reduce((acc: number, curr: any) => {
-            const val = parseFloat(curr.total_atual || 0);
-            return acc + (isNaN(val) ? 0 : val);
-          }, 0);
-          const mapping: Record<string, number> = {};
-          assetsList.forEach((a: any) => {
-            const val = parseFloat(a.total_atual || 0);
-            const pct = totalVal > 0 ? ((isNaN(val) ? 0 : val) / totalVal) * 100 : 0;
-            if (a.ticker) mapping[a.ticker.toUpperCase()] = pct;
-          });
-          setCurrentAlloc(mapping);
-        }
+  // Lazy-load heavy optimization endpoints only when the optimization tab is opened
+  useEffect(() => {
+    if (activeTab !== 'optimization' || optLoaded) return;
+    let active = true;
+    setOptLoading(true);
+    Promise.all([
+      apiCall<EfficientFrontierData>('/api/quant/efficient-frontier'),
+      apiCall<{ status: string; weights: Record<string, number> }>('/api/simulation/optimize').catch(() => ({ status: 'Erro', weights: {} })),
+      apiCall<{ status: string; weights: Record<string, number> }>('/api/simulation/risk-parity').catch(() => ({ status: 'Erro', weights: {} })),
+    ])
+      .then(([frontier, mk, rp]) => {
+        if (!active) return;
+        setFrontierData(frontier.status === 'Sucesso' ? frontier : null);
+        setMarkowitz(mk.status === 'Sucesso' ? mk.weights : {});
+        setRiskParity(rp.status === 'Sucesso' ? rp.weights : {});
+        setOptLoaded(true);
       })
-      .catch(() => {});
-  }, []);
+      .catch(() => {
+        if (active) setFrontierData(null);
+      })
+      .finally(() => {
+        if (active) setOptLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [activeTab, optLoaded]);
+
+  const currentAlloc = useMemo(() => {
+    if (ativos !== undefined) return computeAllocMapping(ativos);
+    return fetchedAlloc;
+  }, [ativos, fetchedAlloc]);
 
   const selectedOptimalPt = useMemo<FrontierPoint | null>(() => {
     if (!frontierData || frontierData.frontier.length === 0) return null;
@@ -105,6 +137,7 @@ export function useQuantData(riskAversion: number) {
     currentAlloc,
     selectedOptimalPt,
     loading,
+    optLoading,
     error,
   };
 }
