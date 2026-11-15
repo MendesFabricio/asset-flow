@@ -508,15 +508,31 @@ def analyze_pdf_endpoint():
             # Salvar no banco de dados se for sucesso
             if res.get("status") == "Sucesso" and "kpis" in res:
                 kpis = res["kpis"]
-                
-                if "credit_rating" in kpis and kpis["credit_rating"]:
-                    position.asset.credit_rating = str(kpis["credit_rating"]).strip()
-                if "duration_years" in kpis and kpis["duration_years"] is not None:
-                    position.asset.duration_years = float(kpis["duration_years"])
-                if "indexer_cdi_pct" in kpis and kpis["indexer_cdi_pct"] is not None:
-                    position.asset.indexer_cdi_pct = float(kpis["indexer_cdi_pct"])
-                if "indexer_ipca_pct" in kpis and kpis["indexer_ipca_pct"] is not None:
-                    position.asset.indexer_ipca_pct = float(kpis["indexer_ipca_pct"])
+
+                raw_rating = str(kpis.get("credit_rating") or "").strip()
+                if raw_rating and raw_rating.lower() not in ("null", "none", "n/d", "n/a", "0", "-") and len(raw_rating) <= 12:
+                    position.asset.credit_rating = raw_rating
+                else:
+                    position.asset.credit_rating = None
+
+                raw_dur = kpis.get("duration_years")
+                try:
+                    dur_val = float(raw_dur) if raw_dur is not None else None
+                except (TypeError, ValueError):
+                    dur_val = None
+                position.asset.duration_years = round(dur_val, 2) if dur_val is not None and 0.0 < dur_val <= 40.0 else None
+
+                for field in ("indexer_cdi_pct", "indexer_ipca_pct"):
+                    raw_idx = kpis.get(field)
+                    try:
+                        idx_val = float(raw_idx) if raw_idx is not None else None
+                    except (TypeError, ValueError):
+                        idx_val = None
+                    setattr(
+                        position.asset,
+                        field,
+                        round(idx_val, 2) if idx_val is not None and 0.0 < idx_val <= 100.0 else None,
+                    )
                     
                 position.asset.ai_updated_at = datetime.now()
                 session.query(SystemCache).filter_by(key=f"risk_metrics_{g.user_id}").delete()

@@ -351,7 +351,8 @@ def calculate_risk_metrics(session, fetch_prices, allow_compute=True, dolar_rate
         fi_record = fi_by_asset_id.get(pos.asset_id)
 
         rating = pos.asset.credit_rating or "N/D"
-        duration = pos.asset.duration_years
+        raw_dur = pos.asset.duration_years
+        duration = raw_dur if (raw_dur is not None and 0.0 < float(raw_dur) <= 40.0) else None
         if duration is None and fi_record is not None and getattr(fi_record, "due_date", None):
             due_d = fi_record.due_date.date() if isinstance(fi_record.due_date, datetime) else fi_record.due_date
             duration = round(max(0.0, (due_d - today_date).days / 365.25), 1)
@@ -365,8 +366,10 @@ def calculate_risk_metrics(session, fetch_prices, allow_compute=True, dolar_rate
                 indexers = {}
         else:
             indexers = {}
-            if cdi is not None: indexers["CDI"] = cdi
-            if ipca is not None: indexers["IPCA"] = ipca
+            if cdi is not None and 0.0 < float(cdi) <= 100.0:
+                indexers["CDI"] = round(float(cdi), 1)
+            if ipca is not None and 0.0 < float(ipca) <= 100.0:
+                indexers["IPCA"] = round(float(ipca), 1)
 
         fnet_health = _extract_fnet_health(pos)
         fii_credit_map.append({

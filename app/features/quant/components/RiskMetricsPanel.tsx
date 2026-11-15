@@ -613,7 +613,7 @@ export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
                           <td className="py-2 text-right font-mono text-emerald-400">{f.caixa_pct || '—'}</td>
                           <td className="py-2 text-right font-mono text-indigo-400">
                             {hasCredit
-                              ? `${f.rating}${f.duration !== null && f.duration !== undefined ? ` · ${f.duration}a` : ''}`
+                              ? `${f.rating}${f.duration !== null && f.duration !== undefined && f.duration > 0 ? ` · ${f.duration}a` : ''}`
                               : 'N/D'}
                           </td>
                           <td className="py-2 text-right font-mono text-[9px] text-slate-400">
@@ -622,14 +622,14 @@ export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
                               : 'N/D'}
                           </td>
                           <td className="py-2 text-right">
-                            {f.has_report_pdf && !hasCredit ? (
+                            {f.has_report_pdf ? (
                               <button
                                 type="button"
                                 disabled={analyzingTicker === f.ticker}
                                 onClick={() => handleAnalyzePdf(f.ticker)}
                                 className="px-2 py-0.5 rounded bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/30 text-[9px] font-bold uppercase disabled:opacity-50"
                               >
-                                {analyzingTicker === f.ticker ? 'Lendo...' : 'Ler PDF'}
+                                {analyzingTicker === f.ticker ? 'Lendo...' : hasCredit ? 'Re-ler' : 'Ler PDF'}
                               </button>
                             ) : (
                               <span className="text-slate-600">—</span>

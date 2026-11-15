@@ -67,10 +67,10 @@ def extract_kpis_from_pdf(pdf_path_or_url: str, is_fii: bool = True) -> dict:
             "  \"valor_patrimonial\": 0.0, # valor da cota patrimonial em R$\n"
             "  \"vacancia_fisica_pct\": 0.0, # percentual de vacância física (0 a 100)\n"
             "  \"vacancia_financeira_pct\": 0.0, # percentual de vacância financeira\n"
-            "  \"credit_rating\": \"\", # Rating de crédito médio (ex: AAA, AA, BBB). Vazio se não houver\n"
-            "  \"duration_years\": 0.0, # Prazo médio / Duration da carteira em anos\n"
-            "  \"indexer_cdi_pct\": 0.0, # % da carteira atrelada ao CDI\n"
-            "  \"indexer_ipca_pct\": 0.0, # % da carteira atrelada ao IPCA\n"
+            "  \"credit_rating\": null, # Rating de crédito médio (ex: AAA, AA, BrAA+). null se não houver\n"
+            "  \"duration_years\": null, # Prazo médio / Duration da carteira em anos (> 0). null se não houver\n"
+            "  \"indexer_cdi_pct\": null, # % do patrimônio/carteira indexado ao CDI (0 a 100, NÃO taxa nem spread). null se não houver\n"
+            "  \"indexer_ipca_pct\": null, # % do patrimônio/carteira indexado ao IPCA (0 a 100, NÃO taxa nem spread). null se não houver\n"
             "  \"observacao_geral\": \"Breve comentário sobre os destaques\"\n"
             "}"
             if is_fii else
@@ -90,7 +90,7 @@ def extract_kpis_from_pdf(pdf_path_or_url: str, is_fii: bool = True) -> dict:
             f"{schema_info}\n\n"
             f"TEXTO DO RELATÓRIO:\n"
             f"\"\"\"\n{consolidated_text}\n\"\"\"\n\n"
-            f"IMPORTANTE: Se algum indicador não for encontrado no texto, preencha com null ou 0.0. "
+            f"IMPORTANTE: Se algum indicador não for encontrado explicitamente no texto, preencha com null (NUNCA invente ou coloque 0.0). "
             f"Retorne APENAS o JSON válido sem explicações, introduções ou Markdown."
         )
         
