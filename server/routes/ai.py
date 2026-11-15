@@ -282,8 +282,8 @@ def execute_get_asset_fundamental_data(session, ticker: str):
             "manual_dy": pos.manual_dy,
             "manual_lpa": pos.manual_lpa,
             "manual_vpa": pos.manual_vpa,
-            "ai_sentiment": pos.ai_sentiment,
-            "ai_summary": pos.ai_summary,
+            "ai_sentiment": asset.ai_sentiment,
+            "ai_summary": asset.ai_summary,
         }
 
     return {

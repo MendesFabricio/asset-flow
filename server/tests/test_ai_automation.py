@@ -199,8 +199,6 @@ class TestAIAutomationTools(unittest.TestCase):
             manual_dy=12.0,
             manual_lpa=None,
             manual_vpa=10.0,
-            ai_sentiment="Positivo",
-            ai_summary="Dividendos estáveis.",
         )
         asset = SimpleNamespace(
             ticker="MXRF11",
@@ -211,6 +209,8 @@ class TestAIAutomationTools(unittest.TestCase):
             currency="BRL",
             market_data=[m_mxrf],
             positions=[pos],
+            ai_sentiment="Positivo",
+            ai_summary="Dividendos estáveis.",
         )
 
         fake_session = MagicMock()
