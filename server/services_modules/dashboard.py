@@ -179,16 +179,16 @@ class DashboardService:
         user_id = getattr(self, 'current_user_id', None)
         dolar_rate = self.get_usd_rate()
         with Session() as session:
-            pos = get_active_positions(session, user_id).join(Asset).filter(Asset.ticker == ticker).first()
+            active_positions = get_active_positions(session, user_id, include_dividends=False).all()
+            pos = next((p for p in active_positions if p.asset and p.asset.ticker == ticker), None)
             if not pos:
                 return None
-                
+
             asset = pos.asset
             mdata = asset.market_data[0] if asset.market_data else None
-            
+
             try:
                 qtd = Decimal(str(pos.quantity or 0))
-                pm = Decimal(str(pos.average_price or 0))
                 if mdata and mdata.price is not None and mdata.price > 0:
                     preco = Decimal(str(mdata.price))
                     min_6m = Decimal(str(mdata.min_6m or 0))
@@ -197,29 +197,19 @@ class DashboardService:
                     min_6m = Decimal('0.0')
             except Exception:
                 qtd = Decimal('0.0')
-                pm = Decimal('0.0')
                 preco = Decimal('0.0')
                 min_6m = Decimal('0.0')
-                
+
             fator = dolar_rate if asset.currency == 'USD' else Decimal('1.0')
             total_atual = qtd * preco * fator
-            
-            active_positions = get_active_positions(session, user_id).all()
-            
+
             portfolio_total = Decimal('0.0')
-            category_total = Decimal('0.0')
-            cat_name = asset.category.name if asset.category else ""
-            
             for p in active_positions:
                 pa = p.asset
                 pmd = pa.market_data[0] if pa.market_data else None
                 pprice = Decimal(str(pmd.price or p.average_price or 0.0)) if pmd else Decimal(str(p.average_price or 0.0))
                 pfator = dolar_rate if pa.currency == 'USD' else Decimal('1.0')
-                pval = Decimal(str(p.quantity or 0)) * pprice * pfator
-                
-                portfolio_total += pval
-                if pa.category and pa.category.name == cat_name:
-                    category_total += pval
+                portfolio_total += Decimal(str(p.quantity or 0)) * pprice * pfator
                     
             metrics = calculate_fundamental_metrics(pos, preco)
             

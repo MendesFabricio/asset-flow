@@ -28,7 +28,7 @@ export function usePortfolioMetrics(data: DashboardData | undefined, isHidden: b
     return data?.ativos?.reduce((acc: number, asset: Asset) => {
       let variacaoPct = (asset as Asset & { change_percent?: number }).change_percent || 0;
       
-      const todayDate = new Date().toISOString().split('T')[0];
+      const todayDate = new Date().toLocaleDateString('sv-SE');
       if (asset.mdata_date && asset.mdata_date !== todayDate) {
         variacaoPct = 0;
       }

@@ -215,8 +215,8 @@ def _current_portfolio_equity(session, user_id: int) -> float:
 
     usd_rate = 5.5
     try:
-        from services_modules.market_data import MarketDataService
-        usd_rate = float(MarketDataService().get_usd_rate() or 5.5)
+        from services import PortfolioService
+        usd_rate = float(PortfolioService().get_usd_rate() or 5.5)
     except Exception:
         pass
 
@@ -251,6 +251,8 @@ def calculate_portfolio_returns(session, user_id: int) -> dict:
         return {
             "status": "Sucesso",
             "has_data": False,
+            "days": 0,
+            "is_short_horizon": False,
             "patrimonio_atual": 0.0,
             "xirr_aa_pct": None,
             "xirr_periodo_pct": None,
@@ -342,7 +344,7 @@ def calculate_portfolio_returns(session, user_id: int) -> dict:
             r_m = max(-0.95, min(r_m, 5.0))
             twr_factor *= (1.0 + r_m)
             has_twr = True
-    twr_pct = round((twr_factor - 1.0) * 100.0, 2) if has_twr else roi_simples_pct
+    twr_pct = round((twr_factor - 1.0) * 100.0, 2) if has_twr else None
 
     cdi_pct, cdi_source = get_cdi_period_return(session, first_date, today)
     ibov_pct = get_ibov_period_return(first_date, today)
@@ -369,6 +371,7 @@ def calculate_portfolio_returns(session, user_id: int) -> dict:
         "start_date": first_date.isoformat(),
         "end_date": today.isoformat(),
         "days": days,
+        "is_short_horizon": days < 90,
         "patrimonio_atual": patrimonio_atual,
         "xirr_aa_pct": xirr_aa_pct,
         "xirr_periodo_pct": xirr_periodo_pct,

@@ -130,4 +130,21 @@ describe('apiCall', () => {
         
         await expect(promise).rejects.toThrow('Aborted');
     });
+
+    it('should NOT force Content-Type application/json when body is FormData', async () => {
+        (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+            ok: true,
+            status: 200,
+            json: async () => ({ status: 'Sucesso' }),
+        });
+
+        const formData = new FormData();
+        formData.append('file', new Blob(['pdf'], { type: 'application/pdf' }), 'extrato.pdf');
+
+        await apiCall('/api/import', { method: 'POST', body: formData });
+
+        const callInit = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0][1] as RequestInit;
+        const headers = callInit.headers as Record<string, string>;
+        expect(headers['Content-Type']).toBeUndefined();
+    });
 });

@@ -1,15 +1,21 @@
+import { NextRequest } from 'next/server';
+
 // Force Next.js rebuild
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const backendUrl = `${process.env.BACKEND_URL || 'http://backend:5328'}/api/sync/stream`;
   
   try {
+    const headers: Record<string, string> = {
+      'Accept': 'text/event-stream',
+    };
+    const cookie = request.headers.get('cookie');
+    if (cookie) headers['Cookie'] = cookie;
+
     const response = await fetch(backendUrl, {
       method: 'GET',
-      headers: {
-        'Accept': 'text/event-stream',
-      },
+      headers,
       cache: 'no-store',
     });
 

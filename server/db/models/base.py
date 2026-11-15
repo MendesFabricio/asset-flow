@@ -14,8 +14,8 @@ def safe_commit(session):
         session.rollback()
         raise e
 
-def get_active_positions(session, user_id):
-    """Retorna posições ativas (quantity > 0 ou target_percent > 0) com eager loading de Asset, Category, MarketData e Dividends."""
+def get_active_positions(session, user_id, include_dividends: bool = True):
+    """Retorna posições ativas (quantity > 0 ou target_percent > 0) com eager loading de Asset, Category, MarketData e opcionalmente Dividends."""
     from sqlalchemy.orm import selectinload
     from db.models.portfolio import Position, Asset
     q = session.query(Position)
@@ -27,14 +27,15 @@ def get_active_positions(session, user_id):
     
     if type(q).__name__ in ('MagicMock', 'Mock'):
         return q
-        
-    return q.options(
-        selectinload(Position.asset).options(
-            selectinload(Asset.category),
-            selectinload(Asset.market_data),
-            selectinload(Asset.dividends)
-        )
-    )
+
+    asset_loaders = [
+        selectinload(Asset.category),
+        selectinload(Asset.market_data),
+    ]
+    if include_dividends:
+        asset_loaders.append(selectinload(Asset.dividends))
+
+    return q.options(selectinload(Position.asset).options(*asset_loaders))
 
 # PRAGMAS DE PRODUÇÃO: Otimizações críticas de concorrência e performance para SQLite
 @event.listens_for(Engine, "connect")

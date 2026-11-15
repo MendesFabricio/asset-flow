@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, g, request
 from db.session import Session
+from utils.db_utils import get_current_user_id
 from domain.portfolio.monthly_snapshot import (
     get_monthly_evolution_series,
     generate_or_update_monthly_snapshot,
@@ -38,8 +39,8 @@ portfolio_bp = Blueprint('portfolio', __name__)
 
 @portfolio_bp.route('/api/portfolio/monthly-evolution', methods=['GET'])
 def get_monthly_evolution():
+    user_id = get_current_user_id()
     try:
-        user_id = getattr(g, 'user_id', 1)
         with Session() as session:
             series = get_monthly_evolution_series(session, user_id)
             return jsonify(series), 200
@@ -175,7 +176,7 @@ def _run_history_sync(user_id):
 
 @portfolio_bp.route('/api/portfolio/recalculate-history', methods=['POST'])
 def recalculate_history():
-    user_id = getattr(g, 'user_id', 1)
+    user_id = get_current_user_id()
     
     # Check if already running
     status = HISTORY_SYNC_STATE.get("status")
@@ -196,8 +197,8 @@ def get_history_sync_status():
 
 @portfolio_bp.route('/api/performance/attribution', methods=['GET'])
 def get_performance_attribution():
+    user_id = get_current_user_id()
     try:
-        user_id = getattr(g, 'user_id', 1)
         with Session() as session:
             result = calculate_monthly_attribution(session, user_id)
             return jsonify(result), 200
@@ -208,8 +209,8 @@ def get_performance_attribution():
 
 @portfolio_bp.route('/api/performance/returns', methods=['GET'])
 def get_performance_returns():
+    user_id = get_current_user_id()
     try:
-        user_id = getattr(g, 'user_id', 1)
         with Session() as session:
             result = calculate_portfolio_returns(session, user_id)
             return jsonify(result), 200
@@ -754,8 +755,8 @@ def _restore_history_payload(session, user_id, payload, mode="replace"):
 
 @portfolio_bp.route('/api/portfolio/export-history', methods=['GET'])
 def export_treated_history():
+    user_id = get_current_user_id()
     try:
-        user_id = getattr(g, 'user_id', 1)
         with Session() as session:
             payload = serialize_history_payload(session, user_id)
             return jsonify(payload), 200
@@ -780,8 +781,8 @@ def import_treated_history():
     if mode not in ("replace", "merge"):
         return jsonify({"status": "Erro", "msg": "Modo inválido: use 'replace' ou 'merge'."}), 400
 
+    user_id = get_current_user_id()
     try:
-        user_id = getattr(g, 'user_id', 1)
         with Session() as session:
             counts = _restore_history_payload(session, user_id, payload, mode=mode)
             safe_commit(session)

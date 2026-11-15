@@ -90,7 +90,7 @@ export const AssetsTable = React.memo(({ assets, tab, onEdit, onViewNews, onView
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-400 transition-colors" />
           <input
             type="text"
-            placeholder="Pesquisar por ticker ou setor..."
+            placeholder="Pesquisar por ticker ou categoria..."
             value={search}
             onChange={handleSearchChange}
             className="w-full pl-9 pr-10 py-1.5 rounded-lg bg-slate-950/50 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500/70 focus:ring-1 focus:ring-blue-500/30 transition-all shadow-[inset_0_1px_2px_rgba(0,0,0,0.4)]"

@@ -33,13 +33,15 @@ export async function apiCall<T>(endpoint: string, options?: RequestInit & { tim
         }
 
         try {
+            const isFormData = typeof FormData !== 'undefined' && options?.body instanceof FormData;
+            const headers: HeadersInit = {
+                ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+                ...options?.headers,
+            };
             const response = await fetch(`${API_BASE_URL}${endpoint}`, {
                 ...options,
                 signal: controller.signal,
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...options?.headers,
-                },
+                headers,
             });
 
             clearTimeout(id);

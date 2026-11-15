@@ -22,7 +22,7 @@ export interface AssetRowStats {
       
       let variacaoIntraday = ativo.change_percent ?? 0;
       
-      const todayDate = new Date().toISOString().split('T')[0];
+      const todayDate = new Date().toLocaleDateString('sv-SE');
       if (ativo.mdata_date && ativo.mdata_date !== todayDate) {
         variacaoIntraday = 0;
       }

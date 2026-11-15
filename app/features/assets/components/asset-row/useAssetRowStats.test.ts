@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useAssetRowStats } from './useAssetRowStats';
 import { Asset } from '@/types';
@@ -61,11 +61,24 @@ describe('useAssetRowStats', () => {
     expect(result.current.hasReports).toBe(true);
   });
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('computes positive intraday variation financials', () => {
     const { result } = renderHook(() =>
       useAssetRowStats(makeAsset({ change_percent: 10, total_atual: 1100 }))
     );
     expect(result.current.isPositiveIntraday).toBe(true);
     expect(Math.round(result.current.variacaoFinanceira)).toBe(100);
+  });
+
+  it('uses local date (not UTC toISOString) when checking mdata_date', () => {
+    vi.spyOn(Date.prototype, 'toISOString').mockReturnValue('2026-11-16T01:30:00.000Z');
+    vi.spyOn(Date.prototype, 'toLocaleDateString').mockReturnValue('2026-11-15');
+    const { result } = renderHook(() =>
+      useAssetRowStats(makeAsset({ change_percent: 3.5, mdata_date: '2026-11-15' }))
+    );
+    expect(result.current.variacaoIntraday).toBe(3.5);
   });
 });

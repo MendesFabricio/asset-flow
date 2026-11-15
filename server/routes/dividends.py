@@ -1,4 +1,5 @@
 from flask import Blueprint, jsonify, g, request
+from sqlalchemy.orm import joinedload
 from db.models import Dividend, Asset, Session, get_active_positions # ⚡ Importada a factory controlada thread-safe
 import logging
 from services import PortfolioService
@@ -81,7 +82,13 @@ def get_dividend_history():
     with Session() as session:
         try:
             # Busca todos os dividendos carimbados do usuário logado, ordenando pelos mais recentes
-            history = session.query(Dividend).filter_by(user_id=g.user_id).join(Asset).order_by(Dividend.date_com.desc()).all()
+            history = (
+                session.query(Dividend)
+                .options(joinedload(Dividend.asset))
+                .filter_by(user_id=g.user_id)
+                .order_by(Dividend.date_com.desc())
+                .all()
+            )
             
             results = []
             for div in history:

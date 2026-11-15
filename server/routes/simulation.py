@@ -371,10 +371,11 @@ def sector_correlation():
 @simulation_bp.route('/api/simulation/tax-thermometer', methods=['GET'])
 def tax_thermometer():
     """🌡️ Retorna termômetro da isenção de R$ 20k/mês em Ações e prejuízos acumulados."""
+    from utils.db_utils import get_current_user_id
+    user_id = get_current_user_id()
     try:
         from datetime import date as _date
         from domain.tax.tax_engine import simulate_sell_impact
-        user_id = getattr(g, 'user_id', 1)
         month = request.args.get('month', type=int) or _date.today().month
         year = request.args.get('year', type=int) or _date.today().year
         usd_rate = service.get_usd_rate()
@@ -389,10 +390,11 @@ def tax_thermometer():
 @simulation_bp.route('/api/simulation/sell', methods=['POST'])
 def simulate_sell_route():
     """🧮 Simula venda parcial/total, cálculo de DARF, isenção de R$ 20k e Tax-Loss Harvesting."""
+    from utils.db_utils import get_current_user_id
+    user_id = get_current_user_id()
     try:
         from datetime import date as _date
         from domain.tax.tax_engine import simulate_sell_impact
-        user_id = getattr(g, 'user_id', 1)
         body = request.get_json(silent=True) or {}
         sales = body.get('sales')
         if not isinstance(sales, list):

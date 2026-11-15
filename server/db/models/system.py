@@ -26,7 +26,6 @@ class MarketData(Base):
 
     __table_args__ = (
         Index('idx_market_data_asset_date', 'asset_id', 'date'),
-        Index('idx_market_data_asset_date_desc', 'asset_id', text('date DESC')),
     )
 
 class AuditLog(Base):

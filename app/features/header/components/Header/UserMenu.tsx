@@ -29,19 +29,31 @@ export function UserMenu({ showName = false }: UserMenuProps) {
         setIsOpen(false);
       }
     }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setIsOpen(false);
+      }
+    }
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
   }, []);
 
   const handleLogout = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
+      const res = await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+      if (!res.ok) {
+        console.error('Erro no logout: HTTP', res.status);
+        return;
+      }
+      localStorage.removeItem('assetflow_username');
+      window.location.href = '/login';
     } catch (e) {
-      console.error("Erro no logout:", e);
+      console.error('Erro no logout:', e);
     }
-    localStorage.removeItem('assetflow_username');
-    document.cookie = "assetflow_session=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    window.location.href = '/login';
   };
 
   const initials = username ? username.substring(0, 2).toUpperCase() : 'US';

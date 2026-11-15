@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import useSWR from 'swr';
 import {
   ComposedChart,
   Bar,
@@ -48,35 +49,23 @@ interface AttributionResponse {
     variacao_mercado_real_acumulada: number;
     retorno_total_real_acumulado: number;
     ipca_acumulado_pct: number;
+    ipca_fallback_months?: number;
   };
 }
 
 export default function PerformanceAttributionChart() {
   const { isHidden } = usePrivacy() as { isHidden: boolean };
-  const [data, setData] = useState<AttributionResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [mode, setMode] = useState<'nominal' | 'real'>('nominal');
-
-  useEffect(() => {
-    let active = true;
-    apiCall<AttributionResponse>('/api/performance/attribution')
-      .then((res) => {
-        if (!active) return;
-        if (res.status === 'Sucesso') setData(res);
-        else setErrorMsg('Não foi possível carregar a atribuição patrimonial.');
-      })
-      .catch((err) => {
-        console.error(err);
-        if (active) setErrorMsg('Erro de conexão ao carregar atribuição patrimonial.');
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
+  const { data: rawData, error, isLoading: loading } = useSWR<AttributionResponse>(
+    '/api/performance/attribution',
+    apiCall,
+  );
+  const data = rawData?.status === 'Sucesso' ? rawData : null;
+  const errorMsg = error
+    ? 'Erro de conexão ao carregar atribuição patrimonial.'
+    : rawData && rawData.status !== 'Sucesso'
+      ? 'Não foi possível carregar a atribuição patrimonial.'
+      : null;
 
   const chartData = useMemo(() => {
     if (!data?.series) return [];
@@ -214,7 +203,12 @@ export default function PerformanceAttributionChart() {
       </div>
 
       <p className="text-[11px] text-text-secondary mt-3">
-        Identidade contábil mensal: Δ Custódia = Aportes Líquidos + Variação de Mercado · Fonte IPCA: BCB SGS 433.
+        Identidade contábil mensal: Δ Custódia = Aportes Líquidos + Variação de Mercado · Fonte IPCA:{' '}
+        {data?.ipca_source === 'bcb_sgs_433' ? 'BCB SGS 433' : 'Estimado (Fallback)'}
+        {(data?.summary?.ipca_fallback_months ?? 0) > 0
+          ? ` (${data?.summary.ipca_fallback_months} mês(es) estimado(s))`
+          : ''}
+        .
       </p>
     </Card>
   );

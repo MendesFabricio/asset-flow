@@ -82,7 +82,10 @@ def stream_ollama_chat(
         for raw_line in resp.iter_lines(decode_unicode=True):
             if not raw_line:
                 continue
-            chunk = json.loads(raw_line)
+            try:
+                chunk = json.loads(raw_line)
+            except json.JSONDecodeError:
+                continue
             content = (chunk.get("message") or {}).get("content")
             if content:
                 yield content

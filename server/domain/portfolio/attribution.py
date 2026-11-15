@@ -167,6 +167,7 @@ def calculate_monthly_attribution(session, user_id: int) -> dict:
     cum_dividendos = 0.0
     cum_mercado_real = 0.0
     cum_ipca_factor = 1.0
+    ipca_fallback_months = 0
 
     for snap in snapshots:
         y = int(snap["year"])
@@ -179,6 +180,9 @@ def calculate_monthly_attribution(session, user_id: int) -> dict:
         dividendos = round(divs_by_ym.get((y, m), 0.0), 2)
         retorno_total = round(variacao_mercado + dividendos, 2)
 
+        ipca_is_fallback = (y, m) not in ipca_by_ym
+        if ipca_is_fallback:
+            ipca_fallback_months += 1
         ipca_m = ipca_by_ym.get((y, m), FALLBACK_MONTHLY_IPCA)
         cum_ipca_factor *= (1.0 + ipca_m)
 
@@ -204,6 +208,7 @@ def calculate_monthly_attribution(session, user_id: int) -> dict:
             "dividendos": dividendos,
             "retorno_total": retorno_total,
             "ipca_mes_pct": round(ipca_m * 100.0, 2),
+            "ipca_is_fallback": ipca_is_fallback,
             "erosao_ipca": erosao_ipca,
             "variacao_mercado_real": variacao_mercado_real,
             "retorno_total_real": retorno_total_real,
@@ -229,5 +234,6 @@ def calculate_monthly_attribution(session, user_id: int) -> dict:
             "variacao_mercado_real_acumulada": cum_mercado_real,
             "retorno_total_real_acumulado": round(cum_mercado_real + cum_dividendos, 2),
             "ipca_acumulado_pct": ipca_acumulado_pct,
+            "ipca_fallback_months": ipca_fallback_months,
         },
     }

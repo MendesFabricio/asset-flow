@@ -42,7 +42,10 @@ export default function LoginPage() {
           setLoading(false);
         } else {
           localStorage.setItem('assetflow_username', data.user?.username || username);
-          router.push('/');
+          const params = new URLSearchParams(window.location.search);
+          const rawCallback = params.get('callbackUrl') || '/';
+          const safeTarget = rawCallback.startsWith('/') && !rawCallback.startsWith('//') ? rawCallback : '/';
+          router.push(safeTarget);
           router.refresh();
         }
       } else {
@@ -95,8 +98,12 @@ export default function LoginPage() {
           <div>
             <div className="relative">
               <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+              <label htmlFor="username" className="sr-only">Usuário</label>
               <input 
+                id="username"
+                name="username"
                 type="text" 
+                autoComplete="username"
                 placeholder="Usuário"
                 className="w-full bg-slate-950/60 border border-white/[0.08] rounded-xl py-2.5 pl-10 pr-4 text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/40 transition-all"
                 value={username}
@@ -110,8 +117,12 @@ export default function LoginPage() {
           <div>
             <div className="relative">
               <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+              <label htmlFor="password" className="sr-only">Senha</label>
               <input 
+                id="password"
+                name="password"
                 type="password" 
+                autoComplete={isRegistering ? 'new-password' : 'current-password'}
                 placeholder="Senha"
                 className="w-full bg-slate-950/60 border border-white/[0.08] rounded-xl py-2.5 pl-10 pr-4 text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/40 transition-all"
                 value={password}
