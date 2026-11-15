@@ -1,17 +1,39 @@
 # server/routes/fixed_income.py
 from flask import Blueprint, jsonify, request, g
 from db.models import Session, Asset, Position, Category, FixedIncome, safe_commit
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from sqlalchemy.orm import joinedload
 from schemas import FixedIncomeCreate
+from domain.portfolio.xirr import CDI_FALLBACK_ANNUAL, get_cdi_period_return
+from domain.portfolio.attribution import FALLBACK_MONTHLY_IPCA, get_monthly_ipca_series
 
 fixed_income_bp = Blueprint('fixed_income', __name__)
 
-def calculate_fixed_income_metrics(fi, quantity, average_price):
-    now = datetime.now()
-    days_elapsed = max(0, (now - fi.issue_date).days)
-    total_days = max(1, (fi.due_date - fi.issue_date).days)
+
+def _compound_ipca_factor(ipca_map: dict, start_dt: date, end_dt: date) -> Decimal:
+    """Compõe a série mensal do IPCA pro-rata por dias corridos entre start_dt e end_dt."""
+    factor = Decimal('1.0')
+    y, m = start_dt.year, start_dt.month
+    while (y, m) <= (end_dt.year, end_dt.month):
+        month_start = date(y, m, 1)
+        next_month = date(y + 1, 1, 1) if m == 12 else date(y, m + 1, 1)
+        active_days = max(0, (min(end_dt, next_month) - max(start_dt, month_start)).days)
+        if active_days > 0:
+            month_days = (next_month - month_start).days
+            frac = Decimal(active_days) / Decimal(month_days)
+            monthly_rate = Decimal(str(ipca_map.get((y, m), FALLBACK_MONTHLY_IPCA)))
+            factor *= (Decimal('1.0') + monthly_rate) ** frac
+        y, m = (y + 1, 1) if m == 12 else (y, m + 1)
+    return factor
+
+
+def calculate_fixed_income_metrics(fi, quantity, average_price, db=None):
+    today = datetime.now().date()
+    issue_dt = fi.issue_date.date() if callable(getattr(fi.issue_date, "date", None)) else fi.issue_date
+    due_dt = fi.due_date.date() if callable(getattr(fi.due_date, "date", None)) else fi.due_date
+    days_elapsed = max(0, (today - issue_dt).days)
+    total_days = max(1, (due_dt - issue_dt).days)
     
     # IR Regressivo
     if days_elapsed <= 180:
@@ -24,24 +46,29 @@ def calculate_fixed_income_metrics(fi, quantity, average_price):
         tax_rate = Decimal('15.0')
         
     total_invested = Decimal(str(quantity)) * Decimal(str(average_price))
-    
-    # CDI de referência aproximado (ex: 10.40% a.a.)
-    cdi_ref = Decimal('0.1040')
-    
     interest_rate_dec = Decimal(str(fi.interest_rate)) / Decimal('100.0')
     
-    # Rentabilidade bruta acumulada estimada
-    if fi.index_type == 'PRE':
+    # Rentabilidade bruta acumulada
+    if days_elapsed == 0:
+        rate_acrued = Decimal('1.0')
+    elif fi.index_type == 'PRE':
         rate_acrued = (Decimal('1.0') + interest_rate_dec) ** (Decimal(str(days_elapsed)) / Decimal('365.0'))
     elif fi.index_type == 'CDI':
-        # ex: 110% do CDI -> interest_rate = 110
-        cdi_interest = (interest_rate_dec * Decimal('100.0')) * cdi_ref / Decimal('100.0')
-        rate_acrued = (Decimal('1.0') + cdi_interest) ** (Decimal(str(days_elapsed)) / Decimal('365.0'))
+        # ex: 110% do CDI -> interest_rate_dec = 1.10; BCB SGS 12 retorna % acumulado no período
+        if db is not None:
+            cdi_pct, _ = get_cdi_period_return(db, issue_dt, today)
+            cdi_period = Decimal(str(cdi_pct)) / Decimal('100.0')
+        else:
+            cdi_period = (Decimal('1.0') + Decimal(str(CDI_FALLBACK_ANNUAL))) ** (
+                Decimal(str(days_elapsed)) / Decimal('365.0')
+            ) - Decimal('1.0')
+        rate_acrued = (Decimal('1.0') + cdi_period) ** interest_rate_dec
     elif fi.index_type == 'IPCA':
-        # IPCA médio aproximado (ex: 4.5% a.a.) + taxa adicional
-        ipca_ref = Decimal('0.0450')
-        total_rate = ipca_ref + interest_rate_dec
-        rate_acrued = (Decimal('1.0') + total_rate) ** (Decimal(str(days_elapsed)) / Decimal('365.0'))
+        # Compõe IPCA acumulado (BCB SGS 433) com a taxa prefixada anual: (1 + IPCA) * (1 + taxa) - 1
+        ipca_map, _ = get_monthly_ipca_series(db) if db is not None else ({}, "fallback")
+        ipca_factor = _compound_ipca_factor(ipca_map, issue_dt, today)
+        fixed_factor = (Decimal('1.0') + interest_rate_dec) ** (Decimal(str(days_elapsed)) / Decimal('365.0'))
+        rate_acrued = ipca_factor * fixed_factor
     else:
         rate_acrued = Decimal('1.0')
         
@@ -135,7 +162,7 @@ def handle_fixed_income():
         for fi, pos in results:
             qty = pos.quantity if pos else Decimal('0')
             pm = pos.average_price if pos else Decimal('0')
-            metrics = calculate_fixed_income_metrics(fi, qty, pm)
+            metrics = calculate_fixed_income_metrics(fi, qty, pm, db=db)
             
             res_list.append({
                 "id": fi.id,
