@@ -14,13 +14,9 @@ import { MorningBriefing } from '@/features/news/MorningBriefing';
 import { SummaryDashboard } from './SummaryDashboard';
 import { Asset, HistoryDataPoint } from '@/types';
 
-const HistoryChart = dynamic(
-  () => import('@/components/HistoryChart').then((mod) => mod.HistoryChart),
-  { ssr: false, loading: () => <HistoryChartSkeleton /> }
-);
 const MonthlyPnLChart = dynamic(
   () => import('@/features/evolution/components/MonthlyPnLChart'),
-  { ssr: false, loading: () => <div className="h-64 bg-slate-100 dark:bg-slate-800 animate-pulse rounded-xl"></div> }
+  { ssr: false, loading: () => <div className="h-64 bg-surface-card animate-pulse rounded-xl"></div> }
 );
 const ReturnsKpiCards = dynamic(
   () => import('@/features/evolution/components/ReturnsKpiCards'),
@@ -28,7 +24,7 @@ const ReturnsKpiCards = dynamic(
 );
 const PerformanceAttributionChart = dynamic(
   () => import('@/features/evolution/components/PerformanceAttributionChart'),
-  { ssr: false, loading: () => <div className="h-64 bg-surface-card animate-pulse rounded-xl"></div> }
+  { ssr: false, loading: () => <HistoryChartSkeleton /> }
 );
 const QuantDashboard = dynamic(
   () => import('@/features/quant/components/QuantDashboard').then((mod) => mod.QuantDashboard),
@@ -101,10 +97,7 @@ export function DashboardTabContent({
       return (
         <div className="animate-in fade-in duration-500 w-full flex flex-col gap-6">
           <ReturnsKpiCards />
-          <PerformanceAttributionChart />
-          <div className="min-h-[400px]">
-            <HistoryChart data={history} />
-          </div>
+          <PerformanceAttributionChart history={history} />
           <MonthlyPnLChart />
         </div>
       );

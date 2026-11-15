@@ -3,9 +3,12 @@
 import { useMemo, useState } from 'react';
 import useSWR from 'swr';
 import {
+  AreaChart,
+  Area,
   ComposedChart,
   Bar,
   Line,
+  ReferenceLine,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -13,11 +16,13 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import { Loader2, Layers } from 'lucide-react';
+import { Activity, Layers, BarChart3, Loader2, TrendingUp } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { apiCall } from '@/lib/api';
 import { formatMoney } from '@/lib/format';
 import { usePrivacy } from '@/context/PrivacyContext';
+import { useChartPalette } from '@/lib/chartPalette';
+import { HistoryDataPoint } from '@/types';
 
 interface AttributionPoint {
   year: number;
@@ -53,9 +58,54 @@ interface AttributionResponse {
   };
 }
 
-export default function PerformanceAttributionChart() {
+type ViewTab = 'total' | 'classes' | 'attribution';
+type TimeRange = '1y' | '2y' | 'all';
+
+const CLASS_COLORS: Record<string, string> = {
+  'Ação': '#3b82f6',
+  'FII': '#8b5cf6',
+  'Renda Fixa': '#10b981',
+  'Cripto': '#f59e0b',
+  'Internacional': '#ec4899',
+  'Reserva': '#64748b',
+  'Outros': '#94a3b8',
+};
+
+const getClassColor = (name: string, index: number) =>
+  CLASS_COLORS[name] || `hsl(${index * 45}, 70%, 50%)`;
+
+const parseHistoryDate = (raw: string): Date | null => {
+  if (!raw) return null;
+  if (/^\d{4}-\d{2}-\d{2}/.test(raw)) {
+    const parsed = new Date(raw);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+  const br = raw.match(/^(\d{2})\/(\d{2})\/(\d{2,4})$/);
+  if (!br) return null;
+  const year = br[3].length === 2 ? 2000 + Number(br[3]) : Number(br[3]);
+  return new Date(year, Number(br[2]) - 1, Number(br[1]));
+};
+
+const formatCompactAxis = (v: number, isHidden: boolean) => {
+  if (isHidden) return '••••';
+  const abs = Math.abs(v);
+  if (abs >= 1000) return `R$${(v / 1000).toFixed(abs >= 10000 ? 0 : 1)}k`;
+  return `R$${Math.round(v)}`;
+};
+
+export default function PerformanceAttributionChart({
+  history = [],
+}: {
+  history?: HistoryDataPoint[];
+}) {
   const { isHidden } = usePrivacy() as { isHidden: boolean };
+  const palette = useChartPalette();
+
+  const [view, setView] = useState<ViewTab>('total');
   const [mode, setMode] = useState<'nominal' | 'real'>('nominal');
+  const [historyRange, setHistoryRange] = useState<TimeRange>('all');
+  const [attrRange, setAttrRange] = useState<TimeRange>('1y');
+
   const { data: rawData, error, isLoading: loading } = useSWR<AttributionResponse>(
     '/api/performance/attribution',
     apiCall,
@@ -67,149 +117,415 @@ export default function PerformanceAttributionChart() {
       ? 'Não foi possível carregar a atribuição patrimonial.'
       : null;
 
+  const assetClasses = useMemo(() => {
+    const keys = new Set<string>();
+    history.forEach((item) => {
+      Object.keys(item).forEach((key) => {
+        if (!['date', 'Patrimônio', 'Investido', 'Lucro', 'IPCA_6'].includes(key)) {
+          keys.add(key);
+        }
+      });
+    });
+    return Array.from(keys);
+  }, [history]);
+
+  const filteredHistory = useMemo(() => {
+    if (historyRange === 'all' || history.length === 0) return history;
+    const months = historyRange === '1y' ? 12 : 24;
+    const lastDate = parseHistoryDate(history[history.length - 1]?.date);
+    if (!lastDate) return history;
+    const cutoff = new Date(lastDate);
+    cutoff.setMonth(cutoff.getMonth() - months);
+    return history.filter((item) => {
+      const dt = parseHistoryDate(item.date);
+      return dt ? dt >= cutoff : true;
+    });
+  }, [history, historyRange]);
+
   const chartData = useMemo(() => {
     if (!data?.series) return [];
-    return data.series.map((row) => ({
+    const mapped = data.series.map((row) => ({
       ...row,
       market_metric: mode === 'real' ? row.variacao_mercado_real : row.variacao_mercado,
     }));
-  }, [data, mode]);
+    if (attrRange === 'all') return mapped;
+    const sliceCount = attrRange === '1y' ? 12 : 24;
+    return mapped.slice(-sliceCount);
+  }, [data, mode, attrRange]);
+
+  const lastItem = history[history.length - 1];
+  const lastPatrimonio = lastItem?.Patrimônio || 0;
+  const lastInvestido = lastItem?.Investido || 0;
+  const growth = lastInvestido > 0 ? ((lastPatrimonio - lastInvestido) / lastInvestido) * 100 : 0;
+
+  const activeRange = view === 'attribution' ? attrRange : historyRange;
+  const setActiveRange = (next: TimeRange) => {
+    if (view === 'attribution') setAttrRange(next);
+    else setHistoryRange(next);
+  };
 
   const maskMoney = (v: number) => (isHidden ? 'R$ •••••' : formatMoney(v));
 
   return (
     <Card className="p-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
-        <div>
-          <div className="flex items-center gap-2">
-            <Layers size={18} className="text-blue-400" />
-            <h3 className="text-lg font-bold text-text-primary">Atribuição Patrimonial Mensal</h3>
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-5">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-blue-500/10 rounded-lg border border-blue-500/20">
+            <TrendingUp size={18} className="text-blue-400" />
           </div>
-          <p className="text-xs text-text-secondary mt-1">
-            Decomposição do crescimento entre Aportes Líquidos, Valorização de Mercado ({mode === 'real' ? 'descontando IPCA' : 'Nominal'}) e Dividendos.
-          </p>
+          <div>
+            <div className="flex items-center gap-3 flex-wrap">
+              <h3 className="text-base font-bold text-text-primary">
+                Evolução &amp; Atribuição Patrimonial
+              </h3>
+              {history.length > 0 && (
+                <span className="text-xs text-text-secondary">
+                  Rentabilidade Histórica:{' '}
+                  <strong className={growth >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
+                    {growth > 0 ? '+' : ''}
+                    {growth.toFixed(2)}%
+                  </strong>
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-text-secondary mt-0.5">
+              {view === 'total' && 'Curva diária do patrimônio total comparado ao capital aportado.'}
+              {view === 'classes' && 'Distribuição empilhada do patrimônio por classe de ativo.'}
+              {view === 'attribution' &&
+                `Decomposição mensal entre Aportes, Variação de Mercado (${mode === 'real' ? 'descontando IPCA' : 'Nominal'}) e Dividendos.`}
+            </p>
+          </div>
         </div>
 
-        <div className="inline-flex rounded-lg border border-border-subtle bg-surface p-1 self-start">
-          <button
-            type="button"
-            onClick={() => setMode('nominal')}
-            className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${
-              mode === 'nominal'
-                ? 'bg-blue-600 text-white'
-                : 'text-text-secondary hover:text-text-primary'
-            }`}
-          >
-            Nominal (BRL)
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode('real')}
-            className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${
-              mode === 'real'
-                ? 'bg-emerald-600 text-white'
-                : 'text-text-secondary hover:text-text-primary'
-            }`}
-          >
-            Real (IPCA)
-          </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="inline-flex rounded-lg border border-border-subtle bg-surface p-1">
+            <button
+              type="button"
+              onClick={() => setView('total')}
+              className={`flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-md transition-colors ${
+                view === 'total'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-text-secondary hover:text-text-primary'
+              }`}
+            >
+              <Activity size={13} /> Total
+            </button>
+            {assetClasses.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setView('classes')}
+                className={`flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-md transition-colors ${
+                  view === 'classes'
+                    ? 'bg-purple-600 text-white'
+                    : 'text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                <Layers size={13} /> Classes
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setView('attribution')}
+              className={`flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-md transition-colors ${
+                view === 'attribution'
+                  ? 'bg-emerald-600 text-white'
+                  : 'text-text-secondary hover:text-text-primary'
+              }`}
+            >
+              <BarChart3 size={13} /> Atribuição
+            </button>
+          </div>
+
+          {view === 'attribution' && (
+            <div className="inline-flex rounded-lg border border-border-subtle bg-surface p-1">
+              <button
+                type="button"
+                onClick={() => setMode('nominal')}
+                className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${
+                  mode === 'nominal'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                Nominal
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode('real')}
+                className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${
+                  mode === 'real'
+                    ? 'bg-emerald-600 text-white'
+                    : 'text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                Real (IPCA)
+              </button>
+            </div>
+          )}
+
+          <div className="inline-flex rounded-lg border border-border-subtle bg-surface p-1">
+            {(['1y', '2y', 'all'] as const).map((r) => (
+              <button
+                key={r}
+                type="button"
+                onClick={() => setActiveRange(r)}
+                className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${
+                  activeRange === r
+                    ? 'bg-surface-card text-text-primary border border-border-subtle'
+                    : 'text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                {r === '1y' ? '1A' : r === '2y' ? '2A' : 'Tudo'}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
       {data?.summary && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5 text-xs">
           <div className="p-3 rounded-lg bg-surface border border-border-subtle">
-            <span className="text-[10px] uppercase tracking-wider text-text-secondary block">Aportes Líquidos</span>
-            <span className="text-sm font-bold text-blue-400">{maskMoney(data.summary.total_aportes_liquidos)}</span>
+            <span className="text-[10px] uppercase tracking-wider text-text-secondary block">
+              Aportes Líquidos
+            </span>
+            <span className="text-sm font-bold text-blue-400">
+              {maskMoney(data.summary.total_aportes_liquidos)}
+            </span>
           </div>
           <div className="p-3 rounded-lg bg-surface border border-border-subtle">
             <span className="text-[10px] uppercase tracking-wider text-text-secondary block">
               {mode === 'real' ? 'Ganho Real de Mercado' : 'Variação de Mercado'}
             </span>
-            <span className="text-sm font-bold text-emerald-400">
-              {maskMoney(mode === 'real' ? data.summary.variacao_mercado_real_acumulada : data.summary.total_variacao_mercado)}
+            <span
+              className={`text-sm font-bold ${
+                (mode === 'real'
+                  ? data.summary.variacao_mercado_real_acumulada
+                  : data.summary.total_variacao_mercado) >= 0
+                  ? 'text-emerald-400'
+                  : 'text-rose-400'
+              }`}
+            >
+              {maskMoney(
+                mode === 'real'
+                  ? data.summary.variacao_mercado_real_acumulada
+                  : data.summary.total_variacao_mercado,
+              )}
             </span>
           </div>
           <div className="p-3 rounded-lg bg-surface border border-border-subtle">
-            <span className="text-[10px] uppercase tracking-wider text-text-secondary block">Dividendos</span>
-            <span className="text-sm font-bold text-amber-400">{maskMoney(data.summary.total_dividendos)}</span>
+            <span className="text-[10px] uppercase tracking-wider text-text-secondary block">
+              Dividendos
+            </span>
+            <span className="text-sm font-bold text-amber-400">
+              {maskMoney(data.summary.total_dividendos)}
+            </span>
           </div>
           <div className="p-3 rounded-lg bg-surface border border-border-subtle">
-            <span className="text-[10px] uppercase tracking-wider text-text-secondary block">IPCA Acumulado</span>
-            <span className="text-sm font-bold text-text-primary">{data.summary.ipca_acumulado_pct.toFixed(2)}%</span>
+            <span className="text-[10px] uppercase tracking-wider text-text-secondary block">
+              IPCA Acumulado
+            </span>
+            <span className="text-sm font-bold text-text-primary">
+              {data.summary.ipca_acumulado_pct.toFixed(2)}%
+            </span>
           </div>
         </div>
       )}
 
-      {errorMsg && (
+      {errorMsg && view === 'attribution' && (
         <div className="mb-4 rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-2 text-xs text-rose-400">
           {errorMsg}
         </div>
       )}
 
-      <div className="h-80 w-full">
-        {loading ? (
-          <div className="h-full flex items-center justify-center">
-            <Loader2 className="w-6 h-6 animate-spin text-text-secondary" />
-          </div>
-        ) : chartData.length === 0 ? (
+      <div className="h-[340px] w-full">
+        {view === 'attribution' ? (
+          loading ? (
+            <div className="h-full flex items-center justify-center">
+              <Loader2 className="w-6 h-6 animate-spin text-text-secondary" />
+            </div>
+          ) : chartData.length === 0 ? (
+            <div className="h-full flex items-center justify-center text-sm text-text-secondary">
+              Sem histórico mensal suficiente para atribuição.
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: 4, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={palette.grid} />
+                <XAxis
+                  dataKey="period"
+                  tick={{ fill: palette.axis, fontSize: 11 }}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis
+                  yAxisId="left"
+                  width={72}
+                  tickFormatter={(v) => formatCompactAxis(Number(v), isHidden)}
+                  tick={{ fill: palette.axis, fontSize: 11 }}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis
+                  yAxisId="right"
+                  orientation="right"
+                  width={72}
+                  tickFormatter={(v) => formatCompactAxis(Number(v), isHidden)}
+                  tick={{ fill: '#a855f7', fontSize: 11 }}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <ReferenceLine yAxisId="left" y={0} stroke={palette.axis} strokeOpacity={0.35} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: palette.tooltipBg,
+                    borderColor: palette.tooltipBorder,
+                    borderRadius: '0.75rem',
+                    fontSize: '12px',
+                  }}
+                  formatter={(value, name) => [
+                    isHidden ? 'R$ •••••' : formatMoney(Number(value) || 0),
+                    String(name),
+                  ]}
+                />
+                <Legend wrapperStyle={{ fontSize: '11px' }} />
+                <Bar
+                  yAxisId="left"
+                  dataKey="aportes_liquidos"
+                  name="Aportes Líquidos"
+                  fill="#3b82f6"
+                  radius={[4, 4, 0, 0]}
+                />
+                <Bar
+                  yAxisId="left"
+                  dataKey="market_metric"
+                  name={mode === 'real' ? 'Mercado Real (pós-IPCA)' : 'Variação Mercado'}
+                  fill="#10b981"
+                  radius={[4, 4, 0, 0]}
+                />
+                <Bar
+                  yAxisId="left"
+                  dataKey="dividendos"
+                  name="Dividendos"
+                  fill="#f59e0b"
+                  radius={[4, 4, 0, 0]}
+                />
+                <Line
+                  yAxisId="right"
+                  type="monotone"
+                  dataKey="patrimonio_fim"
+                  name="Patrimônio Fim (eixo dir.)"
+                  stroke="#a855f7"
+                  strokeWidth={2}
+                  strokeDasharray="4 4"
+                  dot={false}
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
+          )
+        ) : filteredHistory.length === 0 ? (
           <div className="h-full flex items-center justify-center text-sm text-text-secondary">
-            Sem histórico mensal suficiente para atribuição.
+            Aguardando dados históricos diários...
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" opacity={0.25} />
-              <XAxis dataKey="period" tick={{ fill: '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={false} />
+            <AreaChart data={filteredHistory} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+              {view === 'total' && (
+                <defs>
+                  <linearGradient id="colorPatrimonioUnified" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#22d3ee" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#22d3ee" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+              )}
+              <CartesianGrid strokeDasharray="3 3" stroke={palette.grid} vertical={false} />
+              <XAxis
+                dataKey="date"
+                stroke={palette.axis}
+                fontSize={11}
+                tickLine={false}
+                axisLine={false}
+                minTickGap={30}
+              />
               <YAxis
-                width={80}
-                tickFormatter={(v) => (isHidden ? '••••' : `R$ ${Math.round(v)}`)}
-                tick={{ fill: '#94a3b8', fontSize: 11 }}
+                width={72}
+                stroke={palette.axis}
+                fontSize={11}
+                tickFormatter={(v) => formatCompactAxis(Number(v), isHidden)}
                 tickLine={false}
                 axisLine={false}
               />
               <Tooltip
+                cursor={{
+                  stroke: view === 'total' ? '#22d3ee' : '#a855f7',
+                  strokeWidth: 1,
+                  strokeDasharray: '4 4',
+                }}
                 contentStyle={{
-                  backgroundColor: '#0f172a',
-                  borderColor: '#334155',
+                  backgroundColor: palette.tooltipBg,
+                  borderColor: palette.tooltipBorder,
                   borderRadius: '0.75rem',
                   fontSize: '12px',
                 }}
-                formatter={(value, name) => [
-                  isHidden ? 'R$ •••••' : formatMoney(Number(value) || 0),
-                  String(name),
-                ]}
+                formatter={(value, name) => {
+                  const formatted = isHidden ? 'R$ •••••' : formatMoney(Number(value) || 0);
+                  if (name === 'Patrimônio') return [formatted, 'TOTAL'];
+                  if (name === 'Investido') return [formatted, 'APORTADO'];
+                  return [formatted, String(name).toUpperCase()];
+                }}
               />
               <Legend wrapperStyle={{ fontSize: '11px' }} />
-              <Bar dataKey="aportes_liquidos" name="Aportes Líquidos" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-              <Bar
-                dataKey="market_metric"
-                name={mode === 'real' ? 'Mercado Real (pós-IPCA)' : 'Variação Mercado'}
-                fill="#10b981"
-                radius={[4, 4, 0, 0]}
-              />
-              <Bar dataKey="dividendos" name="Dividendos" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-              <Line
-                type="monotone"
-                dataKey="patrimonio_fim"
-                name="Patrimônio Fim"
-                stroke="#a855f7"
-                strokeWidth={2}
-                dot={false}
-              />
-            </ComposedChart>
+              {view === 'total' ? (
+                <>
+                  <Area
+                    type="monotone"
+                    dataKey="Investido"
+                    name="Aportes"
+                    stroke="#64748b"
+                    strokeWidth={2}
+                    strokeDasharray="4 4"
+                    fill="transparent"
+                    activeDot={false}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="Patrimônio"
+                    name="Patrimônio Total"
+                    stroke="#22d3ee"
+                    strokeWidth={2.5}
+                    fill="url(#colorPatrimonioUnified)"
+                    activeDot={{ r: 5, strokeWidth: 0, fill: palette.activeDotFill }}
+                  />
+                </>
+              ) : (
+                assetClasses.map((cls, idx) => (
+                  <Area
+                    key={cls}
+                    type="monotone"
+                    dataKey={cls}
+                    stackId="1"
+                    stroke={getClassColor(cls, idx)}
+                    strokeWidth={2}
+                    fill={getClassColor(cls, idx)}
+                    fillOpacity={0.4}
+                    activeDot={{ r: 4, strokeWidth: 0, fill: palette.activeDotFill }}
+                  />
+                ))
+              )}
+            </AreaChart>
           </ResponsiveContainer>
         )}
       </div>
 
-      <p className="text-[11px] text-text-secondary mt-3">
-        Identidade contábil mensal: Δ Custódia = Aportes Líquidos + Variação de Mercado · Fonte IPCA:{' '}
-        {data?.ipca_source === 'bcb_sgs_433' ? 'BCB SGS 433' : 'Estimado (Fallback)'}
-        {(data?.summary?.ipca_fallback_months ?? 0) > 0
-          ? ` (${data?.summary.ipca_fallback_months} mês(es) estimado(s))`
-          : ''}
-        .
-      </p>
+      {view === 'attribution' && (
+        <p className="text-[11px] text-text-secondary mt-3">
+          Identidade contábil mensal: Δ Custódia = Aportes Líquidos + Variação de Mercado · Fonte IPCA:{' '}
+          {data?.ipca_source === 'bcb_sgs_433' ? 'BCB SGS 433' : 'Estimado (Fallback)'}
+          {(data?.summary?.ipca_fallback_months ?? 0) > 0
+            ? ` (${data?.summary.ipca_fallback_months} mês(es) estimado(s))`
+            : ''}
+          .
+        </p>
+      )}
     </Card>
   );
 }
