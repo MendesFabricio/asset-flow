@@ -286,8 +286,11 @@ def _build_enhanced_morning_brief_prompt(context: dict) -> str:
     
     holdings_lines = []
     for h in context.get("holdings", []):
-        # Somente identificar o ativo para a IA saber o que tem na carteira, sem dados tubulares
-        holdings_lines.append(f"- Ativo: {h['ticker']} ({h['category']})")
+        cat = h.get("category", "Outros")
+        if cat in ("Reserva", "Renda Fixa"):
+            holdings_lines.append(f"- Caixa/Renda Fixa: {h['ticker']} ({cat} — liquidez/juros, não é ativo descontado de bolsa)")
+        else:
+            holdings_lines.append(f"- Ativo de Renda Variável: {h['ticker']} ({cat})")
         
     holdings_text = "\n".join(holdings_lines) if holdings_lines else "Nenhuma posição ativa no momento."
 

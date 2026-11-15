@@ -14,13 +14,14 @@ PRINCIPAIS NOTÍCIAS RECENTES RELACIONADAS À CARTEIRA:
 INSTRUÇÕES:
 - Avalie o impacto do nível atual de Selic, Dólar e das notícias acima sobre as classes e ativos presentes na carteira.
 - Conecte diretamente as notícias listadas com possíveis riscos ou oportunidades para os ativos do investidor, sem inventar fatos fora do contexto.
+- NUNCA chame ativos de Reserva ou Renda Fixa (ex.: Nubank Reserva, Nubank Turbo) de "ativos descontados" — eles são caixa/liquidez.
 - Seja objetivo, acionável e escreva em português do Brasil.
 
 RESPONDA EXCLUSIVAMENTE EM JSON VÁLIDO (sem markdown fora do JSON) no formato:
 {{
   "rationale": "Raciocínio macroeconômico em 2-3 frases ligando Selic, Dólar, notícias recentes e a composição da carteira.",
   "brief_text": "Resumo executivo matinal em 2 parágrafos curtos com leitura de cenário, reflexo das notícias na carteira e pontos de atenção para hoje.",
-  "action": "Ação tática recomendada para o próximo aporte (ex.: priorizar ativos descontados, manter caixa/reserva ou reforçar dólar).",
+  "action": "Ação tática concreta para o próximo aporte (ex.: reforçar caixa/CDI com Selic alta, diversificar em dólar ou aportar em FIIs/ações abaixo da meta).",
   "risk_metrics": {{
     "macro_regime": "Escolha APENAS UM: Juros Altos, Transição ou Expansivo",
     "fx_bias": "Escolha APENAS UM: Dólar Pressionado, Neutro ou Favorável",
