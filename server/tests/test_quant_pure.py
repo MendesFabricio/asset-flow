@@ -30,3 +30,20 @@ class TestQuantMath:
         window = 3
         rolling = returns.rolling(window).mean() / returns.rolling(window).std()
         assert not rolling.isnull().all()
+
+    def test_sanitize_price_glitches_removes_temporary_100x_drop(self):
+        from domain.quant.helpers import _sanitize_price_glitches
+
+        dates = pd.date_range("2026-01-01", periods=20, freq="B")
+        vals = [110.0] * 20
+        vals[9] = 1.07
+        vals[10] = 1.06
+        vals[11] = 1.08
+        df = pd.DataFrame({"XPML11.SA": vals}, index=dates)
+
+        cleaned = _sanitize_price_glitches(df)
+        assert pd.isna(cleaned.iloc[9]["XPML11.SA"])
+        assert pd.isna(cleaned.iloc[10]["XPML11.SA"])
+        assert pd.isna(cleaned.iloc[11]["XPML11.SA"])
+        assert cleaned.iloc[8]["XPML11.SA"] == 110.0
+        assert cleaned.iloc[12]["XPML11.SA"] == 110.0

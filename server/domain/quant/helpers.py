@@ -13,11 +13,27 @@ def _get_b3_calendar():
         _B3_CALENDAR_CACHE = mcal.get_calendar('BVMF')
     return _B3_CALENDAR_CACHE
 
+def _sanitize_price_glitches(prices):
+    """Remove glitches isolados de cotação (ex.: erro 100x do Yahoo Finance que reverte em dias)."""
+    if prices.empty:
+        return prices
+    cleaned = prices.copy()
+    for col in cleaned.columns:
+        s = cleaned[col]
+        med = s.rolling(window=21, center=True, min_periods=5).median()
+        bad = (s <= 0) | ((med > 0) & ((s < med * 0.20) | (s > med * 5.0)))
+        if bad.any():
+            logging.warning(f"⚠️ Sanitizando {int(bad.sum())} outlier(s) isolado(s) em {col}")
+            cleaned.loc[bad, col] = float("nan")
+    return cleaned
+
+
 def _align_prices_to_b3(prices):
     import pandas as pd
     if prices.empty:
         return prices
     try:
+        prices = _sanitize_price_glitches(prices)
         prices.index = pd.to_datetime(prices.index).tz_localize(None).normalize()
         start_date = prices.index.min()
         end_date = prices.index.max()
