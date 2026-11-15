@@ -132,10 +132,14 @@ def _format_rationale_item(item, news_items: list[dict]) -> str:
             source_idx = int(raw_idx.strip())
     else:
         text = str(item or "").strip()
-        m = re.match(r'^\[(\d+)\]\s*', text)
-        if m:
-            source_idx = int(m.group(1))
-            text = text[m.end():].strip()
+        m_start = re.match(r'^\[(\d+)\]\s*', text)
+        m_end = re.search(r'\s*\[(\d+)\]\s*\.?$', text)
+        if m_start:
+            source_idx = int(m_start.group(1))
+            text = text[m_start.end():].strip()
+        elif m_end:
+            source_idx = int(m_end.group(1))
+            text = text[:m_end.start()].strip()
 
     if not text:
         return ""

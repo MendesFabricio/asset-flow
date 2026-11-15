@@ -283,6 +283,9 @@ class TestAIAutomationTools(unittest.TestCase):
         line2 = _format_rationale_item("[2] Processo tributário relevante.", news)
         self.assertEqual(line2, "- Processo tributário relevante. [Valor ↗](https://valor.globo.com/romi3)")
 
+        line_end = _format_rationale_item("Processo tributário relevante de R$ 47 mi. [2]", news)
+        self.assertEqual(line_end, "- Processo tributário relevante de R$ 47 mi. [Valor ↗](https://valor.globo.com/romi3)")
+
         line3 = _format_rationale_item({"text": "Síntese geral.", "source_index": None}, news)
         self.assertEqual(line3, "- Síntese geral.")
 
