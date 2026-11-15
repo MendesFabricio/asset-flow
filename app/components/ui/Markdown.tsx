@@ -59,18 +59,24 @@ export function Markdown({ text }: MarkdownProps) {
 
     applyRegex(/\[([^\]]+)\]\(([^)]+)\)/g, (match, key) => {
       const href = match[2].trim();
+      const label = match[1];
       if (!/^https?:\/\//i.test(href)) {
-        return <span key={key}>{match[1]}</span>;
+        return <span key={key}>{label}</span>;
       }
+      const isSourcePill = label.endsWith('↗');
       return (
         <a
           key={key}
           href={href}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-indigo-400 hover:text-indigo-300 underline font-medium"
+          className={
+            isSourcePill
+              ? 'inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-indigo-500/15 border border-indigo-500/30 text-[10px] text-indigo-300 hover:bg-indigo-500/25 no-underline font-semibold ml-1 align-middle transition-colors'
+              : 'text-indigo-400 hover:text-indigo-300 underline font-medium'
+          }
         >
-          {match[1]}
+          {label}
         </a>
       );
     });

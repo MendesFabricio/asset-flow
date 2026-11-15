@@ -18,10 +18,11 @@ CRITÉRIOS DE CLASSIFICAÇÃO:
 RESPONDA EXCLUSIVAMENTE EM JSON VÁLIDO no formato:
 {{
   "rationale": [
-    "Ponto 1: leitura objetiva do principal fato/indicador.",
-    "Ponto 2: impacto esperado nos fundamentos ou dividendos da empresa/fundo.",
-    "Ponto 3: principal risco ou catalisador a monitorar no curto e médio prazo."
+    {{"text": "Ponto 1: leitura objetiva do principal fato/indicador.", "source_index": 1}},
+    {{"text": "Ponto 2: impacto esperado nos fundamentos ou dividendos da empresa/fundo.", "source_index": 2}},
+    {{"text": "Ponto 3: principal risco ou catalisador a monitorar no curto e médio prazo.", "source_index": null}}
   ],
   "sentiment": "Positivo" | "Neutro" | "Negativo",
   "summary": "Síntese executiva em 2 frases diretas explicando o porquê do sentimento e o que acompanhar."
 }}
+(Em "source_index", informe o número [1], [2], etc. da manchete usada naquele ponto, ou null se for síntese geral / CVM.)

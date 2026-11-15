@@ -99,6 +99,64 @@ def get_gemini_tools() -> list:
         }
     ]
 
+def _normalize_news_items(news_input: list) -> list[dict]:
+    """Normaliza entrada de notícias (strings ou dicts com title/link/source)."""
+    items = []
+    for entry in news_input or []:
+        if isinstance(entry, dict):
+            title = str(entry.get("title") or "").strip()
+            if not title:
+                continue
+            items.append({
+                "title": title,
+                "link": str(entry.get("link") or "").strip(),
+                "source": str(entry.get("source") or "Fonte").strip(),
+            })
+        else:
+            title = str(entry or "").strip()
+            if title:
+                items.append({"title": title, "link": "", "source": "Fonte"})
+    return items
+
+
+def _format_rationale_item(item, news_items: list[dict]) -> str:
+    """Formata um tópico do rationale anexando botão/link da notícia de origem quando disponível."""
+    import re
+    source_idx = None
+    if isinstance(item, dict):
+        text = str(item.get("text") or item.get("ponto") or item.get("summary") or "").strip()
+        raw_idx = item.get("source_index")
+        if isinstance(raw_idx, int):
+            source_idx = raw_idx
+        elif isinstance(raw_idx, str) and raw_idx.strip().isdigit():
+            source_idx = int(raw_idx.strip())
+    else:
+        text = str(item or "").strip()
+        m = re.match(r'^\[(\d+)\]\s*', text)
+        if m:
+            source_idx = int(m.group(1))
+            text = text[m.end():].strip()
+
+    if not text:
+        return ""
+
+    chosen = None
+    if source_idx is not None and 1 <= source_idx <= len(news_items):
+        chosen = news_items[source_idx - 1]
+    else:
+        text_low = text.lower()
+        for n in news_items:
+            src = n.get("source", "")
+            if src and src != "Fonte" and src.lower() in text_low:
+                chosen = n
+                break
+
+    if chosen and chosen.get("link", "").startswith(("http://", "https://")):
+        label = chosen.get("source") or "Fonte"
+        return f"- {text} [{label} ↗]({chosen['link']})"
+    return f"- {text}"
+
+
 def _run_sentiment_analysis(asset_id: int, ticker: str, news_titles: list, position_info: dict):
     """
     Worker que roda na thread de background para consultar o Gemini
@@ -117,7 +175,8 @@ def _run_sentiment_analysis(asset_id: int, ticker: str, news_titles: list, posit
         asset.ai_updated_at = datetime.now()
         session.commit()
 
-        if not news_titles:
+        news_items = _normalize_news_items(news_titles)
+        if not news_items:
             asset.ai_summary = "Nenhuma notícia recente disponível para análise."
             asset.ai_sentiment = "Neutro"
             asset.ai_status = "success"
@@ -149,7 +208,9 @@ def _run_sentiment_analysis(asset_id: int, ticker: str, news_titles: list, posit
         from utils.prompt_loader import load_prompt
         template = load_prompt("sentiment_analysis_v1.txt")
         cvm_section = f"=== CONTEXTO ADICIONAL DE EVENTOS CVM ===\n{cvm_context}\n\n" if cvm_context else ""
-        news_list_str = "\n".join(f"- {title}" for title in news_titles)
+        news_list_str = "\n".join(
+            f"[{idx}] ({n['source']}) {n['title']}" for idx, n in enumerate(news_items, start=1)
+        )
         prompt = template.format(
             ticker=ticker,
             qty=qty,
@@ -173,7 +234,8 @@ def _run_sentiment_analysis(asset_id: int, ticker: str, news_titles: list, posit
             sentiment_val = parsed.get("sentiment", "Neutro")
 
             if isinstance(rationale_raw, list):
-                rationale_val = "\n".join(f"- {str(item).strip()}" for item in rationale_raw if item)
+                formatted_items = [_format_rationale_item(item, news_items) for item in rationale_raw if item]
+                rationale_val = "\n".join(line for line in formatted_items if line)
             else:
                 rationale_val = str(rationale_raw).strip()
 

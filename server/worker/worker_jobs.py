@@ -102,8 +102,7 @@ def _do_daily_sentiment():
         for asset_id, ticker, pos_info in targets:
             try:
                 news_list = fetch_ticker_news(ticker.strip().upper().replace(".SA", ""), limit=5)
-                titles = [n["title"] for n in news_list if n.get("title")]
-                _run_sentiment_analysis(asset_id, ticker, titles, pos_info)
+                _run_sentiment_analysis(asset_id, ticker, news_list, pos_info)
                 time.sleep(1.0)
             except Exception as exc:
                 logging.warning(f"⚠️ [IA] Falha ao atualizar sentimento diário de {ticker}: {exc}")

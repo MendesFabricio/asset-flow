@@ -38,4 +38,11 @@ describe('Markdown link sanitization', () => {
     expect(screen.getByText('Resumo Executivo:').tagName).toBe('STRONG');
     expect(screen.getByText('Primeiro ponto')).toBeInTheDocument();
   });
+
+  it('renders source pill button for links ending with ↗', () => {
+    render(<Markdown text="- Lucro subiu 56,1%. [Investidor10 ↗](https://investidor10.com.br/romi3)" />);
+    const link = screen.getByRole('link', { name: 'Investidor10 ↗' });
+    expect(link).toHaveAttribute('href', 'https://investidor10.com.br/romi3');
+    expect(link.className).toContain('rounded');
+  });
 });

@@ -270,5 +270,21 @@ class TestAIAutomationTools(unittest.TestCase):
         self.assertIn("scheduled_daily_sentiment_analysis", JOB_REGISTRY)
         self.assertEqual(JOB_REGISTRY["scheduled_daily_sentiment_analysis"]["default_type"], "cron")
 
+    def test_format_rationale_item_attaches_source_hyperlink(self):
+        from infrastructure.gemini_service import _format_rationale_item, _normalize_news_items
+
+        news = _normalize_news_items([
+            {"title": "Romi anuncia resultado do 3T26", "link": "https://investidor10.com.br/romi3", "source": "Investidor10"},
+            {"title": "Processo tributário de R$ 47 mi", "link": "https://valor.globo.com/romi3", "source": "Valor"},
+        ])
+        line1 = _format_rationale_item({"text": "Lucro subiu 56,1%.", "source_index": 1}, news)
+        self.assertEqual(line1, "- Lucro subiu 56,1%. [Investidor10 ↗](https://investidor10.com.br/romi3)")
+
+        line2 = _format_rationale_item("[2] Processo tributário relevante.", news)
+        self.assertEqual(line2, "- Processo tributário relevante. [Valor ↗](https://valor.globo.com/romi3)")
+
+        line3 = _format_rationale_item({"text": "Síntese geral.", "source_index": None}, news)
+        self.assertEqual(line3, "- Síntese geral.")
+
 if __name__ == '__main__':
     unittest.main()

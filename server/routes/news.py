@@ -96,8 +96,6 @@ def get_news(ticker):
                         should_trigger = True
 
                 if should_trigger and news_list:
-                    titles = [n["title"] for n in news_list]
-                    
                     # Coleta dados estruturados da posição para repassar à IA
                     pos_qty = 0.0
                     pos_avg = 0.0
@@ -118,7 +116,7 @@ def get_news(ticker):
                         "target_percent": pos_target
                     }
                     
-                    analyze_asset_sentiment_async(asset.id, asset.ticker, titles, position_info)
+                    analyze_asset_sentiment_async(asset.id, asset.ticker, news_list, position_info)
                     asset.ai_status = "processing"
                     asset.ai_updated_at = datetime.now()  # Registra o início do processamento como referência de timeout
                     safe_commit(session)
