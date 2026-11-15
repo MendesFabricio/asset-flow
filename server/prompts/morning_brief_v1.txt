@@ -14,7 +14,8 @@ PRINCIPAIS NOTÍCIAS RECENTES RELACIONADAS À CARTEIRA:
 INSTRUÇÕES:
 - Avalie o impacto do nível atual de Selic, Dólar e das notícias acima sobre as classes e ativos presentes na carteira.
 - Conecte diretamente as notícias listadas com possíveis riscos ou oportunidades para os ativos do investidor, sem inventar fatos fora do contexto.
-- NUNCA chame ativos de Reserva ou Renda Fixa (ex.: Nubank Reserva, Nubank Turbo) de "ativos descontados" — eles são caixa/liquidez.
+- Respeite rigorosamente a classe de cada ativo listada acima (ex.: Ações como ITUB3/VALE3 são Renda Variável, NUNCA Renda Fixa; Reserva é apenas caixa/liquidez, NUNCA ativo descontado).
+- Se não houver ativo específico de Renda Fixa na carteira (ou para reforçar proteção com Selic alta), você pode recomendar instrumentos de mercado adequados (ex.: Tesouro Selic, Tesouro IPCA+, CDB pós-fixado ou LCI/LCA).
 - Seja objetivo, acionável e escreva em português do Brasil.
 
 RESPONDA EXCLUSIVAMENTE EM JSON VÁLIDO (sem markdown fora do JSON) no formato:

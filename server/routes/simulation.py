@@ -125,6 +125,7 @@ def _build_morning_brief_context(user_id: int, dolar_rate: float, selic: float) 
         "selic_rate": f"{selic * 100:.2f}%",
         "dolar_rate_str": f"R$ {float(dolar_rate):.2f}",
         "holdings": enriched_holdings,
+        "all_holdings": holdings_details,
         "news_highlights": news_highlights,
     }
     return context
@@ -284,13 +285,22 @@ def _build_enhanced_morning_brief_prompt(context: dict) -> str:
     dolar = context.get("dolar_rate", 0.0)
     date_str = datetime.now().strftime("%d/%m/%Y")
     
-    holdings_lines = []
-    for h in context.get("holdings", []):
+    holdings_by_cat: dict[str, list[str]] = {}
+    for h in (context.get("all_holdings") or context.get("holdings", [])):
         cat = h.get("category", "Outros")
-        if cat in ("Reserva", "Renda Fixa"):
-            holdings_lines.append(f"- Caixa/Renda Fixa: {h['ticker']} ({cat} — liquidez/juros, não é ativo descontado de bolsa)")
+        tkr = h.get("ticker", "")
+        if tkr:
+            holdings_by_cat.setdefault(cat, []).append(tkr)
+
+    holdings_lines = []
+    for cat, tickers in holdings_by_cat.items():
+        sample = ", ".join(tickers[:6]) + ("..." if len(tickers) > 6 else "")
+        if cat == "Reserva":
+            holdings_lines.append(f"- Reserva (Caixa / Liquidez diária, NÃO é Renda Variável nem ativo descontado): {sample}")
+        elif cat == "Renda Fixa":
+            holdings_lines.append(f"- Renda Fixa (Títulos / ETFs de RF): {sample}")
         else:
-            holdings_lines.append(f"- Ativo de Renda Variável: {h['ticker']} ({cat})")
+            holdings_lines.append(f"- {cat} (Renda Variável): {sample}")
         
     holdings_text = "\n".join(holdings_lines) if holdings_lines else "Nenhuma posição ativa no momento."
 
