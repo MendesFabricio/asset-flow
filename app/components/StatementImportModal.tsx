@@ -81,13 +81,16 @@ export function StatementImportModal({
   const [referenceMonth, setReferenceMonth] = useState<string>('');
 
   useEffect(() => {
-    if (isOpen) {
-      if (preSelectedCardId && cards.some(c => c.id === preSelectedCardId)) {
-        setSelectedCardId(preSelectedCardId);
-      } else if (cards.length > 0 && !selectedCardId) {
-        setSelectedCardId(cards[0].id);
+    if (!isOpen) return;
+    setSelectedCardId((prev) => {
+      if (preSelectedCardId && cards.some((c) => c.id === preSelectedCardId)) {
+        return preSelectedCardId;
       }
-    }
+      if (cards.length > 0 && !prev) {
+        return cards[0].id;
+      }
+      return prev;
+    });
   }, [isOpen, preSelectedCardId, cards]);
 
   if (!isOpen) return null;

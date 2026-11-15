@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react';
+import React, { createContext, useCallback, useContext, useState, useEffect, useMemo, ReactNode } from 'react';
 
 type ThemeMode = 'dark' | 'light';
 
@@ -13,6 +13,24 @@ const ThemeContext = createContext<ThemeContextType>({
   theme: 'dark',
   toggleTheme: () => {},
 });
+
+const applyThemeToDom = (mode: ThemeMode) => {
+  if (typeof document !== 'undefined') {
+    const root = document.documentElement;
+    const body = document.body;
+    if (mode === 'light') {
+      root.setAttribute('data-theme', 'light');
+      root.classList.add('light-theme');
+      body.classList.add('light-theme');
+      root.classList.remove('dark');
+    } else {
+      root.setAttribute('data-theme', 'dark');
+      root.classList.remove('light-theme');
+      body.classList.remove('light-theme');
+      root.classList.add('dark');
+    }
+  }
+};
 
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   const [theme, setTheme] = useState<ThemeMode>('dark');
@@ -30,34 +48,16 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  const applyThemeToDom = (mode: ThemeMode) => {
-    if (typeof document !== 'undefined') {
-      const root = document.documentElement;
-      const body = document.body;
-      if (mode === 'light') {
-        root.setAttribute('data-theme', 'light');
-        root.classList.add('light-theme');
-        body.classList.add('light-theme');
-        root.classList.remove('dark');
-      } else {
-        root.setAttribute('data-theme', 'dark');
-        root.classList.remove('light-theme');
-        body.classList.remove('light-theme');
-        root.classList.add('dark');
-      }
-    }
-  };
-
-  const toggleTheme = (mode?: ThemeMode) => {
+  const toggleTheme = useCallback((mode?: ThemeMode) => {
     setTheme((prev) => {
       const nextTheme = mode || (prev === 'dark' ? 'light' : 'dark');
       localStorage.setItem('assetflow_theme', nextTheme);
       applyThemeToDom(nextTheme);
       return nextTheme;
     });
-  };
+  }, []);
 
-  const value = useMemo(() => ({ theme, toggleTheme }), [theme]);
+  const value = useMemo(() => ({ theme, toggleTheme }), [theme, toggleTheme]);
 
   return (
     <ThemeContext.Provider value={value}>

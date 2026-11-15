@@ -533,6 +533,7 @@ def _restore_history_payload(session, user_id, payload, mode="replace"):
         session.query(MonthlyPortfolioSnapshot).filter(MonthlyPortfolioSnapshot.user_id == user_id).delete(synchronize_session=False)
         session.query(TaxProfile).filter(TaxProfile.user_id == user_id).delete(synchronize_session=False)
         session.flush()
+        session.expunge_all()
 
     cat_cache = {}
     ticker_cache = {}

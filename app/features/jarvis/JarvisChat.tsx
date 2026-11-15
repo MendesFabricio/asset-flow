@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, Brain, User, RefreshCw, ArrowRight } from 'lucide-react';
 import { apiCall } from '@/lib/api';
 import { Markdown } from '@/components/ui/Markdown';
@@ -43,7 +43,7 @@ export function JarvisChat() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   };
 
-  const fetchHistory = () => {
+  const fetchHistory = useCallback(() => {
     setLoading(true);
     apiCall<any>(`/api/ai/history?session_id=${sessionId}`)
       .then((res) => {
@@ -68,11 +68,11 @@ export function JarvisChat() {
       })
       .catch((err) => console.error(err))
       .finally(() => setLoading(false));
-  };
+  }, [sessionId]);
 
   useEffect(() => {
     fetchHistory();
-  }, [sessionId]);
+  }, [fetchHistory]);
 
   useEffect(() => {
     scrollToBottom();

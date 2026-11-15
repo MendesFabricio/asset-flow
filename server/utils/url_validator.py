@@ -6,7 +6,9 @@ import logging
 ALLOWED_DOMAINS = [
     "cvm.gov.br",
     "dados.cvm.gov.br",
+    "b3.com.br",
     "fnet.bmfbovespa.com.br",
+    "fnet.otc.br",
     "finance.yahoo.com",
     "query1.finance.yahoo.com",
     "query2.finance.yahoo.com",

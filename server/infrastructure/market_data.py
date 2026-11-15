@@ -342,6 +342,9 @@ def sync_reports_with_fnet(session, state_dict=None, user_id=None):
     from utils.cvm_finder import CVMFinder 
     from utils.cvm_processor import CVMProcessor
     from utils.fii_processor import FIIProcessor
+    from utils.http_client import get_secure_session
+
+    secure_session = get_secure_session()
 
     try:
         query = session.query(Position).join(Asset).join(Category).filter(
@@ -378,7 +381,7 @@ def sync_reports_with_fnet(session, state_dict=None, user_id=None):
             if not asset.name or asset.name.strip().upper() == ticker:
                 try:
                     yf_symbol = ticker if asset.currency == "USD" else f"{ticker}.SA"
-                    info = yf.Ticker(yf_symbol).info or {}
+                    info = yf.Ticker(yf_symbol, session=secure_session).info or {}
                     raw_name = info.get("shortName") or info.get("longName")
                     if raw_name:
                         asset.name = " ".join(str(raw_name).split())

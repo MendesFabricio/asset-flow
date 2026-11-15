@@ -14,7 +14,6 @@ from sentry_sdk.integrations.flask import FlaskIntegration
 
 # Importações de Infraestrutura e Persistência
 from db.models import init_db, DatabaseStateProxy, get_sync_state_db, update_sync_state_db
-from db.lock import DistributedLock
 from db.session import Session
 from services import PortfolioService
 
@@ -54,7 +53,6 @@ logging.basicConfig(
 
 # 🧠 MÁQUINA DE ESTADO PERSISTENTE
 SYNC_STATE = DatabaseStateProxy("cvm_sync")
-_SYNC_LOCK = DistributedLock("cvm_sync", timeout=300)
 
 class CustomJSONProvider(DefaultJSONProvider):
     def default(self, o):

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Coffee, ChevronDown, ChevronUp, Brain, RefreshCw, AlertCircle, Loader2, Target, BarChart3, Newspaper, ExternalLink } from 'lucide-react';
 import { apiCall } from '@/lib/api';
 import { Markdown } from '@/components/ui/Markdown';
@@ -30,7 +30,7 @@ export function MorningBriefing() {
   const [showCoT, setShowCoT] = useState(false);
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const fetchBrief = async (force = false, signal?: AbortSignal) => {
+  const fetchBrief = useCallback(async (force = false, signal?: AbortSignal) => {
     setLoading(true);
     setError(null);
     if (pollRef.current) clearTimeout(pollRef.current);
@@ -49,7 +49,7 @@ export function MorningBriefing() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -60,7 +60,7 @@ export function MorningBriefing() {
       if (pollRef.current) clearTimeout(pollRef.current);
       controller.abort();
     };
-  }, []);
+  }, [fetchBrief]);
 
 
   if (loading) {

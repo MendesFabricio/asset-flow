@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Plus, CheckCircle, Calendar, X, 
   FileText,
@@ -98,22 +98,29 @@ export function CreditCardsTab() {
   const [cardForm, setCardForm] = useState({ name: '', limit: '', closing_day: '5', due_day: '15' });
   const [expenseForm, setExpenseForm] = useState({ description: '', total_value: '', installments_count: '1', date: '' });
 
-  const loadAllData = async () => {
+  const loadAllData = useCallback(async () => {
     try {
       const dataCards = await apiCall<CardItem[]>('/api/credit-cards');
       setCards(dataCards);
-      if (dataCards.length > 0 && !selectedCard) {
-        setSelectedCard(dataCards[0]);
-      }
+      setSelectedCard((prev) => (dataCards.length > 0 && !prev ? dataCards[0] : prev));
 
       const dataDash = await apiCall<CreditCardsDashboardData>('/api/credit-cards/dashboard');
       setDashboard(dataDash);
     } catch (e) {
       console.error(e);
     }
-  };
+  }, []);
 
-  const loadCardInvoicesAndExpenses = async (cardId: number, monthToSelect?: string) => {
+  const loadExpensesByMonth = useCallback(async (cardId: number, month: string) => {
+    try {
+      const data = await apiCall<{ items: ExpenseItem[] }>(`/api/credit-cards/${cardId}/expenses?invoice_month=${month}`);
+      setExpenses(data.items || []);
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
+
+  const loadCardInvoicesAndExpenses = useCallback(async (cardId: number, monthToSelect?: string) => {
     try {
       const invoices = await apiCall<InvoiceSummaryItem[]>(`/api/credit-cards/${cardId}/invoices`);
       setCardInvoices(invoices || []);
@@ -142,20 +149,11 @@ export function CreditCardsTab() {
     } catch (e) {
       console.error(e);
     }
-  };
-
-  const loadExpensesByMonth = async (cardId: number, month: string) => {
-    try {
-      const data = await apiCall<{ items: ExpenseItem[] }>(`/api/credit-cards/${cardId}/expenses?invoice_month=${month}`);
-      setExpenses(data.items || []);
-    } catch (e) {
-      console.error(e);
-    }
-  };
+  }, [loadExpensesByMonth]);
 
   useEffect(() => {
     loadAllData();
-  }, []);
+  }, [loadAllData]);
 
   useEffect(() => {
     if (selectedCard) {
@@ -165,7 +163,7 @@ export function CreditCardsTab() {
       setExpenses([]);
       setSelectedInvoiceMonth('');
     }
-  }, [selectedCard]);
+  }, [selectedCard, loadCardInvoicesAndExpenses]);
 
   const handleCreateCard = async (e: React.FormEvent) => {
     e.preventDefault();
