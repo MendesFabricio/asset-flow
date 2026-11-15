@@ -15,6 +15,89 @@ interface EditModalProps {
   allAssets?: Asset[];
 }
 
+const TX_TYPE_LABELS: Record<string, string> = {
+  BUY: 'COMPRA',
+  SELL: 'VENDA',
+  BONUS: 'BONIFICAÇÃO',
+  SPLIT: 'DESDOBRAMENTO',
+  INPLIT: 'GRUPAMENTO',
+  SPIN_OFF: 'CISÃO',
+  SPIN_OFF_RECEIPT: 'CISÃO (ENTRADA)',
+  TICKER_CHANGE_IN: 'CONVERSÃO (ENTRADA)',
+  TICKER_CHANGE_OUT: 'CONVERSÃO (SAÍDA)',
+  AMORTIZATION: 'AMORTIZAÇÃO',
+};
+
+export function getTransactionDisplayMeta(tx: AssetTransaction) {
+  const typeUpper = String(tx.type || '').toUpperCase();
+  const label = TX_TYPE_LABELS[typeUpper] ?? String(tx.type).replaceAll('_', ' ');
+  const badgeClass =
+    typeUpper === 'BUY' || typeUpper === 'SPIN_OFF_RECEIPT' || typeUpper === 'TICKER_CHANGE_IN'
+      ? 'bg-status-success/10 text-status-success'
+      : typeUpper === 'SELL' || typeUpper === 'TICKER_CHANGE_OUT'
+      ? 'bg-status-error/10 text-status-error'
+      : 'bg-accent-soft text-accent';
+
+  let quantityDisplay: string | number = tx.quantity;
+  let quantitySubtext: string | undefined;
+  if (typeUpper === 'BONUS' && typeof tx.delta_quantity === 'number' && tx.delta_quantity > 0) {
+    quantityDisplay = `+${tx.delta_quantity}`;
+    quantitySubtext = `total ${tx.quantity}`;
+  } else if (typeUpper === 'SPLIT' || typeUpper === 'INPLIT') {
+    quantityDisplay = `→ ${tx.quantity}`;
+  }
+
+  return { label, badgeClass, quantityDisplay, quantitySubtext };
+}
+
+export type ReservaActionMode = 'BALANCE' | 'DEPOSIT' | 'WITHDRAW';
+
+export function computeReservaUpdate(params: {
+  currentBalance: number;
+  currentInvested: number;
+  mode: ReservaActionMode;
+  amount: number;
+}) {
+  const currentBalance = Math.max(0, Number(params.currentBalance) || 0);
+  const currentInvested = Math.max(0, Number(params.currentInvested) || 0);
+  const amount = Number(params.amount);
+
+  if (isNaN(amount) || amount < 0 || (params.mode !== 'BALANCE' && amount <= 0)) {
+    return {
+      nextBalance: currentBalance,
+      nextInvested: currentInvested,
+      profit: currentBalance - currentInvested,
+      profitPct: currentInvested > 0 ? ((currentBalance - currentInvested) / currentInvested) * 100 : 0,
+      error: params.mode === 'BALANCE' ? 'Informe um saldo válido maior ou igual a zero.' : 'Informe um valor maior que zero.',
+    };
+  }
+
+  let nextBalance = currentBalance;
+  let nextInvested = currentInvested;
+  let error: string | null = null;
+
+  if (params.mode === 'BALANCE') {
+    nextBalance = Number(amount.toFixed(2));
+  } else if (params.mode === 'DEPOSIT') {
+    nextBalance = Number((currentBalance + amount).toFixed(2));
+    nextInvested = Number((currentInvested + amount).toFixed(2));
+  } else if (params.mode === 'WITHDRAW') {
+    if (amount > currentBalance + 0.001) {
+      error = 'O valor do resgate não pode ser maior que o saldo atual.';
+    } else {
+      const remaining = Math.max(0, currentBalance - amount);
+      const ratio = currentBalance > 0 ? remaining / currentBalance : 0;
+      nextBalance = Number(remaining.toFixed(2));
+      nextInvested = Number((currentInvested * ratio).toFixed(2));
+    }
+  }
+
+  const profit = Number((nextBalance - nextInvested).toFixed(2));
+  const profitPct = nextInvested > 0 ? (profit / nextInvested) * 100 : 0;
+
+  return { nextBalance, nextInvested, profit, profitPct, error };
+}
+
 type SettingsFormField = 'target_percent' | 'manual_dy' | 'manual_lpa' | 'manual_vpa' | 'manual_price';
 
 interface InputControlProps {
@@ -68,6 +151,10 @@ export const EditModal = ({ isOpen, onClose, onSave, ativo, allAssets = [] }: Ed
     date: new Date().toISOString().substring(0, 10)
   });
   const [txError, setTxError] = useState<string | null>(null);
+
+  // -- Reserva (Caixinha) State --
+  const [reservaMode, setReservaMode] = useState<ReservaActionMode>('BALANCE');
+  const [reservaAmount, setReservaAmount] = useState<string>('0');
   
   // -- History State --
   const [transactions, setTransactions] = useState<AssetTransaction[]>([]);
@@ -96,6 +183,10 @@ export const EditModal = ({ isOpen, onClose, onSave, ativo, allAssets = [] }: Ed
         unit_price: Number(ativo.preco_atual) || 0, 
         date: new Date().toISOString().substring(0, 10) 
       }));
+
+      const currentBal = Number(ativo.total_atual ?? (ativo.qtd || 1) * (ativo.preco_atual || 0)) || 0;
+      setReservaMode('BALANCE');
+      setReservaAmount(currentBal.toFixed(2));
       
       setSettingsData({
         target_percent: ativo.meta || 0,
@@ -239,6 +330,53 @@ export const EditModal = ({ isOpen, onClose, onSave, ativo, allAssets = [] }: Ed
 
   if (!isOpen || !ativo) return null;
 
+  const isReserva = ativo.tipo === 'Reserva';
+  const reservaCurrentBalance = Number(ativo.total_atual ?? (ativo.qtd || 1) * (ativo.preco_atual || 0)) || 0;
+  const reservaCurrentInvested = Number(ativo.total_investido ?? (ativo.qtd || 1) * (ativo.pm || 0)) || 0;
+  const reservaPreview = computeReservaUpdate({
+    currentBalance: reservaCurrentBalance,
+    currentInvested: reservaCurrentInvested,
+    mode: reservaMode,
+    amount: Number(reservaAmount),
+  });
+
+  const handleReservaModeChange = (mode: ReservaActionMode) => {
+    setTxError(null);
+    setReservaMode(mode);
+    setReservaAmount(mode === 'BALANCE' ? reservaCurrentBalance.toFixed(2) : '');
+  };
+
+  const handleSaveReserva = async () => {
+    if (reservaPreview.error) {
+      setTxError(reservaPreview.error);
+      return;
+    }
+
+    setLoading(true);
+    setTxError(null);
+    try {
+      await apiCall('/api/update_asset', {
+        method: 'POST',
+        body: JSON.stringify({
+          ticker: ativo.ticker,
+          qtd: 1,
+          pm: reservaPreview.nextInvested,
+          meta: Number(settingsData.target_percent),
+          dy: Number(settingsData.manual_dy) / 100,
+          lpa: Number(settingsData.manual_lpa),
+          vpa: Number(settingsData.manual_vpa),
+          current_price: reservaPreview.nextBalance,
+        }),
+      });
+      onSave();
+      onClose();
+    } catch (e) {
+      setTxError((e as Error).message || 'Erro ao atualizar reserva');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <ModalShell
       onClose={onClose}
@@ -254,7 +392,7 @@ export const EditModal = ({ isOpen, onClose, onSave, ativo, allAssets = [] }: Ed
           onClick={() => setActiveTab('TRANSACTION')}
           className={`text-[11px] font-bold uppercase tracking-wider transition-colors ${activeTab === 'TRANSACTION' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-slate-500 hover:text-slate-300'}`}
         >
-          Nova Transação
+          {isReserva ? 'Movimentar' : 'Nova Transação'}
         </button>
         <button
           onClick={() => setActiveTab('HISTORY')}
@@ -271,8 +409,133 @@ export const EditModal = ({ isOpen, onClose, onSave, ativo, allAssets = [] }: Ed
       </div>
 
       <div className="p-6">
-        {/* Tab 1: Transaction */}
-        {activeTab === 'TRANSACTION' && (
+        {/* Tab 1: Transaction (or Reserva Caixinha Flow) */}
+        {activeTab === 'TRANSACTION' && isReserva && (
+          <div className="space-y-4">
+            {txError && (
+              <div className="p-3 bg-status-error/10 border border-status-error/20 rounded-md text-status-error text-sm">
+                {txError}
+              </div>
+            )}
+
+            <div className="grid grid-cols-3 gap-2 p-3 rounded-xl bg-surface-elevated border border-border-subtle">
+              <div>
+                <p className="text-[10px] uppercase font-bold text-text-muted">Saldo Atual</p>
+                <p className="text-sm font-mono font-bold text-text-primary mt-0.5">{formatMoney(reservaCurrentBalance)}</p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase font-bold text-text-muted">Investido</p>
+                <p className="text-sm font-mono font-semibold text-text-secondary mt-0.5">{formatMoney(reservaCurrentInvested)}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] uppercase font-bold text-text-muted">Rendimento</p>
+                <p className={`text-sm font-mono font-bold mt-0.5 ${reservaCurrentBalance - reservaCurrentInvested >= 0 ? 'text-status-success' : 'text-status-error'}`}>
+                  {reservaCurrentBalance - reservaCurrentInvested >= 0 ? '+' : ''}
+                  {formatMoney(reservaCurrentBalance - reservaCurrentInvested)}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-surface-elevated border border-border-subtle">
+              {([
+                { id: 'BALANCE', label: 'Atualizar Saldo' },
+                { id: 'DEPOSIT', label: 'Depositar' },
+                { id: 'WITHDRAW', label: 'Resgatar' },
+              ] as const).map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => handleReservaModeChange(item.id)}
+                  className={`py-2 px-2 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all ${
+                    reservaMode === item.id
+                      ? 'bg-accent text-white shadow-sm'
+                      : 'text-text-secondary hover:text-text-primary hover:bg-surface-input/40'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-sm text-text-secondary">
+                  {reservaMode === 'BALANCE'
+                    ? 'Novo Saldo Atual (R$)'
+                    : reservaMode === 'DEPOSIT'
+                    ? 'Valor do Depósito (R$)'
+                    : 'Valor do Resgate (R$)'}
+                </label>
+                {reservaMode === 'WITHDRAW' && reservaCurrentBalance > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTxError(null);
+                      setReservaAmount(reservaCurrentBalance.toFixed(2));
+                    }}
+                    className="text-[10px] font-bold uppercase tracking-wider text-accent hover:underline"
+                  >
+                    Resgatar tudo
+                  </button>
+                )}
+              </div>
+              <input
+                type="number"
+                value={reservaAmount}
+                onChange={(e) => {
+                  setTxError(null);
+                  setReservaAmount(e.target.value);
+                }}
+                className="w-full bg-surface-input border border-border-subtle rounded-lg p-3 text-text-primary font-mono text-base focus:border-accent focus:outline-none transition-all"
+                placeholder="Ex: 500.00"
+                step="0.01"
+                min="0"
+              />
+            </div>
+
+            {!reservaPreview.error && (
+              <div className="p-3 rounded-xl bg-surface-elevated/60 border border-border-subtle text-xs space-y-1">
+                <div className="flex justify-between">
+                  <span className="text-text-muted">Novo saldo:</span>
+                  <span className="font-mono font-bold text-text-primary">{formatMoney(reservaPreview.nextBalance)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-text-muted">Novo investido:</span>
+                  <span className="font-mono text-text-secondary">{formatMoney(reservaPreview.nextInvested)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-text-muted">Rendimento acumulado:</span>
+                  <span className={`font-mono font-semibold ${reservaPreview.profit >= 0 ? 'text-status-success' : 'text-status-error'}`}>
+                    {reservaPreview.profit >= 0 ? '+' : ''}
+                    {formatMoney(reservaPreview.profit)} ({reservaPreview.profitPct.toFixed(2)}%)
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <div className="mt-6 flex justify-end gap-3 pt-4 border-t border-border-subtle">
+              <button type="button" onClick={onClose} className="px-5 py-2.5 text-[11px] font-bold uppercase tracking-wider text-text-muted hover:text-text-primary rounded-lg transition-colors">
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveReserva}
+                disabled={loading}
+                className="inline-flex justify-center items-center gap-2 rounded-lg bg-accent px-6 py-2.5 text-[11px] font-bold uppercase tracking-wider text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                {loading
+                  ? 'Salvando...'
+                  : reservaMode === 'BALANCE'
+                  ? 'Atualizar Saldo'
+                  : reservaMode === 'DEPOSIT'
+                  ? 'Confirmar Depósito'
+                  : 'Confirmar Resgate'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'TRANSACTION' && !isReserva && (
           <div className="space-y-4">
             {txError && (
               <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-md text-red-500 text-sm">
@@ -356,58 +619,59 @@ export const EditModal = ({ isOpen, onClose, onSave, ativo, allAssets = [] }: Ed
                 <Skeleton className="h-8 w-full" />
               </div>
             ) : transactions.length > 0 ? (
-              <div className="border border-slate-800/80 rounded-lg overflow-hidden shadow-sm">
+              <div className="border border-border-subtle rounded-lg overflow-x-auto shadow-sm">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-900/80 text-slate-400 uppercase tracking-wider border-b border-slate-800/80">
+                  <thead className="bg-surface-elevated text-text-muted uppercase tracking-wider border-b border-border-subtle">
                     <tr>
-                      <th className="px-3 py-2">Data</th>
-                      <th className="px-3 py-2">Tipo</th>
-                      <th className="px-3 py-2 text-right">Qtd</th>
-                      <th className="px-3 py-2 text-right">Preço</th>
-                      <th className="px-3 py-2 text-center w-10">Ações</th>
+                      <th className="px-2 py-2">Data</th>
+                      <th className="px-2 py-2">Tipo</th>
+                      <th className="px-2 py-2 text-right">Qtd</th>
+                      <th className="px-2 py-2 text-right">Preço</th>
+                      <th className="px-2 py-2 text-center w-9">Ações</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800/50">
-                    {transactions.map((tx) => (
-                      <tr key={tx.id} className="hover:bg-slate-800/30">
-                        <td className="px-3 py-2 text-slate-300">
-                          {new Date(tx.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
-                        </td>
-                        <td className="px-3 py-2">
-                          <span className={`px-1.5 py-0.5 rounded font-bold ${
-                            tx.type === 'BUY' ? 'bg-emerald-500/10 text-emerald-400' :
-                            tx.type === 'SELL' ? 'bg-red-500/10 text-red-400' :
-                            'bg-purple-500/10 text-purple-400'
-                          }`}>
-                            {tx.type === 'BUY' ? 'COMPRA' : 
-                             tx.type === 'SELL' ? 'VENDA' : 
-                             tx.type === 'AMORTIZATION' ? 'AMORTIZAÇÃO' :
-                             String(tx.type).replace('_', ' ')}
-                          </span>
-                        </td>
-                        <td className="px-3 py-2 text-right text-slate-300 font-mono">
-                          {tx.quantity}
-                        </td>
-                        <td className="px-3 py-2 text-right text-slate-300 font-mono">
-                          {formatMoney(tx.unit_price)}
-                        </td>
-                        <td className="px-3 py-2 text-center">
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteTransaction(tx.id)}
-                            title="Apagar esta transação"
-                            className="p-1 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded transition-all"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                  <tbody className="divide-y divide-border-subtle">
+                    {transactions.map((tx) => {
+                      const txMeta = getTransactionDisplayMeta(tx);
+                      return (
+                        <tr key={tx.id} className="hover:bg-surface-input/40">
+                          <td className="px-2 py-2 text-text-primary whitespace-nowrap">
+                            {new Date(tx.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                          </td>
+                          <td className="px-2 py-2 whitespace-nowrap">
+                            <span className={`px-1.5 py-0.5 rounded font-bold ${txMeta.badgeClass}`}>
+                              {txMeta.label}
+                            </span>
+                          </td>
+                          <td className="px-2 py-2 text-right text-text-primary font-mono whitespace-nowrap">
+                            <div>{txMeta.quantityDisplay}</div>
+                            {txMeta.quantitySubtext && (
+                              <div className="text-[10px] text-text-muted leading-tight">
+                                {txMeta.quantitySubtext}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-2 py-2 text-right text-text-primary font-mono whitespace-nowrap">
+                            {formatMoney(tx.unit_price)}
+                          </td>
+                          <td className="px-2 py-2 text-center">
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteTransaction(tx.id)}
+                              title="Apagar esta transação"
+                              className="p-1 text-text-muted hover:text-status-error hover:bg-status-error/10 rounded transition-all"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
             ) : (
-              <div className="text-center py-10 text-slate-500 text-sm">
+              <div className="text-center py-10 text-text-muted text-sm">
                 Nenhuma transação encontrada.
               </div>
             )}
@@ -417,7 +681,7 @@ export const EditModal = ({ isOpen, onClose, onSave, ativo, allAssets = [] }: Ed
         {/* Tab 3: Settings */}
         {activeTab === 'SETTINGS' && (
           <div className="space-y-6">
-            {shouldShowManualPrice() && (
+            {shouldShowManualPrice() && !isReserva && (
               <div className="bg-emerald-500/5 border border-emerald-500/20 p-4 rounded-xl space-y-3">
                 <div className="flex items-center gap-2 text-emerald-400">
                   <DollarSign size={16} />

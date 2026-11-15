@@ -1,6 +1,7 @@
-from flask import Blueprint, jsonify, request, g
+from flask import Blueprint, jsonify, request
 from db.session import Session
 from domain.tax.tax_engine import calculate_monthly_darf, get_or_create_tax_profile
+from utils.db_utils import get_current_user_id
 
 tax_bp = Blueprint('tax', __name__)
 
@@ -12,8 +13,8 @@ def get_monthly_tax():
     if not year or not month:
         return jsonify({"error": "year and month are required"}), 400
         
+    user_id = get_current_user_id()
     try:
-        user_id = getattr(g, 'user_id', 1)
         report = calculate_monthly_darf(user_id, month, year)
         return jsonify(report), 200
     except Exception as e:
@@ -21,7 +22,7 @@ def get_monthly_tax():
 
 @tax_bp.route('/api/tax/profile', methods=['GET'])
 def get_tax_profile():
-    user_id = getattr(g, 'user_id', 1)
+    user_id = get_current_user_id()
     with Session() as session:
         profile = get_or_create_tax_profile(session, user_id)
         return jsonify({
@@ -33,7 +34,7 @@ def get_tax_profile():
 
 @tax_bp.route('/api/tax/profile', methods=['POST'])
 def update_tax_profile():
-    user_id = getattr(g, 'user_id', 1)
+    user_id = get_current_user_id()
     data = request.json or {}
     with Session() as session:
         profile = get_or_create_tax_profile(session, user_id)
@@ -58,8 +59,8 @@ def get_annual_tax():
     if not year:
         return jsonify({"error": "year is required"}), 400
         
+    user_id = get_current_user_id()
     try:
-        user_id = getattr(g, 'user_id', 1)
         report = calculate_annual_irpf(user_id, year)
         return jsonify(report), 200
     except Exception as e:

@@ -1,10 +1,12 @@
 'use client';
-import { useState, useCallback } from 'react';
-import { Calculator, Sparkles, AlertTriangle, Activity, RefreshCw } from 'lucide-react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
+import { Calculator, Sparkles, AlertTriangle, Activity, RefreshCw, Coins } from 'lucide-react';
 
 import { formatMoney } from '../lib/format';
 import { apiCall } from '../lib/api';
 import { ModalShell } from './ModalShell';
+import { usePrivacy } from '../context/PrivacyContext';
+import type { Asset } from '../types';
 
 interface ServerSuggestion {
   ticker: string;
@@ -27,19 +29,46 @@ interface ServerRebalanceResult {
   total_atual: number;
   aporte_mensal: number;
   total_apos_aporte: number;
+  sobra?: number;
+  reserva_sobra?: number;
   sugestoes: ServerSuggestion[];
 }
 
 interface SmartAllocationModalProps {
   isOpen: boolean;
   onClose: () => void;
+  ativos?: Asset[];
 }
 
-export const SmartAllocationModal = ({ isOpen, onClose }: SmartAllocationModalProps) => {
+export const SmartAllocationModal = ({ isOpen, onClose, ativos = [] }: SmartAllocationModalProps) => {
+  const { isHidden } = usePrivacy() as { isHidden: boolean };
   const [amountStr, setAmountStr] = useState('');
+  const [reinvestDividends, setReinvestDividends] = useState(true);
+  const [monthDividends, setMonthDividends] = useState(0);
   const [serverResult, setServerResult] = useState<ServerRebalanceResult | null>(null);
   const [serverLoading, setServerLoading] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let active = true;
+    const now = new Date();
+    const ymPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    apiCall<{ date?: string; total?: number }[]>('/api/dividends/history')
+      .then((rows) => {
+        if (!active || !Array.isArray(rows)) return;
+        const sum = rows
+          .filter((d) => d.date && d.date.startsWith(ymPrefix))
+          .reduce((acc, d) => acc + (Number(d.total) || 0), 0);
+        setMonthDividends(Number(sum.toFixed(2)));
+      })
+      .catch(() => {
+        if (active) setMonthDividends(0);
+      });
+    return () => {
+      active = false;
+    };
+  }, [isOpen]);
 
   const parseCurrency = (v: string) => {
     if (!v) return 0;
@@ -77,8 +106,12 @@ export const SmartAllocationModal = ({ isOpen, onClose }: SmartAllocationModalPr
     return Number.isFinite(n) ? n : 0;
   };
 
+  const baseInput = parseCurrency(amountStr);
+  const extraDividends = reinvestDividends ? monthDividends : 0;
+  const effectiveContribution = baseInput + extraDividends;
+
   const handleSimulate = useCallback(async () => {
-    const amount = parseCurrency(amountStr);
+    const amount = parseCurrency(amountStr) + (reinvestDividends ? monthDividends : 0);
     if (!amount || amount <= 0) return;
     setServerLoading(true);
     setServerError(null);
@@ -95,14 +128,32 @@ export const SmartAllocationModal = ({ isOpen, onClose }: SmartAllocationModalPr
     } finally {
       setServerLoading(false);
     }
-  }, [amountStr]);
+  }, [amountStr, reinvestDividends, monthDividends]);
+
+  const estimatedPassiveDelta = useMemo(() => {
+    if (!serverResult) return 0;
+    const assetByTicker = new Map(ativos.map((a) => [a.ticker.toUpperCase(), a]));
+    return serverResult.sugestoes
+      .filter((s) => s.action === 'COMPRAR' && s.suggested_value > 0)
+      .reduce((acc, s) => {
+        const asset = assetByTicker.get(s.ticker.toUpperCase());
+        if (!asset) return acc;
+        let monthlyYield = 0;
+        if (asset.renda_mensal_est && asset.total_atual > 0) {
+          monthlyYield = asset.renda_mensal_est / asset.total_atual;
+        } else if (asset.manual_dy && asset.manual_dy > 0) {
+          monthlyYield = asset.manual_dy / 12;
+        }
+        return acc + s.suggested_value * monthlyYield;
+      }, 0);
+  }, [serverResult, ativos]);
 
   if (!isOpen) return null;
 
-  const valorInput = parseCurrency(amountStr);
+  const maskMoney = (v: number) => (isHidden ? 'R$ •••••' : formatMoney(v));
   const totalAlocado = serverResult ? serverResult.sugestoes.reduce((acc, s) => acc + s.suggested_value, 0) : 0;
-  const sobra = valorInput - totalAlocado;
-  const highSobra = sobra > (valorInput * 0.05) && sobra > 100;
+  const sobra = Math.max(0, Number((effectiveContribution - totalAlocado).toFixed(2)));
+  const highSobra = sobra > (effectiveContribution * 0.05) && sobra > 100;
 
   return (
     <ModalShell
@@ -130,12 +181,17 @@ export const SmartAllocationModal = ({ isOpen, onClose }: SmartAllocationModalPr
             <div className="flex justify-between items-center gap-4">
               <div className="flex flex-col">
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Total Alocado</span>
-                <span className="text-xl font-bold text-emerald-400 font-mono tracking-tight">{formatMoney(totalAlocado)}</span>
+                <span className="text-xl font-bold text-emerald-400 font-mono tracking-tight">{maskMoney(totalAlocado)}</span>
+              </div>
+              <div className="h-8 w-px bg-slate-800"></div>
+              <div className="flex flex-col items-center">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">+Renda Passiva Est.</span>
+                <span className="text-sm font-bold text-blue-400 font-mono tracking-tight">+{maskMoney(estimatedPassiveDelta)}/mês</span>
               </div>
               <div className="h-8 w-px bg-slate-800"></div>
               <div className="flex flex-col items-end">
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Sobrou (Caixa)</span>
-                <span className={`text-lg font-bold font-mono tracking-tight ${highSobra ? 'text-amber-400' : 'text-slate-300'}`}>{formatMoney(sobra)}</span>
+                <span className={`text-lg font-bold font-mono tracking-tight ${highSobra ? 'text-amber-400' : 'text-slate-300'}`}>{maskMoney(sobra)}</span>
               </div>
             </div>
           </div>
@@ -177,9 +233,24 @@ export const SmartAllocationModal = ({ isOpen, onClose }: SmartAllocationModalPr
               </div>
             </div>
 
+            {monthDividends > 0 && (
+              <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-3.5 py-2">
+                <input
+                  type="checkbox"
+                  checked={reinvestDividends}
+                  onChange={(e) => setReinvestDividends(e.target.checked)}
+                  className="accent-emerald-500 rounded"
+                />
+                <Coins size={14} className="text-emerald-400" />
+                <span>
+                  Reinvestir proventos do mês (<strong>+{maskMoney(monthDividends)}</strong>)
+                </span>
+              </label>
+            )}
+
             <button
               onClick={handleSimulate}
-              disabled={!amountStr || parseCurrency(amountStr) <= 0}
+              disabled={effectiveContribution <= 0}
               className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white px-8 py-3 rounded-xl font-bold flex items-center gap-2 transition-all shadow-lg shadow-purple-900/20 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed w-full max-w-sm justify-center disabled:grayscale"
             >
               <Calculator size={18} />
@@ -205,9 +276,9 @@ export const SmartAllocationModal = ({ isOpen, onClose }: SmartAllocationModalPr
               {/* Resumo do aporte */}
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  { label: 'Patrimônio Atual', value: formatMoney(serverResult.total_atual) },
-                  { label: 'Aporte', value: formatMoney(serverResult.aporte_mensal) },
-                  { label: 'Total Pós-Aporte', value: formatMoney(serverResult.total_apos_aporte) },
+                  { label: 'Patrimônio Atual', value: maskMoney(serverResult.total_atual) },
+                  { label: 'Aporte', value: maskMoney(serverResult.aporte_mensal) },
+                  { label: 'Total Pós-Aporte', value: maskMoney(serverResult.total_apos_aporte) },
                 ].map(({ label, value }) => (
                   <div key={label} className="bg-slate-900/60 border border-slate-800 rounded-xl p-3 text-center">
                     <p className="text-[9px] text-slate-500 uppercase font-bold mb-1">{label}</p>
@@ -233,7 +304,7 @@ export const SmartAllocationModal = ({ isOpen, onClose }: SmartAllocationModalPr
                       <div className="flex items-center gap-2">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                          src={`https://raw.githubusercontent.com/thefintz/icones-b3/main/icones/${s.ticker}.png`}
+                          src={`/api/assets/icon/${encodeURIComponent(s.ticker)}?v=2`}
                           alt={`Ícone ${s.ticker}`}
                           className="w-8 h-8 rounded-full bg-slate-800 object-cover"
                           onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
@@ -244,9 +315,9 @@ export const SmartAllocationModal = ({ isOpen, onClose }: SmartAllocationModalPr
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-bold text-emerald-400 font-mono">{formatMoney(s.suggested_value)}</p>
+                        <p className="text-sm font-bold text-emerald-400 font-mono">{maskMoney(s.suggested_value)}</p>
                         <p className="text-[10px] text-slate-500">
-                          {s.lot_size > 0 ? `${s.suggested_lots} lote(s)` : `${s.suggested_lots} un.`}
+                          {s.lot_size > 0 ? `${s.suggested_lots} lote(s)` : 'Caixinha (R$)'}
                         </p>
                       </div>
                     </div>
@@ -266,7 +337,7 @@ export const SmartAllocationModal = ({ isOpen, onClose }: SmartAllocationModalPr
                       <div className="h-1 bg-slate-800 rounded-full overflow-hidden">
                         <div
                           className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"
-                          style={{ width: `${Math.min(100, (s.current_pct / s.target_pct) * 100)}%` }}
+                          style={{ width: `${s.target_pct > 0 ? Math.min(100, (s.current_pct / s.target_pct) * 100) : 100}%` }}
                         />
                       </div>
                       <p className="text-[9px] text-slate-600 mt-0.5">{s.rationale}</p>

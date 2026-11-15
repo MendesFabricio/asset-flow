@@ -65,27 +65,34 @@ export default function ProventosPage() {
   // Fetch all data
   useEffect(() => {
     setLoading(true);
-    Promise.all([
+    Promise.allSettled([
       apiCall<Evento[]>('/api/calendar'),
       apiCall<Evento[]>('/api/dividends/history'),
       apiCall<AnalyticsItem[]>('/api/dividends/analytics'),
       apiCall<Record<string, YocHistoryItem[]>>('/api/dividends/yoc-history'),
       apiCall<SeasonalityRow[]>('/api/dividends/seasonality')
     ])
-      .then(([calendarData, historyData, analyticsData, yocData, seasonalityData]) => {
-        setEvents(calendarData || []);
-        setHistory(historyData || []);
-        setAnalytics(analyticsData || []);
-        setYocHistory(yocData || {});
-        setSeasonality(seasonalityData || []);
+      .then(([calendarRes, historyRes, analyticsRes, yocRes, seasonalityRes]) => {
+        if (calendarRes.status === 'fulfilled') setEvents(calendarRes.value || []);
+        else console.error('Erro ao carregar /api/calendar:', calendarRes.reason);
 
-        const tickers = Object.keys(yocData || {});
-        if (tickers.length > 0) {
-          setSelectedYocTicker(tickers[0]);
+        if (historyRes.status === 'fulfilled') setHistory(historyRes.value || []);
+        else console.error('Erro ao carregar /api/dividends/history:', historyRes.reason);
+
+        if (analyticsRes.status === 'fulfilled') setAnalytics(analyticsRes.value || []);
+        else console.error('Erro ao carregar /api/dividends/analytics:', analyticsRes.reason);
+
+        if (yocRes.status === 'fulfilled') {
+          const yocData = yocRes.value || {};
+          setYocHistory(yocData);
+          const tickers = Object.keys(yocData);
+          if (tickers.length > 0) setSelectedYocTicker(tickers[0]);
+        } else {
+          console.error('Erro ao carregar /api/dividends/yoc-history:', yocRes.reason);
         }
-      })
-      .catch((err) => {
-        console.error("Erro ao carregar módulo de proventos:", err);
+
+        if (seasonalityRes.status === 'fulfilled') setSeasonality(seasonalityRes.value || []);
+        else console.error('Erro ao carregar /api/dividends/seasonality:', seasonalityRes.reason);
       })
       .finally(() => {
         setLoading(false);

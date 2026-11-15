@@ -1,4 +1,5 @@
 from flask import Blueprint, jsonify, g, request
+from sqlalchemy.orm import joinedload
 from db.models import Dividend, Asset, Session, get_active_positions # ⚡ Importada a factory controlada thread-safe
 import logging
 from services import PortfolioService
@@ -81,7 +82,13 @@ def get_dividend_history():
     with Session() as session:
         try:
             # Busca todos os dividendos carimbados do usuário logado, ordenando pelos mais recentes
-            history = session.query(Dividend).filter_by(user_id=g.user_id).join(Asset).order_by(Dividend.date_com.desc()).all()
+            history = (
+                session.query(Dividend)
+                .options(joinedload(Dividend.asset))
+                .filter_by(user_id=g.user_id)
+                .order_by(Dividend.date_com.desc())
+                .all()
+            )
             
             results = []
             for div in history:
@@ -203,7 +210,7 @@ def get_dividend_analytics():
                     payout = min(100.0, round(payout, 2))
                 
                 # Consistência de Pagamento Score (número de trimestres com distribuição nos últimos 3 anos)
-                divs = pos.asset.dividends
+                divs = [d for d in pos.asset.dividends if d.user_id == g.user_id]
                 quarters = set()
                 for d in divs:
                     if d.date_com:
@@ -250,7 +257,7 @@ def get_yoc_history():
                 if avg_price <= 0:
                     continue
                 
-                divs = pos.asset.dividends
+                divs = [d for d in pos.asset.dividends if d.user_id == g.user_id]
                 year_map = {}
                 for d in divs:
                     if d.date_com:

@@ -56,8 +56,8 @@ def match_b3_to_db(user_id, parsed_data):
                 if isinstance(dt, str):
                     try:
                         dt = datetime.strptime(dt.split(' ')[0], '%Y-%m-%d').date()
-                    except:
-                        pass
+                    except Exception as e:
+                        logging.warning(f"Falha ao parsear data de transacao '{dt}': {e}")
                 tx_hash[(row.ticker.upper(), dt, round(float(row.quantity), 4))] = row.id
 
         # 5. Carregar CorporateEvents
@@ -70,8 +70,10 @@ def match_b3_to_db(user_id, parsed_data):
             for row in db_events:
                 dt = row.date
                 if isinstance(dt, str):
-                    try: dt = datetime.strptime(dt.split(' ')[0], '%Y-%m-%d').date()
-                    except: pass
+                    try:
+                        dt = datetime.strptime(dt.split(' ')[0], '%Y-%m-%d').date()
+                    except Exception as e:
+                        logging.warning(f"Falha ao parsear data de evento '{dt}': {e}")
                 ce_hash[(row.asset_id, dt)] = row.id
 
         # 6. Avaliar cada array em memória O(1)

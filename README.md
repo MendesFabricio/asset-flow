@@ -2,7 +2,7 @@
 
 AssetFlow Pro é um sistema integrado de consolidação de investimentos, análise quantitativa de risco e inteligência artificial autônoma para rebalanceamento de carteiras.
 
-O ecossistema é projetado para operar com **latência ultra-baixa**, concorrência robusta no banco de dados SQLite (em modo WAL) e tomadas de decisões orientadas por IA local através do modelo `llama3.2:3b` rodando via Ollama com **Function Calling nativo**.
+O ecossistema é projetado para operar com **latência ultra-baixa**, concorrência robusta no banco de dados SQLite (em modo WAL) e tomadas de decisões orientadas por IA através do Google Gemini (`gemini-2.0-flash`) com **Function Calling nativo** (`google-genai`).
 
 ---
 
@@ -15,18 +15,17 @@ graph TD
     F[Frontend: Next.js 16 / React 19] -->|HTTP / SSE| B[Backend API: Flask / Gunicorn]
     W[Scheduler Worker: APScheduler] -->|SQLite WAL| DB[(Banco de Dados: SQLite)]
     B -->|SQLAlchemy Scoped| DB
-    B -->|Function Calling| O[AI Engine: Ollama / Llama 3.2]
+    B -->|Function Calling| O[AI Engine: Google Gemini]
 ```
 
 ### 1. Frontend (React 19 & Next.js 16)
-* **Visualização Fluida:** Grid responsiva, Dark Mode nativo e efeitos de transições acelerados.
-* **Sem Input Lag:** Implementação do hook `useTransition` do React 18/19 na barra de pesquisas do [AssetsTable](file:///c:/Users/Fabricio/asset-flow/app/components/AssetsTable.tsx) para manter a digitação síncrona enquanto a filtragem ocorre em background.
+* **Visualização Fluida:** Grid responsiva, temas escuro/claro nativos e efeitos de transições acelerados.
+* **Sem Input Lag:** Implementação do hook `useTransition` do React 18/19 na barra de pesquisas do [AssetsTable.tsx](./app/components/AssetsTable.tsx) para manter a digitação síncrona enquanto a filtragem ocorre em background.
 * **Desempenho Otimizado (TTI):** Importações dinâmicas (`next/dynamic`) com esqueletos de carregamento para todos os modais e componentes gráficos complexos.
-* **Barramento de Saúde:** Componente [HealthIndicator](file:///c:/Users/Fabricio/asset-flow/app/components/HealthIndicator.tsx) monitorando ativamente os microsserviços a cada 15 segundos.
 
 ### 2. Backend API (Flask / Python 3.11)
 * **Gunicorn Threaded:** Execução sob servidor Gunicorn configurado para alocação eficiente de threads concorrentes.
-* **Banco de Dados Concorrente (WAL):** Configurado com pragmas de produção (Write-Ahead Logging, Cache de 32MB e `synchronous=NORMAL`) no [models.py](file:///c:/Users/Fabricio/asset-flow/database/models.py) do SQLAlchemy para suportar leituras livres em concorrência com a escrita.
+* **Banco de Dados Concorrente (WAL):** Configurado com pragmas de produção (Write-Ahead Logging, Cache de 32MB e `synchronous=NORMAL`) nos modelos em [server/db/models](./server/db/models/) do SQLAlchemy para suportar leituras livres em concorrência com a escrita.
 * **Migrações Controladas:** Histórico de migrações estruturais gerenciado deterministicamente via **Alembic**.
 
 ### 3. Worker (Background Engine)
@@ -57,14 +56,13 @@ O assistente **Jarvis** não apenas responde dúvidas, mas atua como um agente a
 Toda a infraestrutura pode ser iniciada localmente com um único comando:
 
 ```bash
-docker compose down
-docker compose up -d --build
+docker compose -f docker-compose.dev.yml up -d --build
 ```
 
 Os serviços expostos são:
 * **Frontend:** [http://localhost:3000](http://localhost:3000)
 * **Backend API:** [http://localhost:5328/api/health](http://localhost:5328/api/health)
-* **Ollama Service:** [http://localhost:11434](http://localhost:11434)
+* **IA (Jarvis):** Google Gemini via `GEMINI_API_KEY` (opcional `GEMINI_MODEL`, padrão `gemini-2.0-flash`)
 
 ### Publicação no gateway (Traefik)
 

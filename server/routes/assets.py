@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, g
 from pydantic import BaseModel, Field, ValidationError
 from typing import Optional
 import sys
@@ -96,9 +96,11 @@ def add_asset():
             body.meta
         )
         
+        uid = getattr(g, 'user_id', None)
         def _background_tasks():
             try:
-                service.update_prices()
+                service.current_user_id = uid
+                service.update_prices(user_id=uid)
                 service.take_daily_snapshot()
             except Exception as e:
                 logging.warning(f"⚠️ Falha ao computar pós-inclusão de ativo em background: {e}")
@@ -282,11 +284,13 @@ def get_assets():
 
 @assets_bp.route('/api/refresh_prices', methods=['POST'])
 def refresh_prices():
+    uid = getattr(g, 'user_id', None)
     def _bg_refresh():
         if service._price_lock.acquire(blocking=False):
             try:
                 logging.info("⚡ Executando atualização manual de preços em background...")
-                service.update_prices()
+                service.current_user_id = uid
+                service.update_prices(user_id=uid)
                 service.take_daily_snapshot()
             except Exception as e:
                 logging.error(f"⚠️ Erro no background de refresh_prices: {e}")

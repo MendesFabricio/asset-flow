@@ -42,7 +42,7 @@ export function useQuantReports(notify: (msg: string, type?: 'success' | 'error'
       })
       .catch((err) => {
         console.error(err);
-        notify('Erro ao se conectar ao backend.', 'error');
+        notify((err as Error)?.message || 'Erro ao se conectar ao backend.', 'error');
       })
       .finally(() => setGeneratingReport(false));
   }, [fetchReportsAndFG, notify]);

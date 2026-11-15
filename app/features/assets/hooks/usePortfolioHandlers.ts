@@ -59,7 +59,8 @@ export function usePortfolioHandlers(
       setTimeout(() => setShowRefreshSuccess(false), 2000);
     } catch (e) {
       console.error("Erro ao atualizar:", e);
-      notify("Erro ao atualizar preços. Verifique se o backend está rodando na porta 5328.", 'error');
+      const msg = e instanceof Error ? e.message : "Erro ao atualizar preços.";
+      notify(msg, 'error');
     } finally {
       setIsRefetching(false);
     }

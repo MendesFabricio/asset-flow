@@ -3,26 +3,31 @@ import re
 import logging
 from decimal import Decimal
 from datetime import datetime
-from utils.ticker_helper import resolve_ticker
+from utils.ticker_helper import resolve_ticker, extract_option_meta
 from utils.import_shared import parse_brl_number, normalize_date, TransactionCandidate
 
-def guess_category(ticker: str) -> str:
+_CRYPTO_TICKERS = {"COIN11", "ETHY11", "HASH11", "BTHC11", "ETHE11", "QBTC11", "QETH11"}
+_INTL_ETF_TICKERS = {"VWRA11", "IVVB11", "WRLD11", "XINA11", "EURP11", "SPXI11", "NASD11", "GOLD11"}
+_FIXED_INCOME_ETF_TICKERS = {"B5P211", "LFTS11", "KDIF11", "BDIF11", "CPTI11", "JURO11", "DEBB11", "IMAB11"}
+_EQUITY_UNITS_TICKERS = {"KLBN11", "TAEE11", "SANB11", "BPAC11", "ALUP11", "ENGI11", "SULA11", "IGTI11"}
 
-    """Tenta adivinhar a categoria (Ação, FII, Renda Fixa, Internacional) pelo ticker."""
+def guess_category(ticker: str) -> str:
+    """Tenta adivinhar a categoria (Ação, FII, Renda Fixa, Internacional, Cripto, Opções) pelo ticker."""
     if not ticker:
         return "Ação"
-    t = ticker.upper()
-    if t.endswith("34") or t.endswith("39"):
+    t = ticker.strip().upper()
+    if extract_option_meta(t) is not None:
+        return "Opções"
+    if t in _CRYPTO_TICKERS or t.endswith("-USD"):
+        return "Cripto"
+    if t.endswith(("34", "39", "35")) or t in _INTL_ETF_TICKERS:
         return "Internacional"
-    elif t.endswith("11"):
-        if t in ["KLBN11", "TAEE11", "SANB11", "BPAC11", "ALUP11", "ENGI11", "SULA11"]:
-            return "Ação"
-        elif t in ["B5P211", "LFTS11", "KDIF11"]:
-            return "Renda Fixa"
-        else:
-            return "FII"
-    elif t.endswith("3") or t.endswith("4") or t.endswith("5") or t.endswith("6"):
+    if t in _FIXED_INCOME_ETF_TICKERS:
+        return "Renda Fixa"
+    if t in _EQUITY_UNITS_TICKERS or t == "JBSS32" or t.endswith(("3", "4", "5", "6")):
         return "Ação"
+    if t.endswith("11"):
+        return "FII"
     return "Ação"
 
 def parse_decimal(value_str):
@@ -59,11 +64,15 @@ def extract_brokerage_note_transactions(pdf_path: str) -> dict:
         # ─────────────────────────────────────────────────────────────
         # PADRÃO 1 (NOVO 2025+): Cobre B3 RV e RF
         # ─────────────────────────────────────────────────────────────
+        _markets_re = (
+            r'EXERC OPC COMPRA|EXERC OPC VENDA|EXERC OPCAO|'
+            r'OPCAO DE COMPRA|OPCAO DE VENDA|OPCAO|OPCOES|FRACIONARIO|VISTA|OPC|EXERC'
+        )
         pattern_new = re.compile(
-            r'B3\s+(RV|RF)\s+LISTADO?\s+([CV])\s+(VISTA|FRACIONARIO|OPCAO DE COMPRA|OPCAO DE VENDA|OPCAO|OPCOES|EXERC OPCAO|OPC|EXERC)\s+'
+            r'B3\s+(RV|RF)\s+LISTADO?\s+([CV])\s+(' + _markets_re + r')\s+'
             r'(.*?)\s+'                     # Nome + Tipo (ex: KLABIN S/A UNT N2)
             r'(?:@\s*)?'                    # Ignora o @ de Taxa de Transferência se houver
-            r'(\d+)\s+([\d.,]+)\s+([\d.,]+)\s+([DC])',
+            r'(\d+(?:\.\d{3})*)\s+([\d.,]+)\s+([\d.,]+)\s+([DC])',
             re.IGNORECASE
         )
 
@@ -71,10 +80,10 @@ def extract_brokerage_note_transactions(pdf_path: str) -> dict:
         # PADRÃO 2 (ANTIGO RV)
         # ─────────────────────────────────────────────────────────────
         pattern_old_rv = re.compile(
-            r'([\d.,]+)\s+([DC])\s+([\d.,]+)\s+(\d+)\s+'
+            r'([\d.,]+)\s+([DC])\s+([\d.,]+)\s+(\d+(?:\.\d{3})*)\s+'
             r'(?:ON|PN|CI|BDR|DR|UNT|ETF|FII|CALL|PUT)?(?:\s+(?:NM|N1|N2|N3|N5|MA|ER|FS))?\s+'
             r'([\w\/][\w\/\s]{0,40}?)\s+'
-            r'(FRACIONARIO|VISTA|OPCAO DE COMPRA|OPCAO DE VENDA|OPCAO|OPCOES|EXERC OPCAO|OPC|EXERC)\s+([CV])\s+B3',
+            r'(' + _markets_re + r')\s+([CV])\s+B3',
             re.IGNORECASE
         )
 
@@ -82,9 +91,9 @@ def extract_brokerage_note_transactions(pdf_path: str) -> dict:
         # PADRÃO 3 (EasyNvest RF)
         # ─────────────────────────────────────────────────────────────
         pattern_rf = re.compile(
-            r'B3\s+RF\s+LISTA\s+([CV])\s+(VISTA|FRACIONARIO|OPCAO DE COMPRA|OPCAO DE VENDA|OPCAO|OPCOES|OPC)\s+'
+            r'B3\s+RF\s+LISTA\s+([CV])\s+(' + _markets_re + r')\s+'
             r'([\w][\w\s\/]{1,50}?)\s+'
-            r'(\d+)\s+([\d.,]+)\s+([DC])\s+([\d.,]+)',
+            r'(\d+(?:\.\d{3})*)\s+([\d.,]+)\s+([DC])\s+([\d.,]+)',
             re.IGNORECASE
         )
 
@@ -93,9 +102,9 @@ def extract_brokerage_note_transactions(pdf_path: str) -> dict:
         # Ex: "1-BOVESPA C FRACIONARIO JHSF PART ONEDNM 50 8,33 416,50 D"
         # ─────────────────────────────────────────────────────────────
         pattern_clear = re.compile(
-            r'1-BOVESPA\s+([CV])\s+(VISTA|FRACIONARIO|OPCAO DE COMPRA|OPCAO DE VENDA|OPCAO|OPCOES|EXERC OPCAO|OPC|EXERC)\s+'
+            r'1-BOVESPA\s+([CV])\s+(' + _markets_re + r')\s+'
             r'(.*?)\s+'
-            r'(\d+)\s+([\d.,]+)\s+([\d.,]+)\s+([DC])',
+            r'(\d+(?:\.\d{3})*)\s+([\d.,]+)\s+([\d.,]+)\s+([DC])',
             re.IGNORECASE
         )
 

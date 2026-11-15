@@ -1,6 +1,7 @@
 'use client';
 
 import React, { Component, ErrorInfo, ReactNode } from 'react';
+import * as Sentry from '@sentry/nextjs';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 
 interface Props {
@@ -25,6 +26,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('💥 [React ErrorBoundary] Erro de renderização interceptado:', error, errorInfo);
+    Sentry.captureException(error, { extra: { componentStack: errorInfo.componentStack } });
   }
 
   private handleReset = () => {

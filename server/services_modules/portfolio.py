@@ -16,27 +16,51 @@ class PortfolioCrudService:
                     raise ValueError(f"Ativo {ticker} não encontrado")
                 
                 pos = session.query(Position).filter_by(asset_id=asset.id, user_id=user_id).first()
+                is_new_pos = False
                 if not pos:
                     pos = Position(asset_id=asset.id, user_id=user_id)
                     session.add(pos)
-                
-                pos.quantity = Decimal(str(qtd)) 
-                pos.average_price = Decimal(str(pm))
+                    is_new_pos = True
+
+                old_qty = Decimal(str(pos.quantity or 0)) if not is_new_pos else None
+                old_pm = Decimal(str(pos.average_price or 0)) if not is_new_pos else None
+                new_qty = Decimal(str(qtd))
+                new_pm = Decimal(str(pm))
+
+                pos.quantity = new_qty
+                pos.average_price = new_pm
                 pos.target_percent = Decimal(str(meta))
-                
+
                 pos.manual_dy = Decimal(str(dy or 0))
                 pos.manual_lpa = Decimal(str(lpa or 0))
                 pos.manual_vpa = Decimal(str(vpa or 0))
-                
+
+                if is_new_pos or old_qty != new_qty or old_pm != new_pm:
+                    from db.models import AssetTransaction
+                    if pos.id is None:
+                        session.flush()
+                    adj_tx = AssetTransaction(
+                        position_id=pos.id,
+                        user_id=user_id,
+                        ticker=ticker,
+                        type="ADJUSTMENT",
+                        quantity=new_qty,
+                        unit_price=new_pm,
+                        total_value=new_qty * new_pm,
+                        transaction_date=datetime.now(),
+                    )
+                    session.add(adj_tx)
+
                 if current_price is not None and str(current_price).strip() != "":
                     mdata = session.query(MarketData).filter_by(asset_id=asset.id).first()
                     if not mdata:
                         mdata = MarketData(asset_id=asset.id)
                         session.add(mdata)
-                    
+
                     mdata.price = Decimal(str(current_price))
                     mdata.date = datetime.now()
-                    mdata.min_6m = Decimal(str(current_price)) 
+                    if mdata.min_6m is None or mdata.min_6m <= 0:
+                        mdata.min_6m = Decimal(str(current_price))
                     
                 self._invalidate_quant_cache(session)
                 safe_commit(session)
@@ -136,19 +160,7 @@ class PortfolioCrudService:
             try:
                 asset = session.query(Asset).filter_by(ticker=ticker).first()
                 if not asset:
-                    # Validate ticker existence using yfinance before auto-creating
-                    import yfinance as yf
-                    from utils.ticker_helper import to_yf_ticker
-                    
-                    yf_ticker = to_yf_ticker(ticker, category or "Ação")
-                    try:
-                        ticker_info = yf.Ticker(yf_ticker).fast_info
-                        # Access a lazy property to trigger the network request
-                        _ = ticker_info['lastPrice']
-                    except Exception as e:
-                        logging.warning(f"⚠️ Ativo {ticker} ({yf_ticker}) não retornado pelo Yahoo Finance, criando como cadastro manual: {e}")
-
-                    # Auto-cria o ativo caso ele não exista no banco global
+                    # Auto-cria o ativo caso ele não exista no banco global (sem chamada síncrona de rede no POST)
                     from db.models import Category
                     
                     if category:
@@ -257,28 +269,43 @@ class PortfolioCrudService:
 
     def get_transaction_history(self, ticker):
         from db.models import AssetTransaction
+        from domain.portfolio.monthly_snapshot import apply_transaction_to_position_state
+
         user_id = self.current_user_id
         with Session() as session:
             try:
                 asset = session.query(Asset).filter_by(ticker=ticker).first()
                 if not asset:
                     return []
-                
+
                 pos = session.query(Position).filter_by(asset_id=asset.id, user_id=user_id).first()
                 if not pos:
                     return []
 
-                transactions = session.query(AssetTransaction).filter_by(position_id=pos.id, user_id=user_id).order_by(AssetTransaction.transaction_date.desc()).all()
-                return [
-                    {
+                transactions = (
+                    session.query(AssetTransaction)
+                    .filter_by(position_id=pos.id, user_id=user_id)
+                    .order_by(AssetTransaction.transaction_date.asc(), AssetTransaction.id.asc())
+                    .all()
+                )
+                state = {"quantity": Decimal("0"), "total_cost": Decimal("0")}
+                history = []
+                for t in transactions:
+                    prev_qty = state["quantity"]
+                    apply_transaction_to_position_state(state, t, use_decimal=True)
+                    entry = {
                         "id": t.id,
                         "type": t.type,
                         "quantity": float(t.quantity),
                         "unit_price": float(t.unit_price),
                         "total_value": float(t.total_value),
-                        "date": t.transaction_date.isoformat()
-                    } for t in transactions
-                ]
+                        "date": t.transaction_date.isoformat(),
+                    }
+                    if (t.type or "").upper() in ("BONUS", "SPLIT", "INPLIT"):
+                        entry["delta_quantity"] = round(float(Decimal(str(t.quantity or 0)) - prev_qty), 4)
+                    history.append(entry)
+                history.reverse()
+                return history
             except Exception:
                 return []
 
@@ -306,8 +333,8 @@ class PortfolioCrudService:
                     running_pm = Decimal("0.0")
 
                     for t in remaining_txs:
-                        if t.type == "BUY":
-                            total_val = t.total_value
+                        if t.type in ("BUY", "TICKER_CHANGE_IN", "SPIN_OFF_RECEIPT"):
+                            total_val = t.total_value if (t.total_value and t.total_value > 0) else (t.quantity * t.unit_price)
                             new_qty = running_qty + t.quantity
                             if new_qty > 0:
                                 running_pm = ((running_qty * running_pm) + total_val) / new_qty
@@ -318,9 +345,12 @@ class PortfolioCrudService:
                             if running_qty <= 0:
                                 running_qty = Decimal("0.0")
                                 running_pm = Decimal("0.0")
-                        elif t.type in ["SPLIT", "INPLIT", "BONUS", "AMORTIZATION"]:
+                        elif t.type in ("SPLIT", "INPLIT", "BONUS", "AMORTIZATION", "SPIN_OFF", "ADJUSTMENT"):
                             running_qty = t.quantity
                             running_pm = t.unit_price
+                        elif t.type == "TICKER_CHANGE_OUT":
+                            running_qty = Decimal("0.0")
+                            running_pm = Decimal("0.0")
 
                     pos.quantity = running_qty
                     pos.average_price = running_pm
@@ -577,7 +607,7 @@ class PortfolioCrudService:
                         ticker=ticker,
                         type="AMORTIZATION",
                         quantity=pos.quantity,
-                        unit_price=amortization_per_share,
+                        unit_price=new_pm,
                         total_value=pos.quantity * amortization_per_share,
                         transaction_date=tx_date,
                         corporate_event_id=corp_event.id

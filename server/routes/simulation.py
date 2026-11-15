@@ -27,6 +27,57 @@ OLLAMA_TIMEOUT_BRIEF = 180
 OLLAMA_TIMEOUT_DEFAULT = 60
 
 
+def _fetch_portfolio_news_highlights(holdings: list[dict], max_items: int = 6) -> list[dict]:
+    """Busca as principais notícias recentes relacionadas aos ativos da carteira via Google News RSS."""
+    import feedparser
+    from urllib.parse import quote_plus
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+    }
+    queries: list[tuple[str, str]] = []
+    for h in holdings:
+        tkr = (h.get("ticker") or "").strip().upper()
+        cat = (h.get("category") or "").strip()
+        if not tkr or cat == "Reserva" or "NUBANK" in tkr or "CAIXINHA" in tkr:
+            continue
+        queries.append((tkr, f"{tkr} mercado financeiro OR dividendos OR resultado"))
+        if len(queries) >= 4:
+            break
+    queries.append(("MACRO", "Ibovespa Selic dólar mercado hoje"))
+
+    highlights: list[dict] = []
+    seen_titles: set[str] = set()
+    for tag, q in queries:
+        try:
+            url = f"https://news.google.com/rss/search?q={quote_plus(q)}&hl=pt-BR&gl=BR&ceid=BR:pt-419"
+            resp = requests.get(url, headers=headers, timeout=4)
+            if resp.status_code != 200:
+                continue
+            feed = feedparser.parse(resp.content)
+            for entry in feed.entries[:2]:
+                title = (getattr(entry, "title", "") or "").strip()
+                link = (getattr(entry, "link", "") or "").strip()
+                if not title or title in seen_titles:
+                    continue
+                seen_titles.add(title)
+                source = ""
+                if hasattr(entry, "source") and isinstance(entry.source, dict):
+                    source = entry.source.get("title", "")
+                highlights.append({
+                    "ticker": tag,
+                    "title": title,
+                    "link": link,
+                    "source": source,
+                })
+                if len(highlights) >= max_items:
+                    return highlights
+        except Exception as err:
+            logging.debug(f"Falha ao buscar notícias de {tag} para Morning Brief: {err}")
+
+    return highlights
+
+
 def _build_morning_brief_context(user_id: int, dolar_rate: float, selic: float) -> dict:
     """Constrói contexto enriquecido para o Morning Brief (compartilhado entre rota e worker)."""
     # Delega lógica complexa de parseamento de ativos para o core (dashboard_data)
@@ -67,12 +118,15 @@ def _build_morning_brief_context(user_id: int, dolar_rate: float, selic: float) 
             enriched["var_95"] = f"{metrics.get('var_95', 0):.2f}%"
         enriched_holdings.append(enriched)
 
+    news_highlights = _fetch_portfolio_news_highlights(holdings_details)
+
     context = {
         "selic": float(selic),
         "dolar_rate": round(float(dolar_rate), 2),
         "selic_rate": f"{selic * 100:.2f}%",
         "dolar_rate_str": f"R$ {float(dolar_rate):.2f}",
-        "holdings": enriched_holdings
+        "holdings": enriched_holdings,
+        "news_highlights": news_highlights,
     }
     return context
 
@@ -155,13 +209,9 @@ def _run_morning_brief_bg(user_id: int, context: dict, cache_key: str):
         prompt = _build_enhanced_morning_brief_prompt(context)
         
         try:
-            client = get_genai_client()
-            response = client.models.generate_content(
-                model=MODEL_NAME,
-                contents=prompt,
-                config=types.GenerateContentConfig(response_mime_type="application/json")
-            )
-            parsed = json.loads(response.text.strip())
+            from infrastructure.gemini_service import generate_ai_text
+            raw_json, _provider = generate_ai_text(prompt=prompt, json_mode=True, temperature=0.2)
+            parsed = json.loads(raw_json)
             
             brief_data = {
                 "status": "Sucesso",
@@ -170,12 +220,13 @@ def _run_morning_brief_bg(user_id: int, context: dict, cache_key: str):
                 "rationale": parsed.get("rationale", "") or "",
                 "brief_text": parsed.get("brief_text", "") or "Morning Brief indisponível.",
                 "action": parsed.get("action", "") or "",
-                "risk_metrics": parsed.get("risk_metrics", {}) or {}
+                "risk_metrics": parsed.get("risk_metrics", {}) or {},
+                "news_highlights": context.get("news_highlights", []),
             }
             if not brief_data["brief_text"]:
                 brief_data["brief_text"] = "Morning Brief indisponível."
         except Exception as e:
-            logging.warning(f"⚠️ [BRIEF] Falha ao consultar Gemini. {e}")
+            logging.warning(f"⚠️ [BRIEF] Falha ao consultar IA. {e}")
             brief_data = {
                 "status": "Erro",
                 "selic_rate": context.get("selic_rate", ""),
@@ -183,7 +234,8 @@ def _run_morning_brief_bg(user_id: int, context: dict, cache_key: str):
                 "rationale": "",
                 "brief_text": "IA inativa ou respondendo com falha.",
                 "action": "",
-                "risk_metrics": {}
+                "risk_metrics": {},
+                "news_highlights": context.get("news_highlights", []),
             }
 
         with DBSession() as session:
@@ -212,8 +264,12 @@ def _build_enhanced_morning_brief_prompt(context: dict) -> str:
         
     holdings_text = "\n".join(holdings_lines) if holdings_lines else "Nenhuma posição ativa no momento."
 
-    news_text = "Sem notícias relevantes."
-    sentiment_text = "Sem sentimento anormal."
+    news_items = context.get("news_highlights") or []
+    news_text = (
+        "\n".join(f"- [{n.get('ticker', 'MERCADO')}] {n.get('title', '')}" for n in news_items)
+        if news_items
+        else "Sem notícias recentes encontradas para os ativos da carteira."
+    )
 
     from utils.prompt_loader import load_prompt
     template = load_prompt("morning_brief_v1.txt")
@@ -221,7 +277,8 @@ def _build_enhanced_morning_brief_prompt(context: dict) -> str:
         date_str=date_str,
         selic_pct=selic_pct,
         dolar=dolar,
-        holdings_text=holdings_text
+        holdings_text=holdings_text,
+        news_text=news_text,
     )
 
 
@@ -246,11 +303,16 @@ def morning_brief():
             cache_key = f"morning_brief_{g.user_id}"
             cache_record = session.query(SystemCache).filter_by(key=cache_key).first()
 
-            # Se há cache válido (< 12h) e não forçou, retorna imediatamente
+            # Se há cache válido (< 12h) e com Sucesso e não forçou, retorna imediatamente
             if cache_record and not force_reanalyze:
                 age = datetime.now() - cache_record.updated_at
                 if age < timedelta(hours=12):
-                    return jsonify(json.loads(cache_record.value))
+                    try:
+                        cached_payload = json.loads(cache_record.value)
+                        if cached_payload.get("status") == "Sucesso":
+                            return jsonify(cached_payload)
+                    except Exception:
+                        pass
 
             # Coleta dados do portfólio (rápido, sem Ollama)
             selic = get_risk_free_rate()
@@ -265,7 +327,8 @@ def morning_brief():
                 "rationale": "",
                 "brief_text": "Morning Brief sendo gerado pela IA... Aguarde alguns instantes e recarregue.",
                 "action": "",
-                "risk_metrics": {}
+                "risk_metrics": {},
+                "news_highlights": context.get("news_highlights", []),
             }
             if cache_record:
                 try:
@@ -302,4 +365,53 @@ def sector_correlation():
         return jsonify(res)
     except Exception as e:
         logging.error(f"❌ Erro ao computar matriz de correlação: {e}", exc_info=True)
+        return jsonify({"status": "Erro", "msg": str(e)}), 500
+
+
+@simulation_bp.route('/api/simulation/tax-thermometer', methods=['GET'])
+def tax_thermometer():
+    """🌡️ Retorna termômetro da isenção de R$ 20k/mês em Ações e prejuízos acumulados."""
+    from utils.db_utils import get_current_user_id
+    user_id = get_current_user_id()
+    try:
+        from datetime import date as _date
+        from domain.tax.tax_engine import simulate_sell_impact
+        month = request.args.get('month', type=int) or _date.today().month
+        year = request.args.get('year', type=int) or _date.today().year
+        usd_rate = service.get_usd_rate()
+        with Session() as session:
+            res = simulate_sell_impact(session, user_id, sales=[], month=month, year=year, usd_rate=usd_rate)
+            return jsonify(res), 200
+    except Exception as e:
+        logging.error(f"❌ Erro ao gerar termômetro tributário: {e}", exc_info=True)
+        return jsonify({"status": "Erro", "msg": str(e)}), 500
+
+
+@simulation_bp.route('/api/simulation/sell', methods=['POST'])
+def simulate_sell_route():
+    """🧮 Simula venda parcial/total, cálculo de DARF, isenção de R$ 20k e Tax-Loss Harvesting."""
+    from utils.db_utils import get_current_user_id
+    user_id = get_current_user_id()
+    try:
+        from datetime import date as _date
+        from domain.tax.tax_engine import simulate_sell_impact
+        body = request.get_json(silent=True) or {}
+        sales = body.get('sales')
+        if not isinstance(sales, list):
+            return jsonify({"status": "Erro", "msg": "Campo 'sales' deve ser uma lista."}), 400
+        month = body.get('month') or _date.today().month
+        year = body.get('year') or _date.today().year
+        usd_rate = service.get_usd_rate()
+        with Session() as session:
+            res = simulate_sell_impact(
+                session,
+                user_id,
+                sales=sales,
+                month=int(month),
+                year=int(year),
+                usd_rate=usd_rate,
+            )
+            return jsonify(res), 200
+    except Exception as e:
+        logging.error(f"❌ Erro na simulação de venda: {e}", exc_info=True)
         return jsonify({"status": "Erro", "msg": str(e)}), 500

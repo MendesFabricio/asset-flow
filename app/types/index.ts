@@ -256,9 +256,10 @@ export interface CreditCardsDashboardData {
 
 export interface AssetTransaction {
   id: number;
-  type: 'BUY' | 'SELL';
+  type: 'BUY' | 'SELL' | string;
   quantity: number;
   unit_price: number;
   total_value: number;
   date: string;
+  delta_quantity?: number;
 }

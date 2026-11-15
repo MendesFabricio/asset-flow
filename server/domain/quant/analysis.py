@@ -75,7 +75,7 @@ def calculate_kelly_criterion(session, fetch_prices) -> dict:
         "data": results
     }
 
-def calculate_alpha_attribution(session, fetch_prices) -> dict:
+def calculate_alpha_attribution(session, fetch_prices, dolar_rate: float = 1.0) -> dict:
     uid = _get_current_user_id()
     if uid is None:
         return {"status": "Erro", "msg": "Usuário não autenticado."}
@@ -90,7 +90,8 @@ def calculate_alpha_attribution(session, fetch_prices) -> dict:
         if cat in ["Renda Fixa", "Reserva"]:
             continue
         price = float(pos.asset.market_data[0].price or 0)
-        val = float(pos.quantity) * price
+        fator = dolar_rate if getattr(pos.asset, "currency", "BRL") == "USD" and dolar_rate > 0 else 1.0
+        val = float(pos.quantity) * price * fator
         if val <= 0:
             continue
             
@@ -172,7 +173,7 @@ def calculate_alpha_attribution(session, fetch_prices) -> dict:
         "data": results
     }
 
-def calculate_rolling_sharpe(session, fetch_prices) -> dict:
+def calculate_rolling_sharpe(session, fetch_prices, dolar_rate: float = 1.0) -> dict:
     uid = _get_current_user_id()
     positions = get_active_positions(session, uid).all()
     tickers_yf, tickers_clean, weights_val = [], [], []
@@ -185,7 +186,8 @@ def calculate_rolling_sharpe(session, fetch_prices) -> dict:
         if cat in ["Renda Fixa", "Reserva"]:
             continue
         price = float(pos.asset.market_data[0].price or 0)
-        val = float(pos.quantity) * price
+        fator = dolar_rate if getattr(pos.asset, "currency", "BRL") == "USD" and dolar_rate > 0 else 1.0
+        val = float(pos.quantity) * price * fator
         if val <= 0:
             continue
         tickers_yf.append(_to_yf_ticker(pos.asset.ticker, cat))

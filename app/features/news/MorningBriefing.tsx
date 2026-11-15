@@ -1,9 +1,16 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Coffee, ChevronDown, ChevronUp, Brain, RefreshCw, AlertCircle, Loader2, Target, BarChart3 } from 'lucide-react';
+import { Coffee, ChevronDown, ChevronUp, Brain, RefreshCw, AlertCircle, Loader2, Target, BarChart3, Newspaper, ExternalLink } from 'lucide-react';
 import { apiCall } from '@/lib/api';
 import { Markdown } from '@/components/ui/Markdown';
+
+interface NewsHighlight {
+  ticker: string;
+  title: string;
+  link: string;
+  source?: string;
+}
 
 interface BriefData {
   status: string;
@@ -13,6 +20,7 @@ interface BriefData {
   brief_text: string;
   action: string;
   risk_metrics: Record<string, any>;
+  news_highlights?: NewsHighlight[];
 }
 
 export function MorningBriefing() {
@@ -164,6 +172,35 @@ export function MorningBriefing() {
         </div>
       )}
 
+
+      {data.news_highlights && data.news_highlights.length > 0 && (
+        <div className="mt-3 p-3 rounded-xl bg-surface-input border border-border-subtle">
+          <div className="flex items-center gap-2 mb-2">
+            <Newspaper size={14} className="text-blue-400" />
+            <span className="text-[10px] font-bold uppercase tracking-wider text-text-secondary">
+              Principais Notícias da Carteira
+            </span>
+          </div>
+          <ul className="space-y-2">
+            {data.news_highlights.map((item, idx) => (
+              <li key={`${item.ticker}-${idx}`} className="flex items-start justify-between gap-2 text-xs">
+                <a
+                  href={item.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-text-primary hover:text-blue-400 transition-colors leading-snug flex-1"
+                >
+                  <span className="inline-block font-mono text-[10px] font-bold px-1.5 py-0.5 mr-1.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                    {item.ticker}
+                  </span>
+                  {item.title}
+                </a>
+                <ExternalLink size={12} className="text-text-secondary shrink-0 mt-0.5" />
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {data.rationale && (
         <div className="mt-3 border-t border-slate-800/40 pt-3">

@@ -4,6 +4,7 @@ import React, {
   createContext,
   useCallback,
   useContext,
+  useMemo,
   useRef,
   useState,
   ReactNode,
@@ -63,8 +64,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     [remove]
   );
 
+  const contextValue = useMemo(() => ({ notify }), [notify]);
+
   return (
-    <ToastContext.Provider value={{ notify }}>
+    <ToastContext.Provider value={contextValue}>
       {children}
       <div className="fixed bottom-5 right-5 z-[100] flex flex-col gap-2 items-end pointer-events-none">
         {toasts.map((t) => {

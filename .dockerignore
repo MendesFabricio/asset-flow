@@ -25,3 +25,8 @@ server/assetflow.db
 server/assetflow.db-wal
 server/assetflow.db-shm
 backups
+server/data/
+server/tests/
+**/__pycache__/
+*.pyc
+update-*.json

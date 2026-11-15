@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { apiCall } from '../lib/api';
+import { useToast } from '../context/ToastContext';
 
 interface ProfileData {
   id: number;
@@ -12,6 +13,7 @@ interface ProfileData {
 }
 
 export default function ProfilePage() {
+  const { notify } = useToast();
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -33,8 +35,12 @@ export default function ProfilePage() {
         setProfile(data.data);
         setUsername(data.data.username);
       }
-    } catch (e) {
+    } catch (err) {
+      const e = err as Error;
+      const text = e.message || 'Erro ao carregar perfil.';
       console.error('Erro ao carregar perfil:', e);
+      setMessage({ type: 'error', text });
+      notify(text, 'error');
     } finally {
       setLoading(false);
     }

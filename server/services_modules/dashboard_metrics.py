@@ -79,13 +79,16 @@ def apply_strategy(pos, metrics, falta, preco, min_6m):
 
     rsi = 50.0
     try:
-        ta = pos.asset.technical_data
-        if ta:
-            import json
-            df = json.loads(ta.raw_data)
-            if df and isinstance(df, list):
-                last = df[-1]
-                rsi = float(last.get('rsi_14', 50.0))
+        if pos.asset.market_data and pos.asset.market_data[0].rsi_14 is not None:
+            rsi = float(pos.asset.market_data[0].rsi_14)
+        else:
+            ta = getattr(pos.asset, 'technical_data', None)
+            if ta:
+                import json
+                df = json.loads(ta.raw_data)
+                if df and isinstance(df, list):
+                    last = df[-1]
+                    rsi = float(last.get('rsi_14', 50.0))
     except Exception:
         pass
 

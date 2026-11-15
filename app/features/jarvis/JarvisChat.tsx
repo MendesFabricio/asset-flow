@@ -32,6 +32,8 @@ export function JarvisChat() {
 
   const suggestions = [
     'Qual meu patrimônio total hoje?',
+    'Faça uma análise completa da minha carteira',
+    'Analise o ativo MXRF11 separadamente',
     'Quais ativos estão abaixo da meta?',
     'Qual a minha exposição de risco?',
     'Resuma meus próximos recebíveis.',

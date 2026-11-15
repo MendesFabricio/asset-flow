@@ -3,10 +3,9 @@
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import {
-  ChevronDown, User, Settings, History, LogOut, Eye, EyeOff
+  ChevronDown, User, Settings, LogOut, Eye, EyeOff
 } from 'lucide-react';
 import { usePrivacy } from '@/context/PrivacyContext';
-import { useToast } from '@/context/ToastContext';
 
 interface UserMenuProps {
   showName?: boolean;
@@ -18,7 +17,6 @@ export function UserMenu({ showName = false }: UserMenuProps) {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const { isHidden, togglePrivacy } = usePrivacy() as { isHidden: boolean; togglePrivacy: () => void };
-  const { notify } = useToast();
 
   useEffect(() => {
     const saved = localStorage.getItem('assetflow_username');
@@ -31,19 +29,31 @@ export function UserMenu({ showName = false }: UserMenuProps) {
         setIsOpen(false);
       }
     }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setIsOpen(false);
+      }
+    }
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
   }, []);
 
   const handleLogout = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
+      const res = await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+      if (!res.ok) {
+        console.error('Erro no logout: HTTP', res.status);
+        return;
+      }
+      localStorage.removeItem('assetflow_username');
+      window.location.href = '/login';
     } catch (e) {
-      console.error("Erro no logout:", e);
+      console.error('Erro no logout:', e);
     }
-    localStorage.removeItem('assetflow_username');
-    document.cookie = "assetflow_session=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    window.location.href = '/login';
   };
 
   const initials = username ? username.substring(0, 2).toUpperCase() : 'US';
@@ -92,18 +102,6 @@ export function UserMenu({ showName = false }: UserMenuProps) {
           >
             {isHidden ? <Eye size={13} /> : <EyeOff size={13} />}
             <span>{isHidden ? "Exibir Valores" : "Ocultar Valores"}</span>
-          </button>
-
-          <button
-            type="button"
-            className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-slate-900 text-slate-400 hover:text-slate-200 transition-colors flex items-center gap-2.5 text-xs"
-            onClick={() => {
-              notify('Funcionalidade "Logs de Auditoria" em desenvolvimento. Em breve no AssetFlow Pro!', 'info');
-              setIsOpen(false);
-            }}
-          >
-            <History size={13} />
-            <span>Logs de Auditoria</span>
           </button>
 
           <Link

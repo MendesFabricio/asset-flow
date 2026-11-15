@@ -1,4 +1,4 @@
-﻿import pytest
+import pytest
 from unittest.mock import patch, MagicMock
 from decimal import Decimal
 from datetime import date, datetime
@@ -171,3 +171,55 @@ def test_calculate_monthly_darf_accumulates_under_10(mock_session_cls):
     assert res['darf']['month_tax'] == 8.0
     assert res['darf']['darf_to_pay'] == 0.0
     assert res['darf']['next_month_accumulated'] == 8.0
+
+
+def test_bens_e_direitos_handles_corporate_events_and_same_day_sell_buy():
+    from datetime import datetime
+    from decimal import Decimal
+    from unittest.mock import MagicMock
+    from domain.tax.annual_irpf import _get_bens_e_direitos
+
+    def _tx(tx_id, ticker, tx_type, qty, total, dt, cat_name="Ação"):
+        tx = MagicMock()
+        tx.id = tx_id
+        tx.ticker = ticker
+        tx.type = tx_type
+        tx.quantity = Decimal(str(qty))
+        tx.total_value = Decimal(str(total))
+        tx.transaction_date = dt
+        asset = MagicMock()
+        asset.name = ticker
+        asset.cnpj = "00.000.000/0001-00"
+        cat = MagicMock()
+        cat.name = cat_name
+        return (tx, asset, cat)
+
+    rows = [
+        # Same-day SELL recorded before BUY (should net to 0)
+        _tx(1, "ABEV3", "BUY", 20, 200, datetime(2023, 1, 10)),
+        _tx(2, "ABEV3", "SELL", 100, 1000, datetime(2023, 3, 2)),
+        _tx(3, "ABEV3", "BUY", 100, 1000, datetime(2023, 3, 2)),
+        _tx(4, "ABEV3", "SELL", 20, 200, datetime(2023, 12, 26)),
+        # Ticker change TRPL4 -> ISAE4
+        _tx(5, "TRPL4", "BUY", 10, 250, datetime(2023, 5, 1)),
+        _tx(6, "TRPL4", "TICKER_CHANGE_OUT", 10, 250, datetime(2024, 11, 19)),
+        _tx(7, "ISAE4", "TICKER_CHANGE_IN", 10, 250, datetime(2024, 11, 19)),
+        # Split + Amortization on FII
+        _tx(8, "GGRC11", "BUY", 5, 500, datetime(2023, 6, 1), "FII"),
+        _tx(9, "GGRC11", "SPLIT", 50, 0, datetime(2024, 3, 7), "FII"),
+        _tx(10, "GGRC11", "AMORTIZATION", 50, 25, datetime(2025, 1, 10), "FII"),
+    ]
+
+    session = MagicMock()
+    session.query.return_value.join.return_value.join.return_value.filter.return_value.order_by.return_value.all.return_value = rows
+
+    bens = _get_bens_e_direitos(session, user_id=1, year=2025)
+    by_ticker = {b["ticker"]: b for b in bens}
+
+    assert "ABEV3" not in by_ticker
+    assert "TRPL4" not in by_ticker
+    assert by_ticker["ISAE4"]["quantity"] == 10.0
+    assert by_ticker["ISAE4"]["total_cost"] == 250.0
+    assert by_ticker["GGRC11"]["quantity"] == 50.0
+    assert by_ticker["GGRC11"]["total_cost"] == 475.0
+    assert "cotas de GGRC11" in by_ticker["GGRC11"]["description"]

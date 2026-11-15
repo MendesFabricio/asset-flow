@@ -1,14 +1,58 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useModalStore } from '@/store/modalStore';
+
+const VALID_TABS = new Set([
+  'Resumo',
+  'Ação',
+  'FII',
+  'Internacional',
+  'Cripto',
+  'Renda Fixa',
+  'Reserva',
+  'Reembolsos',
+  'Cartoes',
+  'Evolução',
+  'Quantitativo',
+  'Jarvis',
+]);
+
+function normalizeTab(raw: string | null): string {
+  if (raw === 'Financeiro') return 'Reembolsos';
+  return raw && VALID_TABS.has(raw) ? raw : 'Resumo';
+}
 
 /**
  * Centraliza o estado de UI do dashboard principal (aba ativa, refresh manual,
  * radar modal) e expõe as ligações com o modalStore (fonte de verdade dos modais).
  */
 export function useDashboardState() {
-  const [tab, setTab] = useState('Resumo');
+  const [tab, setTabState] = useState('Resumo');
+
+  useEffect(() => {
+    const syncFromUrl = () => {
+      const param = new URLSearchParams(window.location.search).get('tab');
+      setTabState(normalizeTab(param));
+    };
+    syncFromUrl();
+    window.addEventListener('popstate', syncFromUrl);
+    return () => window.removeEventListener('popstate', syncFromUrl);
+  }, []);
+
+  const setTab = useCallback((nextTab: string) => {
+    const normalized = normalizeTab(nextTab);
+    setTabState(normalized);
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      if (normalized === 'Resumo') {
+        url.searchParams.delete('tab');
+      } else {
+        url.searchParams.set('tab', normalized);
+      }
+      window.history.pushState({ tab: normalized }, '', url.toString());
+    }
+  }, []);
   const [isRefetching, setIsRefetching] = useState(false);
   const [showRefreshSuccess, setShowRefreshSuccess] = useState(false);
   const [isRadarModalOpen, setIsRadarModalOpen] = useState(false);

@@ -97,14 +97,12 @@ export function Notifications({ onFixAsset }: NotificationsProps) {
   const fetchAlerts = async () => {
     try {
       const [alertsData, priceAlertsRes] = await Promise.all([
-        apiCall<Alert[]>('/api/alerts'),
+        apiCall<Alert[] | { items?: Alert[] }>('/api/alerts'),
         apiCall<{ status: string; notifications: PriceAlertNotification[] }>('/api/price-alerts/notifications')
       ]);
 
-      let newAlerts: Alert[] = [];
-      if (Array.isArray(alertsData)) {
-        newAlerts = [...alertsData];
-      }
+      const alertItems = Array.isArray(alertsData) ? alertsData : (alertsData?.items ?? []);
+      const newAlerts: Alert[] = [...alertItems];
 
       if (priceAlertsRes && priceAlertsRes.status === 'Sucesso' && Array.isArray(priceAlertsRes.notifications)) {
         const mappedPriceAlerts: Alert[] = priceAlertsRes.notifications.map((n: PriceAlertNotification, idx: number) => {

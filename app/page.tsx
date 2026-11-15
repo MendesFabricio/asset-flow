@@ -4,6 +4,8 @@ import React, { useEffect, useCallback } from 'react';
 import { usePrivacy } from './context/PrivacyContext';
 import { useToast } from './context/ToastContext';
 import { formatMoney } from './lib/format';
+import packageJson from '../package.json';
+import type { Asset } from './types';
 import { Header } from './features/header/components/Header';
 import { AssetsTable } from './components/AssetsTable';
 import { SkeletonLoading } from './components/ui/Skeletons';
@@ -32,6 +34,10 @@ import {
 
 const RiskRadarModal = dynamic(() => import('./components/RiskRadarModal').then(mod => mod.RiskRadarModal), { ssr: false });
 
+const EMPTY_ASSETS: Asset[] = [];
+const EMPTY_CATEGORIES: { name: string; meta: number }[] = [];
+const EMPTY_ALERTS: { titulo: string; significado: string; acao: string }[] = [];
+
 const portfolioTabs: TabItem[] = [
   { id: 'Resumo', icon: <Layers size={14} />, label: 'Resumo' },
   { id: 'Ação', icon: <TrendingUp size={14} />, label: 'Ações' },
@@ -40,7 +46,7 @@ const portfolioTabs: TabItem[] = [
   { id: 'Cripto', icon: <Bitcoin size={14} />, label: 'Cripto' },
   { id: 'Renda Fixa', icon: <Landmark size={14} />, label: 'Renda Fixa' },
   { id: 'Reserva', icon: <Wallet size={14} />, label: 'Reserva' },
-  { id: 'Financeiro', icon: <Wallet size={14} />, label: 'Reembolsos' },
+  { id: 'Reembolsos', icon: <Wallet size={14} />, label: 'Reembolsos' },
   { id: 'Cartoes', icon: <CreditCard size={14} />, label: 'Cartões' },
 ];
 
@@ -87,9 +93,13 @@ export default function Home() {
     handlers.handleManualRefresh(setIsRefetching, setShowRefreshSuccess);
   }, [handlers, setIsRefetching, setShowRefreshSuccess]);
 
+  const ativos = data?.ativos || EMPTY_ASSETS;
+  const categorias = data?.categorias || EMPTY_CATEGORIES;
+  const alertas = data?.alertas || EMPTY_ALERTS;
+
   const handleFixAsset = useCallback((assetId: number) => {
-    handlers.handleFixAsset(assetId, data?.ativos || []);
-  }, [handlers, data?.ativos]);
+    handlers.handleFixAsset(assetId, ativos);
+  }, [handlers, ativos]);
 
   const handleEditAsset = useCallback((a: any) => modals.setEditingAsset(a), [modals]);
   const handleViewNews = useCallback((ticker: string) => modals.setNewsTicker(ticker), [modals]);
@@ -97,10 +107,10 @@ export default function Home() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-[#0b0f19] text-slate-200 font-sans selection:bg-blue-500/30 pb-20 relative">
+      <main className="min-h-screen bg-surface text-text-primary font-sans selection:bg-blue-500/30 pb-20 relative">
         <Header
           total={0}
-          ativos={[]}
+          ativos={EMPTY_ASSETS}
           money={metrics.money}
           syncStatus={{ status: 'idle', message: '' }}
           fundamentalsStatus={{ status: 'idle', message: '' }}
@@ -121,10 +131,10 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-[#0b0f19] text-slate-200 font-sans selection:bg-blue-500/30 pb-20 relative animate-in fade-in duration-500">
+    <main className="min-h-screen bg-surface text-text-primary font-sans selection:bg-blue-500/30 pb-20 relative animate-in fade-in duration-500">
       <Header
         total={data?.resumo?.Total || 0}
-        ativos={data?.ativos || []}
+        ativos={ativos}
         money={metrics.money}
         syncStatus={syncStatus}
         fundamentalsStatus={fundamentalsStatus}
@@ -149,14 +159,14 @@ export default function Home() {
 
       <div id="main-content" tabIndex={-1} className="max-w-7xl mx-auto p-4 md:p-6 outline-none">
         
-        {['Resumo', 'Evolução', 'Financeiro', 'Quantitativo', 'Jarvis', 'Cartoes', 'Renda Fixa'].includes(tab) && (
+        {['Resumo', 'Evolução', 'Reembolsos', 'Financeiro', 'Quantitativo', 'Jarvis', 'Cartoes', 'Renda Fixa'].includes(tab) && (
           <ErrorBoundary>
             <DashboardTabContent
               tab={tab}
               metrics={metrics}
               isHidden={isHidden}
-              ativos={data?.ativos || []}
-              categorias={data?.categorias || []}
+              ativos={ativos}
+              categorias={categorias}
               history={history}
               onOpenRadar={openRadarModal}
               onUpdate={refetch}
@@ -166,7 +176,7 @@ export default function Home() {
 
         {/* The AssetsTable component internally checks if it should render based on the tab */}
         <AssetsTable
-          assets={data?.ativos || []}
+          assets={ativos}
           tab={tab}
           onEdit={handleEditAsset}
           onViewNews={handleViewNews}
@@ -175,7 +185,7 @@ export default function Home() {
 
         <ErrorBoundary>
           <PortfolioModals
-            ativos={data?.ativos || []}
+            ativos={ativos}
             editingAsset={modals.editingAsset}
             selectedDetailsAsset={modals.selectedDetailsAsset}
             newsTicker={modals.newsTicker}
@@ -194,13 +204,13 @@ export default function Home() {
 
         <SyncStatusIndicators syncStatus={syncStatus} fundamentalsStatus={fundamentalsStatus} />
 
-        <div className="text-center text-[10px] text-slate-600 mt-12 mb-4">AssetFlow v1.0</div>
+        <div className="text-center text-[10px] text-slate-600 mt-12 mb-4">AssetFlow v{packageJson.version}</div>
       </div>
 
 
       {isRadarModalOpen && (
         <ErrorBoundary>
-          <RiskRadarModal isOpen={true} onClose={closeRadarModal} alertas={data?.alertas || []} />
+          <RiskRadarModal isOpen={true} onClose={closeRadarModal} alertas={alertas} />
         </ErrorBoundary>
       )}
     </main>

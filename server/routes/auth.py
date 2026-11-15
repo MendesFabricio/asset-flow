@@ -14,8 +14,15 @@ auth_bp = Blueprint('auth', __name__)
 
 _rate_limit_store = defaultdict(list)
 
-def is_rate_limited(ip: str, limit: int = 5, window_seconds: int = 60) -> bool:
-    """Verifica e limpa tentativas de requisições, retornando True se excedeu o limite em DB persistente."""
+def _get_client_ip() -> str:
+    xff = request.headers.get("X-Forwarded-For", "")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.remote_addr or "unknown"
+
+
+def is_rate_limited(ip: str, limit: int = 5, window_seconds: int = 60, record: bool = True) -> bool:
+    """Verifica e (quando record=True) registra tentativas recentes em DB persistente."""
     if current_app.config.get("TESTING"):
         return False
     now = time.time()
@@ -29,6 +36,8 @@ def is_rate_limited(ip: str, limit: int = 5, window_seconds: int = 60) -> bool:
             valid_timestamps = [t for t in timestamps if now - t < window_seconds]
             if len(valid_timestamps) >= limit:
                 return True
+            if not record:
+                return False
             valid_timestamps.append(now)
             if entry:
                 entry.value = json.dumps(valid_timestamps)
@@ -42,6 +51,8 @@ def is_rate_limited(ip: str, limit: int = 5, window_seconds: int = 60) -> bool:
         _rate_limit_store[ip] = attempts
         if len(attempts) >= limit:
             return True
+        if not record:
+            return False
         _rate_limit_store[ip].append(now)
         return False
 
@@ -65,22 +76,33 @@ def get_serializer():
         raise RuntimeError("SECRET_KEY de sessão ausente no contexto do aplicativo Flask.")
     return URLSafeTimedSerializer(secret_key)
 
-def generate_session_token(user_id: int, username: str) -> str:
+def generate_session_token(user_id: int, username: str, pwd_sig: str | None = None) -> str:
     serializer = get_serializer()
-    return serializer.dumps({"user_id": user_id, "username": username})
+    payload = {"user_id": user_id, "username": username}
+    if pwd_sig:
+        payload["pwd_sig"] = pwd_sig
+    return serializer.dumps(payload)
 
 def verify_session_token(token: str) -> dict:
     serializer = get_serializer()
     # Expiração de 7 dias = 604800 segundos
     try:
-        return serializer.loads(token, max_age=604800)
+        data = serializer.loads(token, max_age=604800)
     except Exception:
         return None
+    if not isinstance(data, dict) or "user_id" not in data:
+        return None
+    if "pwd_sig" in data:
+        with Session() as session:
+            user = session.query(User).filter_by(id=int(data["user_id"])).first()
+            if not user or (user.password_hash or "")[-16:] != data["pwd_sig"]:
+                return None
+    return data
 
 @auth_bp.route('/api/auth/login', methods=['POST'])
 def login():
-    ip = request.remote_addr or "unknown"
-    if is_rate_limited(ip, limit=5, window_seconds=60):
+    ip = _get_client_ip()
+    if is_rate_limited(ip, limit=5, window_seconds=60, record=False):
         return jsonify({
             "status": "Erro", 
             "msg": "Muitas tentativas de login. Por favor, tente novamente em 1 minuto."
@@ -97,7 +119,11 @@ def login():
         try:
             user = session.query(User).filter(User.username.ilike(username)).first()
             if user and check_password_hash(user.password_hash, password):
-                token = generate_session_token(user.id, user.username)
+                token = generate_session_token(
+                    user.id,
+                    user.username,
+                    pwd_sig=(user.password_hash or "")[-16:],
+                )
                 return jsonify({
                     "status": "Sucesso",
                     "token": token,
@@ -106,7 +132,8 @@ def login():
                         "username": user.username
                     }
                 })
-            
+
+            is_rate_limited(ip, limit=5, window_seconds=60, record=True)
             return jsonify({"status": "Erro", "msg": "Usuário ou senha incorretos."}), 401
         except Exception as e:
             logging.error(f"Erro no login: {e}")
@@ -114,7 +141,7 @@ def login():
 
 @auth_bp.route('/api/auth/register', methods=['POST'])
 def register():
-    ip = request.remote_addr or "unknown"
+    ip = _get_client_ip()
     if is_rate_limited(ip, limit=5, window_seconds=60):
         return jsonify({
             "status": "Erro", 

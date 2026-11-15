@@ -24,3 +24,17 @@ def with_safe_commit(func):
         return func(*args, **kwargs)
     
     return wrapper
+
+
+def get_current_user_id() -> int:
+    """Retorna o user_id autenticado no contexto Flask ou levanta HTTP 401."""
+    from flask import g, has_request_context, current_app
+    from werkzeug.exceptions import Unauthorized
+
+    if has_request_context():
+        uid = getattr(g, "user_id", None)
+        if uid is not None:
+            return int(uid)
+        if current_app and current_app.config.get("TESTING"):
+            return 1
+    raise Unauthorized("Sessão inválida ou usuário não autenticado.")

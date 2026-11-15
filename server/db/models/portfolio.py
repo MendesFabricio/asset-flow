@@ -133,7 +133,6 @@ class Dividend(Base):
 
     __table_args__ = (
         Index('idx_dividends_asset_date_com', 'asset_id', 'date_com'),
-        Index('idx_dividends_asset_date_com_desc', 'asset_id', text('date_com DESC')),
         UniqueConstraint('user_id', 'asset_id', 'date_payment', 'type', 'total_value', name='_dividend_unique_uc'),
     )
 
@@ -151,6 +150,10 @@ class PortfolioSnapshot(Base):
     breakdown = Column(String, nullable=True)
 
     user = relationship("User", back_populates="portfolio_snapshots")
+
+    __table_args__ = (
+        UniqueConstraint('user_id', 'date', name='_user_date_snapshot_uc'),
+    )
 
 class MonthlyPortfolioSnapshot(Base):
     __tablename__ = 'monthly_portfolio_snapshot'

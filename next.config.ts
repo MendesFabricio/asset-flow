@@ -13,10 +13,11 @@ const nextConfig: NextConfig = {
   },
 
   async rewrites() {
+    const backendUrl = process.env.BACKEND_URL || 'http://backend:5328';
     return [
       {
-        source: '/api/:path((?!sync/stream|ai/chat|auth).*)',
-        destination: 'http://backend:5328/api/:path*',
+        source: '/api/:path((?!sync/stream|ai/chat|auth/login|auth/logout|auth/register).*)',
+        destination: `${backendUrl}/api/:path*`,
       },
     ];
   },

@@ -5,6 +5,7 @@ from flask import Blueprint, jsonify, request, g
 from utils.brokerage_note_parser import extract_brokerage_note_transactions
 from utils.b3_parser import extract_b3_extract_transactions
 from utils.dedup import match_b3_to_db
+from utils.db_utils import get_current_user_id
 ocr_import_bp = Blueprint('ocr_import', __name__)
 
 @ocr_import_bp.route('/api/ocr/parse-brokerage-note', methods=['POST'])
@@ -20,6 +21,7 @@ def parse_brokerage_note():
     if ext != '.pdf':
         return jsonify({"status": "Erro", "msg": f"Extensão '{ext}' não suportada. Use apenas PDF."}), 400
         
+    user_id = get_current_user_id()
     temp_path = None
     try:
         with NamedTemporaryFile(delete=False, suffix='.pdf') as f:
@@ -55,6 +57,7 @@ def parse_b3_extract():
     if ext != '.pdf':
         return jsonify({"status": "Erro", "msg": f"Extensão '{ext}' não suportada. Use apenas PDF."}), 400
         
+    user_id = get_current_user_id()
     temp_path = None
     try:
         with NamedTemporaryFile(delete=False, suffix='.pdf') as f:
@@ -71,7 +74,6 @@ def parse_b3_extract():
             return jsonify(parsed_data), 400
             
         # Deduplica no backend
-        user_id = getattr(g, 'user_id', 1)
         parsed_data = match_b3_to_db(user_id, parsed_data)
             
         return jsonify(parsed_data), 200

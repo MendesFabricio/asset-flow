@@ -37,17 +37,26 @@ def _align_prices_to_b3(prices):
 def _to_yf_ticker(ticker: str, category_name: str) -> str:
     return to_yf_ticker(ticker, category_name)
 
+_RF_CACHE = {"value": None, "expires_at": 0.0}
+
 def get_risk_free_rate() -> float:
+    import time
+    now = time.monotonic()
+    if _RF_CACHE["value"] is not None and now < _RF_CACHE["expires_at"]:
+        return _RF_CACHE["value"]
+    rate = 0.1050
     try:
         url = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/1?formato=json"
         res = requests.get(url, timeout=3.0)
         if res.status_code == 200:
             val = float(res.json()[0]['valor']) / 100
             if 0.02 <= val <= 0.20:
-                return val
+                rate = val
     except Exception:
         pass
-    return 0.1050
+    _RF_CACHE["value"] = rate
+    _RF_CACHE["expires_at"] = now + 3600.0
+    return rate
 
 def _get_current_user_id():
     try:

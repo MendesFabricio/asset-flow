@@ -22,6 +22,14 @@ const MonthlyPnLChart = dynamic(
   () => import('@/features/evolution/components/MonthlyPnLChart'),
   { ssr: false, loading: () => <div className="h-64 bg-slate-100 dark:bg-slate-800 animate-pulse rounded-xl"></div> }
 );
+const ReturnsKpiCards = dynamic(
+  () => import('@/features/evolution/components/ReturnsKpiCards'),
+  { ssr: false }
+);
+const PerformanceAttributionChart = dynamic(
+  () => import('@/features/evolution/components/PerformanceAttributionChart'),
+  { ssr: false, loading: () => <div className="h-64 bg-surface-card animate-pulse rounded-xl"></div> }
+);
 const QuantDashboard = dynamic(
   () => import('@/features/quant/components/QuantDashboard').then((mod) => mod.QuantDashboard),
   { ssr: false, loading: () => <QuantSkeleton /> }
@@ -92,6 +100,8 @@ export function DashboardTabContent({
     case 'Evolução':
       return (
         <div className="animate-in fade-in duration-500 w-full flex flex-col gap-6">
+          <ReturnsKpiCards />
+          <PerformanceAttributionChart />
           <div className="min-h-[400px]">
             <HistoryChart data={history} />
           </div>
@@ -102,7 +112,7 @@ export function DashboardTabContent({
     case 'Quantitativo':
       return (
         <Section>
-          <QuantDashboard />
+          <QuantDashboard ativos={ativos} />
         </Section>
       );
     case 'Renda Fixa':
@@ -111,6 +121,7 @@ export function DashboardTabContent({
           <FixedIncomeTab />
         </Section>
       );
+    case 'Reembolsos':
     case 'Financeiro':
       return (
         <Section>

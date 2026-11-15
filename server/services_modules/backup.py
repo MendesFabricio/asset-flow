@@ -1,10 +1,11 @@
 # server/services_modules/backup.py
 import logging
 import os
-import shutil
+import sqlite3
 from datetime import date
 from decimal import Decimal
 from typing import List, Dict, Any
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 from db.models import Position, Asset, PortfolioSnapshot, Category, safe_commit
 from db.session import Session
@@ -20,7 +21,8 @@ class BackupService:
                 os.makedirs(backup_dir)
             filename = f"assetflow_backup_{date.today()}.db"
             dest = os.path.join(backup_dir, filename)
-            shutil.copy(db_path, dest)
+            with sqlite3.connect(db_path) as src_conn, sqlite3.connect(dest) as dst_conn:
+                src_conn.backup(dst_conn)
         except Exception as e: 
             logging.error(f"❌ Falha automática ao gerar backup físico do banco: {e}")
 
@@ -33,12 +35,17 @@ class BackupService:
                 for user in users:
                     self.current_user_id = user.id
                     dash = self.get_dashboard_data()
+                    resumo = dash.get('resumo') or {}
                     
-                    total_equity = Decimal(str(dash.get('totalPatrimonio', 0)))
-                    total_invested = Decimal(str(dash.get('totalInvestido', 0)))
+                    total_equity = Decimal(str(resumo.get('Total', 0)))
+                    total_invested = Decimal(str(resumo.get('TotalInvestido', 0)))
                     
-                    # Convert breakdown floats back to float (dash.categories returns a dict {str: value})
-                    breakdown = {k: float(v) for k, v in dash.get('categories', {}).items()}
+                    # Convert chart breakdown list [{"name": str, "value": float}] to dict {str: float}
+                    breakdown = {
+                        item['name']: float(item.get('value', 0))
+                        for item in (dash.get('grafico') or [])
+                        if isinstance(item, dict) and 'name' in item
+                    }
                     breakdown_str = json.dumps(breakdown)
                     
                     today = date.today()
@@ -53,7 +60,33 @@ class BackupService:
                         session.add(snap)
                 safe_commit(session)
                 self._backup_database()
-            except Exception as e: 
+            except IntegrityError:
+                session.rollback()
+                logging.warning("⚠️ Concorrência ao salvar snapshot diário; aplicando upsert nos registros existentes.")
+                try:
+                    for user in session.query(User).all():
+                        self.current_user_id = user.id
+                        dash = self.get_dashboard_data()
+                        resumo = dash.get('resumo') or {}
+                        total_equity = Decimal(str(resumo.get('Total', 0)))
+                        total_invested = Decimal(str(resumo.get('TotalInvestido', 0)))
+                        breakdown = {
+                            item['name']: float(item.get('value', 0))
+                            for item in (dash.get('grafico') or [])
+                            if isinstance(item, dict) and 'name' in item
+                        }
+                        today = date.today()
+                        existing = session.query(PortfolioSnapshot).filter_by(user_id=user.id, date=today).first()
+                        if existing:
+                            existing.total_equity = total_equity
+                            existing.total_invested = total_invested
+                            existing.profit = total_equity - total_invested
+                            existing.breakdown = json.dumps(breakdown)
+                    safe_commit(session)
+                except Exception as inner_err:
+                    session.rollback()
+                    logging.error(f"❌ Erro no fallback upsert de snapshot diário: {inner_err}")
+            except Exception as e:
                 session.rollback()
                 logging.error(f"❌ Erro ao salvar snapshot diário: {e}")
 

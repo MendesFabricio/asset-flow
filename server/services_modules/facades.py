@@ -12,8 +12,13 @@ from domain.quant.projection import calculate_income_projection, calculate_divid
 from domain.quant.optimization import calculate_markowitz_optimization, calculate_risk_parity, calculate_efficient_frontier_points
 from domain.quant.analysis import calculate_kelly_criterion, calculate_alpha_attribution, calculate_rolling_sharpe, calculate_momentum_ranking
 from domain.quant.exposure import calculate_sector_exposure
+from domain.quant.helpers import _get_current_user_id
 
 class FacadeService:
+    def _uid_key(self, prefix: str) -> str:
+        uid = getattr(self, 'current_user_id', None) or _get_current_user_id()
+        return f"{prefix}_{uid}" if uid else prefix
+
     def run_monte_carlo_simulation(self, days: int = 252, simulations: int = 1000) -> dict:
         """Façade → quant_engine.run_monte_carlo"""
         with Session() as session:
@@ -27,7 +32,8 @@ class FacadeService:
             if not allow_compute:
                 return {"status": "Erro", "msg": "Cache MISS and allow_compute is False."}
             result = func(s)
-            self._set_cached_value(s, cache_key, result)
+            if isinstance(result, dict) and result.get("status") == "Sucesso":
+                self._set_cached_value(s, cache_key, result)
             return result
             
         if session is not None:
@@ -37,28 +43,31 @@ class FacadeService:
 
     def get_correlation_matrix(self, session=None, allow_compute=True):
         """Façade → quant_engine.get_correlation_matrix com Cache"""
-        uid = getattr(self, 'current_user_id', None)
-        cache_key = f"correlation_matrix_{uid}" if uid else "correlation_matrix"
         return self._execute_with_cache(
-            session, cache_key, 
+            session, self._uid_key("correlation_matrix"), 
             lambda s: get_correlation_matrix(s, _fetch_price_history_fn, allow_compute), 
             allow_compute
         )
 
     def calculate_risk_metrics(self, session=None, allow_compute=True) -> dict:
         """Façade → quant_engine.calculate_risk_metrics com Cache"""
-        uid = getattr(self, 'current_user_id', None)
-        cache_key = f"risk_metrics_{uid}" if uid else "risk_metrics"
+        dolar_rate = float(self.get_usd_rate() or 1.0)
         return self._execute_with_cache(
-            session, cache_key, 
-            lambda s: calculate_risk_metrics(s, _fetch_price_history_fn, allow_compute), 
+            session, self._uid_key("risk_metrics"), 
+            lambda s: calculate_risk_metrics(s, _fetch_price_history_fn, allow_compute, dolar_rate=dolar_rate), 
             allow_compute
         )
 
     def calculate_smart_rebalance(self, monthly_contribution: float = 0.0) -> dict:
         """Façade → quant_engine.calculate_smart_rebalance"""
+        dolar_rate = float(self.get_usd_rate() or 1.0)
         with Session() as session:
-            return calculate_smart_rebalance(session, _fetch_price_history_fn, monthly_contribution)
+            return calculate_smart_rebalance(
+                session,
+                _fetch_price_history_fn,
+                monthly_contribution,
+                dolar_rate=dolar_rate,
+            )
 
     def calculate_income_projection(
         self,
@@ -103,24 +112,38 @@ class FacadeService:
             return calculate_sector_correlation(session, _fetch_price_history_fn)
 
     def calculate_kelly_criterion(self) -> dict:
-        """Façade → quant_engine.calculate_kelly_criterion"""
-        with Session() as session:
-            return calculate_kelly_criterion(session, _fetch_price_history_fn)
+        """Façade → quant_engine.calculate_kelly_criterion com Cache"""
+        return self._execute_with_cache(
+            None, self._uid_key("kelly_criterion"),
+            lambda s: calculate_kelly_criterion(s, _fetch_price_history_fn),
+            True,
+        )
 
     def calculate_alpha_attribution(self) -> dict:
-        """Façade → quant_engine.calculate_alpha_attribution"""
-        with Session() as session:
-            return calculate_alpha_attribution(session, _fetch_price_history_fn)
+        """Façade → quant_engine.calculate_alpha_attribution com Cache"""
+        dolar_rate = float(self.get_usd_rate() or 1.0)
+        return self._execute_with_cache(
+            None, self._uid_key("alpha_attribution"),
+            lambda s: calculate_alpha_attribution(s, _fetch_price_history_fn, dolar_rate=dolar_rate),
+            True,
+        )
 
     def calculate_rolling_sharpe(self) -> dict:
-        """Façade → quant_engine.calculate_rolling_sharpe"""
-        with Session() as session:
-            return calculate_rolling_sharpe(session, _fetch_price_history_fn)
+        """Façade → quant_engine.calculate_rolling_sharpe com Cache"""
+        dolar_rate = float(self.get_usd_rate() or 1.0)
+        return self._execute_with_cache(
+            None, self._uid_key("rolling_sharpe"),
+            lambda s: calculate_rolling_sharpe(s, _fetch_price_history_fn, dolar_rate=dolar_rate),
+            True,
+        )
 
     def calculate_momentum_ranking(self) -> dict:
-        """Façade → quant_engine.calculate_momentum_ranking"""
-        with Session() as session:
-            return calculate_momentum_ranking(session, _fetch_price_history_fn)
+        """Façade → quant_engine.calculate_momentum_ranking com Cache"""
+        return self._execute_with_cache(
+            None, self._uid_key("momentum_ranking"),
+            lambda s: calculate_momentum_ranking(s, _fetch_price_history_fn),
+            True,
+        )
 
     def calculate_efficient_frontier_points(self) -> dict:
         """Façade → quant_engine.calculate_efficient_frontier_points"""

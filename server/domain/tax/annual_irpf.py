@@ -6,7 +6,30 @@ from typing import Dict, Any
 from sqlalchemy import func
 
 from db.session import Session
-from db.models import AssetTransaction, TaxProfile, Asset, Category, Dividend
+from db.models import AssetTransaction, TaxProfile, Asset, Category, Dividend, Position
+
+
+_TX_ORDER = {
+    "BUY": 0,
+    "TICKER_CHANGE_IN": 0,
+    "SPIN_OFF_RECEIPT": 0,
+    "BONUS": 0,
+    "SPLIT": 1,
+    "INPLIT": 1,
+    "SPIN_OFF": 1,
+    "AMORTIZATION": 1,
+    "SELL": 2,
+    "TICKER_CHANGE_OUT": 2,
+}
+
+_UNIT_BY_CATEGORY = {
+    "FII": "cotas",
+    "Renda Fixa": "títulos",
+    "Reserva": "aplicações",
+    "Cripto": "unidades",
+    "Opções": "contratos",
+}
+
 
 def _get_start_of_time(session, user_id: int) -> date:
     first_tx = session.query(func.min(AssetTransaction.transaction_date)).filter(
@@ -16,10 +39,11 @@ def _get_start_of_time(session, user_id: int) -> date:
         return first_tx.date()
     return date(2000, 1, 1)
 
+
 def _get_bens_e_direitos(session, user_id: int, year: int) -> list:
     """Reconstruct portfolio at 31/12 of the given year"""
     end_of_year = date(year, 12, 31)
-    
+
     txs = session.query(AssetTransaction, Asset, Category).join(
         Asset, AssetTransaction.ticker == Asset.ticker
     ).join(
@@ -27,8 +51,14 @@ def _get_bens_e_direitos(session, user_id: int, year: int) -> list:
     ).filter(
         AssetTransaction.user_id == user_id,
         func.date(AssetTransaction.transaction_date) <= end_of_year
-    ).order_by(AssetTransaction.transaction_date).all()
-    
+    ).order_by(AssetTransaction.transaction_date, AssetTransaction.id).all()
+
+    txs.sort(key=lambda row: (
+        row[0].transaction_date.date() if isinstance(row[0].transaction_date, datetime) else row[0].transaction_date,
+        _TX_ORDER.get(row[0].type, 1),
+        row[0].id or 0,
+    ))
+
     portfolio = {}
     for tx, asset, category in txs:
         if tx.ticker not in portfolio:
@@ -40,13 +70,18 @@ def _get_bens_e_direitos(session, user_id: int, year: int) -> list:
                 "quantity": Decimal("0.0"),
                 "total_cost": Decimal("0.0"),
             }
-        
+
         pos = portfolio[tx.ticker]
-        
-        if tx.type == "BUY":
+
+        if tx.type in ("BUY", "TICKER_CHANGE_IN", "SPIN_OFF_RECEIPT", "BONUS"):
             pos["quantity"] += tx.quantity
             pos["total_cost"] += tx.total_value
-        elif tx.type == "SELL":
+        elif tx.type in ("SPLIT", "INPLIT"):
+            # SPLIT/INPLIT records store the resulting total quantity; cost basis is unchanged
+            pos["quantity"] = tx.quantity
+        elif tx.type == "AMORTIZATION":
+            pos["total_cost"] = max(Decimal("0.0"), pos["total_cost"] - tx.total_value)
+        elif tx.type in ("SELL", "TICKER_CHANGE_OUT"):
             if pos["quantity"] > 0:
                 avg_price = pos["total_cost"] / pos["quantity"]
                 pos["quantity"] -= tx.quantity
@@ -55,20 +90,41 @@ def _get_bens_e_direitos(session, user_id: int, year: int) -> list:
                     pos["quantity"] = Decimal("0.0")
                     pos["total_cost"] = Decimal("0.0")
 
+    # For current/future year, include manual positions without AssetTransactions (e.g. Reserva / Caixinhas)
+    if year >= date.today().year:
+        tx_tickers = set(portfolio.keys())
+        manual_positions = (
+            session.query(Position, Asset, Category)
+            .join(Asset, Position.asset_id == Asset.id)
+            .join(Category, Asset.category_id == Category.id)
+            .filter(Position.user_id == user_id, Position.quantity > 0)
+            .all()
+        )
+        for p, asset, category in manual_positions:
+            if asset.ticker not in tx_tickers:
+                qty = Decimal(str(p.quantity))
+                pm = Decimal(str(p.average_price or 0))
+                portfolio[asset.ticker] = {
+                    "ticker": asset.ticker,
+                    "name": asset.name or asset.ticker,
+                    "cnpj": asset.cnpj or "CNPJ não informado",
+                    "category": category.name,
+                    "quantity": qty,
+                    "total_cost": qty * pm,
+                }
+
     result = []
     for ticker, pos in portfolio.items():
-        if pos["quantity"] > 0:
+        if pos["quantity"] > Decimal("0.0001"):
             qty = float(pos["quantity"])
-            total_cost = float(pos["total_cost"])
-            avg_price = total_cost / qty if qty > 0 else 0
-            
-            # Formatted string for "Discriminação"
-            # Ex: "100 ações de PETR4 (PETROLEO BRASILEIRO S.A.), CNPJ: 33.000.167/0001-01, adquiridas ao custo total de R$ 3.000,00 (Preço Médio de R$ 30,00)."
-            asset_type_str = "cotas" if pos["category"] == "FII" else "ações"
-            
+            total_cost = max(0.0, float(pos["total_cost"]))
+            avg_price = total_cost / qty if qty > 0 else 0.0
+
+            asset_type_str = _UNIT_BY_CATEGORY.get(pos["category"], "ações")
+
             desc = f"{int(qty) if qty.is_integer() else qty} {asset_type_str} de {ticker} ({pos['name']}), CNPJ: {pos['cnpj']}, adquiridas ao custo total de R$ {total_cost:,.2f} (Preço Médio de R$ {avg_price:,.2f})."
             desc = desc.replace(",", "X").replace(".", ",").replace("X", ".")
-            
+
             result.append({
                 "ticker": ticker,
                 "name": pos["name"],
@@ -79,7 +135,7 @@ def _get_bens_e_direitos(session, user_id: int, year: int) -> list:
                 "average_price": avg_price,
                 "description": desc
             })
-            
+
     return sorted(result, key=lambda x: (x["category"], x["ticker"]))
 
 

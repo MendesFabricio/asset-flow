@@ -26,6 +26,8 @@ import {
 const MonteCarloChart = dynamic(() => import('./MonteCarloChart').then(mod => mod.MonteCarloChart), { ssr: false, loading: () => <MonteCarloSkeleton /> });
 const RiskMetricsPanel = dynamic(() => import('./RiskMetricsPanel').then(mod => mod.RiskMetricsPanel), { ssr: false, loading: () => <MetricsGridSkeleton /> });
 const CorrelationHeatmap = dynamic(() => import('./CorrelationHeatmap').then(mod => mod.CorrelationHeatmap), { ssr: false, loading: () => <CorrelationSkeleton /> });
+const TaxSellSimulatorCard = dynamic(() => import('./TaxSellSimulatorCard'), { ssr: false });
+const MacroStressTestCard = dynamic(() => import('./MacroStressTestCard'), { ssr: false });
 
 import { Card } from '@/components/ui/Card';
 import {
@@ -42,11 +44,12 @@ import {
 } from 'recharts';
 
 import { useToast } from '@/context/ToastContext';
+import type { Asset } from '@/types';
 import { useQuantData } from '../hooks/useQuantData';
 import { useDcaSimulation } from '../hooks/useDcaSimulation';
 import { useQuantReports } from '../hooks/useQuantReports';
 
-export const QuantDashboard = React.memo(function QuantDashboard() {
+export const QuantDashboard = React.memo(function QuantDashboard({ ativos }: { ativos?: Asset[] }) {
   const { notify } = useToast();
   const [activeTab, setActiveTab] = useState<'performance' | 'optimization' | 'simulations' | 'reports'>('performance');
 
@@ -67,8 +70,9 @@ export const QuantDashboard = React.memo(function QuantDashboard() {
     currentAlloc,
     selectedOptimalPt,
     loading,
+    optLoading,
     error,
-  } = useQuantData(riskAversion);
+  } = useQuantData(riskAversion, ativos, activeTab);
 
   // Relatórios & Sentimento (Fear & Greed)
   const {
@@ -292,7 +296,9 @@ export const QuantDashboard = React.memo(function QuantDashboard() {
       </div>
 
       {/* ──────────────────────────────────────────────────────── */}
-      {(!frontierData || !rebalanceData) && (activeTab === 'optimization' || activeTab === 'performance') ? (
+      {activeTab === 'optimization' && optLoading ? (
+        <MetricsGridSkeleton />
+      ) : (!frontierData || !rebalanceData) && activeTab === 'optimization' ? (
         <Card className="flex flex-col items-center justify-center p-12 text-center !bg-[#0f172a] !border-slate-800 min-h-[350px]">
           <Info className="text-indigo-400 mb-4 animate-pulse" size={32} />
           <h3 className="font-bold text-slate-200 text-sm">Dados Quantitativos Insuficientes</h3>
@@ -563,6 +569,8 @@ export const QuantDashboard = React.memo(function QuantDashboard() {
           )}
         </div>
       )}
+
+      {activeTab === 'optimization' && <TaxSellSimulatorCard ativos={ativos} />}
 
 
       {/* ──────────────────────────────────────────────────────── */}
@@ -975,8 +983,9 @@ export const QuantDashboard = React.memo(function QuantDashboard() {
       )}
 
       {activeTab === 'simulations' && (
-        <div className="animate-in fade-in w-full">
+        <div className="animate-in fade-in w-full flex flex-col gap-6">
           <MonteCarloChart />
+          <MacroStressTestCard ativos={ativos} />
         </div>
       )}
 
