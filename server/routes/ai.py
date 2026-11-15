@@ -115,7 +115,9 @@ def execute_query_portfolio_metrics(session):
         )
 
     ativos_abaixo_da_meta = []
+    ativos_acima_da_meta = []
     portfolio_summary = []
+    portfolio_items.sort(key=lambda x: x["valor_total_brl"], reverse=True)
     for item in portfolio_items:
         pct_atual = (item["valor_total_brl"] / patrimonio_total_brl * 100.0) if patrimonio_total_brl > 0 else 0.0
         item["atual_global_pct"] = round(pct_atual, 2)
@@ -128,11 +130,22 @@ def execute_query_portfolio_metrics(session):
                 "gap_pct": round(item["meta_global_pct"] - pct_atual, 2),
                 "valor_total_brl": item["valor_total_brl"],
             })
+        elif pct_atual > item["meta_global_pct"]:
+            ativos_acima_da_meta.append({
+                "ticker": item["ticker"],
+                "categoria": item["categoria"],
+                "atual_global_pct": round(pct_atual, 2),
+                "meta_global_pct": item["meta_global_pct"],
+                "excesso_pct": round(pct_atual - item["meta_global_pct"], 2),
+                "valor_total_brl": item["valor_total_brl"],
+                "rentabilidade_pct": item["rentabilidade_pct"],
+            })
         portfolio_summary.append(
             f"- {item['ticker']} ({item['categoria']}, {item['moeda']}): Qtd={item['qtd']}, PM=R${item['pm']:.2f}, Preço=R${item['preco_atual']:.2f}, Total=R${item['valor_total_brl']:.2f}, Lucro=R${item['lucro_brl']:.2f} ({item['rentabilidade_pct']:.2f}%), Atual={item['atual_global_pct']:.2f}%, MetaGlobal={item['meta_global_pct']:.2f}%"
         )
 
     ativos_abaixo_da_meta.sort(key=lambda x: x["gap_pct"], reverse=True)
+    ativos_acima_da_meta.sort(key=lambda x: x["excesso_pct"], reverse=True)
 
     # Recebíveis
     inst_query = session.query(LoanInstallment).filter(
@@ -202,10 +215,59 @@ def execute_query_portfolio_metrics(session):
             "totais_por_categoria": totais_por_categoria,
         },
         "ativos_abaixo_da_meta": ativos_abaixo_da_meta,
+        "ativos_acima_da_meta": ativos_acima_da_meta,
         "portfolio_summary": portfolio_summary if portfolio_summary else "Nenhum ativo com posição ativa no momento.",
         "receivables_summary": rec_summary if rec_summary else "Nenhum recebível ativo no momento.",
         "risk_metrics_summary": risk_summary
     }
+
+
+def _build_ollama_context(portfolio_ctx: dict, mentioned: list[dict], message: str) -> str:
+    """Formata o contexto da carteira de modo compacto e legível para modelos locais."""
+    parts = [
+        "[RESUMO EXATO DA CARTEIRA — COPIE ESTES NÚMEROS LITERALMENTE]",
+        portfolio_ctx.get("resumo_texto", ""),
+    ]
+
+    acima = portfolio_ctx.get("ativos_acima_da_meta") or []
+    if acima:
+        lines = [
+            f"- {a['ticker']} ({a['categoria']}): Atual {a['atual_global_pct']:.2f}% vs Meta {a['meta_global_pct']:.2f}% (Excesso +{a['excesso_pct']:.2f}%, Total {_fmt_brl(a['valor_total_brl'])}, Lucro {a['rentabilidade_pct']:.2f}%)"
+            for a in acima[:10]
+        ]
+        parts.append("\n[ATIVOS ACIMA DA META / MAIOR CONCENTRAÇÃO (TOP 10)]\n" + "\n".join(lines))
+
+    abaixo = portfolio_ctx.get("ativos_abaixo_da_meta") or []
+    if abaixo:
+        lines = [
+            f"- {a['ticker']} ({a['categoria']}): Atual {a['atual_global_pct']:.2f}% vs Meta {a['meta_global_pct']:.2f}% (Defasagem -{a['gap_pct']:.2f}%, Total {_fmt_brl(a['valor_total_brl'])})"
+            for a in abaixo[:10]
+        ]
+        parts.append("\n[ATIVOS ABAIXO DA META (TOP 10)]\n" + "\n".join(lines))
+
+    ps = portfolio_ctx.get("portfolio_summary")
+    if isinstance(ps, list) and ps:
+        top_ps = ps[:25]
+        extra = f"\n(... e mais {len(ps) - 25} posições menores)" if len(ps) > 25 else ""
+        parts.append("\n[PRINCIPAIS POSIÇÕES (ORDENADAS POR VALOR)]\n" + "\n".join(top_ps) + extra)
+
+    risk = portfolio_ctx.get("risk_metrics_summary")
+    if risk:
+        parts.append("\n[MÉTRICAS DE RISCO]\n" + risk)
+
+    msg_low = (message or "").lower()
+    rec = portfolio_ctx.get("receivables_summary")
+    if isinstance(rec, list) and rec and any(k in msg_low for k in ("receb", "parcela", "devedor", "empr", "caixa")):
+        parts.append("\n[RECEBÍVEIS ABERTOS]\n" + "\n".join(rec[:15]))
+
+    if mentioned:
+        parts.append(
+            "\n[ATIVOS CITADOS EM DETALHE (JSON)]\n```json\n"
+            + json.dumps(mentioned, ensure_ascii=False, separators=(",", ":"), default=_json_default)
+            + "\n```"
+        )
+
+    return "\n".join(parts)
 
 def execute_get_asset_fundamental_data(session, ticker: str):
     ticker = ticker.strip().upper()
@@ -383,18 +445,8 @@ def chat():
                             for tkr in candidate_tickers[:5]
                         ]
 
-                    resumo_texto = portfolio_ctx.get("resumo_texto", "")
-                    context_blob = {
-                        "portfolio": portfolio_ctx,
-                        "mentioned_assets": mentioned,
-                    }
-                    system_with_context = (
-                        f"{SYSTEM_PROMPT}\n\n"
-                        f"[RESUMO EXATO DA CARTEIRA — COPIE ESTES NÚMEROS LITERALMENTE, NÃO SOME DE CABEÇA]\n"
-                        f"{resumo_texto}\n\n"
-                        f"[DETALHES COMPLETOS DA CARTEIRA EM JSON]\n"
-                        f"```json\n{json.dumps(context_blob, ensure_ascii=False, separators=(',', ':'), default=_json_default)}\n```"
-                    )
+                    ollama_context = _build_ollama_context(portfolio_ctx, mentioned, message)
+                    system_with_context = f"{SYSTEM_PROMPT}\n\n{ollama_context}"
                     ollama_messages = [{"role": "system", "content": system_with_context}]
                     for msg in history_list[-10:-1]:
                         ollama_messages.append({"role": msg["role"], "content": msg["content"]})
