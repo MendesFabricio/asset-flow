@@ -10,7 +10,8 @@ interface AssetIndicatorsCellProps {
 }
 
 export const AssetIndicatorsCell = memo(function AssetIndicatorsCell({ ativo, tab }: AssetIndicatorsCellProps) {
-  const atingiuMagic = (ativo.magic_number || 0) > 0 && ativo.qtd >= (ativo.magic_number || 0);
+  const magicNumber = ativo.magic_number || 0;
+  const atingiuMagic = magicNumber > 0 && ativo.qtd >= magicNumber;
 
   return (
     <td className="px-6 py-5 text-center hidden lg:table-cell w-28 align-middle">
@@ -35,13 +36,19 @@ export const AssetIndicatorsCell = memo(function AssetIndicatorsCell({ ativo, ta
               </span>
             </div>
           )}
-          {atingiuMagic && (
+          {magicNumber > 0 && (
             <div
-              title="Número Mágico: Quantidade de cotas necessárias para que o rendimento pague uma nova cota do fundo."
-              className="text-[10px] flex items-center gap-1 justify-end w-20 px-1 text-cyan-400 font-bold cursor-pointer"
+              title={
+                atingiuMagic
+                  ? 'Número Mágico atingido! O rendimento mensal já paga uma nova cota do fundo.'
+                  : `Número Mágico: ${ativo.qtd} de ${magicNumber} cotas necessárias para o rendimento pagar uma nova cota.`
+              }
+              className={`text-[10px] flex items-center gap-1 justify-end w-20 px-1 font-bold cursor-pointer ${
+                atingiuMagic ? 'text-cyan-400' : 'text-text-secondary'
+              }`}
             >
-              <Snowflake size={11} className="animate-pulse" />
-              <PrivateValue value={`${ativo.qtd}/${ativo.magic_number}`} className="tabular-nums" />
+              <Snowflake size={11} className={atingiuMagic ? 'animate-pulse' : 'opacity-70'} />
+              <PrivateValue value={`${ativo.qtd}/${magicNumber}`} className="tabular-nums" />
             </div>
           )}
         </div>

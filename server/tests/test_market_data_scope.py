@@ -188,3 +188,20 @@ def test_brt_timezone_keeps_same_day_until_2359_brt():
     # 2026-11-14 03:05 UTC == 2026-11-14 00:05 BRT (next day in Brazil)
     utc_after_midnight_brt = datetime(2026, 11, 14, 3, 5, tzinfo=timezone.utc)
     assert utc_after_midnight_brt.astimezone(_BRT_TZ).strftime("%Y-%m-%d") == "2026-11-14"
+
+
+def test_extract_vpa_from_report_json():
+    import json
+    from infrastructure.market_data import _extract_vpa_from_report_json
+
+    payload = json.dumps({
+        "fundamentalist": {
+            "cards_indicadores": [
+                {"titulo": "P/VP", "valor_formatado": "0.89"},
+                {"titulo": "VPA", "valor_formatado": "R$ 129.98"},
+            ]
+        }
+    })
+    assert _extract_vpa_from_report_json(payload) == 129.98
+    assert _extract_vpa_from_report_json(None) == 0.0
+    assert _extract_vpa_from_report_json("{invalid-json") == 0.0

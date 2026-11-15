@@ -19,6 +19,24 @@ def _active_assets_query(session, user_id=None):
         query = query.filter(Position.user_id == user_id)
     return query.distinct()
 
+
+def _extract_vpa_from_report_json(raw_report):
+    """Extrai VPA (R$) salvo em last_report_type de FII quando disponível."""
+    if not raw_report:
+        return 0.0
+    try:
+        parsed = json.loads(raw_report)
+        cards = (parsed.get("fundamentalist") or {}).get("cards_indicadores") or []
+        for card in cards:
+            if card.get("titulo") == "VPA":
+                val = str(card.get("valor_formatado", "")).replace("R$", "").replace(",", ".").strip()
+                num = float(val)
+                if num > 0:
+                    return round(num, 2)
+    except Exception:
+        pass
+    return 0.0
+
 def update_prices(session, invalidate_cache_callback, user_id=None):
     import pandas as pd
     from utils.http_client import get_secure_session
@@ -300,7 +318,12 @@ def update_fundamentals(dolar_rate_callback, state_dict=None, user_id=None):
                         if user_id is not None and pos.user_id != user_id:
                             continue
                         if upd["lpa"] != 0: pos.manual_lpa = round(upd["lpa"], 2)
-                        if upd["vpa"] != 0: pos.manual_vpa = round(upd["vpa"], 2)
+                        if upd["vpa"] != 0:
+                            pos.manual_vpa = round(upd["vpa"], 2)
+                        elif (pos.manual_vpa is None or pos.manual_vpa <= 0) and db_asset.category and db_asset.category.name == "FII":
+                            report_vpa = _extract_vpa_from_report_json(pos.last_report_type)
+                            if report_vpa > 0:
+                                pos.manual_vpa = report_vpa
                         if upd["dy_calculated"] >= 0:
                             pos.manual_dy = round(upd["dy_calculated"], 4)
             safe_commit(session)
@@ -387,6 +410,8 @@ def sync_reports_with_fnet(session, state_dict=None, user_id=None):
                                 mdata = asset.market_data[0] if asset.market_data else None
                                 price = float(mdata.price) if mdata and mdata.price else 0.0
                                 vpa = fii_data.get('ticker_info', {}).get('vpa', 0.0) or 0.0
+                                if vpa > 0:
+                                    pos.manual_vpa = round(vpa, 2)
                                 p_vp = price / vpa if vpa > 0 else 0.0
                                 
                                 fii_indicators = {
