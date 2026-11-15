@@ -27,4 +27,15 @@ describe('Markdown link sanitization', () => {
     expect(links[0]).toHaveAttribute('href', 'https://example.com');
     expect(links[1]).toHaveAttribute('href', 'http://localhost:3000');
   });
+
+  it('renders bold headings like **Análise de Risco (CoT):** without treating them as bullet lists', () => {
+    render(
+      <Markdown text={'**Análise de Risco (CoT):**\n- Primeiro ponto\n\n**Resumo Executivo:**\nTexto final.'} />
+    );
+
+    const heading = screen.getByText('Análise de Risco (CoT):');
+    expect(heading.tagName).toBe('STRONG');
+    expect(screen.getByText('Resumo Executivo:').tagName).toBe('STRONG');
+    expect(screen.getByText('Primeiro ponto')).toBeInTheDocument();
+  });
 });

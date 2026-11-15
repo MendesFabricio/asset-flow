@@ -156,18 +156,29 @@ export function MorningBriefing() {
       )}
 
       {data.risk_metrics && Object.keys(data.risk_metrics).length > 0 && (
-        <div className="mt-3 p-3 rounded-xl bg-surface-input border border-slate-800">
-          <div className="flex items-center gap-2 mb-2">
+        <div className="mt-3 p-3 rounded-xl bg-surface-input border border-border-subtle">
+          <div className="flex items-center gap-2 mb-2.5">
             <BarChart3 size={14} className="text-indigo-400" />
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Métricas de Risco</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-text-secondary">Métricas de Risco</span>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {Object.entries(data.risk_metrics).map(([key, value]) => (
-              <div key={key} className="text-center">
-                <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-0.5">{key}</div>
-                <div className="text-xs font-mono font-semibold text-slate-200">{String(value)}</div>
-              </div>
-            ))}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            {Object.entries(data.risk_metrics).map(([key, value]) => {
+              const labelMap: Record<string, string> = {
+                macro_regime: 'Regime Macro',
+                fx_bias: 'Viés Cambial',
+                posture: 'Postura',
+              };
+              const rawVal = String(value || '').trim();
+              const cleanVal = rawVal.includes('|') ? rawVal.split('|')[0].trim() : rawVal;
+              return (
+                <div key={key} className="bg-surface-card border border-border-subtle rounded-lg px-3 py-2 text-center">
+                  <div className="text-[10px] text-text-secondary uppercase tracking-wider mb-0.5">
+                    {labelMap[key] || key}
+                  </div>
+                  <div className="text-xs font-mono font-semibold text-text-primary">{cleanVal}</div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

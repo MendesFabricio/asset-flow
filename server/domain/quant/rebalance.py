@@ -55,6 +55,7 @@ def calculate_smart_rebalance(
             cat_target_pct = 1.0
         pos_target_pct = float(pos.target_percent or 0) / 100.0
         target_pct = cat_target_pct * pos_target_pct
+        ai_sent = pos.asset.ai_sentiment if getattr(pos.asset, "ai_status", None) == "success" else None
         portfolio_total += val
         assets_data.append({
             "ticker": pos.asset.ticker.upper(),
@@ -63,6 +64,7 @@ def calculate_smart_rebalance(
             "price": price,
             "current_value": val,
             "target_pct": target_pct,
+            "ai_sentiment": ai_sent,
         })
 
     if portfolio_total == 0 or not assets_data:
@@ -112,7 +114,9 @@ def calculate_smart_rebalance(
             })
             continue
         penalty = corr_penalty.get(a["ticker"], 0.0)
-        final_score = max(0.0, a["gap_score"] * (1.0 - penalty))
+        ai_sent = a.get("ai_sentiment")
+        sentiment_tilt = -0.15 if ai_sent == "Negativo" else (0.10 if ai_sent == "Positivo" else 0.0)
+        final_score = max(0.0, a["gap_score"] * (1.0 - penalty) * (1.0 + sentiment_tilt))
         cat = a["category"]
         # Reserva recebe aporte direto em R$; demais classes usam unidades inteiras
         lot_size = 0 if cat == "Reserva" else 1
@@ -123,6 +127,7 @@ def calculate_smart_rebalance(
             "gap_value": round(a["gap_value"], 2),
             "score": round(final_score, 4),
             "corr_penalty": round(penalty, 4),
+            "ai_sentiment": ai_sent,
             "lot_size": lot_size, "action": "COMPRAR",
         })
 
@@ -132,19 +137,24 @@ def calculate_smart_rebalance(
         prop = s["score"] / score_total if score_total > 0 else 0
         val_sug = monthly_contribution * prop
         price = next(a["price"] for a in assets_data if a["ticker"] == s["ticker"])
+        sent_note = ""
+        if s.get("ai_sentiment") == "Negativo":
+            sent_note = " · ⚠️ Notícias negativas (-15% peso)"
+        elif s.get("ai_sentiment") == "Positivo":
+            sent_note = " · Notícias positivas (+10% peso)"
         if s["lot_size"] > 0:
             lots = max(0, int(val_sug / (price * s["lot_size"])))
             actual = lots * price * s["lot_size"]
             s["suggested_lots"] = lots
             s["suggested_value"] = round(actual, 2)
             s["rationale"] = (
-                f"{lots} lote(s) × R$ {price:.2f} = R$ {actual:.2f}"
-                if lots > 0 else "Aporte insuficiente para 1 lote."
+                f"{lots} lote(s) × R$ {price:.2f} = R$ {actual:.2f}{sent_note}"
+                if lots > 0 else f"Aporte insuficiente para 1 lote.{sent_note}"
             )
         else:
             s["suggested_lots"] = 0
             s["suggested_value"] = round(val_sug, 2)
-            s["rationale"] = f"Aporte direto em Reserva: R$ {val_sug:.2f}"
+            s["rationale"] = f"Aporte direto em Reserva: R$ {val_sug:.2f}{sent_note}"
 
     allocated_total = sum(s.get("suggested_value", 0.0) for s in buyable)
     sobra = round(monthly_contribution - allocated_total, 2)

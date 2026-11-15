@@ -54,6 +54,63 @@ def _do_quant_warm():
 def scheduled_morning_brief_generation():
     _run_with_tracking("scheduled_morning_brief_generation", _do_morning_brief)
 
+
+def scheduled_daily_sentiment_analysis():
+    _run_with_tracking("scheduled_daily_sentiment_analysis", _do_daily_sentiment)
+
+
+def _do_daily_sentiment():
+    import time
+    from datetime import datetime, timedelta
+    logging.info("🧠 JOB 07:30: Atualizando IA Sentiment diário dos ativos ativos...")
+    try:
+        from db.models import Session as DBSession, Position
+        from routes.news import fetch_ticker_news
+        from infrastructure.gemini_service import _run_sentiment_analysis
+
+        with DBSession() as session:
+            positions = (
+                session.query(Position)
+                .filter(Position.quantity > 0)
+                .all()
+            )
+            seen_assets = {}
+            for pos in positions:
+                asset = pos.asset
+                if not asset or asset.id in seen_assets:
+                    continue
+                cat_name = asset.category.name if asset.category else ""
+                if cat_name == "Reserva":
+                    continue
+                seen_assets[asset.id] = (asset, pos)
+
+            now = datetime.now()
+            targets = []
+            for asset, pos in seen_assets.values():
+                if asset.ai_status == "success" and asset.ai_updated_at and (now - asset.ai_updated_at) < timedelta(hours=20):
+                    continue
+                targets.append((
+                    asset.id,
+                    asset.ticker,
+                    {
+                        "quantity": float(pos.quantity or 0.0),
+                        "average_price": float(pos.average_price or 0.0),
+                        "target_percent": float(pos.target_percent or 0.0),
+                    },
+                ))
+
+        for asset_id, ticker, pos_info in targets:
+            try:
+                news_list = fetch_ticker_news(ticker.strip().upper().replace(".SA", ""), limit=5)
+                titles = [n["title"] for n in news_list if n.get("title")]
+                _run_sentiment_analysis(asset_id, ticker, titles, pos_info)
+                time.sleep(1.0)
+            except Exception as exc:
+                logging.warning(f"⚠️ [IA] Falha ao atualizar sentimento diário de {ticker}: {exc}")
+        logging.info(f"✅ [IA] Sentimento diário finalizado ({len(targets)} ativo(s) processado(s)).")
+    except Exception as e:
+        logging.error(f"❌ [IA] Falha geral no job diário de sentimento: {e}", exc_info=True)
+
 def _do_morning_brief():
     logging.info("☕ JOB 07:00: Gerando Morning Briefing...")
     try:
@@ -113,5 +170,11 @@ JOB_REGISTRY = {
         "description": "Gera Morning Briefing proativo",
         "default_type": "cron",
         "default_cron": "0 7 * * *",
+    },
+    "scheduled_daily_sentiment_analysis": {
+        "func": scheduled_daily_sentiment_analysis,
+        "description": "Atualiza IA Sentiment diário de todos os ativos da carteira",
+        "default_type": "cron",
+        "default_cron": "30 7 * * *",
     },
 }

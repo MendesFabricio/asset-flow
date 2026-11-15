@@ -22,8 +22,8 @@ RESPONDA EXCLUSIVAMENTE EM JSON VÁLIDO (sem markdown fora do JSON) no formato:
   "brief_text": "Resumo executivo matinal em 2 parágrafos curtos com leitura de cenário, reflexo das notícias na carteira e pontos de atenção para hoje.",
   "action": "Ação tática recomendada para o próximo aporte (ex.: priorizar ativos descontados, manter caixa/reserva ou reforçar dólar).",
   "risk_metrics": {{
-    "macro_regime": "Juros Altos | Transição | Expansivo",
-    "fx_bias": "Dólar Pressionado | Neutro | Favorável",
-    "posture": "Defensiva | Equilibrada | Oportunista"
+    "macro_regime": "Escolha APENAS UM: Juros Altos, Transição ou Expansivo",
+    "fx_bias": "Escolha APENAS UM: Dólar Pressionado, Neutro ou Favorável",
+    "posture": "Escolha APENAS UM: Defensiva, Equilibrada ou Oportunista"
   }}
 }}

@@ -20,6 +20,7 @@ interface ServerSuggestion {
   lot_size: number;
   score: number;
   corr_penalty: number;
+  ai_sentiment?: 'Positivo' | 'Neutro' | 'Negativo' | string | null;
   rationale: string;
 }
 
@@ -310,8 +311,23 @@ export const SmartAllocationModal = ({ isOpen, onClose, ativos = [] }: SmartAllo
                           onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
                         />
                         <div>
-                          <p className="font-bold text-white text-sm">{s.ticker}</p>
-                          <p className="text-[10px] text-slate-500">{s.category}</p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="font-bold text-text-primary text-sm">{s.ticker}</p>
+                            {s.ai_sentiment && (
+                              <span
+                                className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full border ${
+                                  s.ai_sentiment === 'Positivo'
+                                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                                    : s.ai_sentiment === 'Negativo'
+                                    ? 'bg-red-500/10 text-red-400 border-red-500/30'
+                                    : 'bg-surface-input text-text-secondary border-border-subtle'
+                                }`}
+                              >
+                                IA: {s.ai_sentiment}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-text-secondary">{s.category}</p>
                         </div>
                       </div>
                       <div className="text-right">

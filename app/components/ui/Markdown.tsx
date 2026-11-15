@@ -143,9 +143,9 @@ export function Markdown({ text }: MarkdownProps) {
           );
         }
 
-        // List item (starts with '-' or '*')
-        if (trimmed.startsWith('-') || trimmed.startsWith('*')) {
-          const cleanText = trimmed.replace(/^[-*]\s*/, '');
+        // List item (starts with '- ' or '* ')
+        if (/^[-*]\s+/.test(trimmed)) {
+          const cleanText = trimmed.replace(/^[-*]\s+/, '');
           return (
             <div key={idx} className="flex items-start gap-1.5 pl-1.5 my-0.5">
               <span className="text-indigo-400 select-none text-[10px] mt-0.5">•</span>

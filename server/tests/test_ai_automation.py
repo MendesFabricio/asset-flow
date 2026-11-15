@@ -240,5 +240,35 @@ class TestAIAutomationTools(unittest.TestCase):
         )
         self.assertIn("MXRF11", s3)
 
+    def test_sanitize_risk_metrics_handles_pipe_echo_and_valid_values(self):
+        from routes.simulation import _sanitize_risk_metrics
+
+        echoed = {
+            "macro_regime": "Juros Altos | Transição | Expansivo",
+            "fx_bias": "Dólar Neutro | Neutro | Neutro",
+            "posture": "Defensiva | Equilibrada | Oportunista",
+        }
+        cleaned = _sanitize_risk_metrics(echoed, selic=0.1375, dolar_rate=5.64)
+        self.assertEqual(cleaned["macro_regime"], "Juros Altos")
+        self.assertEqual(cleaned["fx_bias"], "Neutro")
+        self.assertEqual(cleaned["posture"], "Defensiva")
+
+        valid = {
+            "macro_regime": "Transição",
+            "fx_bias": "Favorável",
+            "posture": "Oportunista",
+        }
+        self.assertEqual(_sanitize_risk_metrics(valid, selic=0.1375, dolar_rate=5.64), valid)
+
+    def test_daily_sentiment_job_registered(self):
+        import os
+        import sys
+        worker_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "worker"))
+        if worker_dir not in sys.path:
+            sys.path.insert(0, worker_dir)
+        from worker_jobs import JOB_REGISTRY
+        self.assertIn("scheduled_daily_sentiment_analysis", JOB_REGISTRY)
+        self.assertEqual(JOB_REGISTRY["scheduled_daily_sentiment_analysis"]["default_type"], "cron")
+
 if __name__ == '__main__':
     unittest.main()

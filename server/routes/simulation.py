@@ -113,9 +113,8 @@ def _build_morning_brief_context(user_id: int, dolar_rate: float, selic: float) 
     for h in holdings_details[:5]:
         enriched = dict(h)
         if risk and risk.get("status") == "Sucesso":
-            metrics = risk.get("metrics", {})
-            enriched["beta"] = f"{metrics.get('beta', 0):.2f}"
-            enriched["var_95"] = f"{metrics.get('var_95', 0):.2f}%"
+            enriched["beta"] = f"{risk.get('beta', 0):.2f}"
+            enriched["var_95"] = f"{risk.get('var_95_monthly_pct', 0):.2f}%"
         enriched_holdings.append(enriched)
 
     news_highlights = _fetch_portfolio_news_highlights(holdings_details)
@@ -202,6 +201,30 @@ def sector_exposure():
         return jsonify({"status": "Erro", "msg": str(e)}), 500
 
 
+def _sanitize_risk_metrics(raw_metrics: dict, selic: float, dolar_rate: float) -> dict:
+    """Garante valores únicos e válidos em risk_metrics mesmo se o LLM ecoar opções separadas por '|'."""
+    allowed = {
+        "macro_regime": ("Juros Altos", "Transição", "Expansivo"),
+        "fx_bias": ("Dólar Pressionado", "Neutro", "Favorável"),
+        "posture": ("Defensiva", "Equilibrada", "Oportunista"),
+    }
+    defaults = {
+        "macro_regime": "Juros Altos" if selic >= 0.11 else ("Transição" if selic >= 0.085 else "Expansivo"),
+        "fx_bias": "Dólar Pressionado" if dolar_rate >= 5.75 else ("Favorável" if dolar_rate <= 5.10 else "Neutro"),
+        "posture": "Defensiva" if selic >= 0.125 else "Equilibrada",
+    }
+    metrics = raw_metrics if isinstance(raw_metrics, dict) else {}
+    cleaned = {}
+    for key, options in allowed.items():
+        val = str(metrics.get(key) or "").strip()
+        if not val or "|" in val:
+            cleaned[key] = defaults[key]
+            continue
+        matched = next((opt for opt in options if opt.lower() in val.lower()), None)
+        cleaned[key] = matched if matched else defaults[key]
+    return cleaned
+
+
 def _run_morning_brief_bg(user_id: int, context: dict, cache_key: str):
     """Executa a chamada ao Gemini em thread de background e salva o resultado no cache."""
     from db.models import Session as DBSession, SystemCache, safe_commit
@@ -220,7 +243,11 @@ def _run_morning_brief_bg(user_id: int, context: dict, cache_key: str):
                 "rationale": parsed.get("rationale", "") or "",
                 "brief_text": parsed.get("brief_text", "") or "Morning Brief indisponível.",
                 "action": parsed.get("action", "") or "",
-                "risk_metrics": parsed.get("risk_metrics", {}) or {},
+                "risk_metrics": _sanitize_risk_metrics(
+                    parsed.get("risk_metrics", {}),
+                    float(context.get("selic", 0.0) or 0.0),
+                    float(context.get("dolar_rate", 0.0) or 0.0),
+                ),
                 "news_highlights": context.get("news_highlights", []),
             }
             if not brief_data["brief_text"]:
@@ -309,7 +336,9 @@ def morning_brief():
                 if age < timedelta(hours=12):
                     try:
                         cached_payload = json.loads(cache_record.value)
-                        if cached_payload.get("status") == "Sucesso":
+                        metrics_vals = " ".join(str(v) for v in (cached_payload.get("risk_metrics") or {}).values())
+                        has_stale_fallback = cached_payload.get("selic_rate") == "10.50%" or "|" in metrics_vals
+                        if cached_payload.get("status") == "Sucesso" and not has_stale_fallback:
                             return jsonify(cached_payload)
                     except Exception:
                         pass

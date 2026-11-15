@@ -19,8 +19,8 @@ RESPONDA EXCLUSIVAMENTE EM JSON VÁLIDO no formato:
 {{
   "rationale": [
     "Ponto 1: leitura objetiva do principal fato/indicador.",
-    "Ponto 2: impacto esperado nos fundamentos ou dividendos.",
-    "Ponto 3: atenção para o investidor considerando a meta de {target_pct:.1f}%."
+    "Ponto 2: impacto esperado nos fundamentos ou dividendos da empresa/fundo.",
+    "Ponto 3: principal risco ou catalisador a monitorar no curto e médio prazo."
   ],
   "sentiment": "Positivo" | "Neutro" | "Negativo",
   "summary": "Síntese executiva em 2 frases diretas explicando o porquê do sentimento e o que acompanhar."

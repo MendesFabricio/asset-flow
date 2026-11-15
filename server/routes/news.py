@@ -12,6 +12,34 @@ from utils.db_utils import with_safe_commit
 
 news_bp = Blueprint('news', __name__)
 
+
+def fetch_ticker_news(ticker_clean: str, limit: int = 5) -> list[dict]:
+    """Busca manchetes recentes do ativo no Google News RSS."""
+    search_query = f"{ticker_clean} mercado financeiro"
+    encoded_query = quote(search_query)
+    rss_url = f"https://news.google.com/rss/search?q={encoded_query}&hl=pt-BR&gl=BR&ceid=BR:pt-419"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+    }
+    news_list = []
+    try:
+        response = requests.get(rss_url, headers=headers, timeout=5)
+        if response.status_code == 200:
+            feed = feedparser.parse(response.content)
+            for entry in feed.entries[:limit]:
+                news_list.append({
+                    "title": entry.title,
+                    "link": entry.link,
+                    "published": entry.published,
+                    "source": entry.source.title if hasattr(entry, 'source') else "Google News"
+                })
+    except requests.exceptions.Timeout:
+        logging.error(f"⏳ TIMEOUT: RSS Google News excedeu 5s para o ticker {ticker_clean}.")
+    except Exception as e:
+        logging.error(f"⚠️ Erro ao obter RSS para {ticker_clean}: {e}")
+    return news_list
+
+
 @news_bp.route('/api/news/<ticker>', methods=['GET'])
 @with_safe_commit
 def get_news(ticker):
@@ -24,30 +52,7 @@ def get_news(ticker):
             asset = session.query(Asset).filter_by(ticker=ticker_clean).first()
 
             # 2. Busca notícias no Google News RSS
-            search_query = f"{ticker_clean} mercado financeiro"
-            encoded_query = quote(search_query)
-            rss_url = f"https://news.google.com/rss/search?q={encoded_query}&hl=pt-BR&gl=BR&ceid=BR:pt-419"
-            
-            headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
-            }
-            
-            news_list = []
-            try:
-                response = requests.get(rss_url, headers=headers, timeout=5)
-                if response.status_code == 200:
-                    feed = feedparser.parse(response.content)
-                    for entry in feed.entries[:5]:
-                        news_list.append({
-                            "title": entry.title,
-                            "link": entry.link,
-                            "published": entry.published,
-                            "source": entry.source.title if hasattr(entry, 'source') else "Google News"
-                        })
-            except requests.exceptions.Timeout:
-                logging.error(f"⏳ TIMEOUT: RSS Google News excedeu 5s para o ticker {ticker_clean}.")
-            except Exception as e:
-                logging.error(f"⚠️ Erro ao obter RSS para {ticker_clean}: {e}")
+            news_list = fetch_ticker_news(ticker_clean, limit=5)
 
             # 3. Controla estado da IA
             ai_data = {

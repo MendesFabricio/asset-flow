@@ -39,24 +39,62 @@ def _to_yf_ticker(ticker: str, category_name: str) -> str:
 
 _RF_CACHE = {"value": None, "expires_at": 0.0}
 
+def _read_cached_selic() -> float | None:
+    try:
+        from db.models import Session as DBSession, SystemCache
+        with DBSession() as session:
+            rec = session.query(SystemCache).filter_by(key="bcb_selic_meta").first()
+            if rec and rec.value:
+                val = float(rec.value)
+                if 0.02 <= val <= 0.30:
+                    return val
+    except Exception:
+        pass
+    return None
+
+
+def _write_cached_selic(val: float) -> None:
+    try:
+        from datetime import datetime
+        from db.models import Session as DBSession, SystemCache, safe_commit
+        with DBSession() as session:
+            rec = session.query(SystemCache).filter_by(key="bcb_selic_meta").first()
+            if not rec:
+                rec = SystemCache(key="bcb_selic_meta")
+                session.add(rec)
+            rec.value = f"{val:.6f}"
+            rec.updated_at = datetime.now()
+            safe_commit(session)
+    except Exception:
+        pass
+
+
 def get_risk_free_rate() -> float:
     import time
     now = time.monotonic()
     if _RF_CACHE["value"] is not None and now < _RF_CACHE["expires_at"]:
         return _RF_CACHE["value"]
-    rate = 0.1050
+    rate = None
     try:
         url = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/1?formato=json"
-        res = requests.get(url, timeout=3.0)
+        res = requests.get(url, timeout=5.0)
         if res.status_code == 200:
             val = float(res.json()[0]['valor']) / 100
-            if 0.02 <= val <= 0.20:
+            if 0.02 <= val <= 0.30:
                 rate = val
+                _write_cached_selic(val)
     except Exception:
         pass
-    _RF_CACHE["value"] = rate
-    _RF_CACHE["expires_at"] = now + 3600.0
-    return rate
+    if rate is not None:
+        _RF_CACHE["value"] = rate
+        _RF_CACHE["expires_at"] = now + 3600.0
+        return rate
+
+    persisted = _read_cached_selic()
+    fallback = persisted if persisted is not None else 0.1050
+    _RF_CACHE["value"] = fallback
+    _RF_CACHE["expires_at"] = now + 60.0
+    return fallback
 
 def _get_current_user_id():
     try:
