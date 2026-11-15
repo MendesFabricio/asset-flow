@@ -4,7 +4,7 @@ import numpy as np
 from db.models import get_active_positions
 from domain.quant.helpers import _to_yf_ticker, _align_prices_to_b3, _get_current_user_id
 
-def run_monte_carlo(session, fetch_prices, simulations=1000, days=252) -> dict:
+def run_monte_carlo(session, fetch_prices, simulations=1000, days=252, dolar_rate: float = 1.0) -> dict:
     import pandas as pd
 
     uid = _get_current_user_id()
@@ -19,7 +19,8 @@ def run_monte_carlo(session, fetch_prices, simulations=1000, days=252) -> dict:
             continue
         mdata = pos.asset.market_data[0] if pos.asset.market_data else None
         price = float(mdata.price or 0) if mdata else float(pos.average_price or 0)
-        val = float(pos.quantity) * price
+        fator = dolar_rate if getattr(pos.asset, "currency", "BRL") == "USD" and dolar_rate > 0 else 1.0
+        val = float(pos.quantity) * price * fator
         if val <= 0:
             continue
         ticker_yf = _to_yf_ticker(pos.asset.ticker, cat)
@@ -84,18 +85,31 @@ def run_monte_carlo(session, fetch_prices, simulations=1000, days=252) -> dict:
         port_vol_ann = min(port_vol_ann, 1.50)
         
     dt = 1.0 / days
-    lambda_jump = 0.5    
-    mu_jump = -0.10      
-    sigma_jump = 0.15    
-    
-    kappa = np.exp(mu_jump + 0.5 * sigma_jump ** 2) - 1
+    # Calibra saltos de cauda a partir dos retornos históricos reais da carteira (< mean - 3*std)
+    port_daily_ret = returns[valid_tickers].dot(w).dropna()
+    tail_threshold = float(port_daily_ret.mean() - 3.0 * port_daily_ret.std()) if len(port_daily_ret) > 0 else -0.05
+    tail_events = port_daily_ret[port_daily_ret < tail_threshold]
+    if len(tail_events) >= 2 and len(port_daily_ret) > 0:
+        lambda_jump = (len(tail_events) / len(port_daily_ret)) * 252.0
+        mu_jump = float(tail_events.mean())
+        sigma_jump = max(0.01, float(tail_events.std()))
+        kappa = np.exp(mu_jump + 0.5 * sigma_jump ** 2) - 1
+    else:
+        lambda_jump = 0.0
+        mu_jump = 0.0
+        sigma_jump = 0.0
+        kappa = 0.0
+
     drift_ann = port_ret_ann - lambda_jump * kappa - 0.5 * port_vol_ann ** 2
-    
+
     shocks = np.random.normal(loc=drift_ann * dt, scale=port_vol_ann * np.sqrt(dt), size=(simulations, days))
-    
-    poi_lam = lambda_jump * dt
-    jump_counts = np.random.poisson(lam=poi_lam, size=(simulations, days))
-    jump_shocks = jump_counts * mu_jump + np.sqrt(jump_counts) * sigma_jump * np.random.normal(size=(simulations, days))
+
+    if lambda_jump > 0:
+        poi_lam = lambda_jump * dt
+        jump_counts = np.random.poisson(lam=poi_lam, size=(simulations, days))
+        jump_shocks = jump_counts * mu_jump + np.sqrt(jump_counts) * sigma_jump * np.random.normal(size=(simulations, days))
+    else:
+        jump_shocks = 0.0
     
     paths = total_value * np.exp(np.cumsum(shocks + jump_shocks, axis=1))
 

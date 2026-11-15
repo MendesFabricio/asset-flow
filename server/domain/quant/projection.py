@@ -10,6 +10,7 @@ def calculate_income_projection(
     years: int = 20,
     annual_return_pct: float = 12.0,
     annual_dividend_yield_pct: float = 6.0,
+    dolar_rate: float = 1.0,
 ) -> dict:
     logging.info(f"📊 Projetando IF: R${monthly_contribution}/mês, {years}a, {annual_return_pct}% a.a.")
 
@@ -22,7 +23,8 @@ def calculate_income_projection(
             continue
         mdata = pos.asset.market_data[0] if pos.asset.market_data else None
         price = float(mdata.price or pos.average_price or 0) if mdata else float(pos.average_price or 0)
-        val = float(pos.quantity) * price
+        fator = dolar_rate if getattr(pos.asset, "currency", "BRL") == "USD" and dolar_rate > 0 else 1.0
+        val = float(pos.quantity) * price * fator
         current_portfolio += val
         if pos.manual_dy and pos.manual_dy > 0:
             current_income += val * float(pos.manual_dy) / 12
@@ -95,19 +97,21 @@ def calculate_dividend_forecast(session) -> dict:
         else:
             divs = session.query(Dividend).filter_by(asset_id=pos.asset_id).all()
         if not divs:
-            mdata = pos.asset.market_data[0] if pos.asset.market_data else None
-            price = float(mdata.price or 0) if mdata else float(pos.average_price or 0)
-            if price > 0:
-                est_annual = price * 0.05
-                val_monthly = (est_annual / 12) * qty
-                for m in range(1, 13):
-                    forecasts.append({
-                        "ticker": ticker,
-                        "month": m,
-                        "amount": round(val_monthly, 2),
-                        "type": "Estimativa (DY Histórico)"
-                    })
-                    total_projected += val_monthly
+            # Usa apenas manual_dy configurado pelo usuário; não inventa DY de 5% para ativos sem proventos
+            manual_dy = float(getattr(pos, "manual_dy", 0) or 0)
+            if manual_dy > 0:
+                mdata = pos.asset.market_data[0] if pos.asset.market_data else None
+                price = float(mdata.price or 0) if mdata else float(pos.average_price or 0)
+                if price > 0:
+                    val_monthly = ((price * manual_dy) / 12.0) * qty
+                    for m in range(1, 13):
+                        forecasts.append({
+                            "ticker": ticker,
+                            "month": m,
+                            "amount": round(val_monthly, 2),
+                            "type": "DY Manual Configurado"
+                        })
+                        total_projected += val_monthly
             continue
             
         month_vals = {}

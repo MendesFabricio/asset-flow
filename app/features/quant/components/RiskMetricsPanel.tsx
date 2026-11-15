@@ -45,7 +45,7 @@ interface RiskMetrics {
   usd_hedge_suggestion?: string;
   upside_capture_pct?: number;
   downside_capture_pct?: number;
-  fii_credit_map?: { ticker: string; rating: string; duration: number; indexers: Record<string, number> }[];
+  fii_credit_map?: { ticker: string; rating: string; duration: number | null; indexers: Record<string, number> }[];
   interpretacao: {
     beta: string;
     sharpe: string;
@@ -559,9 +559,9 @@ export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
                       <tr key={i} className="hover:bg-slate-900/20">
                         <td className="py-1.5 text-white font-mono font-bold">{f.ticker}</td>
                         <td className="py-1.5 text-indigo-400">{f.rating}</td>
-                        <td className="py-1.5 text-right font-mono">{f.duration} anos</td>
+                        <td className="py-1.5 text-right font-mono">{f.duration !== null && f.duration !== undefined ? `${f.duration} anos` : 'N/D'}</td>
                         <td className="py-1.5 text-right font-mono text-[8px] text-slate-500">
-                          {Object.entries(f.indexers).map(([k, v]) => `${k}:${v}%`).join(" | ")}
+                          {Object.keys(f.indexers).length > 0 ? Object.entries(f.indexers).map(([k, v]) => `${k}:${v}%`).join(" | ") : 'N/D'}
                         </td>
                       </tr>
                     ))}

@@ -428,7 +428,7 @@ def generate_report():
             
             from domain.quant.risk import calculate_risk_metrics
             from infrastructure.price_cache import fetch_price_history as _fetch_price_history_fn
-            risk = calculate_risk_metrics(session, _fetch_price_history_fn)
+            risk = calculate_risk_metrics(session, _fetch_price_history_fn, dolar_rate=dash_data["dolar_rate"])
             if risk.get("status") == "Sucesso":
                 dash_data["beta"] = risk.get("beta")
                 dash_data["sharpe"] = risk.get("sharpe_12m")

@@ -2,7 +2,7 @@ from flask import g
 from db.models import get_active_positions
 from domain.quant.helpers import classify_asset_sector
 
-def calculate_sector_exposure(session):
+def calculate_sector_exposure(session, dolar_rate: float = 1.0):
     """
     Calcula a exposição por setor da carteira de ativos do usuário logado.
     Retorna uma estrutura de dicionário aninhado: { Setor: { Ticker: ValorTotal } }
@@ -29,7 +29,8 @@ def calculate_sector_exposure(session):
         if price <= 0:
             price = float(pos.average_price or 0)
 
-        total_value = qty * price
+        fator = dolar_rate if getattr(asset, "currency", "BRL") == "USD" and dolar_rate > 0 else 1.0
+        total_value = qty * price * fator
         ticker = asset.ticker.upper()
         category_name = asset.category.name if asset.category else 'Outros'
 

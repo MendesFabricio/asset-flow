@@ -21,8 +21,9 @@ class FacadeService:
 
     def run_monte_carlo_simulation(self, days: int = 252, simulations: int = 1000) -> dict:
         """Façade → quant_engine.run_monte_carlo"""
+        dolar_rate = float(self.get_usd_rate() or 1.0)
         with Session() as session:
-            return run_monte_carlo(session, _fetch_price_history_fn, days, simulations)
+            return run_monte_carlo(session, _fetch_price_history_fn, simulations=simulations, days=days, dolar_rate=dolar_rate)
 
     def _execute_with_cache(self, session, cache_key, func, allow_compute):
         def _internal(s):
@@ -77,6 +78,7 @@ class FacadeService:
         annual_dividend_yield_pct: float = 6.0,
     ) -> dict:
         """Façade → quant_engine.calculate_income_projection"""
+        dolar_rate = float(self.get_usd_rate() or 1.0)
         with Session() as session:
             return calculate_income_projection(
                 session,
@@ -84,6 +86,7 @@ class FacadeService:
                 years,
                 annual_return_pct,
                 annual_dividend_yield_pct,
+                dolar_rate=dolar_rate,
             )
 
     def calculate_risk_parity(self) -> dict:
@@ -98,8 +101,9 @@ class FacadeService:
 
     def calculate_sector_exposure(self) -> dict:
         """Façade → quant_engine.calculate_sector_exposure"""
+        dolar_rate = float(self.get_usd_rate() or 1.0)
         with Session() as session:
-            return calculate_sector_exposure(session)
+            return calculate_sector_exposure(session, dolar_rate=dolar_rate)
 
     def calculate_dividend_forecast(self) -> dict:
         """Façade → quant_engine.calculate_dividend_forecast"""

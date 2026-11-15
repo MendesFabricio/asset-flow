@@ -172,7 +172,8 @@ def calculate_risk_metrics(session, fetch_prices, allow_compute=True, dolar_rate
             continue
         cat = pos.asset.category.name if pos.asset.category else ""
         price = float(pos.asset.market_data[0].price or 0) if pos.asset.market_data else float(pos.average_price or 0)
-        val = float(pos.quantity) * price
+        fator = dolar_rate if getattr(pos.asset, "currency", "BRL") == "USD" and dolar_rate > 0 else 1.0
+        val = float(pos.quantity) * price * fator
         if val <= 0:
             continue
             
@@ -221,7 +222,8 @@ def calculate_risk_metrics(session, fetch_prices, allow_compute=True, dolar_rate
             continue
         cat = pos.asset.category.name if pos.asset.category else ""
         price = float(pos.asset.market_data[0].price or 0) if pos.asset.market_data else float(pos.average_price or 0)
-        val = float(pos.quantity) * price
+        fator = dolar_rate if getattr(pos.asset, "currency", "BRL") == "USD" and dolar_rate > 0 else 1.0
+        val = float(pos.quantity) * price * fator
         if val <= 0:
             continue
             
@@ -249,7 +251,8 @@ def calculate_risk_metrics(session, fetch_prices, allow_compute=True, dolar_rate
             continue
         cat = pos.asset.category.name if pos.asset.category else ""
         price = float(pos.asset.market_data[0].price or 0) if pos.asset.market_data else float(pos.average_price or 0)
-        val = float(pos.quantity) * price
+        fator = dolar_rate if getattr(pos.asset, "currency", "BRL") == "USD" and dolar_rate > 0 else 1.0
+        val = float(pos.quantity) * price * fator
         if val <= 0:
             continue
             
@@ -300,27 +303,35 @@ def calculate_risk_metrics(session, fetch_prices, allow_compute=True, dolar_rate
             downside_capture = round((mean_p_down / mean_b_down) * 100, 1)
 
     fii_credit_map = []
-    
+    fi_by_asset_id = {}
+    try:
+        from db.models import FixedIncome
+        fi_rows = session.query(FixedIncome).filter_by(user_id=uid, is_deleted=False).all()
+        if isinstance(fi_rows, list):
+            fi_by_asset_id = {row.asset_id: row for row in fi_rows}
+    except Exception:
+        pass
+    today_date = datetime.now().date()
+
     for pos in positions:
         if not pos.asset or pos.asset.category.name not in ["FII", "Renda Fixa", "Reserva"]:
             continue
         ticker = pos.asset.ticker.upper().strip()
-        
-        is_rf = pos.asset.category.name in ["Renda Fixa", "Reserva"]
-        
-        rating = pos.asset.credit_rating
+        fi_record = fi_by_asset_id.get(pos.asset_id)
+
+        rating = pos.asset.credit_rating or "N/D"
         duration = pos.asset.duration_years
+        if duration is None and fi_record is not None and getattr(fi_record, "due_date", None):
+            due_d = fi_record.due_date.date() if isinstance(fi_record.due_date, datetime) else fi_record.due_date
+            duration = round(max(0.0, (due_d - today_date).days / 365.25), 1)
+
         cdi = pos.asset.indexer_cdi_pct
         ipca = pos.asset.indexer_ipca_pct
-        
-        # Fallback dinâmico se a inteligência artificial ainda não extraiu ou o dado não existe
-        if not rating:
-            rating = "A (Medium)" if is_rf else "BBB (Standard)"
-        if duration is None:
-            duration = 3.5 if is_rf else 5.0
-            
         if cdi is None and ipca is None:
-            indexers = {"CDI": 80, "IPCA": 20} if is_rf else {"IPCA": 60, "CDI": 40}
+            if fi_record is not None and getattr(fi_record, "index_type", None):
+                indexers = {str(fi_record.index_type).upper(): 100}
+            else:
+                indexers = {}
         else:
             indexers = {}
             if cdi is not None: indexers["CDI"] = cdi

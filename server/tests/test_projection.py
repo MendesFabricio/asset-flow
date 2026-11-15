@@ -64,16 +64,15 @@ def test_calculate_dividend_forecast_without_history(mock_uid, mock_positions, m
     pos.asset_id = 1
     pos.asset.ticker = "PETR4"
     pos.quantity = 100
+    pos.manual_dy = 0
     pos.asset.market_data = [MagicMock(price=20.0)]
     mock_positions.return_value.all.return_value = [pos]
     
-    # No dividend history
+    # No dividend history and no manual_dy -> must not invent 5% DY
     mock_session.query.return_value.filter_by.return_value.all.return_value = []
     
     res = calculate_dividend_forecast(mock_session)
     
     assert res["status"] == "Sucesso"
-    assert len(res["details"]) == 12
-    # 20 * 0.05 / 12 * 100 = 8.33
-    assert abs(res["details"][0]["amount"] - 8.33) < 0.05
-    assert abs(res["total_projected"] - 100.0) < 0.1 # 8.33 * 12
+    assert res["details"] == []
+    assert res["total_projected"] == 0.0
