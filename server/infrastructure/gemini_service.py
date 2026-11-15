@@ -224,7 +224,7 @@ def _run_sentiment_analysis(asset_id: int, ticker: str, news_titles: list, posit
             news_list=news_list_str
         )
 
-        response_text, _provider = generate_ai_text(
+        response_text, provider = generate_ai_text(
             prompt=prompt,
             json_mode=True,
             temperature=0.2,
@@ -263,7 +263,7 @@ def _run_sentiment_analysis(asset_id: int, ticker: str, news_titles: list, posit
         asset.ai_status = "success"
         asset.ai_updated_at = datetime.now()
         session.commit()
-        logging.info(f"✅ [IA] Sentimento de {ticker} atualizado com sucesso via Gemini!")
+        logging.info(f"✅ [IA] Sentimento de {ticker} atualizado com sucesso via {provider}!")
 
     except Exception as e:
         session.rollback()

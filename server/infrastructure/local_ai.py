@@ -72,7 +72,7 @@ def stream_ollama_chat(
         "messages": messages,
         "stream": True,
         "options": {
-            "num_ctx": 8192,
+            "num_ctx": 16384,
             "temperature": 0.15,
         },
     }
@@ -114,7 +114,7 @@ def generate_ollama_completion(
         "messages": messages,
         "stream": False,
         "options": {
-            "num_ctx": 8192,
+            "num_ctx": 16384,
             "temperature": 0.15,
         },
     }

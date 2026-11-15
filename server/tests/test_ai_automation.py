@@ -312,5 +312,43 @@ class TestAIAutomationTools(unittest.TestCase):
         self.assertEqual(res["kpis"]["rating"], "AA")
         mock_ai.assert_called_once()
 
+    def test_execute_get_asset_fundamental_data_serializes_decimal_fields(self):
+        import json
+        from decimal import Decimal
+
+        mock_pos = MagicMock()
+        mock_pos.user_id = 1
+        mock_pos.quantity = Decimal("100.0")
+        mock_pos.average_price = Decimal("9.80")
+        mock_pos.target_percent = Decimal("10.0")
+        mock_pos.manual_dy = Decimal("11.25")
+        mock_pos.manual_lpa = Decimal("1.10")
+        mock_pos.manual_vpa = Decimal("9.45")
+        mock_pos.last_report_type = None
+
+        mock_asset = MagicMock()
+        mock_asset.ticker = "MXRF11"
+        mock_asset.name = "Maxi Renda FII"
+        mock_asset.cnpj = "97.521.225/0001-25"
+        mock_asset.cvm_code = None
+        mock_asset.currency = "BRL"
+        mock_asset.category.name = "FII"
+        mock_asset.category.target_percent = Decimal("40.0")
+        mock_asset.market_data = [MagicMock(price=Decimal("9.50"), min_6m=Decimal("8.90"), change_percent=Decimal("0.5"), rsi_14=Decimal("42.0"), sma_20=Decimal("9.55"))]
+        mock_asset.positions = [mock_pos]
+        mock_asset.ai_sentiment = "Neutro"
+        mock_asset.ai_summary = "Resumo"
+
+        mock_session = MagicMock()
+        mock_session.query().filter_by().first.return_value = mock_asset
+
+        with self.app.test_request_context():
+            g.user_id = 1
+            result = execute_get_asset_fundamental_data(mock_session, "MXRF11")
+
+        serialized = json.dumps(result, ensure_ascii=False)
+        self.assertIn("11.25", serialized)
+        self.assertIsInstance(result["posicao_na_carteira"]["manual_dy"], float)
+
 if __name__ == '__main__':
     unittest.main()
