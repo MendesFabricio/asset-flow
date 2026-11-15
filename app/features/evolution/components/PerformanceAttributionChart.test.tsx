@@ -28,9 +28,11 @@ vi.mock('swr', () => ({
       summary: {
         patrimonio_atual: 11200,
         total_aportes_liquidos: 1000,
+        total_aporte_do_bolso: 950,
         total_variacao_mercado: 200,
         total_dividendos: 50,
         retorno_total_acumulado: 250,
+        retorno_sobre_bolso_pct: 26.32,
         variacao_mercado_real_acumulada: 150,
         retorno_total_real_acumulado: 200,
         ipca_acumulado_pct: 0.5,

@@ -1,6 +1,6 @@
 # server/routes/fixed_income.py
 from flask import Blueprint, jsonify, request, g
-from db.models import Session, Asset, Position, Category, FixedIncome, safe_commit
+from db.models import Session, Asset, AssetTransaction, Position, Category, FixedIncome, safe_commit
 from datetime import date, datetime
 from decimal import Decimal
 from sqlalchemy.orm import joinedload
@@ -134,6 +134,7 @@ def handle_fixed_income():
             
             # Cria ou atualiza FixedIncome
             fi = db.query(FixedIncome).filter_by(asset_id=asset.id, user_id=g.user_id).first()
+            is_new_fi = fi is None
             if not fi:
                 fi = FixedIncome(asset_id=asset.id, user_id=g.user_id)
                 db.add(fi)
@@ -143,6 +144,22 @@ def handle_fixed_income():
             fi.issue_date = issue_date
             fi.due_date = due_date
             fi.is_deleted = False
+
+            # Garante registro de BUY para que o aporte entre na Atribuição e no Rebuild
+            if is_new_fi and quantity > 0 and average_price > 0:
+                db.flush()
+                has_tx = db.query(AssetTransaction).filter_by(position_id=pos.id, user_id=g.user_id).first()
+                if not has_tx:
+                    db.add(AssetTransaction(
+                        position_id=pos.id,
+                        user_id=g.user_id,
+                        ticker=ticker,
+                        type="BUY",
+                        quantity=quantity,
+                        unit_price=average_price,
+                        total_value=quantity * average_price,
+                        transaction_date=datetime.combine(issue_date, datetime.min.time()),
+                    ))
             
             safe_commit(db)
             return jsonify({"msg": "Título de Renda Fixa cadastrado com sucesso!"}), 201

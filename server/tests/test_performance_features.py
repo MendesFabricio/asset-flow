@@ -137,6 +137,11 @@ def test_calculate_monthly_attribution_accounting_identity(mock_evo, mock_ipca):
     assert m2["erosao_ipca"] == 12.0
     assert m2["variacao_mercado_real"] == 188.0
 
+    # Aporte do bolso = 1400 - 25 = 1375; Retorno total = 400 + 25 = 425
+    assert res["summary"]["total_aporte_do_bolso"] == 1375.0
+    assert res["summary"]["retorno_total_acumulado"] == 425.0
+    assert res["summary"]["retorno_sobre_bolso_pct"] == pytest.approx(30.91, abs=0.01)
+
 
 def test_calculate_xirr_known_flows():
     rate = calculate_xirr([(date(2025, 1, 1), -1000.0), (date(2026, 1, 1), 1100.0)])

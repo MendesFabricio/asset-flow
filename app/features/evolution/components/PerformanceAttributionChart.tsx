@@ -48,9 +48,11 @@ interface AttributionResponse {
   summary: {
     patrimonio_atual: number;
     total_aportes_liquidos: number;
+    total_aporte_do_bolso?: number;
     total_variacao_mercado: number;
     total_dividendos: number;
     retorno_total_acumulado: number;
+    retorno_sobre_bolso_pct?: number;
     variacao_mercado_real_acumulada: number;
     retorno_total_real_acumulado: number;
     ipca_acumulado_pct: number;
@@ -156,7 +158,24 @@ export default function PerformanceAttributionChart({
   const lastItem = history[history.length - 1];
   const lastPatrimonio = lastItem?.Patrimônio || 0;
   const lastInvestido = lastItem?.Investido || 0;
-  const growth = lastInvestido > 0 ? ((lastPatrimonio - lastInvestido) / lastInvestido) * 100 : 0;
+  const fallbackGrowth = lastInvestido > 0 ? ((lastPatrimonio - lastInvestido) / lastInvestido) * 100 : 0;
+  const totalReturnPct = data?.summary?.retorno_sobre_bolso_pct;
+  const growth = totalReturnPct !== undefined ? totalReturnPct : fallbackGrowth;
+  const growthLabel = totalReturnPct !== undefined ? 'Retorno Total s/ Bolso:' : 'Rentabilidade Histórica:';
+
+  const aporteBolso = data?.summary
+    ? (data.summary.total_aporte_do_bolso ?? data.summary.total_aportes_liquidos)
+    : 0;
+  const totalReturnVal = data?.summary
+    ? mode === 'real'
+      ? data.summary.retorno_total_real_acumulado
+      : data.summary.retorno_total_acumulado
+    : 0;
+  const marketDeltaVal = data?.summary
+    ? mode === 'real'
+      ? data.summary.variacao_mercado_real_acumulada
+      : data.summary.total_variacao_mercado
+    : 0;
 
   const activeRange = view === 'attribution' ? attrRange : historyRange;
   const setActiveRange = (next: TimeRange) => {
@@ -178,9 +197,9 @@ export default function PerformanceAttributionChart({
               <h3 className="text-base font-bold text-text-primary">
                 Evolução &amp; Atribuição Patrimonial
               </h3>
-              {history.length > 0 && (
+              {(history.length > 0 || data?.summary) && (
                 <span className="text-xs text-text-secondary">
-                  Rentabilidade Histórica:{' '}
+                  {growthLabel}{' '}
                   <strong className={growth >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
                     {growth > 0 ? '+' : ''}
                     {growth.toFixed(2)}%
@@ -286,30 +305,28 @@ export default function PerformanceAttributionChart({
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5 text-xs">
           <div className="p-3 rounded-lg bg-surface border border-border-subtle">
             <span className="text-[10px] uppercase tracking-wider text-text-secondary block">
-              Aportes Líquidos
+              Aporte do Bolso
             </span>
             <span className="text-sm font-bold text-blue-400">
-              {maskMoney(data.summary.total_aportes_liquidos)}
+              {maskMoney(aporteBolso)}
+            </span>
+            <span className="text-[10px] text-text-secondary block mt-0.5">
+              Compras líq. (c/ reinvest.): {maskMoney(data.summary.total_aportes_liquidos)}
             </span>
           </div>
           <div className="p-3 rounded-lg bg-surface border border-border-subtle">
             <span className="text-[10px] uppercase tracking-wider text-text-secondary block">
-              {mode === 'real' ? 'Ganho Real de Mercado' : 'Variação de Mercado'}
+              {mode === 'real' ? 'Retorno Total Real' : 'Retorno Total'}
             </span>
             <span
               className={`text-sm font-bold ${
-                (mode === 'real'
-                  ? data.summary.variacao_mercado_real_acumulada
-                  : data.summary.total_variacao_mercado) >= 0
-                  ? 'text-emerald-400'
-                  : 'text-rose-400'
+                totalReturnVal >= 0 ? 'text-emerald-400' : 'text-rose-400'
               }`}
             >
-              {maskMoney(
-                mode === 'real'
-                  ? data.summary.variacao_mercado_real_acumulada
-                  : data.summary.total_variacao_mercado,
-              )}
+              {maskMoney(totalReturnVal)}
+            </span>
+            <span className="text-[10px] text-text-secondary block mt-0.5">
+              Mercado: {maskMoney(marketDeltaVal)}
             </span>
           </div>
           <div className="p-3 rounded-lg bg-surface border border-border-subtle">
@@ -319,6 +336,9 @@ export default function PerformanceAttributionChart({
             <span className="text-sm font-bold text-amber-400">
               {maskMoney(data.summary.total_dividendos)}
             </span>
+            <span className="text-[10px] text-text-secondary block mt-0.5">
+              Proventos pagos até hoje
+            </span>
           </div>
           <div className="p-3 rounded-lg bg-surface border border-border-subtle">
             <span className="text-[10px] uppercase tracking-wider text-text-secondary block">
@@ -326,6 +346,9 @@ export default function PerformanceAttributionChart({
             </span>
             <span className="text-sm font-bold text-text-primary">
               {data.summary.ipca_acumulado_pct.toFixed(2)}%
+            </span>
+            <span className="text-[10px] text-text-secondary block mt-0.5">
+              Patrimônio: {maskMoney(data.summary.patrimonio_atual)}
             </span>
           </div>
         </div>

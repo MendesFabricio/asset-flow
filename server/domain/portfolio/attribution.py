@@ -108,9 +108,11 @@ def calculate_monthly_attribution(session, user_id: int) -> dict:
                 "patrimonio_atual": 0.0,
                 "patrimonio_inicial": 0.0,
                 "total_aportes_liquidos": 0.0,
+                "total_aporte_do_bolso": 0.0,
                 "total_variacao_mercado": 0.0,
                 "total_dividendos": 0.0,
                 "retorno_total_acumulado": 0.0,
+                "retorno_sobre_bolso_pct": 0.0,
                 "variacao_mercado_real_acumulada": 0.0,
                 "retorno_total_real_acumulado": 0.0,
                 "ipca_acumulado_pct": 0.0,
@@ -213,6 +215,7 @@ def calculate_monthly_attribution(session, user_id: int) -> dict:
             "variacao_mercado_real": variacao_mercado_real,
             "retorno_total_real": retorno_total_real,
             "aportes_acumulados": cum_aportes,
+            "aporte_bolso_acumulado": round(cum_aportes - cum_dividendos, 2),
             "patrimonio_acumulado": patrimonio_fim,
             "retorno_acumulado": round(cum_mercado + cum_dividendos, 2),
             "retorno_real_acumulado": round(cum_mercado_real + cum_dividendos, 2),
@@ -220,6 +223,13 @@ def calculate_monthly_attribution(session, user_id: int) -> dict:
         prev_market = patrimonio_fim
 
     ipca_acumulado_pct = round((cum_ipca_factor - 1.0) * 100.0, 2)
+    retorno_total_acumulado = round(cum_mercado + cum_dividendos, 2)
+    total_aporte_do_bolso = round(cum_aportes - cum_dividendos, 2)
+    retorno_sobre_bolso_pct = (
+        round((retorno_total_acumulado / total_aporte_do_bolso) * 100.0, 2)
+        if total_aporte_do_bolso > 0
+        else 0.0
+    )
     return {
         "status": "Sucesso",
         "ipca_source": ipca_source,
@@ -228,9 +238,11 @@ def calculate_monthly_attribution(session, user_id: int) -> dict:
             "patrimonio_atual": series[-1]["patrimonio_fim"],
             "patrimonio_inicial": series[0]["patrimonio_inicio"],
             "total_aportes_liquidos": cum_aportes,
+            "total_aporte_do_bolso": total_aporte_do_bolso,
             "total_variacao_mercado": cum_mercado,
             "total_dividendos": cum_dividendos,
-            "retorno_total_acumulado": round(cum_mercado + cum_dividendos, 2),
+            "retorno_total_acumulado": retorno_total_acumulado,
+            "retorno_sobre_bolso_pct": retorno_sobre_bolso_pct,
             "variacao_mercado_real_acumulada": cum_mercado_real,
             "retorno_total_real_acumulado": round(cum_mercado_real + cum_dividendos, 2),
             "ipca_acumulado_pct": ipca_acumulado_pct,
