@@ -39,10 +39,16 @@ def _to_yf_ticker(ticker: str, category_name: str) -> str:
 
 _RF_CACHE = {"value": None, "expires_at": 0.0}
 
+def _new_standalone_session():
+    from sqlalchemy.orm import sessionmaker
+    from db.models import engine
+    return sessionmaker(bind=engine)()
+
+
 def _read_cached_selic() -> float | None:
     try:
-        from db.models import Session as DBSession, SystemCache
-        with DBSession() as session:
+        from db.models import SystemCache
+        with _new_standalone_session() as session:
             rec = session.query(SystemCache).filter_by(key="bcb_selic_meta").first()
             if rec and rec.value:
                 val = float(rec.value)
@@ -56,8 +62,8 @@ def _read_cached_selic() -> float | None:
 def _write_cached_selic(val: float) -> None:
     try:
         from datetime import datetime
-        from db.models import Session as DBSession, SystemCache, safe_commit
-        with DBSession() as session:
+        from db.models import SystemCache, safe_commit
+        with _new_standalone_session() as session:
             rec = session.query(SystemCache).filter_by(key="bcb_selic_meta").first()
             if not rec:
                 rec = SystemCache(key="bcb_selic_meta")
@@ -121,44 +127,103 @@ def _calculate_ewma_covariance(returns_df, decay=0.94):
     ewma_cov_df = returns_df.ewm(alpha=alpha).cov()
     return ewma_cov_df.xs(returns_df.index[-1]).fillna(0.0)
 
+_SECTOR_CACHE: dict[str, str] = {}
+_SECTOR_CACHE_LOADED = False
+
+_YF_SECTOR_PT = {
+    "Financial Services": "Financeiro",
+    "Utilities": "Utilidades / Energia",
+    "Energy": "Commodities & Materiais",
+    "Basic Materials": "Commodities & Materiais",
+    "Industrials": "Bens Industriais",
+    "Technology": "Tecnologia & Inovação",
+    "Communication Services": "Comunicações & Tech",
+    "Consumer Defensive": "Consumo & Agronegócio",
+    "Consumer Cyclical": "Consumo & Varejo",
+    "Real Estate": "Imobiliário",
+    "Healthcare": "Saúde",
+}
+
+
+def _load_sector_cache() -> None:
+    global _SECTOR_CACHE_LOADED
+    if _SECTOR_CACHE_LOADED:
+        return
+    _SECTOR_CACHE_LOADED = True
+    try:
+        import json
+        from db.models import SystemCache
+        with _new_standalone_session() as session:
+            rec = session.query(SystemCache).filter_by(key="sector_map_v1").first()
+            if rec and rec.value:
+                data = json.loads(rec.value)
+                if isinstance(data, dict):
+                    _SECTOR_CACHE.update({str(k): str(v) for k, v in data.items()})
+    except Exception:
+        pass
+
+
+def _save_sector_cache() -> None:
+    try:
+        import json
+        from datetime import datetime
+        from db.models import SystemCache, safe_commit
+        with _new_standalone_session() as session:
+            rec = session.query(SystemCache).filter_by(key="sector_map_v1").first()
+            if not rec:
+                rec = SystemCache(key="sector_map_v1")
+                session.add(rec)
+            rec.value = json.dumps(_SECTOR_CACHE)
+            rec.updated_at = datetime.now()
+            safe_commit(session)
+    except Exception:
+        pass
+
+
 def classify_asset_sector(ticker: str, category_name: str) -> str:
-    """Classifica dinamicamente um ativo em um setor normalizado com base em seu ticker e categoria."""
+    """Classifica dinamicamente um ativo em um setor normalizado via cache/Yahoo Finance e fallback por ticker."""
     t = ticker.upper().strip()
     cat = category_name.strip() if category_name else ""
-    
+
     if cat in ["Renda Fixa", "Reserva"]:
         return "Reserva & Renda Fixa"
-    if cat == "Cripto" or any(x in t for x in ["BTC", "ETH", "SOL"]):
+    if cat == "Cripto" or any(x in t for x in ["BTC", "ETH", "SOL", "COIN11", "ETHY11"]):
         return "Tecnologia & Cripto"
-        
-    # Setor Financeiro (Bancos, Seguradoras, FIIs de Recebíveis/Papel)
-    if any(x in t for x in ["ITUB", "BBDC", "BBAS", "SANB", "ITSA", "BPAC", "BBPO", "BBRC", "KNCR", "HGCR", "MXRF", "CPTS", "KNIP"]):
-        return "Financeiro"
-        
-    # Setor Elétrico / Saneamento / Utilidades
-    if any(x in t for x in ["EGIE", "EQTL", "CPLE", "TAEE", "TRPL", "ENGI", "CPFE", "ELET", "CMIG", "ALUP", "SBSP", "CSMG"]):
-        return "Utilidades / Energia"
-        
-    # Commodities, Mineração, Siderurgia, Petróleo
-    if any(x in t for x in ["PETR", "PRIO", "RECV", "ENAT", "RRRP", "CSAN", "VALE", "CSNA", "USIM", "GGBR", "SUZB", "KLBN"]):
-        return "Commodities & Materiais"
-        
-    # Empresas de Tecnologia globais e locais, Bens Industriais complexos
-    if any(x in t for x in ["AAPL", "MSFT", "GOOG", "META", "AMZN", "NVDA", "TSLA", "TOTS", "WEGE", "NTCO"]):
-        return "Tecnologia & Inovação"
-        
-    # Setor Imobiliário / FIIs de Tijolo / Incorporadoras
-    if cat == "FII" or any(x in t for x in ["HGBS", "VISC", "HGLG", "BTLG", "XPLG", "HGRE", "BRCO", "KNRI", "XPML", "HFOF"]):
-        return "Imobiliário"
-        
-    # Varejo, Alimentos, Agronegócio
-    if any(x in t for x in ["LREN", "MGLU", "SMTO", "SLCE", "BEEF", "JBSS", "MRFG", "ABEV", "ASAI", "CRFB"]):
-        return "Consumo & Agronegócio"
-        
-    # Fallback por Categoria principal se não casou com tickers conhecidos
     if cat == "FII":
         return "Imobiliário"
+
+    _load_sector_cache()
+    if t in _SECTOR_CACHE:
+        return _SECTOR_CACHE[t]
+
+    if cat == "Ação":
+        try:
+            import yfinance as yf
+            yf_t = _to_yf_ticker(t, cat)
+            info = yf.Ticker(yf_t).info or {}
+            raw_sector = info.get("sector")
+            if raw_sector and raw_sector in _YF_SECTOR_PT:
+                mapped = _YF_SECTOR_PT[raw_sector]
+                _SECTOR_CACHE[t] = mapped
+                _save_sector_cache()
+                return mapped
+        except Exception:
+            pass
+
+    if any(x in t for x in ["ITUB", "BBDC", "BBAS", "SANB", "ITSA", "BPAC", "BBSE", "CXSE"]):
+        return "Financeiro"
+    if any(x in t for x in ["EGIE", "EQTL", "CPLE", "TAEE", "TRPL", "ISAE", "ENGI", "CPFE", "ELET", "CMIG", "ALUP", "SBSP", "CSMG", "SAPR", "AURE"]):
+        return "Utilidades / Energia"
+    if any(x in t for x in ["PETR", "PRIO", "RECV", "ENAT", "RRRP", "CSAN", "VALE", "CSNA", "USIM", "GGBR", "GOAU", "SUZB", "KLBN"]):
+        return "Commodities & Materiais"
+    if any(x in t for x in ["AAPL", "MSFT", "GOOG", "META", "AMZN", "NVDA", "TSLA", "TOTS"]):
+        return "Tecnologia & Inovação"
+    if any(x in t for x in ["WEGE", "ROMI", "EMBR"]):
+        return "Bens Industriais"
+    if any(x in t for x in ["LREN", "MGLU", "SMTO", "SLCE", "BEEF", "JBSS", "MRFG", "ABEV", "ASAI", "CRFB"]):
+        return "Consumo & Agronegócio"
+    if cat == "Internacional":
+        return "Internacional / Global"
     if cat == "Ação":
         return "Outros - Ações"
-        
     return "Outros / Diversificados"

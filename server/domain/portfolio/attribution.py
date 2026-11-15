@@ -14,8 +14,8 @@ from sqlalchemy import func
 from db.models import AssetTransaction, Dividend, SystemCache
 from domain.portfolio.monthly_snapshot import get_monthly_evolution_series
 
-IPCA_CACHE_KEY = "bcb_sgs_433_ipca_v1"
-FALLBACK_MONTHLY_IPCA = 0.0040  # ~4.9% a.a. conservador se BCB estiver inacessível
+IPCA_CACHE_KEY = "bcb_sgs_433_ipca_v2"
+FALLBACK_MONTHLY_IPCA = 0.0040  # Usado apenas se BCB SGS 433 nunca respondeu
 
 
 def _parse_bcb_date(date_str: str) -> Optional[Tuple[int, int]]:
@@ -46,8 +46,14 @@ def get_monthly_ipca_series(session) -> Tuple[Dict[Tuple[int, int], float], str]
             logging.warning(f"Falha ao ler cache IPCA: {exc}")
 
     try:
-        url = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.433/dados/ultimos/60?formato=json"
-        res = requests.get(url, timeout=4.0)
+        end_dt = datetime.now().date()
+        start_dt = end_dt - timedelta(days=3600)
+        url = (
+            "https://api.bcb.gov.br/dados/serie/bcdata.sgs.433/dados"
+            f"?formato=json&dataInicial={start_dt.strftime('%d/%m/%Y')}"
+            f"&dataFinal={end_dt.strftime('%d/%m/%Y')}"
+        )
+        res = requests.get(url, timeout=6.0)
         if res.status_code == 200:
             rows = res.json()
             fresh_map: Dict[Tuple[int, int], float] = {}
@@ -170,6 +176,8 @@ def calculate_monthly_attribution(session, user_id: int) -> dict:
     cum_mercado_real = 0.0
     cum_ipca_factor = 1.0
     ipca_fallback_months = 0
+    recent_ipca_vals = [ipca_by_ym[k] for k in sorted(ipca_by_ym.keys())[-12:]] if ipca_by_ym else []
+    recent_ipca_avg = (sum(recent_ipca_vals) / len(recent_ipca_vals)) if recent_ipca_vals else FALLBACK_MONTHLY_IPCA
 
     for snap in snapshots:
         y = int(snap["year"])
@@ -185,7 +193,7 @@ def calculate_monthly_attribution(session, user_id: int) -> dict:
         ipca_is_fallback = (y, m) not in ipca_by_ym
         if ipca_is_fallback:
             ipca_fallback_months += 1
-        ipca_m = ipca_by_ym.get((y, m), FALLBACK_MONTHLY_IPCA)
+        ipca_m = ipca_by_ym.get((y, m), recent_ipca_avg)
         cum_ipca_factor *= (1.0 + ipca_m)
 
         # Erosão inflacionária sobre o patrimônio inicial exposto ao mês

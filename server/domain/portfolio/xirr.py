@@ -164,7 +164,12 @@ def get_cdi_period_return(session, start_date: date, end_date: date) -> Tuple[fl
         except Exception:
             pass
 
-    fallback_pct = round((((1.0 + CDI_FALLBACK_ANNUAL) ** (days / 365.0)) - 1.0) * 100.0, 2)
+    try:
+        from domain.quant.helpers import get_risk_free_rate
+        annual_rate = get_risk_free_rate()
+    except Exception:
+        annual_rate = CDI_FALLBACK_ANNUAL
+    fallback_pct = round((((1.0 + annual_rate) ** (days / 365.0)) - 1.0) * 100.0, 2)
     return fallback_pct, "fallback"
 
 
