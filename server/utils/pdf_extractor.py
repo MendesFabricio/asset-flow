@@ -94,22 +94,18 @@ def extract_kpis_from_pdf(pdf_path_or_url: str, is_fii: bool = True) -> dict:
             f"Retorne APENAS o JSON válido sem explicações, introduções ou Markdown."
         )
         
-        # Faz requisição local ao Gemini
-        from infrastructure.gemini_service import MODEL_NAME, get_genai_client
-        from google.genai import types
-        
+        from infrastructure.gemini_service import generate_ai_text
+
         try:
-            client = get_genai_client()
-            response = client.models.generate_content(
-                model=MODEL_NAME,
-                contents=prompt,
-                config=types.GenerateContentConfig(response_mime_type="application/json")
+            content, _provider = generate_ai_text(
+                prompt=prompt,
+                json_mode=True,
+                temperature=0.1,
             )
-            content = response.text.strip()
             parsed = json.loads(content)
             return {"status": "Sucesso", "kpis": parsed}
         except Exception as e:
-            raise Exception(f"Gemini falhou: {e}")
+            raise Exception(f"IA falhou: {e}")
             
     except Exception as e:
         logging.error(f"❌ Erro ao extrair KPIs do PDF: {e}", exc_info=True)

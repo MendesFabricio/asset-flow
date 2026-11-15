@@ -289,5 +289,28 @@ class TestAIAutomationTools(unittest.TestCase):
         line3 = _format_rationale_item({"text": "Síntese geral.", "source_index": None}, news)
         self.assertEqual(line3, "- Síntese geral.")
 
+    def test_pdf_extractor_uses_generate_ai_text_fallback(self):
+        import utils.pdf_extractor as pdf_ext
+
+        fake_doc = MagicMock()
+        fake_page = MagicMock()
+        fake_page.get_text.return_value = "Relatorio Gerencial VGHF11 Rating AA Duration 3.2 anos 70% CDI 30% IPCA"
+        fake_doc.__len__.return_value = 1
+        fake_doc.__getitem__.return_value = fake_page
+
+        fake_resp = MagicMock()
+        fake_resp.status_code = 200
+        fake_resp.content = b"%PDF-1.4 fake"
+        fake_resp.raise_for_status.return_value = None
+
+        with patch("utils.pdf_extractor.requests.get", return_value=fake_resp), \
+             patch("utils.pdf_extractor.fitz.open", return_value=fake_doc), \
+             patch("infrastructure.gemini_service.generate_ai_text", return_value=('{"rating": "AA", "duration_anos": 3.2}', "ollama")) as mock_ai:
+            res = pdf_ext.extract_kpis_from_pdf("https://fnet.bmfbovespa.com.br/fnet/publico/exibirDocumento?id=1", "FII")
+
+        self.assertEqual(res["status"], "Sucesso")
+        self.assertEqual(res["kpis"]["rating"], "AA")
+        mock_ai.assert_called_once()
+
 if __name__ == '__main__':
     unittest.main()
