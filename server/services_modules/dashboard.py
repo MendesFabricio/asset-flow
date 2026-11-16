@@ -42,7 +42,11 @@ class DashboardService:
                     if not asset: 
                         continue 
 
-                    mdata = asset.market_data[0] if asset.market_data else None
+                    mdata = (
+                        max(asset.market_data, key=lambda m: (m.date or datetime.min.date(), m.id or 0))
+                        if asset.market_data
+                        else None
+                    )
                     qtd, pm, preco, min_6m, change_percent = extract_position_metrics(pos, mdata)
 
                     fator = dolar_rate if asset.currency == 'USD' else Decimal('1.0')

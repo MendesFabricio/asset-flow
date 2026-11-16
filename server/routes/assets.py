@@ -285,18 +285,24 @@ def get_assets():
 @assets_bp.route('/api/refresh_prices', methods=['POST'])
 def refresh_prices():
     uid = getattr(g, 'user_id', None)
+    sync = request.args.get('sync', '').lower() in ('1', 'true', 'yes')
+
     def _bg_refresh():
-        if service._price_lock.acquire(blocking=False):
+        if service._price_lock.acquire(blocking=sync):
             try:
-                logging.info("⚡ Executando atualização manual de preços em background...")
+                logging.info("⚡ Executando atualização manual de preços...")
                 service.current_user_id = uid
                 service.update_prices(user_id=uid)
                 service.take_daily_snapshot()
             except Exception as e:
-                logging.error(f"⚠️ Erro no background de refresh_prices: {e}")
+                logging.error(f"⚠️ Erro no refresh_prices: {e}")
             finally:
                 service._price_lock.release()
-                
+
+    if sync:
+        _bg_refresh()
+        return jsonify({"status": "Sucesso", "msg": "Cotações atualizadas."}), 200
+
     from services import background_task_executor
     background_task_executor.submit(_bg_refresh)
     

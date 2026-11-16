@@ -65,9 +65,18 @@ def update_prices(session, invalidate_cache_callback, user_id=None):
 
         count_ok = 0
         asset_ids = [asset.id for asset in assets]
-        existing_mdata = {
-            m.asset_id: m for m in session.query(MarketData).filter(MarketData.asset_id.in_(asset_ids)).all()
-        }
+        existing_mdata = {}
+        all_mdata = (
+            session.query(MarketData)
+            .filter(MarketData.asset_id.in_(asset_ids))
+            .order_by(MarketData.date.desc(), MarketData.id.desc())
+            .all()
+        )
+        for m in all_mdata:
+            if m.asset_id not in existing_mdata:
+                existing_mdata[m.asset_id] = m
+            else:
+                session.delete(m)
 
         for symbol, asset in tickers_map.items():
             try:

@@ -53,7 +53,7 @@ export function usePortfolioHandlers(
   const handleManualRefresh = useCallback(async (setIsRefetching: (v: boolean) => void, setShowRefreshSuccess: (v: boolean) => void) => {
     setIsRefetching(true);
     try {
-      await apiCall('/api/refresh_prices', { method: 'POST' });
+      await apiCall('/api/refresh_prices?sync=true', { method: 'POST', timeout: 45000 });
       await refetch();
       setShowRefreshSuccess(true);
       setTimeout(() => setShowRefreshSuccess(false), 2000);
