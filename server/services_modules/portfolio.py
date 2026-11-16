@@ -6,7 +6,7 @@ from db.models import Position, Asset, MarketData, Category, safe_commit
 from db.session import Session
 
 class PortfolioCrudService:
-    def update_position(self, ticker, qtd, pm, meta, dy=0, lpa=0, vpa=0, current_price=None):
+    def update_position(self, ticker, qtd, pm, meta, dy=0, lpa=0, vpa=0, current_price=None, tx_type=None, tx_amount=None):
         logging.info(f"📝 JOB: Recebendo atualização de {ticker} -> Qtd: {qtd}, PM: {pm}, Meta: {meta}%")
         user_id = self.current_user_id
         with Session() as session:
@@ -35,7 +35,25 @@ class PortfolioCrudService:
                 pos.manual_lpa = Decimal(str(lpa or 0))
                 pos.manual_vpa = Decimal(str(vpa or 0))
 
-                if is_new_pos or old_qty != new_qty or old_pm != new_pm:
+                normalized_tx_type = str(tx_type).strip().upper() if tx_type else None
+                if normalized_tx_type in ("DEPOSIT", "WITHDRAW", "BALANCE"):
+                    from db.models import AssetTransaction
+                    if pos.id is None:
+                        session.flush()
+                    recorded_type = "ADJUSTMENT" if normalized_tx_type == "BALANCE" else normalized_tx_type
+                    amount_val = Decimal(str(tx_amount)) if tx_amount is not None else (new_qty * new_pm)
+                    res_tx = AssetTransaction(
+                        position_id=pos.id,
+                        user_id=user_id,
+                        ticker=ticker,
+                        type=recorded_type,
+                        quantity=new_qty,
+                        unit_price=amount_val,
+                        total_value=amount_val,
+                        transaction_date=datetime.now(),
+                    )
+                    session.add(res_tx)
+                elif is_new_pos or old_qty != new_qty or old_pm != new_pm:
                     from db.models import AssetTransaction
                     if pos.id is None:
                         session.flush()
@@ -345,6 +363,12 @@ class PortfolioCrudService:
                             if running_qty <= 0:
                                 running_qty = Decimal("0.0")
                                 running_pm = Decimal("0.0")
+                        elif t.type == "DEPOSIT":
+                            running_qty = t.quantity or Decimal("1.0")
+                            running_pm += t.total_value if t.total_value is not None else t.unit_price
+                        elif t.type == "WITHDRAW":
+                            running_qty = t.quantity or Decimal("1.0")
+                            running_pm = max(Decimal("0.0"), running_pm - (t.total_value if t.total_value is not None else t.unit_price))
                         elif t.type in ("SPLIT", "INPLIT", "BONUS", "AMORTIZATION", "SPIN_OFF", "ADJUSTMENT"):
                             running_qty = t.quantity
                             running_pm = t.unit_price

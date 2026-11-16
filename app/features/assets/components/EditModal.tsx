@@ -26,15 +26,18 @@ const TX_TYPE_LABELS: Record<string, string> = {
   TICKER_CHANGE_IN: 'CONVERSÃO (ENTRADA)',
   TICKER_CHANGE_OUT: 'CONVERSÃO (SAÍDA)',
   AMORTIZATION: 'AMORTIZAÇÃO',
+  DEPOSIT: 'DEPÓSITO',
+  WITHDRAW: 'RESGATE',
+  ADJUSTMENT: 'AJUSTE DE SALDO',
 };
 
 export function getTransactionDisplayMeta(tx: AssetTransaction) {
   const typeUpper = String(tx.type || '').toUpperCase();
   const label = TX_TYPE_LABELS[typeUpper] ?? String(tx.type).replaceAll('_', ' ');
   const badgeClass =
-    typeUpper === 'BUY' || typeUpper === 'SPIN_OFF_RECEIPT' || typeUpper === 'TICKER_CHANGE_IN'
+    typeUpper === 'BUY' || typeUpper === 'DEPOSIT' || typeUpper === 'SPIN_OFF_RECEIPT' || typeUpper === 'TICKER_CHANGE_IN'
       ? 'bg-status-success/10 text-status-success'
-      : typeUpper === 'SELL' || typeUpper === 'TICKER_CHANGE_OUT'
+      : typeUpper === 'SELL' || typeUpper === 'WITHDRAW' || typeUpper === 'TICKER_CHANGE_OUT'
       ? 'bg-status-error/10 text-status-error'
       : 'bg-accent-soft text-accent';
 
@@ -366,6 +369,8 @@ export const EditModal = ({ isOpen, onClose, onSave, ativo, allAssets = [] }: Ed
           lpa: Number(settingsData.manual_lpa),
           vpa: Number(settingsData.manual_vpa),
           current_price: reservaPreview.nextBalance,
+          tx_type: reservaMode,
+          tx_amount: Number(reservaAmount),
         }),
       });
       onSave();

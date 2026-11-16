@@ -39,6 +39,8 @@ class UpdateInput(BaseModel):
     lpa: float = Field(default=0)
     vpa: float = Field(default=0)
     current_price: Optional[float] = Field(default=None)
+    tx_type: Optional[str] = Field(default=None)
+    tx_amount: Optional[float] = Field(default=None)
 
 # --- Funções Auxiliares de Threading ---
 
@@ -130,7 +132,9 @@ def update_asset():
             dy=body.dy, 
             lpa=body.lpa, 
             vpa=body.vpa,
-            current_price=body.current_price
+            current_price=body.current_price,
+            tx_type=body.tx_type,
+            tx_amount=body.tx_amount,
         )
         
         def _background_update():

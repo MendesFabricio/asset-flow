@@ -232,6 +232,12 @@ def apply_transaction_to_position_state(pos: dict, tx, use_decimal: bool = True)
             pos["total_cost"] = qty * unit_price
     elif tx_type == "AMORTIZATION":
         pos["total_cost"] = max(zero, pos["total_cost"] - val)
+    elif tx_type == "DEPOSIT":
+        pos["quantity"] = qty
+        pos["total_cost"] += val
+    elif tx_type == "WITHDRAW":
+        pos["quantity"] = qty
+        pos["total_cost"] = max(zero, pos["total_cost"] - val)
 
 
 def generate_or_update_monthly_snapshot(
