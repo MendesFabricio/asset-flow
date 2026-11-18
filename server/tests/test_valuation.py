@@ -349,8 +349,9 @@ def test_signal_snapshot_change_alert_and_backtest(val_client):
             safe_commit(session)
         asset_id = int(asset.id)
 
-        day_prev = date.today() - timedelta(days=35)
-        day_cur = date.today() - timedelta(days=1)
+        day_prev = date.today() - timedelta(days=190)
+        day_cur = date.today() - timedelta(days=2)
+        day_same = date.today() - timedelta(days=1)
 
         # Limpa resíduos anteriores do ticker de teste
         session.query(SignalSnapshot).filter_by(user_id=1, asset_id=asset_id).delete()
@@ -358,7 +359,7 @@ def test_signal_snapshot_change_alert_and_backtest(val_client):
         session.query(MarketData).filter_by(asset_id=asset_id).delete()
         safe_commit(session)
 
-        # Snapshot antigo (NEUTRO a R$ 10) e cotação +30d (R$ 12 -> +20%)
+        # Snapshot antigo (NEUTRO a R$ 10) e cotações +30d (12 -> +20%), +90d (13 -> +30%), +180d (15 -> +50%)
         session.add(SignalSnapshot(
             user_id=1, asset_id=asset_id, ticker="TESTSIG3", date=day_prev,
             score=40, status="NEUTRO", recomendacao="🟡 MANTER",
@@ -366,6 +367,8 @@ def test_signal_snapshot_change_alert_and_backtest(val_client):
             p_vp=Decimal("1.0"), quality_score=70,
         ))
         session.add(MarketData(asset_id=asset_id, date=day_prev + timedelta(days=32), price=Decimal("12.00")))
+        session.add(MarketData(asset_id=asset_id, date=day_prev + timedelta(days=92), price=Decimal("13.00")))
+        session.add(MarketData(asset_id=asset_id, date=day_prev + timedelta(days=182), price=Decimal("15.00")))
         safe_commit(session)
 
         # Novo snapshot mudando status para COMPRA_FORTE gera TriggeredAlert
@@ -381,6 +384,19 @@ def test_signal_snapshot_change_alert_and_backtest(val_client):
         )
         safe_commit(session)
 
+        # Snapshot seguinte no mesmo status COMPRA_FORTE NÃO deve duplicar alerta
+        BackupService()._upsert_signal_snapshots(
+            session,
+            user_id=1,
+            ativos=[{
+                "id": asset_id, "ticker": "TESTSIG3", "score": 83, "status": "COMPRA_FORTE",
+                "recomendacao": "🟢 APORTAR FORTE", "preco_atual": 12.1,
+                "mg_graham": 24.0, "mg_bazin": 29.0, "p_vp": 0.9, "quality_score": 85,
+            }],
+            snap_date=day_same,
+        )
+        safe_commit(session)
+
         alerts = session.query(TriggeredAlert).filter_by(ticker="TESTSIG3", condition="SIGNAL_CHANGE").all()
         assert len(alerts) == 1
         assert "NEUTRO → COMPRA_FORTE" in alerts[0].note
@@ -388,12 +404,16 @@ def test_signal_snapshot_change_alert_and_backtest(val_client):
     res = val_client.get("/api/valuation/signals/history?ticker=TESTSIG3")
     assert res.status_code == 200
     payload = res.get_json()
-    assert payload["summary"]["total"] == 2
+    assert payload["summary"]["total"] == 3
     assert len(payload["summary"]["recent_changes"]) == 1
     assert payload["summary"]["recent_changes"][0]["to_status"] == "COMPRA_FORTE"
     old_item = next(i for i in payload["items"] if i["status"] == "NEUTRO")
     assert old_item["forward_return_30d"] == 20.0
+    assert old_item["forward_return_90d"] == 30.0
+    assert old_item["forward_return_180d"] == 50.0
     assert payload["summary"]["backtest"]["NEUTRO"]["avg_return_30d"] == 20.0
+    assert payload["summary"]["backtest"]["NEUTRO"]["avg_return_90d"] == 30.0
+    assert payload["summary"]["backtest"]["NEUTRO"]["avg_return_180d"] == 50.0
 
     # Cleanup
     with Session() as session:

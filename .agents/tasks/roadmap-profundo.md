@@ -29,7 +29,10 @@
 | F6 | C6 `replaceState` | ✅ `:64` |
 | F6 | D quant warm 30→60 min + cache prune | ✅ alinhado ao TTL de 1h + `prune_expired_system_cache` no job |
 
-**Pendências fechadas:** A2 OR puro, F5 completo (backtest + gráfico + alertas) e limpeza de código/dependências mortas de `otimizacao-e-limpeza.md` concluídos.
+**Pendências fechadas:** A2 OR puro, F5 completo (backtest 30/90/180d + gráfico + alertas `SIGNAL_CHANGE` + testes `SignalsBookView.test.tsx`), `package-lock.json` sincronizado sem `@headlessui/react`, `cleanup_http_sessions` confirmado ativo via `@atexit.register` (`backend.py:222`), e limpeza de código/dependências mortas de `otimizacao-e-limpeza.md` concluídos.
+
+**Verificação independente em 18/11 — 136 testes backend, 55 frontend (`SignalsBookView.test.tsx` adicionado), `tsc` limpo, lockfile sincronizado.**
+
 
 ---
 
