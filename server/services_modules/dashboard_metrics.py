@@ -81,20 +81,19 @@ def apply_strategy(pos, metrics, falta, preco, min_6m, screener_item=None):
         return rec_text, status, score, " • ".join(motivos), 50
 
     if falta > Decimal('0'):
-        score += 30
-        motivos.append("⚖️ Abaixo do Alvo (+30)")
+        score += 25
+        motivos.append("⚖️ Abaixo do Alvo (+25)")
     else:
-        score -= 10
-        motivos.append("📊 Acima da Meta (-10)")
+        score -= 20
+        motivos.append("📊 Acima da Meta (-20)")
 
     # DY Bonus
-    dy = metrics.get("renda_mensal_est", Decimal('0.0'))
     if pos.quantity and pos.quantity > 0:
         try:
             dy_percent = _extract_value(pos.manual_dy) * 100
             if dy_percent > Decimal('6.0'):
-                score += 10
-                motivos.append(f"💰 Bom Pagador de Dividendos (+10) [{float(dy_percent):.1f}%]")
+                score += 8
+                motivos.append(f"💰 Bom Pagador de Dividendos (+8) [{float(dy_percent):.1f}%]")
         except Exception:
             pass
 
@@ -114,8 +113,8 @@ def apply_strategy(pos, metrics, falta, preco, min_6m, screener_item=None):
         pass
 
     if rsi < 30.0:
-        score += 30
-        motivos.append("💎 Região Sobrevendida (+30)")
+        score += 20
+        motivos.append("💎 Região Sobrevendida (+20)")
     elif rsi > 70.0:
         score -= 20
         motivos.append("🔥 Região Sobrecomprada (-20)")
@@ -123,22 +122,22 @@ def apply_strategy(pos, metrics, falta, preco, min_6m, screener_item=None):
     if preco > Decimal('0.0') and min_6m > Decimal('0.0'):
         desconto = ((preco - min_6m) / min_6m) * Decimal('100.0')
         if desconto <= Decimal('15.0'):
-            score += 15
-            motivos.append(f"⚓ Desconto de 6 Meses (+15) [{float(desconto):.1f}%]")
+            score += 10
+            motivos.append(f"⚓ Desconto de 6 Meses (+10) [{float(desconto):.1f}%]")
 
     if cat_name == "Ação":
         mg = metrics.get("mg_graham", Decimal('0.0'))
         if mg >= Decimal('20.0'):
-            score += 20
-            motivos.append("🧠 Margem Graham de 20%+ (+20)")
+            score += 15
+            motivos.append("🧠 Margem Graham de 20%+ (+15)")
         elif mg <= Decimal('-20.0'):
             score -= 15
             motivos.append("🚨 Empresa Cara por Graham (-15)")
     elif cat_name == "FII":
         pvp = metrics.get("p_vp", Decimal('1.0'))
         if Decimal('0.0') < pvp <= Decimal('0.95'):
-            score += 20
-            motivos.append("🧠 Desconto Patrimonial P/VP (+20)")
+            score += 15
+            motivos.append("🧠 Desconto Patrimonial P/VP (+15)")
         elif pvp >= Decimal('1.05'):
             score -= 15
             motivos.append("🚨 FII com Ágio P/VP (-15)")
@@ -165,8 +164,8 @@ def apply_strategy(pos, metrics, falta, preco, min_6m, screener_item=None):
         mg_bazin = ((float(screener_item.bazin_price) - float(preco)) / float(preco)) * 100.0
     if cat_name in ("Ação", "FII") and mg_bazin != 0.0:
         if mg_bazin >= 15.0:
-            score += 15
-            motivos.append(f"🎯 Abaixo do Teto Bazin (+15) [+{mg_bazin:.1f}%]")
+            score += 10
+            motivos.append(f"🎯 Abaixo do Teto Bazin (+10) [+{mg_bazin:.1f}%]")
         elif mg_bazin <= -20.0:
             score -= 10
             motivos.append(f"📈 Acima do Teto Bazin (-10) [{mg_bazin:.1f}%]")
@@ -175,8 +174,8 @@ def apply_strategy(pos, metrics, falta, preco, min_6m, screener_item=None):
     if screener_item and getattr(screener_item, "quality_score", None):
         q_score = int(screener_item.quality_score or 0)
         if q_score >= 75:
-            score += 15
-            motivos.append(f"🛡️ Alta Qualidade Fundamentalista (+15) [{q_score}/100]")
+            score += 10
+            motivos.append(f"🛡️ Alta Qualidade Fundamentalista (+10) [{q_score}/100]")
         elif 0 < q_score < 45:
             score -= 15
             motivos.append(f"⚠️ Qualidade Fundamentalista Baixa (-15) [{q_score}/100]")
@@ -184,15 +183,20 @@ def apply_strategy(pos, metrics, falta, preco, min_6m, screener_item=None):
     # Sentimento de Notícias da IA (modulador)
     ai_sent = (getattr(pos.asset, "ai_sentiment", None) or "").strip().lower()
     if ai_sent == "positivo":
-        score += 10
-        motivos.append("🤖 Sentimento IA Positivo (+10)")
+        score += 8
+        motivos.append("🤖 Sentimento IA Positivo (+8)")
     elif ai_sent == "negativo":
         score -= 15
         motivos.append("🤖 Alerta IA Negativo (-15)")
 
-    if score >= 50:
-        status = "COMPRA_FORTE" if score >= 70 else "COMPRAR"
-        rec_text = "🟢 APORTAR FORTE" if score >= 70 else "🟢 APORTAR"
+    score = max(-100, min(100, score))
+
+    if falta > Decimal('0.0') and score >= 75:
+        status = "COMPRA_FORTE"
+        rec_text = "🟢 APORTAR FORTE"
+    elif falta > Decimal('0.0') and score >= 55:
+        status = "COMPRAR"
+        rec_text = "🟢 APORTAR"
     elif score >= -15:
         status = "NEUTRO"
         rec_text = "🟡 MANTER"
