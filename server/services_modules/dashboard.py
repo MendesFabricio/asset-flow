@@ -97,7 +97,12 @@ class DashboardService:
                     falta = meta_global_valor - total_atual
 
                     rec_text, status, score, motivo, rsi = apply_strategy(
-                        pos, item["metrics"], falta, preco, min_6m
+                        pos,
+                        item["metrics"],
+                        falta,
+                        preco,
+                        min_6m,
+                        screener_item=screener_by_ticker.get(asset.ticker),
                     )
                     item["rsi"] = rsi
 

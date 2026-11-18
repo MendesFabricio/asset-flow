@@ -153,3 +153,53 @@ def test_valuation_routes(val_client):
         assert any(i["ticker"] == "TEST3" for i in res_wl_get.get_json()["items"])
         res_wl_del = val_client.delete("/api/valuation/watchlist/TEST3")
         assert res_wl_del.status_code == 200
+
+
+def test_apply_strategy_integrates_ai_bazin_quality_and_reduzir():
+    import json
+    from decimal import Decimal
+    from unittest.mock import MagicMock
+    from services_modules.dashboard_metrics import apply_strategy
+
+    pos = MagicMock()
+    pos.quantity = Decimal("100")
+    pos.manual_dy = Decimal("0.08")
+    pos.last_report_type = None
+    pos.asset.category.name = "Ação"
+    pos.asset.ai_sentiment = "Positivo"
+    pos.asset.market_data = [MagicMock(rsi_14=45.0)]
+    pos.asset.technical_data = None
+
+    screener = MagicMock(bazin_price=40.0, quality_score=85)
+    rec, status, score, motivo, _ = apply_strategy(
+        pos,
+        {"mg_graham": Decimal("25.0"), "mg_bazin": Decimal("25.0"), "p_vp": Decimal("1.0")},
+        falta=Decimal("500.0"),
+        preco=Decimal("30.0"),
+        min_6m=Decimal("28.0"),
+        screener_item=screener,
+    )
+    assert status == "COMPRA_FORTE"
+    assert score >= 70
+    assert "Sentimento IA Positivo" in motivo
+    assert "Teto Bazin" in motivo
+    assert "Alta Qualidade" in motivo
+
+    # Cenário negativo acima da meta -> REDUZIR
+    pos.asset.ai_sentiment = "Negativo"
+    pos.asset.category.name = "FII"
+    pos.last_report_type = json.dumps({"credit_risk": {"leverage_pct": 45.0}})
+    pos.asset.market_data = [MagicMock(rsi_14=75.0)]
+    screener_bad = MagicMock(bazin_price=80.0, quality_score=35)
+    rec2, status2, score2, motivo2, _ = apply_strategy(
+        pos,
+        {"p_vp": Decimal("1.15"), "mg_bazin": Decimal("-25.0")},
+        falta=Decimal("-100.0"),
+        preco=Decimal("100.0"),
+        min_6m=Decimal("70.0"),
+        screener_item=screener_bad,
+    )
+    assert status2 == "REDUZIR"
+    assert rec2 == "🟠 REDUZIR"
+    assert "Alerta IA Negativo" in motivo2
+    assert "Alavancagem FII Elevada" in motivo2

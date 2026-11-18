@@ -29,12 +29,15 @@ export function AssetRecommendationCell({
   const recLower = (ativo.recomendacao || '').toLowerCase();
   const isComprar = recLower.includes('aportar') || recLower.includes('comprar');
   const isManter = recLower.includes('manter');
+  const isReduzir = recLower.includes('reduzir');
   const isEvitar = recLower.includes('evitar');
 
   const colors = isComprar
     ? 'text-emerald-400 bg-emerald-500/10 ring-emerald-500/20'
     : isManter
     ? 'text-amber-400 bg-amber-500/10 ring-amber-500/20'
+    : isReduzir
+    ? 'text-orange-400 bg-orange-500/10 ring-orange-500/20'
     : isEvitar
     ? 'text-rose-400 bg-rose-500/10 ring-rose-500/20'
     : 'text-slate-400 bg-slate-500/10 ring-slate-500/20';
@@ -60,7 +63,7 @@ export function AssetRecommendationCell({
         >
           {isComprar && <TrendingUp size={10} strokeWidth={2.5} className="shrink-0" />}
           {isManter && <div className="w-1.5 h-1.5 rounded-full bg-amber-400 mr-0.5 shrink-0" />}
-          {isEvitar && <TrendingDown size={10} strokeWidth={2.5} className="shrink-0" />}
+          {(isEvitar || isReduzir) && <TrendingDown size={10} strokeWidth={2.5} className="shrink-0" />}
           <span className="truncate">{cleanRec}</span>
           <Info size={10} className="opacity-50 hover:opacity-100 transition-opacity ml-0.5 shrink-0" />
         </div>

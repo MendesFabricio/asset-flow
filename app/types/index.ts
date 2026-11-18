@@ -34,7 +34,7 @@ export interface Asset {
   
   // Estratégia
   recomendacao: string;
-  status: 'COMPRA_FORTE' | 'COMPRAR' | 'AGUARDAR' | 'MANTER' | 'NEUTRO' | 'EVITAR';
+  status: 'COMPRA_FORTE' | 'COMPRAR' | 'AGUARDAR' | 'MANTER' | 'NEUTRO' | 'REDUZIR' | 'EVITAR';
   score: number;
   motivo: string;
   

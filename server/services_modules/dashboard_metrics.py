@@ -56,10 +56,10 @@ def calculate_fundamental_metrics(pos, preco):
         pass
     return m
 
-def apply_strategy(pos, metrics, falta, preco, min_6m):
+def apply_strategy(pos, metrics, falta, preco, min_6m, screener_item=None):
     score = 0
     motivos = []
-    cat_name = pos.asset.category.name if pos.asset.category else ""
+    cat_name = pos.asset.category.name if pos.asset and pos.asset.category else ""
 
     if cat_name == "Reserva":
         if falta > Decimal('0.0'):
@@ -142,6 +142,16 @@ def apply_strategy(pos, metrics, falta, preco, min_6m):
         elif pvp >= Decimal('1.05'):
             score -= 15
             motivos.append("🚨 FII com Ágio P/VP (-15)")
+        try:
+            if pos.last_report_type:
+                import json
+                rep = json.loads(pos.last_report_type)
+                lev = (rep.get("credit_risk") or {}).get("leverage_pct")
+                if lev is not None and float(lev) > 30.0:
+                    score -= 15
+                    motivos.append(f"🏦 Alavancagem FII Elevada (-15) [{float(lev):.1f}%]")
+        except Exception:
+            pass
     elif cat_name == "Cripto":
         if preco > Decimal('0.0') and min_6m > Decimal('0.0'):
             desconto = ((preco - min_6m) / min_6m) * Decimal('100.0')
@@ -149,12 +159,46 @@ def apply_strategy(pos, metrics, falta, preco, min_6m):
                 score += 15
                 motivos.append(f"⛏️ Acúmulo Estratégico Crypto (+15) [{float(desconto):.1f}% da mínima]")
 
+    # Preço Teto Bazin (Ações e FIIs)
+    mg_bazin = float(metrics.get("mg_bazin") or 0.0)
+    if mg_bazin == 0.0 and screener_item and getattr(screener_item, "bazin_price", None) and preco > Decimal('0.0'):
+        mg_bazin = ((float(screener_item.bazin_price) - float(preco)) / float(preco)) * 100.0
+    if cat_name in ("Ação", "FII") and mg_bazin != 0.0:
+        if mg_bazin >= 15.0:
+            score += 15
+            motivos.append(f"🎯 Abaixo do Teto Bazin (+15) [+{mg_bazin:.1f}%]")
+        elif mg_bazin <= -20.0:
+            score -= 10
+            motivos.append(f"📈 Acima do Teto Bazin (-10) [{mg_bazin:.1f}%]")
+
+    # Qualidade Fundamentalista (Checklist / Radar)
+    if screener_item and getattr(screener_item, "quality_score", None):
+        q_score = int(screener_item.quality_score or 0)
+        if q_score >= 75:
+            score += 15
+            motivos.append(f"🛡️ Alta Qualidade Fundamentalista (+15) [{q_score}/100]")
+        elif 0 < q_score < 45:
+            score -= 15
+            motivos.append(f"⚠️ Qualidade Fundamentalista Baixa (-15) [{q_score}/100]")
+
+    # Sentimento de Notícias da IA (modulador)
+    ai_sent = (getattr(pos.asset, "ai_sentiment", None) or "").strip().lower()
+    if ai_sent == "positivo":
+        score += 10
+        motivos.append("🤖 Sentimento IA Positivo (+10)")
+    elif ai_sent == "negativo":
+        score -= 15
+        motivos.append("🤖 Alerta IA Negativo (-15)")
+
     if score >= 50:
         status = "COMPRA_FORTE" if score >= 70 else "COMPRAR"
         rec_text = "🟢 APORTAR FORTE" if score >= 70 else "🟢 APORTAR"
     elif score >= -15:
         status = "NEUTRO"
         rec_text = "🟡 MANTER"
+    elif falta <= Decimal('0.0'):
+        status = "REDUZIR"
+        rec_text = "🟠 REDUZIR"
     else:
         status = "EVITAR"
         rec_text = "🔴 EVITAR"
