@@ -88,12 +88,12 @@ def _safe_float(val, scale: float = 1.0) -> Optional[float]:
         return None
 
 
-def _compute_dividend_metrics(yf_ticker_obj, price: float) -> tuple[Optional[float], Optional[float], Optional[float]]:
-    """Retorna (div_per_share_12m, dy_12m_pct, dy_avg_5y_pct) a partir da série real de dividendos."""
+def _compute_dividend_metrics(yf_ticker_obj, price: float) -> tuple[Optional[float], Optional[float], Optional[float], list[dict]]:
+    """Retorna (div_per_share_12m, dy_12m_pct, dy_avg_5y_pct, dividend_history_5y)."""
     try:
         divs = yf_ticker_obj.dividends
         if divs is None or divs.empty or price <= 0:
-            return None, None, None
+            return None, None, None, []
         divs = divs.copy()
         if divs.index.tz is not None:
             divs.index = divs.index.tz_localize(None)
@@ -108,15 +108,22 @@ def _compute_dividend_metrics(yf_ticker_obj, price: float) -> tuple[Optional[flo
             first_dt = divs_5y.index.min().to_pydatetime()
             years_span = max(1.0, min(5.0, (now - first_dt).days / 365.25))
             div_avg_annual = float(divs_5y.sum()) / years_span
+            yearly_series = divs_5y.groupby(divs_5y.index.year).sum()
+            history_5y = [
+                {"year": int(yr), "total": round(float(val), 4)}
+                for yr, val in yearly_series.items()
+                if float(val) > 0
+            ][-5:]
         else:
             div_avg_annual = div_12m
+            history_5y = []
 
         base_div = div_avg_annual if div_avg_annual > 0 else div_12m
         dy_12m_pct = (div_12m / price) * 100.0 if div_12m > 0 else 0.0
         dy_5y_pct = (div_avg_annual / price) * 100.0 if div_avg_annual > 0 else dy_12m_pct
-        return (base_div if base_div > 0 else None), round(dy_12m_pct, 2), round(dy_5y_pct, 2)
+        return (base_div if base_div > 0 else None), round(dy_12m_pct, 2), round(dy_5y_pct, 2), history_5y
     except Exception:
-        return None, None, None
+        return None, None, None, []
 
 
 def fetch_ticker_fundamentals(
@@ -157,7 +164,7 @@ def fetch_ticker_fundamentals(
 
         change_pct = ((price - prev_close) / prev_close * 100.0) if (prev_close and prev_close > 0) else 0.0
 
-        div_ps, dy_12m, dy_5y = _compute_dividend_metrics(yt, price)
+        div_ps, dy_12m, dy_5y, div_history_5y = _compute_dividend_metrics(yt, price)
         if div_ps is None:
             raw_dy_info = _safe_float(info.get("dividendYield"))
             if raw_dy_info is not None:
@@ -256,6 +263,7 @@ def fetch_ticker_fundamentals(
             "gordon_price": gordon_price,
             "dcf_price": dcf_price,
             "leverage_pct": ov.get("leverage_pct"),
+            "dividend_history_5y": div_history_5y,
         }
 
         checklist, quality_score = evaluate_fundamental_checklist(inferred_type, payload)
@@ -333,7 +341,10 @@ def _upsert_screener_items(session, fetched_items: list[dict]) -> int:
             setattr(row, field, item.get(field))
         row.magic_score = magic_ranks.get(tkr)
         row.checklist_json = item.get("checklist") or []
-        row.raw_metrics_json = {"leverage_pct": item.get("leverage_pct")}
+        row.raw_metrics_json = {
+            "leverage_pct": item.get("leverage_pct"),
+            "dividend_history_5y": item.get("dividend_history_5y") or [],
+        }
         row.updated_at = now
         saved += 1
 
@@ -469,10 +480,12 @@ def get_or_fetch_asset_valuation(
         data["margin_dcf_pct"] = None
 
     raw_lev = (row.raw_metrics_json or {}).get("leverage_pct") if row.raw_metrics_json else None
+    div_hist_5y = (row.raw_metrics_json or {}).get("dividend_history_5y", []) if row.raw_metrics_json else []
     eval_input = {**data, "leverage_pct": raw_lev}
     checklist, q_score = evaluate_fundamental_checklist(data["asset_type"], eval_input)
     data["checklist"] = checklist
     data["quality_score"] = q_score
+    data["dividend_history_5y"] = div_hist_5y
 
     # Médias setoriais com base nos itens em cache
     all_rows = [r.to_dict() for r in session.query(MarketScreenerItem).all()]

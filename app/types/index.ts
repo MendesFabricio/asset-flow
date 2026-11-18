@@ -323,6 +323,7 @@ export interface ValuationAssetData {
   quality_score: number;
   magic_score: number | null;
   checklist: ValuationChecklistItem[];
+  dividend_history_5y?: Array<{ year: number; total: number }>;
   in_portfolio?: boolean;
   sector_average?: SectorAverage | null;
   assumptions?: {

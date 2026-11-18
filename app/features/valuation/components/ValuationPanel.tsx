@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   AlertTriangle,
+  BellPlus,
   CheckCircle2,
   HelpCircle,
   RefreshCw,
@@ -14,6 +15,7 @@ import {
 } from 'lucide-react';
 import { apiCall } from '@/lib/api';
 import { formatMoney } from '@/lib/format';
+import { useToast } from '@/context/ToastContext';
 import { ValuationAssetData } from '@/types';
 
 interface ValuationPanelProps {
@@ -48,12 +50,14 @@ function ChecklistStatusIcon({ status }: { status: 'pass' | 'warn' | 'fail' | 'u
 }
 
 export function ValuationPanel({ ticker, assetType, compact = false }: ValuationPanelProps) {
+  const { notify } = useToast();
   const defaultBazin = assetType === 'FII' ? 8.0 : 6.0;
   const [bazinDy, setBazinDy] = useState<number>(defaultBazin);
   const [discountRate, setDiscountRate] = useState<number>(12.5);
   const [growthRate, setGrowthRate] = useState<number>(7.0);
   const [terminalGrowth, setTerminalGrowth] = useState<number>(3.0);
   const [showAssumptions, setShowAssumptions] = useState<boolean>(!compact);
+  const [creatingAlert, setCreatingAlert] = useState<boolean>(false);
 
   const [data, setData] = useState<ValuationAssetData | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
@@ -136,6 +140,33 @@ export function ValuationPanel({ ticker, assetType, compact = false }: Valuation
       : 'text-status-error bg-status-error';
 
   const sectorAvg = data.sector_average;
+  const divHist = data.dividend_history_5y || [];
+  const maxDivYear = divHist.length > 0 ? Math.max(...divHist.map((d) => d.total), 0.01) : 1;
+
+  const handleCreateBazinAlert = async () => {
+    if (!data.bazin_price || data.bazin_price <= 0) return;
+    setCreatingAlert(true);
+    try {
+      const res = await apiCall<{ status: string; message?: string }>('/api/price-alerts', {
+        method: 'POST',
+        body: JSON.stringify({
+          ticker: data.ticker,
+          target_price: data.bazin_price,
+          condition: 'BELOW',
+          note: `Preço Teto Bazin (${bazinDy.toFixed(1)}% DY)`,
+        }),
+      });
+      if (res.status === 'Sucesso') {
+        notify(`Alerta criado: ${data.ticker} abaixo de ${formatMoney(data.bazin_price)}!`, 'success');
+      } else {
+        notify(res.message || 'Não foi possível criar o alerta.', 'error');
+      }
+    } catch (err) {
+      notify(err instanceof Error ? err.message : 'Erro ao criar alerta de preço teto.', 'error');
+    } finally {
+      setCreatingAlert(false);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -267,9 +298,22 @@ export function ValuationPanel({ ticker, assetType, compact = false }: Valuation
           <p className="text-sm font-mono font-bold text-text-primary">
             {data.bazin_price ? formatMoney(data.bazin_price) : 'N/D'}
           </p>
-          <p className="text-[10px] text-text-muted">
-            Div./cota: {data.dividend_per_share ? formatMoney(data.dividend_per_share) : 'N/D'}
-          </p>
+          <div className="flex items-center justify-between gap-1">
+            <p className="text-[10px] text-text-muted">
+              Div./cota: {data.dividend_per_share ? formatMoney(data.dividend_per_share) : 'N/D'}
+            </p>
+            {data.bazin_price && (
+              <button
+                type="button"
+                onClick={handleCreateBazinAlert}
+                disabled={creatingAlert}
+                title="Criar alerta quando cotação cair abaixo do Preço Teto Bazin"
+                className="text-[10px] font-bold text-accent hover:underline inline-flex items-center gap-0.5 disabled:opacity-50"
+              >
+                <BellPlus size={11} /> Alerta
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="p-3 rounded-xl bg-surface-card border border-border-subtle space-y-1">
@@ -320,6 +364,34 @@ export function ValuationPanel({ ticker, assetType, compact = false }: Valuation
           </p>
         </div>
       </div>
+
+      {/* Histórico Anual de Proventos (5 Anos) */}
+      {divHist.length > 0 && (
+        <div className="p-3.5 rounded-xl bg-surface-card border border-border-subtle space-y-2.5">
+          <h5 className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
+            Proventos por Cota/Ação (Últimos {divHist.length} Anos)
+          </h5>
+          <div className="grid grid-cols-5 gap-2 items-end h-20 pt-2">
+            {divHist.map((d) => {
+              const pct = Math.max(12, Math.round((d.total / maxDivYear) * 100));
+              return (
+                <div key={d.year} className="flex flex-col items-center justify-end h-full gap-1">
+                  <span className="text-[9px] font-mono text-text-primary font-semibold">
+                    {formatMoney(d.total)}
+                  </span>
+                  <div className="w-full max-w-[28px] bg-surface-input rounded-t overflow-hidden flex items-end h-10">
+                    <div
+                      className="w-full bg-status-success rounded-t transition-all duration-500"
+                      style={{ height: `${pct}%` }}
+                    />
+                  </div>
+                  <span className="text-[10px] font-mono text-text-muted">{d.year}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Checklist de Saúde Financeira */}
       {data.checklist && data.checklist.length > 0 && (

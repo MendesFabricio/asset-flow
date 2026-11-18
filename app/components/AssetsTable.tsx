@@ -5,8 +5,6 @@ import { AssetRow } from '../features/assets/components/AssetRow';
 import { Search } from 'lucide-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 
-import { DASHBOARD_CONTENT_TABS } from '../features/dashboard/hooks/useDashboardState';
-
 interface AssetsTableProps {
   assets: Asset[];
   tab: string;
@@ -21,8 +19,8 @@ export const AssetsTable = React.memo(({ assets, tab, onEdit, onViewNews, onView
   const [searchQuery, setSearchQuery] = useState('');
   const [isPending, startTransition] = useTransition();
 
-  // Cancela tab se for resumo ou telas de análise/simulação (mantém Renda Fixa para listar ETFs/títulos como B5P211)
-  const isExcludedTab = tab !== 'Renda Fixa' && (DASHBOARD_CONTENT_TABS as readonly string[]).includes(tab);
+  // Cancela tab se for resumo ou telas de simulação
+  const isExcludedTab = ['Resumo', 'Evolução', 'Reembolsos', 'Financeiro', 'Quantitativo', 'Radar', 'Comparador', 'RendaPassiva', 'Jarvis', 'Cartoes'].includes(tab);
 
   // Reseta busca ao trocar de categoria
   useEffect(() => {
@@ -42,7 +40,7 @@ export const AssetsTable = React.memo(({ assets, tab, onEdit, onViewNews, onView
   // Filtro performático usando useMemo com suporte a ticker ou tipo do ativo
   const filteredAssets = useMemo(() => {
     if (!assets) return [];
-    
+
     // Filtra primeiro pela tab corrente
     const tabAssets = assets.filter((a) => a.tipo === tab);
 
@@ -79,7 +77,7 @@ export const AssetsTable = React.memo(({ assets, tab, onEdit, onViewNews, onView
 
   return (
     <div className="bg-slate-900/30 backdrop-blur-md rounded-2xl border border-slate-800/40 overflow-hidden shadow-2xl animate-in slide-in-from-bottom-4 mt-6">
-      
+
       {/* Barra de Busca Premium Integrada */}
       <div className="p-4 bg-slate-950/20 border-b border-slate-800/40 flex flex-col sm:flex-row justify-between items-center gap-3">
         <div className="flex items-center gap-2">

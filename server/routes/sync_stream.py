@@ -25,25 +25,37 @@ def sync_stream():
         # Timeout de 30 minutos (1800s) para evitar locks ou leaks infinitos
         MAX_DURATION = 1800
         start_time = time.monotonic()
+        last_ping = time.monotonic()
         
         try:
             while time.monotonic() - start_time < MAX_DURATION:
                 # 💡 CORREÇÃO: Abre e fecha sessões instantaneamente evitando snapshots travados
                 cvm_sync = get_sync_state_db("cvm_sync")
                 yahoo_sync = get_sync_state_db("yahoo_sync")
+                radar_sync = get_sync_state_db("radar_sync")
                 
                 current_payload = {
                     "cvm_sync": cvm_sync,
-                    "yahoo_sync": yahoo_sync
+                    "yahoo_sync": yahoo_sync,
+                    "radar_sync": radar_sync,
                 }
                 
                 # Só despacha se houver alteração real de dados
                 if current_payload != last_payload:
                     last_payload = current_payload
+                    last_ping = time.monotonic()
                     yield f"data: {json.dumps(current_payload)}\n\n"
+                elif time.monotonic() - last_ping >= 25:
+                    # Keepalive evita UND_ERR_BODY_TIMEOUT (5min) no proxy Next.js/Undici
+                    last_ping = time.monotonic()
+                    yield ": ping\n\n"
                 
                 # Intervalo adaptativo: 300ms quando em processamento (real-time fluido), 2.0s quando ocioso
-                is_active = (cvm_sync.get("status") == "processing") or (yahoo_sync.get("status") == "processing")
+                is_active = (
+                    cvm_sync.get("status") == "processing"
+                    or yahoo_sync.get("status") == "processing"
+                    or radar_sync.get("status") == "processing"
+                )
                 sleep_interval = 0.3 if is_active else 2.0
                 time.sleep(sleep_interval)
                 
@@ -68,9 +80,11 @@ def get_sync_status():
     from flask import jsonify
     cvm_sync = get_sync_state_db("cvm_sync")
     yahoo_sync = get_sync_state_db("yahoo_sync")
+    radar_sync = get_sync_state_db("radar_sync")
     return jsonify({
         "status": "Sucesso",
         "message": "Estado de sincronia carregado com sucesso.",
         "cvm_sync": cvm_sync,
-        "yahoo_sync": yahoo_sync
+        "yahoo_sync": yahoo_sync,
+        "radar_sync": radar_sync,
     })

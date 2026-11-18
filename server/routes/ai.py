@@ -355,17 +355,44 @@ def execute_get_asset_fundamental_data(session, ticker: str):
             "ai_summary": asset.ai_summary,
         }
 
+    valuation_summary = None
+    cat_name = asset.category.name if asset.category else "Outros"
+    if cat_name in ("Ação", "FII"):
+        try:
+            from db.models import MarketScreenerItem
+            scr = session.query(MarketScreenerItem).filter_by(ticker=ticker).first()
+            if scr and isinstance(scr, MarketScreenerItem):
+                sd = scr.to_dict()
+                valuation_summary = {
+                    "sector": sd.get("sector"),
+                    "dy_12m": sd.get("dy_12m"),
+                    "bazin_price": sd.get("bazin_price"),
+                    "margin_bazin_pct": sd.get("margin_bazin_pct"),
+                    "graham_price": sd.get("graham_price"),
+                    "margin_graham_pct": sd.get("margin_graham_pct"),
+                    "dcf_price": sd.get("dcf_price"),
+                    "pl": sd.get("pl"),
+                    "pvp": sd.get("pvp"),
+                    "roe": sd.get("roe"),
+                    "debt_to_ebitda": sd.get("debt_to_ebitda"),
+                    "quality_score": sd.get("quality_score"),
+                    "magic_score": sd.get("magic_score"),
+                }
+        except Exception:
+            pass
+
     return {
         "status": "Sucesso",
         "ticker": ticker,
         "name": asset.name,
         "cnpj": asset.cnpj,
         "cvm_code": asset.cvm_code,
-        "category": asset.category.name if asset.category else "Outros",
+        "category": cat_name,
         "currency": asset.currency,
         "market_data": mdata_summary,
         "posicao_na_carteira": posicao_na_carteira,
-        "cvm_financials": cvm_context
+        "cvm_financials": cvm_context,
+        "valuation": valuation_summary,
     }
 
 @ai_bp.route('/api/ai/chat', methods=['POST'])
