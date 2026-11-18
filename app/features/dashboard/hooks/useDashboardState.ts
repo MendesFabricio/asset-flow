@@ -3,22 +3,27 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useModalStore } from '@/store/modalStore';
 
-const VALID_TABS = new Set([
+export const DASHBOARD_CONTENT_TABS = [
   'Resumo',
-  'Ação',
-  'FII',
-  'Internacional',
-  'Cripto',
-  'Renda Fixa',
-  'Reserva',
-  'Reembolsos',
-  'Cartoes',
   'Evolução',
+  'Reembolsos',
+  'Financeiro',
   'Quantitativo',
   'Radar',
   'Comparador',
   'RendaPassiva',
   'Jarvis',
+  'Cartoes',
+  'Renda Fixa',
+] as const;
+
+const VALID_TABS = new Set<string>([
+  'Ação',
+  'FII',
+  'Internacional',
+  'Cripto',
+  'Reserva',
+  ...DASHBOARD_CONTENT_TABS,
 ]);
 
 function normalizeTab(raw: string | null): string {

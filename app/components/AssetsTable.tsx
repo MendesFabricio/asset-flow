@@ -5,6 +5,8 @@ import { AssetRow } from '../features/assets/components/AssetRow';
 import { Search } from 'lucide-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 
+import { DASHBOARD_CONTENT_TABS } from '../features/dashboard/hooks/useDashboardState';
+
 interface AssetsTableProps {
   assets: Asset[];
   tab: string;
@@ -19,8 +21,8 @@ export const AssetsTable = React.memo(({ assets, tab, onEdit, onViewNews, onView
   const [searchQuery, setSearchQuery] = useState('');
   const [isPending, startTransition] = useTransition();
 
-  // Cancela tab se for resumo ou telas de simulação
-  const isExcludedTab = ['Resumo', 'Evolução', 'Reembolsos', 'Financeiro', 'Quantitativo', 'Radar', 'Comparador', 'RendaPassiva', 'Jarvis', 'Cartoes'].includes(tab);
+  // Cancela tab se for resumo ou telas de análise/simulação (mantém Renda Fixa para listar ETFs/títulos como B5P211)
+  const isExcludedTab = tab !== 'Renda Fixa' && (DASHBOARD_CONTENT_TABS as readonly string[]).includes(tab);
 
   // Reseta busca ao trocar de categoria
   useEffect(() => {
