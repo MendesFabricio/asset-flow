@@ -13,7 +13,8 @@ from typing import Optional
 
 import yfinance as yf
 
-from db.models import Asset, MarketScreenerItem, Position, safe_commit
+from db.models import Asset, Dividend, MarketScreenerItem, Position, safe_commit
+from infrastructure.market_data import collect_amortization_12m_map
 from domain.valuation.calculator import (
     calculate_bazin_price,
     calculate_dcf_price,
@@ -94,7 +95,20 @@ def _safe_float(val, scale: float = 1.0) -> Optional[float]:
         return None
 
 
-def _compute_dividend_metrics(yf_ticker_obj, price: float) -> tuple[Optional[float], Optional[float], Optional[float], list[dict]]:
+def _safe_pct(val) -> Optional[float]:
+    """Normaliza percentual que pode chegar em fração (0.15) ou já em % (15.0)."""
+    raw = _safe_float(val)
+    if raw is None:
+        return None
+    scaled = raw * 100.0 if abs(raw) <= 1.5 else raw
+    return scaled if abs(scaled) <= 500.0 else None
+
+
+def _compute_dividend_metrics(
+    yf_ticker_obj,
+    price: float,
+    amort_12m: float = 0.0,
+) -> tuple[Optional[float], Optional[float], Optional[float], list[dict]]:
     """Retorna (div_per_share_12m, dy_12m_pct, dy_avg_5y_pct, dividend_history_5y)."""
     try:
         divs = yf_ticker_obj.dividends
@@ -108,7 +122,8 @@ def _compute_dividend_metrics(yf_ticker_obj, price: float) -> tuple[Optional[flo
         cutoff_12m = now - timedelta(days=365)
         cutoff_5y = now - timedelta(days=365 * 5)
 
-        div_12m = float(divs[divs.index >= cutoff_12m].sum())
+        raw_div_12m = float(divs[divs.index >= cutoff_12m].sum())
+        div_12m = max(0.0, raw_div_12m - max(0.0, float(amort_12m or 0.0)))
         divs_5y = divs[divs.index >= cutoff_5y]
         if not divs_5y.empty:
             first_dt = divs_5y.index.min().to_pydatetime()
@@ -128,8 +143,7 @@ def _compute_dividend_metrics(yf_ticker_obj, price: float) -> tuple[Optional[flo
         dy_5y_pct = (div_avg_annual / price) * 100.0 if div_avg_annual > 0 else dy_12m_pct
         if div_12m <= 0:
             return None, 0.0, round(dy_5y_pct, 2), history_5y
-        base_div = div_avg_annual if div_avg_annual > 0 else div_12m
-        return (base_div if base_div > 0 else None), round(dy_12m_pct, 2), round(dy_5y_pct, 2), history_5y
+        return div_12m, round(dy_12m_pct, 2), round(dy_5y_pct, 2), history_5y
     except Exception:
         return None, None, None, []
 
@@ -177,8 +191,10 @@ def fetch_ticker_fundamentals(
 
         change_pct = ((price - prev_close) / prev_close * 100.0) if (prev_close and prev_close > 0) else 0.0
 
-        div_ps, dy_12m, dy_5y, div_history_5y = _compute_dividend_metrics(yt, price)
-        if div_ps is None:
+        ov = db_overrides or {}
+        amort_12m = float(ov.get("amort_12m") or 0.0)
+        div_ps, dy_12m, dy_5y, div_history_5y = _compute_dividend_metrics(yt, price, amort_12m=amort_12m)
+        if div_ps is None and dy_12m is None:
             raw_dy_info = _safe_float(info.get("dividendYield"))
             if raw_dy_info is not None:
                 # yfinance pode retornar 0.085 (8.5%) ou 8.5 dependendo da versão/ativo
@@ -192,9 +208,9 @@ def fetch_ticker_fundamentals(
         vpa = _safe_float(info.get("bookValue"))
         pl = _safe_float(info.get("trailingPE")) or ((price / lpa) if (lpa and lpa > 0) else None)
         pvp = _safe_float(info.get("priceToBook")) or ((price / vpa) if (vpa and vpa > 0) else None)
-        roe = _safe_float(info.get("returnOnEquity"), scale=100.0)
-        net_margin = _safe_float(info.get("profitMargins"), scale=100.0)
-        ebitda_margin = _safe_float(info.get("ebitdaMargins"), scale=100.0)
+        roe = _safe_pct(info.get("returnOnEquity"))
+        net_margin = _safe_pct(info.get("profitMargins"))
+        ebitda_margin = _safe_pct(info.get("ebitdaMargins"))
         ev_ebitda = _safe_float(info.get("enterpriseToEbitda"))
         payout = _safe_float(info.get("payoutRatio"), scale=100.0)
         if payout is not None and (payout < 0 or payout > 300):
@@ -210,7 +226,7 @@ def fetch_ticker_fundamentals(
         )
 
         # ROIC aproximado via EBIT / (Patrimônio + Dívida Líquida) ou ROE fallback
-        roic = _safe_float(info.get("returnOnAssets"), scale=100.0)
+        roic = _safe_pct(info.get("returnOnAssets"))
 
         fcf = _safe_float(info.get("freeCashflow"))
         shares = _safe_float(info.get("sharesOutstanding"))
@@ -222,14 +238,16 @@ def fetch_ticker_fundamentals(
             dcf_is_estimate = True
 
         # Mescla overrides locais do DB (CVM / FII relatório gerencial / posição manual)
-        ov = db_overrides or {}
         if ov.get("lpa") and ov["lpa"] > 0 and not lpa:
             lpa = float(ov["lpa"])
             pl = price / lpa
         if ov.get("vpa") and ov["vpa"] > 0:
             vpa = float(ov["vpa"])
             pvp = price / vpa
-        if ov.get("dy") and ov["dy"] > 0 and not div_ps:
+        if ov.get("local_div_12m") and float(ov["local_div_12m"]) > 0:
+            div_ps = float(ov["local_div_12m"])
+            dy_12m = round((div_ps / price) * 100.0, 2)
+        elif ov.get("dy") and ov["dy"] > 0 and not div_ps and dy_12m is None:
             dy_12m = round(float(ov["dy"]) * 100.0, 2)
             dy_5y = dy_12m
             div_ps = price * float(ov["dy"])
@@ -243,7 +261,7 @@ def fetch_ticker_fundamentals(
         desired_dy = 8.0 if inferred_type == "FII" else 6.0
         bazin_price = calculate_bazin_price(div_ps, desired_dy)
         graham_price = calculate_graham_price(lpa, vpa) if inferred_type == "Ação" else None
-        gordon_price = calculate_gordon_price(div_ps, required_return_pct=12.0, growth_pct=5.0)
+        gordon_price = calculate_gordon_price(div_ps, required_return_pct=12.0, growth_pct=5.0) if inferred_type == "Ação" else None
         dcf_price = calculate_dcf_price(fcf_per_share) if inferred_type == "Ação" else None
 
         raw_sector = info.get("sector") or ("Real Estate" if inferred_type == "FII" else "Outros")
@@ -278,6 +296,10 @@ def fetch_ticker_fundamentals(
             "gordon_price": gordon_price,
             "dcf_price": dcf_price,
             "dcf_is_estimate": dcf_is_estimate,
+            "bazin_base": "12m",
+            "dy_includes_amortization": bool(
+                inferred_type == "FII" and not ov.get("local_div_12m") and amort_12m <= 0
+            ),
             "leverage_pct": ov.get("leverage_pct"),
             "dividend_history_5y": div_history_5y,
         }
@@ -292,11 +314,47 @@ def fetch_ticker_fundamentals(
 
 
 def _collect_db_overrides(session, user_id: Optional[int] = None) -> dict[str, dict]:
-    """Extrai múltiplos manuais/CVM/FII já salvos localmente para enriquecer o valuation."""
+    """Extrai múltiplos manuais/CVM/FII, dividendos e amortizações locais para enriquecer valuation."""
     overrides: dict[str, dict] = {}
+    cutoff_12m = datetime.now() - timedelta(days=365)
+    cutoff_12m_date = cutoff_12m.date()
+    cutoff_coverage = cutoff_12m_date + timedelta(days=35)
+    amort_map = collect_amortization_12m_map(session, cutoff_12m, user_id=user_id)
+
+    div_q = session.query(Dividend)
+    if user_id is not None:
+        div_q = div_q.filter(Dividend.user_id == user_id)
+    local_divs_by_asset: dict[int, list] = {}
+    for d in div_q.all():
+        local_divs_by_asset.setdefault(d.asset_id, []).append(d)
+
     assets = session.query(Asset).all()
     for a in assets:
+        tkr_upper = a.ticker.upper()
         entry: dict = {}
+        if amort_map.get(tkr_upper, 0.0) > 0:
+            entry["amort_12m"] = amort_map[tkr_upper]
+
+        asset_divs = local_divs_by_asset.get(a.id) or []
+        if asset_divs:
+            valid_dates = [d.date_com for d in asset_divs if d.date_com]
+            if valid_dates and min(valid_dates) <= cutoff_coverage:
+                seen_div_events: set[tuple] = set()
+                div_sum = 0.0
+                for d in asset_divs:
+                    if not d.date_com or d.date_com < cutoff_12m_date:
+                        continue
+                    dtype = (d.type or "").lower()
+                    if "amort" in dtype:
+                        continue
+                    ev_key = (d.date_com, dtype, round(float(d.value_per_share or 0), 4))
+                    if ev_key in seen_div_events:
+                        continue
+                    seen_div_events.add(ev_key)
+                    div_sum += float(d.value_per_share or 0)
+                if div_sum > 0:
+                    entry["local_div_12m"] = round(div_sum, 4)
+
         positions = a.positions or []
         pos = next((p for p in positions if user_id is None or p.user_id == user_id), None)
         if pos:
@@ -315,7 +373,9 @@ def _collect_db_overrides(session, user_id: Optional[int] = None) -> dict[str, d
                     cards = (rep.get("fundamentalist") or {}).get("cards_indicadores") or []
                     for card in cards:
                         if card.get("titulo") == "VPA" and "vpa" not in entry:
-                            raw_v = str(card.get("valor_formatado", "")).replace("R$", "").replace(",", ".").strip()
+                            raw_v = str(card.get("valor_formatado", "")).replace("R$", "").strip()
+                            if "," in raw_v:
+                                raw_v = raw_v.replace(".", "").replace(",", ".")
                             try:
                                 v_num = float(raw_v)
                                 if v_num > 0:
@@ -325,7 +385,7 @@ def _collect_db_overrides(session, user_id: Optional[int] = None) -> dict[str, d
                 except Exception:
                     pass
         if entry:
-            overrides[a.ticker.upper()] = entry
+            overrides[tkr_upper] = entry
     return overrides
 
 
@@ -361,6 +421,8 @@ def _upsert_screener_items(session, fetched_items: list[dict]) -> int:
             "leverage_pct": item.get("leverage_pct"),
             "dividend_history_5y": item.get("dividend_history_5y") or [],
             "dcf_is_estimate": bool(item.get("dcf_is_estimate", False)),
+            "bazin_base": item.get("bazin_base", "12m"),
+            "dy_includes_amortization": bool(item.get("dy_includes_amortization", False)),
         }
         row.updated_at = now
         saved += 1
@@ -473,7 +535,11 @@ def get_or_fetch_asset_valuation(
     data["bazin_dy_used"] = eff_bazin_dy
     data["bazin_price"] = calculate_bazin_price(data.get("dividend_per_share"), eff_bazin_dy)
     data["graham_price"] = calculate_graham_price(data.get("lpa"), data.get("vpa")) if data["asset_type"] == "Ação" else None
-    data["gordon_price"] = calculate_gordon_price(data.get("dividend_per_share"), eff_discount, eff_growth)
+    data["gordon_price"] = (
+        calculate_gordon_price(data.get("dividend_per_share"), eff_discount, eff_growth)
+        if data["asset_type"] == "Ação"
+        else None
+    )
     data["dcf_price"] = (
         calculate_dcf_price(
             data.get("fcf_per_share"),
@@ -503,6 +569,10 @@ def get_or_fetch_asset_valuation(
     data["checklist"] = checklist
     data["quality_score"] = q_score
     data["dividend_history_5y"] = div_hist_5y
+    data["bazin_base"] = (row.raw_metrics_json or {}).get("bazin_base", "12m") if row.raw_metrics_json else "12m"
+    data["dy_includes_amortization"] = bool(
+        (row.raw_metrics_json or {}).get("dy_includes_amortization", False)
+    ) if row.raw_metrics_json else False
 
     # Médias setoriais com base nos itens em cache
     all_rows = [r.to_dict() for r in session.query(MarketScreenerItem).all()]

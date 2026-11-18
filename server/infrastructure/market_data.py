@@ -20,6 +20,34 @@ def _active_assets_query(session, user_id=None):
     return query.distinct()
 
 
+def collect_amortization_12m_map(session, cutoff_date, user_id=None) -> dict[str, float]:
+    """Soma amortizações por cota (AMORTIZATION) na janela de 12m por ticker."""
+    from db.models import AssetTransaction
+
+    query = session.query(AssetTransaction).filter(
+        AssetTransaction.type == "AMORTIZATION",
+        AssetTransaction.transaction_date >= cutoff_date,
+    )
+    if user_id is not None:
+        query = query.filter(AssetTransaction.user_id == user_id)
+
+    amort_map: dict[str, float] = {}
+    seen_events: set[tuple] = set()
+    for tx in query.all():
+        tkr = (getattr(tx, "ticker", None) or "").strip().upper()
+        unit_p = float(getattr(tx, "unit_price", 0) or 0)
+        if not tkr or unit_p <= 0:
+            continue
+        if user_id is None:
+            tx_dt = tx.transaction_date.date() if tx.transaction_date else None
+            ev_key = (tkr, tx_dt, getattr(tx, "corporate_event_id", None) or tx.id)
+            if ev_key in seen_events:
+                continue
+            seen_events.add(ev_key)
+        amort_map[tkr] = amort_map.get(tkr, 0.0) + unit_p
+    return amort_map
+
+
 def _extract_vpa_from_report_json(raw_report):
     """Extrai VPA (R$) salvo em last_report_type de FII quando disponível."""
     if not raw_report:
@@ -166,9 +194,11 @@ def update_fundamentals(dolar_rate_callback, state_dict=None, user_id=None):
     
     logging.info("📊 JOB: Calculando Fundamentos via Yahoo Finance...")
     
+    cutoff_date = datetime.now() - timedelta(days=365)
     # 1. Busca os IDs e metadados mínimos apenas dos ativos em carteira (quantity > 0)
     session = Session()
     assets_info = []
+    amort_12m_map: dict[str, float] = {}
     try:
         assets = (
             _active_assets_query(session, user_id)
@@ -184,6 +214,7 @@ def update_fundamentals(dolar_rate_callback, state_dict=None, user_id=None):
                 "currency": asset.currency,
                 "cvm_code": asset.cvm_code or "",
             })
+        amort_12m_map = collect_amortization_12m_map(session, cutoff_date, user_id=user_id)
     finally:
         Session.remove()
 
@@ -193,7 +224,6 @@ def update_fundamentals(dolar_rate_callback, state_dict=None, user_id=None):
         state_dict["progress"] = 0
         state_dict["message"] = f"Mapeando {total} ativos de renda variável..."
 
-    cutoff_date = datetime.now() - timedelta(days=365)
     dolar_rate = dolar_rate_callback()
     consecutive_failures = 0
     count = 0
@@ -265,7 +295,8 @@ def update_fundamentals(dolar_rate_callback, state_dict=None, user_id=None):
                 try:
                     divs.index = divs.index.tz_localize(None)
                     divs_last_12m = divs[divs.index >= cutoff_date]
-                    total_divs_val = float(divs_last_12m.sum())
+                    raw_divs_val = float(divs_last_12m.sum())
+                    total_divs_val = max(0.0, raw_divs_val - amort_12m_map.get(ticker_raw, 0.0))
                 except Exception as e:
                     logging.warning(f"⚠️ Erro ao computar soma de dividendos para {ticker_raw}: {e}")
 

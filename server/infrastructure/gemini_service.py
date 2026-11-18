@@ -231,6 +231,7 @@ def _run_sentiment_analysis(asset_id: int, ticker: str, news_titles: list, posit
         )
 
         # Parse do JSON
+        parse_ok = True
         try:
             parsed = json.loads(response_text)
             rationale_raw = parsed.get("rationale", "")
@@ -254,13 +255,14 @@ def _run_sentiment_analysis(asset_id: int, ticker: str, news_titles: list, posit
                 sentiment = "Neutro"
         except Exception as parse_err:
             logging.warning(f"⚠️ [IA] Falha ao processar resposta JSON estruturada do Gemini para {ticker}: {parse_err}")
-            summary = response_text
+            parse_ok = False
+            summary = "Não foi possível estruturar a análise de sentimento no momento."
             sentiment = "Neutro"
 
         # 4. Salva no banco de dados
         asset.ai_summary = summary
         asset.ai_sentiment = sentiment
-        asset.ai_status = "success"
+        asset.ai_status = "success" if parse_ok else "error"
         asset.ai_updated_at = datetime.now()
         session.commit()
         logging.info(f"✅ [IA] Sentimento de {ticker} atualizado com sucesso via {provider}!")

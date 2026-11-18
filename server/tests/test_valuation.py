@@ -176,7 +176,7 @@ def test_apply_strategy_integrates_ai_bazin_quality_and_reduzir():
         {"mg_graham": Decimal("25.0"), "mg_bazin": Decimal("25.0"), "p_vp": Decimal("1.0")},
         falta=Decimal("500.0"),
         preco=Decimal("30.0"),
-        min_6m=Decimal("28.0"),
+        min_6m=Decimal("29.0"),
         screener_item=screener,
     )
     assert status == "COMPRA_FORTE"
@@ -218,7 +218,7 @@ def test_apply_strategy_integrates_ai_bazin_quality_and_reduzir():
         min_6m=Decimal("80.0"),
         screener_item=screener_oportunidade,
     )
-    assert score3 >= 60
+    assert score3 >= 52
     assert status3 == "COMPRAR"
     assert rec3 == "🟢 OPORTUNIDADE"
     assert "Acima da Meta" in motivo3
@@ -268,11 +268,11 @@ def test_apply_strategy_blocks_missing_valuation_and_expensive_veto_and_zero_qua
 
     rec_veto, status_veto, _, motivo_veto, _ = apply_strategy(
         pos_exp,
-        {"mg_graham": Decimal("-25.0"), "mg_bazin": Decimal("-25.0"), "p_vp": Decimal("2.0")},
+        {"mg_graham": Decimal("-25.0"), "mg_bazin": Decimal("20.0"), "p_vp": Decimal("2.0")},
         falta=Decimal("1000.0"),
         preco=Decimal("50.0"),
         min_6m=Decimal("49.0"),
-        screener_item=MagicMock(bazin_price=35.0, quality_score=90),
+        screener_item=MagicMock(bazin_price=60.0, quality_score=90),
     )
     assert status_veto == "NEUTRO"
     assert rec_veto == "🟡 MANTER"
@@ -287,7 +287,7 @@ def test_apply_strategy_blocks_missing_valuation_and_expensive_veto_and_zero_qua
         min_6m=Decimal("49.0"),
         screener_item=MagicMock(bazin_price=37.5, quality_score=90),
     )
-    assert score_or >= 70
+    assert score_or >= 65
     assert status_or == "NEUTRO"
     assert rec_or == "🟡 MANTER"
     assert "Veto Valuation Caro" in motivo_or
@@ -421,3 +421,111 @@ def test_signal_snapshot_change_alert_and_backtest(val_client):
         session.query(TriggeredAlert).filter_by(ticker="TESTSIG3").delete()
         session.query(MarketData).filter_by(asset_id=asset_id).delete()
         safe_commit(session)
+
+
+def test_indicators_and_ai_validation_suite():
+    from datetime import datetime, timedelta
+    from decimal import Decimal
+    from types import SimpleNamespace
+    from unittest.mock import MagicMock
+    import pandas as pd
+
+    import domain.quant.rebalance as reb_mod
+    from domain.quant.rebalance import calculate_smart_rebalance
+    from infrastructure.screener_service import _compute_dividend_metrics, _safe_pct
+    from services_modules.dashboard_metrics import apply_strategy, calculate_fundamental_metrics
+
+    # A1 + A5: Sentiment IA não altera alocação em reais nem quebra por case
+    def _run_rebalance(sent_a, sent_b):
+        cat = SimpleNamespace(name="Ação", target_percent=100.0)
+        a1 = SimpleNamespace(ticker="AAA3", currency="BRL", category=cat, market_data=[SimpleNamespace(price=20.0)], ai_sentiment=sent_a)
+        a2 = SimpleNamespace(ticker="BBB3", currency="BRL", category=cat, market_data=[SimpleNamespace(price=25.0)], ai_sentiment=sent_b)
+        p1 = SimpleNamespace(asset=a1, quantity=10.0, average_price=20.0, target_percent=50.0)
+        p2 = SimpleNamespace(asset=a2, quantity=10.0, average_price=25.0, target_percent=50.0)
+        fake_session = MagicMock()
+        fake_session.query().options().all.return_value = [p1, p2]
+        fake_session.query().filter_by().options().all.return_value = [p1, p2]
+        with patch.object(reb_mod, "_get_current_user_id", return_value=1), \
+             patch.object(reb_mod, "get_active_positions") as mock_pos:
+            mock_pos.return_value.all.return_value = [p1, p2]
+            return calculate_smart_rebalance(fake_session, lambda *a, **k: pd.DataFrame(), monthly_contribution=1000.0)
+
+    r_pos = _run_rebalance("positivo", "Negativo")
+    r_neu = _run_rebalance("Neutro", "Neutro")
+    assert {s["ticker"]: s["suggested_value"] for s in r_pos["sugestoes"]} == {
+        s["ticker"]: s["suggested_value"] for s in r_neu["sugestoes"]
+    }
+
+    # A2: score 53 (ou 47) com IA Positivo (+4) não cruza corte de compra (55)
+    pos_border = MagicMock()
+    pos_border.quantity = Decimal("100")
+    pos_border.manual_dy = Decimal("0.08")
+    pos_border.last_report_type = None
+    pos_border.asset.category.name = "Ação"
+    pos_border.asset.ai_sentiment = "Positivo"
+    pos_border.asset.market_data = [MagicMock(rsi_14=50.0)]
+    pos_border.asset.technical_data = None
+    # target +25, dy>=6% +8, rsi/6m 0, graham>=20% +15, bazin>=15% +10 -> vamos testar score base 53 (ex.: abaixo alvo +25, DY +8, Graham>=0 +10, Bazin +10 = 53)
+    rec_b, st_b, sc_b, _, _ = apply_strategy(
+        pos_border,
+        {"mg_graham": Decimal("5.0"), "mg_bazin": Decimal("20.0"), "p_vp": Decimal("1.1")},
+        falta=Decimal("500.0"),
+        preco=Decimal("30.0"),
+        min_6m=Decimal("25.0"),
+        screener_item=MagicMock(bazin_price=36.0, quality_score=60),
+    )
+    # 25 + 8 + 10 (mg_bazin) + 10 (mg_graham>0? Graham>0..20 gives 0 unless >20) -> 25+8+10 = 43 +4 = 47; testa tb c/ +10 de min_6m = 53 -> clamped at 54
+    rec_b2, st_b2, sc_b2, _, _ = apply_strategy(
+        pos_border,
+        {"mg_graham": Decimal("5.0"), "mg_bazin": Decimal("20.0"), "p_vp": Decimal("1.1")},
+        falta=Decimal("500.0"),
+        preco=Decimal("30.0"),
+        min_6m=Decimal("29.0"),
+        screener_item=MagicMock(bazin_price=36.0, quality_score=60),
+    )
+    assert sc_b < 55 and st_b == "NEUTRO"
+    assert sc_b2 == 54 and st_b2 == "NEUTRO" and rec_b2 == "🟡 MANTER"
+
+    # I1 + I2: amortização é descontada do DY/div_ps e Bazin usa base 12m
+    now = datetime.now()
+    idx = pd.to_datetime([now - timedelta(days=30), now - timedelta(days=400)])
+    yf_mock = SimpleNamespace(dividends=pd.Series([1.0, 2.0], index=idx))
+    div_ps_full, dy12_full, _, _ = _compute_dividend_metrics(yf_mock, price=10.0, amort_12m=0.0)
+    assert div_ps_full == 1.0 and dy12_full == 10.0
+    div_ps_amort, dy12_amort, _, _ = _compute_dividend_metrics(yf_mock, price=10.0, amort_12m=1.0)
+    assert div_ps_amort is None and dy12_amort == 0.0
+
+    # I3 + I4: mínimo de critérios conhecidos e gate de solvência/ROE
+    _, q_sparse = evaluate_fundamental_checklist("Ação", {"price": 20.0, "pl": 8.0})
+    assert q_sparse is None
+    _, q_fii3 = evaluate_fundamental_checklist("FII", {"price": 100.0, "pvp": 0.9, "dy_12m": 10.0, "bazin_price": 120.0})
+    assert q_fii3 == 96
+    _, q_debt_fail = evaluate_fundamental_checklist(
+        "Ação",
+        {"price": 20.0, "pl": 8.0, "roe": 20.0, "net_margin": 15.0, "debt_to_ebitda": 5.0, "dy_12m": 8.0, "bazin_price": 30.0, "graham_price": 30.0},
+    )
+    assert q_debt_fail is not None and q_debt_fail <= 65
+
+    # I5 + §3: Gordon só em Ação, Número Mágico só em FII
+    pos_fii = SimpleNamespace(quantity=Decimal("10"), manual_dy=Decimal("0.08"), manual_lpa=Decimal("0"), manual_vpa=Decimal("10"), asset=SimpleNamespace(category=SimpleNamespace(name="FII")))
+    m_fii = calculate_fundamental_metrics(pos_fii, Decimal("10.0"))
+    assert m_fii["gordon_price"] == Decimal("0.0") and m_fii["magic_number"] == 150
+
+    pos_acao = SimpleNamespace(quantity=Decimal("10"), manual_dy=Decimal("0.08"), manual_lpa=Decimal("2.0"), manual_vpa=Decimal("10"), asset=SimpleNamespace(category=SimpleNamespace(name="Ação")))
+    m_acao = calculate_fundamental_metrics(pos_acao, Decimal("10.0"))
+    assert m_acao["magic_number"] == 0 and m_acao["gordon_price"] > Decimal("0.0")
+
+    # I6: normalização de escala de percentuais
+    assert _safe_pct(0.18) == 18.0
+    assert _safe_pct(18.0) == 18.0
+
+    # A3: parse JSON inválido marca ai_status = "error" e mantém ai_sentiment = "Neutro"
+    import infrastructure.gemini_service as gem_svc
+    fake_asset = SimpleNamespace(id=999, ticker="ERR3", cvm_code=None, ai_status="idle", ai_sentiment=None, ai_summary=None, ai_updated_at=None)
+    fake_db = MagicMock()
+    fake_db.query().filter_by().first.return_value = fake_asset
+    with patch.object(gem_svc, "SessionLocal", return_value=fake_db), \
+         patch.object(gem_svc, "generate_ai_text", return_value=("resposta nao-json", "gemini")):
+        gem_svc._run_sentiment_analysis(999, "ERR3", [{"title": "Fato relevante", "source": "RI", "link": "https://ex.com"}], {})
+    assert fake_asset.ai_status == "error"
+    assert fake_asset.ai_sentiment == "Neutro"

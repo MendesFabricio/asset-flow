@@ -31,7 +31,8 @@ def calculate_fundamental_metrics(pos, preco, fator=Decimal('1.0')):
         
         if dy > Decimal('0.0') and preco > Decimal('0.0'):
             m["renda_mensal_est"] = (preco * dy * qtd) / Decimal('12.0')
-            m["magic_number"] = int(math.ceil(float(Decimal('12.0') / dy)))
+            if cat_name == "FII":
+                m["magic_number"] = int(math.ceil(float(Decimal('12.0') / dy)))
 
             annual_div_per_share = float(preco * dy)
             desired_dy = 8.0 if cat_name == "FII" else 6.0
@@ -39,9 +40,10 @@ def calculate_fundamental_metrics(pos, preco, fator=Decimal('1.0')):
             if bazin_val:
                 m["bazin_price"] = Decimal(str(bazin_val))
                 m["mg_bazin"] = ((m["bazin_price"] - preco) / preco) * Decimal('100.0')
-            gordon_val = calculate_gordon_price(annual_div_per_share, 12.0, 5.0)
-            if gordon_val:
-                m["gordon_price"] = Decimal(str(gordon_val))
+            if cat_name == "Ação":
+                gordon_val = calculate_gordon_price(annual_div_per_share, 12.0, 5.0)
+                if gordon_val:
+                    m["gordon_price"] = Decimal(str(gordon_val))
         
         if vpa > Decimal('0.0') and preco > Decimal('0.0'):
             m["p_vp"] = (preco * _extract_value(fator)) / vpa
@@ -191,14 +193,18 @@ def apply_strategy(pos, metrics, falta, preco, min_6m, screener_item=None):
     elif cat_name in ("Ação", "FII"):
         criterios_nao_avaliados.append("Qualidade Fundamentalista")
 
-    # Sentimento de Notícias da IA (modulador)
+    # Sentimento de Notícias da IA (modulador leve — não cruza corte de compra sozinho)
     ai_sent = (getattr(pos.asset, "ai_sentiment", None) or "").strip().lower()
+    score_before_ai = score
     if ai_sent == "positivo":
-        score += 8
-        motivos.append("🤖 Sentimento IA Positivo (+8)")
+        score += 4
+        motivos.append("🤖 Sentimento IA Positivo (+4)")
+        buy_cutoff = 55 if falta > Decimal('0.0') else 52
+        if score_before_ai < buy_cutoff <= score:
+            score = buy_cutoff - 1
     elif ai_sent == "negativo":
-        score -= 15
-        motivos.append("🤖 Alerta IA Negativo (-15)")
+        score -= 6
+        motivos.append("🤖 Alerta IA Negativo (-6)")
     elif not ai_sent:
         criterios_nao_avaliados.append("Sentimento IA")
 
@@ -233,7 +239,7 @@ def apply_strategy(pos, metrics, falta, preco, min_6m, screener_item=None):
     elif falta > Decimal('0.0') and score >= 55:
         status = "COMPRAR"
         rec_text = "🟢 APORTAR"
-    elif falta <= Decimal('0.0') and score >= 60:
+    elif falta <= Decimal('0.0') and score >= 52:
         status = "COMPRAR"
         rec_text = "🟢 OPORTUNIDADE"
     elif score >= -15:

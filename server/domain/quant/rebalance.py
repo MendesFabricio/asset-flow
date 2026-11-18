@@ -114,9 +114,9 @@ def calculate_smart_rebalance(
             })
             continue
         penalty = corr_penalty.get(a["ticker"], 0.0)
-        ai_sent = a.get("ai_sentiment")
-        sentiment_tilt = -0.15 if ai_sent == "Negativo" else (0.10 if ai_sent == "Positivo" else 0.0)
-        final_score = max(0.0, a["gap_score"] * (1.0 - penalty) * (1.0 + sentiment_tilt))
+        ai_sent_raw = (a.get("ai_sentiment") or "").strip().lower()
+        ai_sent = ai_sent_raw.title() if ai_sent_raw in ("positivo", "negativo", "neutro") else None
+        final_score = max(0.0, a["gap_score"] * (1.0 - penalty))
         cat = a["category"]
         # Reserva recebe aporte direto em R$; demais classes usam unidades inteiras
         lot_size = 0 if cat == "Reserva" else 1
@@ -138,10 +138,11 @@ def calculate_smart_rebalance(
         val_sug = monthly_contribution * prop
         price = next(a["price"] for a in assets_data if a["ticker"] == s["ticker"])
         sent_note = ""
-        if s.get("ai_sentiment") == "Negativo":
-            sent_note = " · ⚠️ Notícias negativas (-15% peso)"
-        elif s.get("ai_sentiment") == "Positivo":
-            sent_note = " · Notícias positivas (+10% peso)"
+        ai_note_key = (s.get("ai_sentiment") or "").strip().lower()
+        if ai_note_key == "negativo":
+            sent_note = " · ⚠️ Sentimento IA: Negativo (informativo)"
+        elif ai_note_key == "positivo":
+            sent_note = " · Sentimento IA: Positivo (informativo)"
         if s["lot_size"] > 0:
             lots = max(0, int(val_sug / (price * s["lot_size"])))
             actual = lots * price * s["lot_size"]

@@ -17,11 +17,19 @@ Regras obrigatórias ao criar ou alterar lógica financeira, valuation, sinais o
   - `FII`: se `p_vp >= 1.05` ou `mg_bazin <= -20` → vetar compra (`NEUTRO` / `🟡 MANTER`).
 - **Qualidade (`quality_score`) e critérios não avaliados**:
   - Nunca ignorar `quality_score == 0` com checagem truthy (`0` recebe penalidade `-15`; apenas `None` representa ausência de dado).
+  - Exigir cobertura mínima no checklist (`4/6` critérios conhecidos em `Ação` e `3/4` em `FII`); abaixo disso retornar `quality_score = None`.
+  - Em `Ação`, reprovação crítica em Dívida Líq/EBITDA (`fail`) ou ROE (`fail`) aplica gate (`score <= 65`), bloqueando bônus de Alta Qualidade (`>= 75`).
   - Sempre popular `criterios_nao_avaliados` listando critérios ausentes para transparência na UI.
+- **Uso de IA em sinais e alocação**:
+  - Sentimento de IA **não** aplica tilt financeiro na proporção do rebalanceamento (`rebalance.py`) — permanece apenas informativo.
+  - Em `apply_strategy`, sentimento atua apenas como modulador leve (`+4` / `-6`) e **não** pode cruzar sozinho os cortes de compra (`55` / `52`).
+  - Falha no parse JSON de sentimento grava `ai_status = "error"` (nunca `"success"`).
 
 ## 2. Modelos de Valuation
-- **Gordon & DCF**: validar `g / 100 >= k` (`gt / 100 >= w`) e retornar `None` **antes** de qualquer clamp.
-- **Bazin**: exigir dividendo nos últimos 12 meses (`div_12m > 0`); empresa que zerou proventos nos últimos 12m fica sem teto Bazin.
+- **Gordon & DCF**: validar `g / 100 >= k` (`gt / 100 >= w`) e retornar `None` **antes** de qualquer clamp. Gordon e DCF aplicam-se **apenas a `Ação`** (nunca a FII/ETF).
+- **Bazin**: usar base **única de 12 meses** (`div_12m > 0`) no Radar e na Carteira; descontar amortizações (`AMORTIZATION`) e sinalizar `bazin_base` e `dy_includes_amortization`.
+- **Número Mágico (`12/dy`)**: aplicar **apenas a `FII`** (renda mensal).
+- **Normalização de percentuais**: normalizar ROE/margem quando vierem em fração (`abs(val) <= 1.5`) antes de pontuar checklist.
 - **Hierarquia de VPA**: VPA oficial (`manual_vpa` / FNet CVM / PL CVM ÷ Market Cap) prevalece sobre `priceToBook` do Yahoo Finance.
 - **Moeda USD vs BRL**: ativos em USD devem multiplicar `preco * fator` (taxa USD/BRL) antes de dividir por `vpa` (já convertido para BRL).
 - **FCF sintético**: quando FCL/ação for estimado por fallback (`LPA * 0.7`), sinalizar `dcf_is_estimate = True`.

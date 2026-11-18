@@ -121,8 +121,8 @@ def _eval_criterion(
     }
 
 
-def evaluate_fundamental_checklist(asset_type: str, m: dict) -> tuple[list[dict], int]:
-    """Avalia critérios objetivos de saúde financeira e retorna (itens, quality_score 0..100)."""
+def evaluate_fundamental_checklist(asset_type: str, m: dict) -> tuple[list[dict], Optional[int]]:
+    """Avalia critérios objetivos de saúde financeira e retorna (itens, quality_score 0..100 ou None)."""
     t = (asset_type or "Ação").strip()
     price = _to_pos_float(m.get("price"))
     dy = _to_finite_float(m.get("dy_12m"))
@@ -240,10 +240,16 @@ def evaluate_fundamental_checklist(asset_type: str, m: dict) -> tuple[list[dict]
     if not known:
         return items, 0
 
+    min_known = 3 if t == "FII" else 4
+    if len(known) < min_known:
+        return items, None
+
     points_map = {"pass": 100.0, "warn": 55.0, "fail": 0.0}
     raw_score = sum(points_map[i["status"]] for i in known) / len(known)
     missing_penalty = (len(items) - len(known)) * 4.0
     score = round(raw_score - missing_penalty)
+    if t != "FII" and any(i["key"] in ("debt", "roe") and i["status"] == "fail" for i in items):
+        score = min(score, 65)
     return items, int(max(0, min(100, score)))
 
 
