@@ -16,8 +16,20 @@ def _do_update_prices():
     service.update_prices()
 
 def _do_daily_snapshot():
-    logging.info("📸 JOB DIÁRIO: Salvando snapshot do portfólio...")
+    logging.info("📸 JOB 4h: Salvando snapshot diário e atualizando mês corrente...")
     service.take_daily_snapshot()
+    try:
+        from datetime import date
+        from db.models import Session as DBSession, User
+        from domain.portfolio.monthly_snapshot import generate_or_update_monthly_snapshot, build_historical_price_cache
+        today = date.today()
+        with DBSession() as session:
+            for u in session.query(User).all():
+                cache = build_historical_price_cache(session, u.id)
+                generate_or_update_monthly_snapshot(session, u.id, today.year, today.month, price_cache=cache)
+            session.commit()
+    except Exception as e:
+        logging.warning(f"⚠️ Falha ao atualizar MonthlyPortfolioSnapshot do mês corrente: {e}")
 
 def scheduled_daily_snapshot():
     _run_with_tracking("scheduled_daily_snapshot", _do_daily_snapshot)
@@ -179,9 +191,9 @@ JOB_REGISTRY = {
     },
     "scheduled_daily_snapshot": {
         "func": scheduled_daily_snapshot,
-        "description": "Salva snapshot diário do portfólio",
-        "default_type": "cron",
-        "default_cron": "0 23 * * *",
+        "description": "Salva snapshot diário do portfólio e atualiza mês corrente (a cada 4h)",
+        "default_type": "interval",
+        "default_interval": 240,
     },
     "scheduled_quant_warm": {
         "func": scheduled_quant_warm,
