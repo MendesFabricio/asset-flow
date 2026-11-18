@@ -119,30 +119,44 @@ export default function PerformanceAttributionChart({
       ? 'Não foi possível carregar a atribuição patrimonial.'
       : null;
 
+  const filteredHistory = useMemo(() => {
+    if (history.length === 0) return history;
+    let sliced = history;
+    if (historyRange !== 'all') {
+      const months = historyRange === '1y' ? 12 : 24;
+      const lastDate = parseHistoryDate(history[history.length - 1]?.date);
+      if (lastDate) {
+        const cutoff = new Date(lastDate);
+        cutoff.setMonth(cutoff.getMonth() - months);
+        sliced = history.filter((item) => {
+          const dt = parseHistoryDate(item.date);
+          return dt ? dt >= cutoff : true;
+        });
+      }
+    }
+    const MAX_POINTS = 200;
+    if (sliced.length <= MAX_POINTS) return sliced;
+    const step = (sliced.length - 1) / (MAX_POINTS - 1);
+    const sampled: HistoryDataPoint[] = [];
+    for (let i = 0; i < MAX_POINTS - 1; i++) {
+      sampled.push(sliced[Math.round(i * step)]);
+    }
+    sampled.push(sliced[sliced.length - 1]);
+    return sampled;
+  }, [history, historyRange]);
+
   const assetClasses = useMemo(() => {
     const keys = new Set<string>();
-    history.forEach((item) => {
-      Object.keys(item).forEach((key) => {
-        if (!['date', 'Patrimônio', 'Investido', 'Lucro', 'IPCA_6'].includes(key)) {
+    filteredHistory.forEach((item) => {
+      Object.entries(item).forEach(([key, val]) => {
+        if (!['date', 'Patrimônio', 'Investido', 'Lucro', 'IPCA_6'].includes(key) && Number(val) > 0) {
           keys.add(key);
         }
       });
     });
-    return Array.from(keys);
-  }, [history]);
-
-  const filteredHistory = useMemo(() => {
-    if (historyRange === 'all' || history.length === 0) return history;
-    const months = historyRange === '1y' ? 12 : 24;
-    const lastDate = parseHistoryDate(history[history.length - 1]?.date);
-    if (!lastDate) return history;
-    const cutoff = new Date(lastDate);
-    cutoff.setMonth(cutoff.getMonth() - months);
-    return history.filter((item) => {
-      const dt = parseHistoryDate(item.date);
-      return dt ? dt >= cutoff : true;
-    });
-  }, [history, historyRange]);
+    const last = filteredHistory[filteredHistory.length - 1] || {};
+    return Array.from(keys).sort((a, b) => Number(last[b] || 0) - Number(last[a] || 0));
+  }, [filteredHistory]);
 
   const chartData = useMemo(() => {
     if (!data?.series) return [];
@@ -500,15 +514,15 @@ export default function PerformanceAttributionChart({
                   return [formatted, String(name).toUpperCase()];
                 }}
               />
-              <Legend wrapperStyle={{ fontSize: '11px' }} />
+              <Legend iconType="plainline" wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
               {view === 'total' ? (
                 <>
                   <Area
                     type="monotone"
                     dataKey="Investido"
-                    name="Aportes"
-                    stroke="#64748b"
-                    strokeWidth={2}
+                    name="Capital Investido (c/ Reinv.)"
+                    stroke="#94a3b8"
+                    strokeWidth={1.75}
                     strokeDasharray="4 4"
                     fill="transparent"
                     activeDot={false}
@@ -519,7 +533,7 @@ export default function PerformanceAttributionChart({
                     dataKey="Patrimônio"
                     name="Patrimônio Total"
                     stroke="#22d3ee"
-                    strokeWidth={2.5}
+                    strokeWidth={2.25}
                     fill="url(#colorPatrimonioUnified)"
                     activeDot={{ r: 5, strokeWidth: 0, fill: palette.activeDotFill }}
                     animationDuration={280}
@@ -533,9 +547,9 @@ export default function PerformanceAttributionChart({
                     dataKey={cls}
                     stackId="1"
                     stroke={getClassColor(cls, idx)}
-                    strokeWidth={2}
+                    strokeWidth={1.25}
                     fill={getClassColor(cls, idx)}
-                    fillOpacity={0.4}
+                    fillOpacity={0.62}
                     activeDot={{ r: 4, strokeWidth: 0, fill: palette.activeDotFill }}
                     animationDuration={280}
                   />

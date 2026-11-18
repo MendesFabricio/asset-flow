@@ -31,8 +31,8 @@ export const useChartPalette = (): ChartPalette => {
   }
 
   return {
-    grid: '#1e293b',
-    axis: '#475569',
+    grid: 'rgba(148, 163, 184, 0.12)',
+    axis: '#94a3b8',
     axisLine: '#334155',
     tooltipBg: 'rgba(15, 23, 42, 0.95)',
     tooltipBorder: '#334155',
