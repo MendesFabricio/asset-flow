@@ -1,9 +1,8 @@
 'use client';
-import React, { useState, useEffect, useMemo, useRef, useTransition } from 'react';
+import React, { useState, useEffect, useMemo, useTransition } from 'react';
 import { Asset } from '../types';
 import { AssetRow } from '../features/assets/components/AssetRow';
 import { Search } from 'lucide-react';
-import { useVirtualizer } from '@tanstack/react-virtual';
 
 interface AssetsTableProps {
   assets: Asset[];
@@ -58,22 +57,6 @@ export const AssetsTable = React.memo(({ assets, tab, onEdit, onViewNews, onView
       .sort((a, b) => a.ticker.localeCompare(b.ticker));
   }, [assets, tab, searchQuery]);
 
-  const parentRef = useRef<HTMLDivElement>(null);
-
-  const rowVirtualizer = useVirtualizer({
-    count: filteredAssets.length,
-    getScrollElement: () => parentRef.current,
-    estimateSize: () => 72,
-    overscan: 5,
-    useFlushSync: false,
-  });
-
-  const virtualRows = rowVirtualizer.getVirtualItems();
-  const totalSize = rowVirtualizer.getTotalSize();
-
-  const paddingTop = virtualRows.length > 0 ? virtualRows[0].start : 0;
-  const paddingBottom = virtualRows.length > 0 ? totalSize - virtualRows[virtualRows.length - 1].end : 0;
-
   if (isExcludedTab) return null;
 
   return (
@@ -104,7 +87,7 @@ export const AssetsTable = React.memo(({ assets, tab, onEdit, onViewNews, onView
         </div>
       </div>
 
-      <div ref={parentRef} className="overflow-x-auto max-h-[600px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-800">
+      <div className="overflow-x-auto max-h-[600px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-800">
         <table className="w-full text-left text-sm">
           <thead className="bg-slate-950/95 text-slate-400/70 uppercase text-[10px] font-bold tracking-widest border-b border-slate-800/40 sticky top-0 z-10">
             <tr>
@@ -119,32 +102,16 @@ export const AssetsTable = React.memo(({ assets, tab, onEdit, onViewNews, onView
           </thead>
           <tbody className="divide-y divide-slate-800/30">
             {filteredAssets.length > 0 ? (
-              <>
-                {paddingTop > 0 && (
-                  <tr>
-                    <td style={{ height: `${paddingTop}px` }} colSpan={7} />
-                  </tr>
-                )}
-                {virtualRows.map((virtualRow) => {
-                  const ativo = filteredAssets[virtualRow.index];
-                  if (!ativo) return null;
-                  return (
-                    <AssetRow
-                      key={ativo.ticker}
-                      ativo={ativo}
-                      tab={tab}
-                      onEdit={onEdit}
-                      onViewNews={onViewNews}
-                      onViewDetails={onViewDetails}
-                    />
-                  );
-                })}
-                {paddingBottom > 0 && (
-                  <tr>
-                    <td style={{ height: `${paddingBottom}px` }} colSpan={7} />
-                  </tr>
-                )}
-              </>
+              filteredAssets.map((ativo) => (
+                <AssetRow
+                  key={ativo.ticker}
+                  ativo={ativo}
+                  tab={tab}
+                  onEdit={onEdit}
+                  onViewNews={onViewNews}
+                  onViewDetails={onViewDetails}
+                />
+              ))
             ) : (
               <tr>
                 <td colSpan={7} className="p-12 text-center">
