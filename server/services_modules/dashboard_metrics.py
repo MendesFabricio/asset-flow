@@ -11,7 +11,7 @@ def _extract_value(val):
         return Decimal('0.0')
     return Decimal(str(val))
 
-def calculate_fundamental_metrics(pos, preco):
+def calculate_fundamental_metrics(pos, preco, fator=Decimal('1.0')):
     m = {
         "vi_graham": Decimal('0.0'),
         "mg_graham": Decimal('0.0'),
@@ -44,7 +44,7 @@ def calculate_fundamental_metrics(pos, preco):
                 m["gordon_price"] = Decimal(str(gordon_val))
         
         if vpa > Decimal('0.0') and preco > Decimal('0.0'):
-            m["p_vp"] = preco / vpa
+            m["p_vp"] = (preco * _extract_value(fator)) / vpa
 
         if cat_name == "Ação" and lpa > Decimal('0.0') and vpa > Decimal('0.0'):
             vi = calculate_graham_price(float(lpa), float(vpa))
@@ -125,17 +125,23 @@ def apply_strategy(pos, metrics, falta, preco, min_6m, screener_item=None):
             score += 10
             motivos.append(f"⚓ Desconto de 6 Meses (+10) [{float(desconto):.1f}%]")
 
+    criterios_nao_avaliados = []
+    mg_graham = metrics.get("mg_graham", Decimal('0.0'))
+    pvp = metrics.get("p_vp", Decimal('0.0'))
+
     if cat_name == "Ação":
-        mg = metrics.get("mg_graham", Decimal('0.0'))
-        if mg >= Decimal('20.0'):
+        if mg_graham == Decimal('0.0'):
+            criterios_nao_avaliados.append("Graham (LPA/VPA)")
+        elif mg_graham >= Decimal('20.0'):
             score += 15
             motivos.append("🧠 Margem Graham de 20%+ (+15)")
-        elif mg <= Decimal('-20.0'):
+        elif mg_graham <= Decimal('-20.0'):
             score -= 15
             motivos.append("🚨 Empresa Cara por Graham (-15)")
     elif cat_name == "FII":
-        pvp = metrics.get("p_vp", Decimal('1.0'))
-        if Decimal('0.0') < pvp <= Decimal('0.95'):
+        if pvp <= Decimal('0.0'):
+            criterios_nao_avaliados.append("P/VP")
+        elif pvp <= Decimal('0.95'):
             score += 15
             motivos.append("🧠 Desconto Patrimonial P/VP (+15)")
         elif pvp >= Decimal('1.05'):
@@ -162,23 +168,28 @@ def apply_strategy(pos, metrics, falta, preco, min_6m, screener_item=None):
     mg_bazin = float(metrics.get("mg_bazin") or 0.0)
     if mg_bazin == 0.0 and screener_item and getattr(screener_item, "bazin_price", None) and preco > Decimal('0.0'):
         mg_bazin = ((float(screener_item.bazin_price) - float(preco)) / float(preco)) * 100.0
-    if cat_name in ("Ação", "FII") and mg_bazin != 0.0:
-        if mg_bazin >= 15.0:
+    if cat_name in ("Ação", "FII"):
+        if mg_bazin == 0.0:
+            criterios_nao_avaliados.append("Teto Bazin")
+        elif mg_bazin >= 15.0:
             score += 10
             motivos.append(f"🎯 Abaixo do Teto Bazin (+10) [+{mg_bazin:.1f}%]")
         elif mg_bazin <= -20.0:
             score -= 10
             motivos.append(f"📈 Acima do Teto Bazin (-10) [{mg_bazin:.1f}%]")
 
-    # Qualidade Fundamentalista (Checklist / Radar)
-    if screener_item and getattr(screener_item, "quality_score", None):
-        q_score = int(screener_item.quality_score or 0)
+    # Qualidade Fundamentalista (Checklist / Radar) — 0 deve ser penalizado (nao ignorado por truthiness)
+    q_raw = getattr(screener_item, "quality_score", None) if screener_item is not None else None
+    if q_raw is not None:
+        q_score = int(q_raw)
         if q_score >= 75:
             score += 10
             motivos.append(f"🛡️ Alta Qualidade Fundamentalista (+10) [{q_score}/100]")
-        elif 0 < q_score < 45:
+        elif q_score < 45:
             score -= 15
             motivos.append(f"⚠️ Qualidade Fundamentalista Baixa (-15) [{q_score}/100]")
+    elif cat_name in ("Ação", "FII"):
+        criterios_nao_avaliados.append("Qualidade Fundamentalista")
 
     # Sentimento de Notícias da IA (modulador)
     ai_sent = (getattr(pos.asset, "ai_sentiment", None) or "").strip().lower()
@@ -188,10 +199,35 @@ def apply_strategy(pos, metrics, falta, preco, min_6m, screener_item=None):
     elif ai_sent == "negativo":
         score -= 15
         motivos.append("🤖 Alerta IA Negativo (-15)")
+    elif not ai_sent:
+        criterios_nao_avaliados.append("Sentimento IA")
 
+    metrics["criterios_nao_avaliados"] = criterios_nao_avaliados
     score = max(-100, min(100, score))
 
-    if falta > Decimal('0.0') and score >= 75:
+    # Regras de integridade de sinal por classe
+    if cat_name == "Ação":
+        has_valuation = (mg_graham != Decimal('0.0')) or (mg_bazin != 0.0)
+        is_expensive_veto = (mg_graham <= Decimal('-20.0')) or (mg_graham <= Decimal('0.0') and mg_bazin <= -20.0)
+    elif cat_name == "FII":
+        has_valuation = (pvp > Decimal('0.0')) or (mg_bazin != 0.0)
+        is_expensive_veto = (pvp >= Decimal('1.05')) or (mg_bazin <= -20.0)
+    else:
+        has_valuation = True
+        is_expensive_veto = False
+
+    if not has_valuation:
+        if score < -15 and falta <= Decimal('0.0'):
+            status = "REDUZIR"
+            rec_text = "🟠 REDUZIR"
+        elif score < -15:
+            status = "EVITAR"
+            rec_text = "🔴 EVITAR"
+        else:
+            status = "INCONCLUSIVO"
+            rec_text = "⚪ INCONCLUSIVO"
+            motivos.append("📋 Sem Valuation Calculável")
+    elif falta > Decimal('0.0') and score >= 75:
         status = "COMPRA_FORTE"
         rec_text = "🟢 APORTAR FORTE"
     elif falta > Decimal('0.0') and score >= 55:
@@ -209,5 +245,10 @@ def apply_strategy(pos, metrics, falta, preco, min_6m, screener_item=None):
     else:
         status = "EVITAR"
         rec_text = "🔴 EVITAR"
-        
+
+    if is_expensive_veto and status in ("COMPRA_FORTE", "COMPRAR"):
+        status = "NEUTRO"
+        rec_text = "🟡 MANTER"
+        motivos.append("🛑 Veto Valuation Caro")
+
     return rec_text, status, score, " • ".join(motivos), rsi

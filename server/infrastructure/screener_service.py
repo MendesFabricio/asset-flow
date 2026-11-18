@@ -39,6 +39,12 @@ _SECTOR_PT = {
     "Real Estate": "Imobiliário / FII",
 }
 
+_NON_FII_11 = {
+    "BOVA11", "IVVB11", "SMAL11", "HASH11", "GOLD11", "NASD11", "SPXI11",
+    "B5P211", "IMAB11", "VWRA11", "COIN11", "ETHY11", "DIVO11", "FIXA11",
+    "SANB11", "TAEE11", "KLBN11", "SAPR11", "ALUP11", "ENGI11", "BPAC11", "IGTI11",
+}
+
 _DATA_PATH = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "data", "tickers_cache.json")
 )
@@ -118,9 +124,11 @@ def _compute_dividend_metrics(yf_ticker_obj, price: float) -> tuple[Optional[flo
             div_avg_annual = div_12m
             history_5y = []
 
-        base_div = div_avg_annual if div_avg_annual > 0 else div_12m
         dy_12m_pct = (div_12m / price) * 100.0 if div_12m > 0 else 0.0
         dy_5y_pct = (div_avg_annual / price) * 100.0 if div_avg_annual > 0 else dy_12m_pct
+        if div_12m <= 0:
+            return None, 0.0, round(dy_5y_pct, 2), history_5y
+        base_div = div_avg_annual if div_avg_annual > 0 else div_12m
         return (base_div if base_div > 0 else None), round(dy_12m_pct, 2), round(dy_5y_pct, 2), history_5y
     except Exception:
         return None, None, None, []
@@ -134,7 +142,9 @@ def fetch_ticker_fundamentals(
 ) -> Optional[dict]:
     """Busca dados no Yahoo Finance para um ticker B3 e calcula métricas de valuation/checklist."""
     clean_ticker = ticker.strip().upper().replace(".SA", "")
-    inferred_type = asset_type or ("FII" if clean_ticker.endswith("11") else "Ação")
+    inferred_type = asset_type or (
+        "FII" if (clean_ticker.endswith("11") and clean_ticker not in _NON_FII_11) else "Ação"
+    )
     yf_symbol = to_yf_ticker(clean_ticker, inferred_type)
 
     try:
@@ -144,6 +154,9 @@ def fetch_ticker_fundamentals(
             info = yt.info or {}
         except Exception:
             info = {}
+
+        if not asset_type and str(info.get("quoteType") or "").upper() == "ETF":
+            inferred_type = "ETF"
 
         price = _safe_float(info.get("currentPrice") or info.get("regularMarketPrice"))
         prev_close = _safe_float(info.get("previousClose") or info.get("regularMarketPreviousClose"))
@@ -202,16 +215,18 @@ def fetch_ticker_fundamentals(
         fcf = _safe_float(info.get("freeCashflow"))
         shares = _safe_float(info.get("sharesOutstanding"))
         fcf_per_share = (fcf / shares) if (fcf and shares and shares > 0) else None
+        dcf_is_estimate = False
         if fcf_per_share is None and lpa and lpa > 0:
             # Conservador fallback de FCL/ação (~70% do lucro por ação quando Yahoo omite DFC)
             fcf_per_share = round(lpa * 0.7, 4)
+            dcf_is_estimate = True
 
         # Mescla overrides locais do DB (CVM / FII relatório gerencial / posição manual)
         ov = db_overrides or {}
         if ov.get("lpa") and ov["lpa"] > 0 and not lpa:
             lpa = float(ov["lpa"])
             pl = price / lpa
-        if ov.get("vpa") and ov["vpa"] > 0 and not pvp:
+        if ov.get("vpa") and ov["vpa"] > 0:
             vpa = float(ov["vpa"])
             pvp = price / vpa
         if ov.get("dy") and ov["dy"] > 0 and not div_ps:
@@ -262,6 +277,7 @@ def fetch_ticker_fundamentals(
             "graham_price": graham_price,
             "gordon_price": gordon_price,
             "dcf_price": dcf_price,
+            "dcf_is_estimate": dcf_is_estimate,
             "leverage_pct": ov.get("leverage_pct"),
             "dividend_history_5y": div_history_5y,
         }
@@ -344,6 +360,7 @@ def _upsert_screener_items(session, fetched_items: list[dict]) -> int:
         row.raw_metrics_json = {
             "leverage_pct": item.get("leverage_pct"),
             "dividend_history_5y": item.get("dividend_history_5y") or [],
+            "dcf_is_estimate": bool(item.get("dcf_is_estimate", False)),
         }
         row.updated_at = now
         saved += 1

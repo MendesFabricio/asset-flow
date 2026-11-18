@@ -9,6 +9,7 @@ interface AssetTooltipProps {
         ticker: string;
         score: number;
         motivos: string[];
+        criteriosNaoAvaliados?: string[];
         rsi: number;
         variacaoFinanceira: number;
         variacaoPct: number;
@@ -62,6 +63,12 @@ export const AssetTooltip = ({ type, data, style }: AssetTooltipProps) => {
                                 {m}
                             </div>
                         )) : <span className="text-[10px] text-slate-500 italic">Apenas rebalanceamento.</span>}
+                        {data.criteriosNaoAvaliados && data.criteriosNaoAvaliados.length > 0 && (
+                            <div className="pt-1.5 border-t border-slate-800/70 text-[9px] text-slate-400">
+                                <span className="font-bold uppercase tracking-wider text-slate-500 block mb-0.5">Sem dados para avaliar:</span>
+                                {data.criteriosNaoAvaliados.join(', ')}
+                            </div>
+                        )}
                     </div>
                     <div className="px-3 pb-3 pt-2 border-t border-slate-800/80 bg-slate-800/30 rounded-b-lg">
                         <div className="flex justify-between items-center mb-1.5">

@@ -64,9 +64,9 @@ def calculate_gordon_price(
     if div is None or k is None or g is None:
         return None
     k_dec = k / 100.0
-    g_dec = max(-0.05, min(g / 100.0, k_dec - 0.005))
-    if k_dec <= g_dec + 0.004:
+    if (g / 100.0) >= k_dec - 0.004:
         return None
+    g_dec = max(-0.05, min(g / 100.0, k_dec - 0.005))
     d1 = div * (1.0 + g_dec)
     return round(d1 / (k_dec - g_dec), 2)
 
@@ -87,10 +87,10 @@ def calculate_dcf_price(
         return None
 
     w = w_pct / 100.0
-    g = max(-0.10, min(g_pct / 100.0, 0.35))
-    gt = max(0.0, min(gt_pct / 100.0, w - 0.01))
-    if w <= gt + 0.005 or years < 1:
+    if (gt_pct / 100.0) >= w - 0.005 or years < 1:
         return None
+    g = max(-0.10, min(g_pct / 100.0, 0.35))
+    gt = max(0.0, gt_pct / 100.0)
 
     pv_cashflows = 0.0
     cf = fcf

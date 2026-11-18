@@ -91,6 +91,7 @@ class MarketScreenerItem(Base):
             "graham_price": round(self.graham_price, 2) if self.graham_price is not None else None,
             "gordon_price": round(self.gordon_price, 2) if self.gordon_price is not None else None,
             "dcf_price": round(self.dcf_price, 2) if self.dcf_price is not None else None,
+            "dcf_is_estimate": bool((self.raw_metrics_json or {}).get("dcf_is_estimate", False)),
             "margin_bazin_pct": margin_bazin,
             "margin_graham_pct": margin_graham,
             "quality_score": int(self.quality_score or 0),

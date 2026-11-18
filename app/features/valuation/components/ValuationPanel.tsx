@@ -227,6 +227,7 @@ export function ValuationPanel({ ticker, assetType, compact = false }: Valuation
             </div>
             <input
               type="range"
+              aria-label="DY Mínimo Bazin"
               min="4"
               max="14"
               step="0.5"
@@ -243,6 +244,7 @@ export function ValuationPanel({ ticker, assetType, compact = false }: Valuation
             </div>
             <input
               type="range"
+              aria-label="Taxa de Desconto Ke/WACC"
               min="8"
               max="20"
               step="0.5"
@@ -259,6 +261,7 @@ export function ValuationPanel({ ticker, assetType, compact = false }: Valuation
             </div>
             <input
               type="range"
+              aria-label="Crescimento em 5 anos"
               min="0"
               max="18"
               step="0.5"
@@ -275,6 +278,7 @@ export function ValuationPanel({ ticker, assetType, compact = false }: Valuation
             </div>
             <input
               type="range"
+              aria-label="Crescimento Perpétuo DCF"
               min="0"
               max="7"
               step="0.5"

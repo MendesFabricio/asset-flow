@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useMemo, useTransition } from 'react';
 import { Asset } from '../types';
 import { AssetRow } from '../features/assets/components/AssetRow';
+import { PORTFOLIO_ASSET_TABS } from '../features/dashboard/hooks/useDashboardState';
 import { Search } from 'lucide-react';
 
 interface AssetsTableProps {
@@ -18,8 +19,8 @@ export const AssetsTable = React.memo(({ assets, tab, onEdit, onViewNews, onView
   const [searchQuery, setSearchQuery] = useState('');
   const [isPending, startTransition] = useTransition();
 
-  // Cancela tab se for resumo ou telas de simulação
-  const isExcludedTab = ['Resumo', 'Evolução', 'Reembolsos', 'Financeiro', 'Quantitativo', 'Radar', 'Comparador', 'RendaPassiva', 'Jarvis', 'Cartoes'].includes(tab);
+  // Apenas exibe a tabela nas abas de classes de ativos
+  const isExcludedTab = !(PORTFOLIO_ASSET_TABS as readonly string[]).includes(tab);
 
   // Reseta busca ao trocar de categoria
   useEffect(() => {

@@ -15,6 +15,7 @@ from db.models.portfolio import (
     Dividend,
     PortfolioSnapshot,
     MonthlyPortfolioSnapshot,
+    SignalSnapshot,
 )
 from db.models.financials import (
     RefundConfig,
@@ -60,6 +61,7 @@ __all__ = [
     "Dividend",
     "PortfolioSnapshot",
     "MonthlyPortfolioSnapshot",
+    "SignalSnapshot",
     "RefundConfig",
     "Debtor",
     "ReceivableLoan",

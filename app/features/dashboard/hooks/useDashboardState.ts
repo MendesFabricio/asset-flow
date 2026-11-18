@@ -1,13 +1,20 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useModalStore } from '@/store/modalStore';
+
+export const PORTFOLIO_ASSET_TABS = [
+  'Ação',
+  'FII',
+  'Internacional',
+  'Cripto',
+  'Reserva',
+] as const;
 
 export const DASHBOARD_CONTENT_TABS = [
   'Resumo',
   'Evolução',
   'Reembolsos',
-  'Financeiro',
   'Quantitativo',
   'Radar',
   'Comparador',
@@ -18,11 +25,7 @@ export const DASHBOARD_CONTENT_TABS = [
 ] as const;
 
 const VALID_TABS = new Set<string>([
-  'Ação',
-  'FII',
-  'Internacional',
-  'Cripto',
-  'Reserva',
+  ...PORTFOLIO_ASSET_TABS,
   ...DASHBOARD_CONTENT_TABS,
 ]);
 
@@ -58,7 +61,7 @@ export function useDashboardState() {
       } else {
         url.searchParams.set('tab', normalized);
       }
-      window.history.pushState({ tab: normalized }, '', url.toString());
+      window.history.replaceState({ tab: normalized }, '', url.toString());
     }
   }, []);
   const [isRefetching, setIsRefetching] = useState(false);
@@ -82,17 +85,8 @@ export function useDashboardState() {
   const isCorporateActionModalOpen = useModalStore(state => state.isCorporateActionModalOpen);
   const setCorporateActionModalOpen = useModalStore(state => state.setCorporateActionModalOpen);
 
-  return {
-    tab,
-    setTab,
-    isRefetching,
-    setIsRefetching,
-    showRefreshSuccess,
-    setShowRefreshSuccess,
-    isRadarModalOpen,
-    openRadarModal,
-    closeRadarModal,
-    modals: {
+  const modals = useMemo(
+    () => ({
       isAddModalOpen,
       isSmartModalOpen,
       isCorporateActionModalOpen,
@@ -105,6 +99,33 @@ export function useDashboardState() {
       setEditingAsset,
       setSelectedDetailsAsset,
       setNewsTicker,
-    },
+    }),
+    [
+      isAddModalOpen,
+      isSmartModalOpen,
+      isCorporateActionModalOpen,
+      editingAsset,
+      selectedDetailsAsset,
+      newsTicker,
+      setAddModalOpen,
+      setSmartModalOpen,
+      setCorporateActionModalOpen,
+      setEditingAsset,
+      setSelectedDetailsAsset,
+      setNewsTicker,
+    ]
+  );
+
+  return {
+    tab,
+    setTab,
+    isRefetching,
+    setIsRefetching,
+    showRefreshSuccess,
+    setShowRefreshSuccess,
+    isRadarModalOpen,
+    openRadarModal,
+    closeRadarModal,
+    modals,
   };
 }

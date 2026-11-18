@@ -63,7 +63,7 @@ class DashboardService:
                     if asset.category and asset.category.name in cat_totals:
                         cat_totals[asset.category.name] += total_atual
                     
-                    metrics = calculate_fundamental_metrics(pos, preco)
+                    metrics = calculate_fundamental_metrics(pos, preco, fator=fator)
                     resumo["RendaMensal"] += Decimal(str(metrics.get("renda_mensal_est", 0)))
                     
                     ativos_proc.append({
@@ -177,6 +177,7 @@ class DashboardService:
                         "p_vp": float(item["metrics"].get("p_vp", 0)),
                         "magic_number": int(item["metrics"].get("magic_number", 0)),
                         "renda_mensal_est": float(item["metrics"].get("renda_mensal_est", 0)),
+                        "criterios_nao_avaliados": item["metrics"].get("criterios_nao_avaliados", []),
                     })
 
                 alertas = build_alerts(ativos_proc, cat_totals, cat_metas, resumo, self, session)
@@ -234,7 +235,7 @@ class DashboardService:
                 pfator = dolar_rate if pa.currency == 'USD' else Decimal('1.0')
                 portfolio_total += Decimal(str(p.quantity or 0)) * pprice * pfator
                     
-            metrics = calculate_fundamental_metrics(pos, preco)
+            metrics = calculate_fundamental_metrics(pos, preco, fator=fator)
             
             cat_target = Decimal(str(asset.category.target_percent or 0)) if asset.category else Decimal('0.0')
             meta_macro = cat_target / Decimal('100.0')

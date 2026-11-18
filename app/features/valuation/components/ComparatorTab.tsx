@@ -165,6 +165,7 @@ export function ComparatorTab({ ativos = [] }: ComparatorTabProps) {
           <form onSubmit={handleAddTicker} className="flex items-center gap-2">
             <input
               type="text"
+              aria-label="Adicionar ticker para comparação"
               value={tickerInput}
               onChange={(e) => setTickerInput(e.target.value)}
               placeholder="Adicionar ticker (ex: HGLG11)"
@@ -233,9 +234,9 @@ export function ComparatorTab({ ativos = [] }: ComparatorTabProps) {
             <table className="w-full text-left text-xs">
               <thead className="bg-surface-elevated border-b border-border-subtle">
                 <tr>
-                  <th className="px-4 py-3 text-[10px] uppercase tracking-wider text-text-muted w-48">Indicador</th>
+                  <th scope="col" className="px-4 py-3 text-[10px] uppercase tracking-wider text-text-muted w-48">Indicador</th>
                   {items.map((it) => (
-                    <th key={it.ticker} className="px-4 py-3 text-right">
+                    <th key={it.ticker} scope="col" className="px-4 py-3 text-right">
                       <div className="font-extrabold text-sm text-text-primary">{it.ticker}</div>
                       <div className="text-[10px] font-normal text-text-muted truncate max-w-[160px] ml-auto">
                         {it.name}

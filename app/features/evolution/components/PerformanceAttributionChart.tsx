@@ -136,10 +136,29 @@ export default function PerformanceAttributionChart({
     }
     const MAX_POINTS = 200;
     if (sliced.length <= MAX_POINTS) return sliced;
-    const step = (sliced.length - 1) / (MAX_POINTS - 1);
-    const sampled: HistoryDataPoint[] = [];
-    for (let i = 0; i < MAX_POINTS - 1; i++) {
-      sampled.push(sliced[Math.round(i * step)]);
+    // Downsample por envelope min/max para preservar picos e vales diários em cada bucket
+    const bucketCount = Math.floor((MAX_POINTS - 2) / 2);
+    const body = sliced.slice(1, -1);
+    const bucketSize = body.length / bucketCount;
+    const sampled: HistoryDataPoint[] = [sliced[0]];
+    for (let b = 0; b < bucketCount; b++) {
+      const start = Math.floor(b * bucketSize);
+      const end = Math.min(body.length, Math.floor((b + 1) * bucketSize));
+      if (start >= end) continue;
+      let minIdx = start;
+      let maxIdx = start;
+      for (let idx = start + 1; idx < end; idx++) {
+        const val = Number(body[idx]['Patrimônio'] ?? 0);
+        if (val < Number(body[minIdx]['Patrimônio'] ?? 0)) minIdx = idx;
+        if (val > Number(body[maxIdx]['Patrimônio'] ?? 0)) maxIdx = idx;
+      }
+      if (minIdx === maxIdx) {
+        sampled.push(body[minIdx]);
+      } else if (minIdx < maxIdx) {
+        sampled.push(body[minIdx], body[maxIdx]);
+      } else {
+        sampled.push(body[maxIdx], body[minIdx]);
+      }
     }
     sampled.push(sliced[sliced.length - 1]);
     return sampled;

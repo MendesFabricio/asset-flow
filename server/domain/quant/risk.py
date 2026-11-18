@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from db.models import SystemCache, safe_commit, get_active_positions
 from domain.quant.helpers import _to_yf_ticker, _align_prices_to_b3, get_risk_free_rate, _get_current_user_id, _extract_close_prices, _calculate_ewma_covariance, classify_asset_sector
 
-def _extract_fnet_health(pos) -> dict:
+def _extract_fnet_health(pos, dolar_rate: float = 1.0) -> dict:
     """Extrai P/VP, Alavancagem e Caixa (% PL) reais do Informe Mensal B3 salvo em pos.last_report_type."""
     health = {"p_vp": None, "alavancagem": None, "caixa_pct": None}
     raw_report = getattr(pos, "last_report_type", None)
@@ -32,6 +32,8 @@ def _extract_fnet_health(pos) -> dict:
         vpa = float(getattr(pos, "manual_vpa", 0) or 0)
         mdata = pos.asset.market_data if pos.asset and pos.asset.market_data else []
         price = float(mdata[0].price or 0) if mdata else 0.0
+        if getattr(pos.asset, "currency", "BRL") == "USD":
+            price *= float(dolar_rate or 1.0)
         if vpa > 0 and price > 0:
             health["p_vp"] = f"{price / vpa:.2f}"
     return health
@@ -371,7 +373,7 @@ def calculate_risk_metrics(session, fetch_prices, allow_compute=True, dolar_rate
             if ipca is not None and 0.0 < float(ipca) <= 100.0:
                 indexers["IPCA"] = round(float(ipca), 1)
 
-        fnet_health = _extract_fnet_health(pos)
+        fnet_health = _extract_fnet_health(pos, dolar_rate=dolar_rate)
         fii_credit_map.append({
             "ticker": ticker,
             "category": pos.asset.category.name,

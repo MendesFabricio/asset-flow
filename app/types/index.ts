@@ -54,6 +54,7 @@ export interface Asset {
   magic_number?: number;
   renda_mensal_est?: number;
   p_vp?: number;
+  criterios_nao_avaliados?: string[];
   
   // RI Reports
   last_report_url?: string;

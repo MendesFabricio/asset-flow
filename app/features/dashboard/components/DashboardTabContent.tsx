@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/Skeletons';
 import { MorningBriefing } from '@/features/news/MorningBriefing';
 import { SummaryDashboard } from './SummaryDashboard';
+import { DASHBOARD_CONTENT_TABS } from '../hooks/useDashboardState';
 import { Asset, HistoryDataPoint } from '@/types';
 
 const MonthlyPnLChart = dynamic(
@@ -106,18 +107,7 @@ export function prefetchTabChunk(tabId: string) {
   }
 }
 
-const CONTENT_TAB_IDS = new Set([
-  'Resumo',
-  'Evolução',
-  'Quantitativo',
-  'Radar',
-  'Comparador',
-  'RendaPassiva',
-  'Renda Fixa',
-  'Reembolsos',
-  'Cartoes',
-  'Jarvis',
-]);
+const CONTENT_TAB_IDS = new Set<string>(DASHBOARD_CONTENT_TABS);
 
 export function DashboardTabContent({
   tab,
@@ -138,10 +128,6 @@ export function DashboardTabContent({
     if (!CONTENT_TAB_IDS.has(normalizedTab)) return;
     setVisitedTabs((prev) => (prev.includes(normalizedTab) ? prev : [...prev, normalizedTab]));
   }, [normalizedTab]);
-
-  if (!CONTENT_TAB_IDS.has(normalizedTab)) {
-    return null;
-  }
 
   const renderTabPanel = (tabId: string) => {
     switch (tabId) {

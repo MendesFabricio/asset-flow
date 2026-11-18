@@ -222,3 +222,94 @@ def test_apply_strategy_integrates_ai_bazin_quality_and_reduzir():
     assert status3 == "COMPRAR"
     assert rec3 == "🟢 OPORTUNIDADE"
     assert "Acima da Meta" in motivo3
+
+
+def test_apply_strategy_blocks_missing_valuation_and_expensive_veto_and_zero_quality():
+    from decimal import Decimal
+    from unittest.mock import MagicMock
+    from services_modules.dashboard_metrics import apply_strategy, calculate_fundamental_metrics
+
+    # A1: Ação sem LPA/VPA/DY/quality com bônus técnicos não deve emitir COMPRA -> INCONCLUSIVO
+    pos_missing = MagicMock()
+    pos_missing.quantity = Decimal("100")
+    pos_missing.manual_dy = Decimal("0.0")
+    pos_missing.manual_lpa = Decimal("0.0")
+    pos_missing.manual_vpa = Decimal("0.0")
+    pos_missing.last_report_type = None
+    pos_missing.asset.category.name = "Ação"
+    pos_missing.asset.ai_sentiment = None
+    pos_missing.asset.market_data = [MagicMock(rsi_14=28.0)]
+    pos_missing.asset.technical_data = None
+
+    m_empty = calculate_fundamental_metrics(pos_missing, Decimal("20.0"))
+    rec_inc, status_inc, _, motivo_inc, _ = apply_strategy(
+        pos_missing,
+        m_empty,
+        falta=Decimal("1000.0"),
+        preco=Decimal("20.0"),
+        min_6m=Decimal("19.5"),
+        screener_item=None,
+    )
+    assert status_inc == "INCONCLUSIVO"
+    assert rec_inc == "⚪ INCONCLUSIVO"
+    assert "Sem Valuation Calculável" in motivo_inc
+    assert "Graham (LPA/VPA)" in m_empty["criterios_nao_avaliados"]
+    assert "Teto Bazin" in m_empty["criterios_nao_avaliados"]
+
+    # A2: Ativo 20%+ caro em Graham e Bazin com bônus máximos recebe veto duro -> NEUTRO
+    pos_exp = MagicMock()
+    pos_exp.quantity = Decimal("100")
+    pos_exp.manual_dy = Decimal("0.08")
+    pos_exp.last_report_type = None
+    pos_exp.asset.category.name = "Ação"
+    pos_exp.asset.ai_sentiment = "Positivo"
+    pos_exp.asset.market_data = [MagicMock(rsi_14=25.0)]
+    pos_exp.asset.technical_data = None
+
+    rec_veto, status_veto, _, motivo_veto, _ = apply_strategy(
+        pos_exp,
+        {"mg_graham": Decimal("-25.0"), "mg_bazin": Decimal("-25.0"), "p_vp": Decimal("2.0")},
+        falta=Decimal("1000.0"),
+        preco=Decimal("50.0"),
+        min_6m=Decimal("49.0"),
+        screener_item=MagicMock(bazin_price=35.0, quality_score=90),
+    )
+    assert status_veto == "NEUTRO"
+    assert rec_veto == "🟡 MANTER"
+    assert "Veto Valuation Caro" in motivo_veto
+
+    # A3: quality_score == 0 não escapa por truthiness -> recebe penalidade -15
+    rec_q0, status_q0, score_q0, motivo_q0, _ = apply_strategy(
+        pos_exp,
+        {"mg_graham": Decimal("25.0"), "mg_bazin": Decimal("25.0"), "p_vp": Decimal("0.9")},
+        falta=Decimal("500.0"),
+        preco=Decimal("30.0"),
+        min_6m=Decimal("29.0"),
+        screener_item=MagicMock(bazin_price=40.0, quality_score=0),
+    )
+    assert "Qualidade Fundamentalista Baixa (-15) [0/100]" in motivo_q0
+
+
+def test_gordon_dcf_g_ge_k_guard_and_usd_pvp_and_signal_history(val_client):
+    from decimal import Decimal
+    from unittest.mock import MagicMock
+    from services_modules.dashboard_metrics import calculate_fundamental_metrics
+
+    # B1/B2: g >= k retorna None (antes do clamp)
+    assert calculate_gordon_price(3.0, required_return_pct=12.0, growth_pct=12.0) is None
+    assert calculate_dcf_price(4.0, growth_pct=7.0, terminal_growth_pct=12.5, discount_rate_pct=12.5) is None
+
+    # B5: ativo em USD multiplica preco * fator antes de dividir por vpa em BRL
+    pos_usd = MagicMock()
+    pos_usd.quantity = Decimal("10")
+    pos_usd.manual_dy = Decimal("0.0")
+    pos_usd.manual_lpa = Decimal("0.0")
+    pos_usd.manual_vpa = Decimal("100.0")  # BRL
+    pos_usd.asset.category.name = "Internacional"
+    m_usd = calculate_fundamental_metrics(pos_usd, Decimal("20.0"), fator=Decimal("5.0"))
+    assert m_usd["p_vp"] == Decimal("1.0")
+
+    # F5: rota de histórico de sinais responde 200
+    res_hist = val_client.get("/api/valuation/signals/history?ticker=PETR4")
+    assert res_hist.status_code == 200
+    assert res_hist.get_json()["status"] == "Sucesso"

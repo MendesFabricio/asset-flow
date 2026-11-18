@@ -75,6 +75,7 @@ export function AssetRecommendationCell({
               ticker: ativo.ticker,
               score: ativo.score || 0,
               motivos: stats.motivosLista,
+              criteriosNaoAvaliados: ativo.criterios_nao_avaliados || [],
               rsi: ativo.rsi || 50,
               variacaoFinanceira: stats.variacaoFinanceira,
               variacaoPct: stats.variacaoIntraday,

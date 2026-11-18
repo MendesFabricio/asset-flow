@@ -199,7 +199,7 @@ JOB_REGISTRY = {
         "func": scheduled_quant_warm,
         "description": "Pré-aquece cache quantitativo: USD rate, Monte Carlo, correlação, risco, fronteira eficiente",
         "default_type": "interval",
-        "default_interval": 30,
+        "default_interval": 60,
     },
     "scheduled_dividends_check": {
         "func": scheduled_dividends_check,

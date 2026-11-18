@@ -129,6 +129,7 @@ export function PassiveIncomeTab({
             <span className="text-text-muted font-semibold">Patrimônio Inicial (R$)</span>
             <input
               type="number"
+              aria-label="Patrimônio Inicial em reais"
               min="0"
               step="1000"
               value={initialPortfolio}
@@ -141,6 +142,7 @@ export function PassiveIncomeTab({
             <span className="text-text-muted font-semibold">Aporte Mensal (R$)</span>
             <input
               type="number"
+              aria-label="Aporte Mensal em reais"
               min="0"
               step="100"
               value={monthlyContribution}
@@ -153,6 +155,7 @@ export function PassiveIncomeTab({
             <span className="text-text-muted font-semibold">Meta de Renda Mensal (R$)</span>
             <input
               type="number"
+              aria-label="Meta de Renda Mensal em reais"
               min="100"
               step="250"
               value={targetMonthlyIncome}
@@ -166,6 +169,7 @@ export function PassiveIncomeTab({
               <span className="text-text-muted font-semibold">DY Anual (%)</span>
               <input
                 type="number"
+                aria-label="Dividend Yield Anual em percentual"
                 min="1"
                 max="30"
                 step="0.5"
@@ -179,6 +183,7 @@ export function PassiveIncomeTab({
               <span className="text-text-muted font-semibold">Valoriz. Real (%/a)</span>
               <input
                 type="number"
+                aria-label="Valorização Real anual em percentual"
                 min="0"
                 max="20"
                 step="0.5"
@@ -196,6 +201,7 @@ export function PassiveIncomeTab({
             </div>
             <input
               type="range"
+              aria-label="Horizonte de simulação em anos"
               min="5"
               max="45"
               step="1"
@@ -208,6 +214,7 @@ export function PassiveIncomeTab({
           <label className="flex items-center gap-2 cursor-pointer text-text-primary pt-1">
             <input
               type="checkbox"
+              aria-label="Reinvestir 100% dos dividendos recebidos"
               checked={reinvestDividends}
               onChange={(e) => setReinvestDividends(e.target.checked)}
               className="accent-accent"

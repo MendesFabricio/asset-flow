@@ -13,7 +13,7 @@ import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import { useAssetData } from './features/assets/hooks/useAssetData';
 import { usePortfolioHandlers } from './features/assets/hooks/usePortfolioHandlers';
 import { usePortfolioMetrics } from './features/assets/hooks/usePortfolioMetrics';
-import { useDashboardState, DASHBOARD_CONTENT_TABS } from './features/dashboard/hooks/useDashboardState';
+import { useDashboardState } from './features/dashboard/hooks/useDashboardState';
 import { NavigationTabs, TabItem } from './features/dashboard/components/NavigationTabs';
 import { DashboardTabContent, prefetchTabChunk } from './features/dashboard/components/DashboardTabContent';
 import { PortfolioModals } from './features/dashboard/components/PortfolioModals';
@@ -166,20 +166,18 @@ export default function Home() {
 
       <div id="main-content" tabIndex={-1} className="max-w-7xl mx-auto p-4 md:p-6 outline-none">
         
-        {(DASHBOARD_CONTENT_TABS as readonly string[]).includes(tab) && (
-          <ErrorBoundary>
-            <DashboardTabContent
-              tab={tab}
-              metrics={metrics}
-              isHidden={isHidden}
-              ativos={ativos}
-              categorias={categorias}
-              history={history}
-              onOpenRadar={openRadarModal}
-              onUpdate={refetch}
-            />
-          </ErrorBoundary>
-        )}
+        <ErrorBoundary>
+          <DashboardTabContent
+            tab={tab}
+            metrics={metrics}
+            isHidden={isHidden}
+            ativos={ativos}
+            categorias={categorias}
+            history={history}
+            onOpenRadar={openRadarModal}
+            onUpdate={refetch}
+          />
+        </ErrorBoundary>
 
         {/* The AssetsTable component internally checks if it should render based on the tab */}
         <AssetsTable

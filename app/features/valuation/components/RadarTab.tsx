@@ -207,6 +207,7 @@ export function RadarTab() {
               <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
               <input
                 type="text"
+                aria-label="Analisar ticker B3 no Radar"
                 value={customTicker}
                 onChange={(e) => setCustomTicker(e.target.value)}
                 placeholder="Analisar ticker B3 (ex: WEGE3)"
@@ -266,6 +267,7 @@ export function RadarTab() {
 
           <input
             type="text"
+            aria-label="Filtrar ticker ou nome no Radar B3"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Filtrar ticker ou nome..."
@@ -273,6 +275,7 @@ export function RadarTab() {
           />
 
           <select
+            aria-label="Filtrar por tipo de ativo"
             value={assetType}
             onChange={(e) => setAssetType(e.target.value)}
             className="px-3 py-1.5 rounded-lg bg-surface-input border border-border-subtle text-text-primary focus:outline-none focus:border-accent"
@@ -283,6 +286,7 @@ export function RadarTab() {
           </select>
 
           <select
+            aria-label="Filtrar por setor"
             value={sector}
             onChange={(e) => setSector(e.target.value)}
             className="px-3 py-1.5 rounded-lg bg-surface-input border border-border-subtle text-text-primary focus:outline-none focus:border-accent"
@@ -298,6 +302,7 @@ export function RadarTab() {
           <label className="flex items-center gap-2 cursor-pointer select-none text-text-primary ml-auto">
             <input
               type="checkbox"
+              aria-label="Exibir apenas ativos fora da carteira"
               checked={onlyOutside}
               onChange={(e) => setOnlyOutside(e.target.checked)}
               className="accent-accent"
@@ -323,13 +328,13 @@ export function RadarTab() {
               <table className="w-full text-left text-xs">
                 <thead className="bg-surface-elevated text-text-muted uppercase text-[10px] tracking-wider border-b border-border-subtle">
                   <tr>
-                    <th className="px-4 py-3">Ativo</th>
-                    <th className="px-4 py-3 text-right">Cotação</th>
-                    <th className="px-4 py-3 text-right">DY Desejado</th>
-                    <th className="px-4 py-3 text-right">Preço Teto Alvo</th>
-                    <th className="px-4 py-3 text-right">Margem</th>
-                    <th className="px-4 py-3 text-right">Qualidade</th>
-                    <th className="px-4 py-3 text-center">Ações</th>
+                    <th scope="col" className="px-4 py-3">Ativo</th>
+                    <th scope="col" className="px-4 py-3 text-right">Cotação</th>
+                    <th scope="col" className="px-4 py-3 text-right">DY Desejado</th>
+                    <th scope="col" className="px-4 py-3 text-right">Preço Teto Alvo</th>
+                    <th scope="col" className="px-4 py-3 text-right">Margem</th>
+                    <th scope="col" className="px-4 py-3 text-right">Qualidade</th>
+                    <th scope="col" className="px-4 py-3 text-center">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border-subtle">
@@ -421,14 +426,14 @@ export function RadarTab() {
               <table className="w-full text-left text-xs">
                 <thead className="bg-surface-elevated text-text-muted uppercase text-[10px] tracking-wider border-b border-border-subtle sticky top-0 z-10">
                   <tr>
-                    <th className="px-4 py-3">Ativo</th>
-                    <th className="px-4 py-3 text-right">Preço</th>
-                    <th className="px-4 py-3 text-right">DY 12m</th>
-                    <th className="px-4 py-3 text-right">Teto Bazin</th>
-                    <th className="px-4 py-3 text-right">V.I. Graham / P/VP</th>
-                    <th className="px-4 py-3 text-right">ROE / Magic</th>
-                    <th className="px-4 py-3 text-right">Qualidade</th>
-                    <th className="px-4 py-3 text-center w-12">Obs.</th>
+                    <th scope="col" className="px-4 py-3">Ativo</th>
+                    <th scope="col" className="px-4 py-3 text-right">Preço</th>
+                    <th scope="col" className="px-4 py-3 text-right">DY 12m</th>
+                    <th scope="col" className="px-4 py-3 text-right">Teto Bazin</th>
+                    <th scope="col" className="px-4 py-3 text-right">V.I. Graham / P/VP</th>
+                    <th scope="col" className="px-4 py-3 text-right">ROE / Magic</th>
+                    <th scope="col" className="px-4 py-3 text-right">Qualidade</th>
+                    <th scope="col" className="px-4 py-3 text-center w-12">Obs.</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border-subtle">

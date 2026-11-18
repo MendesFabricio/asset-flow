@@ -178,3 +178,28 @@ class MonthlyPortfolioSnapshot(Base):
     __table_args__ = (
         UniqueConstraint('user_id', 'year', 'month', name='_user_year_month_uc'),
     )
+
+
+class SignalSnapshot(Base):
+    __tablename__ = 'signal_snapshots'
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"), nullable=False, index=True)
+    asset_id = Column(Integer, ForeignKey('assets.id', ondelete="CASCADE"), nullable=False, index=True)
+    ticker = Column(String, nullable=False, index=True)
+    date = Column(Date, default=datetime.now, nullable=False, index=True)
+
+    score = Column(Integer, nullable=False, default=0)
+    status = Column(String, nullable=False)
+    recomendacao = Column(String, nullable=False)
+    preco = Column(Numeric(18, 4), nullable=True)
+    mg_graham = Column(Numeric(18, 4), nullable=True)
+    mg_bazin = Column(Numeric(18, 4), nullable=True)
+    p_vp = Column(Numeric(18, 4), nullable=True)
+    quality_score = Column(Integer, nullable=True)
+
+    user = relationship("User")
+    asset = relationship("Asset")
+
+    __table_args__ = (
+        UniqueConstraint('user_id', 'asset_id', 'date', name='_signal_user_asset_date_uc'),
+    )

@@ -350,3 +350,44 @@ def passive_income_simulation():
     except Exception as exc:
         logging.error(f"❌ Erro no simulador de renda passiva: {exc}", exc_info=True)
         return jsonify({"status": "Erro", "msg": str(exc)}), 500
+
+
+@valuation_bp.route("/api/valuation/signals/history", methods=["GET"])
+def signal_history():
+    user_id = get_current_user_id()
+    ticker = (request.args.get("ticker") or "").strip().upper().replace(".SA", "")
+    try:
+        limit = min(max(int(request.args.get("limit", 180)), 1), 1000)
+    except ValueError:
+        limit = 180
+
+    try:
+        from db.models import SignalSnapshot
+        with Session() as session:
+            query = session.query(SignalSnapshot).filter_by(user_id=user_id)
+            if ticker:
+                query = query.filter(SignalSnapshot.ticker == ticker)
+            rows = query.order_by(SignalSnapshot.date.desc(), SignalSnapshot.ticker.asc()).limit(limit).all()
+
+            items = [
+                {
+                    "ticker": r.ticker,
+                    "date": r.date.isoformat() if r.date else None,
+                    "score": int(r.score or 0),
+                    "status": r.status,
+                    "recomendacao": r.recomendacao,
+                    "preco": float(r.preco or 0),
+                    "mg_graham": float(r.mg_graham or 0),
+                    "mg_bazin": float(r.mg_bazin or 0),
+                    "p_vp": float(r.p_vp or 0),
+                    "quality_score": r.quality_score,
+                }
+                for r in rows
+            ]
+            by_status = {}
+            for it in items:
+                by_status[it["status"]] = by_status.get(it["status"], 0) + 1
+            return jsonify({"status": "Sucesso", "items": items, "summary": {"total": len(items), "by_status": by_status}})
+    except Exception as exc:
+        logging.error(f"❌ Erro ao carregar histórico de sinais: {exc}", exc_info=True)
+        return jsonify({"status": "Erro", "msg": str(exc)}), 500
