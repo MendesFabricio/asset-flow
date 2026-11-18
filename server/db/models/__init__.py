@@ -41,6 +41,7 @@ from db.models.system import (
     DatabaseStateProxy,
     init_db,
 )
+from db.models.valuation import MarketScreenerItem, WatchlistItem
 
 __all__ = [
     "Session",
@@ -76,6 +77,8 @@ __all__ = [
     "AIChatHistory",
     "TriggeredAlert",
     "ScheduledJob",
+    "MarketScreenerItem",
+    "WatchlistItem",
     "update_sync_state_db",
     "get_sync_state_db",
     "DatabaseStateProxy",

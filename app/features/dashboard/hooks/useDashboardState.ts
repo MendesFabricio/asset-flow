@@ -15,6 +15,9 @@ const VALID_TABS = new Set([
   'Cartoes',
   'Evolução',
   'Quantitativo',
+  'Radar',
+  'Comparador',
+  'RendaPassiva',
   'Jarvis',
 ]);
 

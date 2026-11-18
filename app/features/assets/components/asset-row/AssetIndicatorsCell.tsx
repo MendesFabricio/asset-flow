@@ -51,29 +51,59 @@ export const AssetIndicatorsCell = memo(function AssetIndicatorsCell({ ativo, ta
               <PrivateValue value={`${ativo.qtd}/${magicNumber}`} className="tabular-nums" />
             </div>
           )}
+          {(ativo.bazin_price || 0) > 0 && (
+            <span
+              title={`Preço Teto Bazin (8% a.a.): ${formatMoney(ativo.bazin_price || 0)}`}
+              className={`text-[9px] font-mono px-1.5 py-0.5 rounded border w-20 flex items-center justify-between ${
+                (ativo.mg_bazin || 0) >= 0
+                  ? 'text-status-success border-status-success/30 bg-status-success/10'
+                  : 'text-text-muted border-border-subtle bg-surface-card'
+              }`}
+            >
+              <span>TETO</span>
+              <PrivateValue value={formatMoney(ativo.bazin_price || 0)} className="tabular-nums" />
+            </span>
+          )}
         </div>
-      ) : tab === 'Ação' && ((ativo.vi_graham || 0) > 0 || (ativo.mg_graham || 0) !== 0) ? (
+      ) : tab === 'Ação' && ((ativo.vi_graham || 0) > 0 || (ativo.mg_graham || 0) !== 0 || (ativo.bazin_price || 0) > 0) ? (
         <div className="flex flex-col items-end gap-1.5 w-full">
-          <span
-            title="Margem de Graham: Desconto percentual da cotação atual em relação ao Valor Intrínseco de Graham."
-            className={`text-[11px] font-mono px-2 py-[3px] rounded-md ring-1 ring-inset cursor-pointer tabular-nums font-bold w-full max-w-[80px] text-center shadow-sm ${
-              (ativo.mg_graham || 0) > 20
-                ? 'text-emerald-400 bg-emerald-500/10 ring-emerald-500/20'
-                : (ativo.mg_graham || 0) > 0
-                ? 'text-emerald-500 bg-emerald-500/5 ring-emerald-500/10'
-                : 'text-rose-400 bg-rose-500/10 ring-rose-500/20'
-            }`}
-          >
-            {(ativo.mg_graham || 0) > 0 ? '+' : ''}
-            {(ativo.mg_graham || 0).toFixed(0)}%
-          </span>
-          <span
-            title="V.I. (Valor Intrínseco): Valor justo teórico calculado pela fórmula clássica de Benjamin Graham."
-            className="text-[9px] text-slate-400 font-medium tracking-tighter cursor-pointer bg-slate-900/60 border border-slate-800 px-1.5 py-0.5 rounded flex items-center justify-between w-full max-w-[80px]"
-          >
-            <span className="text-slate-500 uppercase">V.I</span>
-            <PrivateValue value={formatMoney(ativo.vi_graham || 0)} className="tabular-nums" />
-          </span>
+          {(ativo.vi_graham || 0) > 0 && (
+            <span
+              title="Margem de Graham: Desconto percentual da cotação atual em relação ao Valor Intrínseco de Graham."
+              className={`text-[11px] font-mono px-2 py-[3px] rounded-md ring-1 ring-inset cursor-pointer tabular-nums font-bold w-full max-w-[80px] text-center shadow-sm ${
+                (ativo.mg_graham || 0) > 20
+                  ? 'text-emerald-400 bg-emerald-500/10 ring-emerald-500/20'
+                  : (ativo.mg_graham || 0) > 0
+                  ? 'text-emerald-500 bg-emerald-500/5 ring-emerald-500/10'
+                  : 'text-rose-400 bg-rose-500/10 ring-rose-500/20'
+              }`}
+            >
+              {(ativo.mg_graham || 0) > 0 ? '+' : ''}
+              {(ativo.mg_graham || 0).toFixed(0)}%
+            </span>
+          )}
+          {(ativo.vi_graham || 0) > 0 && (
+            <span
+              title="V.I. (Valor Intrínseco): Valor justo teórico calculado pela fórmula clássica de Benjamin Graham."
+              className="text-[9px] text-slate-400 font-medium tracking-tighter cursor-pointer bg-slate-900/60 border border-slate-800 px-1.5 py-0.5 rounded flex items-center justify-between w-full max-w-[80px]"
+            >
+              <span className="text-slate-500 uppercase">V.I</span>
+              <PrivateValue value={formatMoney(ativo.vi_graham || 0)} className="tabular-nums" />
+            </span>
+          )}
+          {(ativo.bazin_price || 0) > 0 && (
+            <span
+              title={`Preço Teto Bazin (6% a.a.): ${formatMoney(ativo.bazin_price || 0)}`}
+              className={`text-[9px] font-mono px-1.5 py-0.5 rounded border flex items-center justify-between w-full max-w-[80px] ${
+                (ativo.mg_bazin || 0) >= 0
+                  ? 'text-status-success border-status-success/30 bg-status-success/10'
+                  : 'text-text-muted border-border-subtle bg-surface-card'
+              }`}
+            >
+              <span>TETO</span>
+              <PrivateValue value={formatMoney(ativo.bazin_price || 0)} className="tabular-nums" />
+            </span>
+          )}
         </div>
       ) : (
         <span className="text-slate-700">-</span>

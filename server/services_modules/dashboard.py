@@ -3,7 +3,7 @@ import logging
 import traceback
 from decimal import Decimal
 from sqlalchemy.orm import joinedload
-from db.models import Asset, Category, Position, get_active_positions
+from db.models import Asset, Category, Position, MarketScreenerItem, get_active_positions
 from utils.formatters import extract_position_metrics
 from db.session import Session
 
@@ -26,6 +26,11 @@ class DashboardService:
             try:
                 positions = get_active_positions(session, user_id).all()
                 categories = session.query(Category).all()
+                tickers_list = [p.asset.ticker for p in positions if p.asset]
+                screener_by_ticker = {
+                    s.ticker: s
+                    for s in session.query(MarketScreenerItem).filter(MarketScreenerItem.ticker.in_(tickers_list)).all()
+                } if tickers_list else {}
                 
                 resumo = {
                     "Total": Decimal('0.0'),
@@ -155,6 +160,15 @@ class DashboardService:
                         "mdata_date": mdata_date_str,
                         "vi_graham": float(item["metrics"].get("vi_graham", 0)),
                         "mg_graham": float(item["metrics"].get("mg_graham", 0)),
+                        "bazin_price": float(item["metrics"].get("bazin_price", 0)) or (screener_by_ticker[asset.ticker].bazin_price if asset.ticker in screener_by_ticker and screener_by_ticker[asset.ticker].bazin_price else 0.0),
+                        "mg_bazin": float(item["metrics"].get("mg_bazin", 0)) or (
+                            round(((screener_by_ticker[asset.ticker].bazin_price - float(preco)) / float(preco)) * 100.0, 2)
+                            if float(preco) > 0 and asset.ticker in screener_by_ticker and screener_by_ticker[asset.ticker].bazin_price
+                            else 0.0
+                        ),
+                        "gordon_price": float(item["metrics"].get("gordon_price", 0)),
+                        "dcf_price": screener_by_ticker[asset.ticker].dcf_price if asset.ticker in screener_by_ticker and screener_by_ticker[asset.ticker].dcf_price else 0.0,
+                        "quality_score": screener_by_ticker[asset.ticker].quality_score if asset.ticker in screener_by_ticker else 0,
                         "p_vp": float(item["metrics"].get("p_vp", 0)),
                         "magic_number": int(item["metrics"].get("magic_number", 0)),
                         "renda_mensal_est": float(item["metrics"].get("renda_mensal_est", 0)),

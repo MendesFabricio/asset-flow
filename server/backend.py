@@ -44,6 +44,7 @@ from routes.scheduler import scheduler_bp
 from routes.tax import tax_bp
 from routes.portfolio import portfolio_bp
 from routes.categorize import categorize_bp
+from routes.valuation import valuation_bp
 
 logging.basicConfig(
     level=logging.INFO,
@@ -63,7 +64,7 @@ class CustomJSONProvider(DefaultJSONProvider):
 def _reset_orphaned_sync_states():
     """Reseta estados 'processing' órfãos do banco presos após reinício do container."""
     idle_state = {"status": "idle", "progress": 0, "total": 0, "message": "Sistema pronto."}
-    for key in ("cvm_sync", "yahoo_sync"):
+    for key in ("cvm_sync", "yahoo_sync", "radar_sync"):
         try:
             current = get_sync_state_db(key)
             if current.get("status") == "processing":
@@ -210,6 +211,7 @@ def create_app(config_object=None) -> Flask:
     app.register_blueprint(tax_bp)
     app.register_blueprint(portfolio_bp)
     app.register_blueprint(categorize_bp)
+    app.register_blueprint(valuation_bp)
     logging.info("✅ Todos os blueprints registrados com sucesso.")
 
     return app

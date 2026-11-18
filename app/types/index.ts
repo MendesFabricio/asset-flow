@@ -46,6 +46,11 @@ export interface Asset {
   // Spread das métricas (propriedades dinâmicas do backend)
   vi_graham?: number;
   mg_graham?: number;
+  bazin_price?: number;
+  mg_bazin?: number;
+  gordon_price?: number;
+  dcf_price?: number;
+  quality_score?: number;
   magic_number?: number;
   renda_mensal_est?: number;
   p_vp?: number;
@@ -262,4 +267,100 @@ export interface AssetTransaction {
   total_value: number;
   date: string;
   delta_quantity?: number;
+}
+
+export interface ValuationChecklistItem {
+  key: string;
+  label: string;
+  value: number | null;
+  formatted: string;
+  rule: string;
+  status: 'pass' | 'warn' | 'fail' | 'unknown';
+}
+
+export interface SectorAverage {
+  asset_type: string;
+  sector: string;
+  count: number;
+  dy_12m: number | null;
+  pl: number | null;
+  pvp: number | null;
+  roe: number | null;
+  net_margin: number | null;
+  ev_ebitda: number | null;
+  quality_score: number | null;
+}
+
+export interface ValuationAssetData {
+  ticker: string;
+  name: string;
+  asset_type: string;
+  sector: string;
+  price: number;
+  change_percent: number | null;
+  dy_12m: number | null;
+  dy_avg_5y: number | null;
+  dividend_per_share: number | null;
+  lpa: number | null;
+  vpa: number | null;
+  pl: number | null;
+  pvp: number | null;
+  roe: number | null;
+  roic: number | null;
+  net_margin: number | null;
+  ebitda_margin: number | null;
+  ev_ebitda: number | null;
+  debt_to_ebitda: number | null;
+  payout: number | null;
+  fcf_per_share: number | null;
+  bazin_price: number | null;
+  graham_price: number | null;
+  gordon_price: number | null;
+  dcf_price: number | null;
+  margin_bazin_pct: number | null;
+  margin_graham_pct: number | null;
+  margin_dcf_pct?: number | null;
+  quality_score: number;
+  magic_score: number | null;
+  checklist: ValuationChecklistItem[];
+  in_portfolio?: boolean;
+  sector_average?: SectorAverage | null;
+  assumptions?: {
+    bazin_dy: number;
+    discount_rate: number;
+    growth_rate: number;
+    terminal_growth: number;
+  };
+  updated_at?: string | null;
+}
+
+export interface WatchlistEntry {
+  id: number;
+  ticker: string;
+  desired_bazin_dy: number;
+  target_price: number | null;
+  effective_target_price: number | null;
+  discount_pct: number | null;
+  notes: string;
+  market: Partial<ValuationAssetData>;
+}
+
+export interface PassiveIncomeSimulation {
+  months_to_goal: number | null;
+  years_to_goal: number | null;
+  required_patrimony: number;
+  initial_monthly_income: number;
+  final_patrimony: number;
+  final_monthly_income: number;
+  total_contributed: number;
+  total_dividends_generated: number;
+  yield_on_cost_pct: number;
+  annual_series: Array<{
+    year: number;
+    patrimony: number;
+    total_contributed: number;
+    monthly_income: number;
+    annual_dividends: number;
+    progress_pct: number;
+  }>;
 }

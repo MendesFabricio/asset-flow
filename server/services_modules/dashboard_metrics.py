@@ -1,5 +1,10 @@
 import math
 from decimal import Decimal
+from domain.valuation.calculator import (
+    calculate_bazin_price,
+    calculate_gordon_price,
+    calculate_graham_price,
+)
 
 def _extract_value(val):
     if val is None: 
@@ -10,6 +15,9 @@ def calculate_fundamental_metrics(pos, preco):
     m = {
         "vi_graham": Decimal('0.0'),
         "mg_graham": Decimal('0.0'),
+        "bazin_price": Decimal('0.0'),
+        "mg_bazin": Decimal('0.0'),
+        "gordon_price": Decimal('0.0'),
         "magic_number": 0,
         "renda_mensal_est": Decimal('0.0'),
         "p_vp": Decimal('0.0')
@@ -19,18 +27,31 @@ def calculate_fundamental_metrics(pos, preco):
         lpa = _extract_value(pos.manual_lpa)
         vpa = _extract_value(pos.manual_vpa)
         qtd = _extract_value(pos.quantity)
+        cat_name = pos.asset.category.name if pos.asset and pos.asset.category else ""
         
         if dy > Decimal('0.0') and preco > Decimal('0.0'):
             m["renda_mensal_est"] = (preco * dy * qtd) / Decimal('12.0')
             m["magic_number"] = int(math.ceil(float(Decimal('12.0') / dy)))
+
+            annual_div_per_share = float(preco * dy)
+            desired_dy = 8.0 if cat_name == "FII" else 6.0
+            bazin_val = calculate_bazin_price(annual_div_per_share, desired_dy)
+            if bazin_val:
+                m["bazin_price"] = Decimal(str(bazin_val))
+                m["mg_bazin"] = ((m["bazin_price"] - preco) / preco) * Decimal('100.0')
+            gordon_val = calculate_gordon_price(annual_div_per_share, 12.0, 5.0)
+            if gordon_val:
+                m["gordon_price"] = Decimal(str(gordon_val))
         
         if vpa > Decimal('0.0') and preco > Decimal('0.0'):
             m["p_vp"] = preco / vpa
 
-        if pos.asset.category and pos.asset.category.name == "Ação" and lpa > Decimal('0.0') and vpa > Decimal('0.0'):
-            m["vi_graham"] = Decimal(str(math.sqrt(float(Decimal('22.5') * lpa * vpa))))
-            if preco > Decimal('0.0'):
-                m["mg_graham"] = ((m["vi_graham"] - preco) / preco) * Decimal('100.0')
+        if cat_name == "Ação" and lpa > Decimal('0.0') and vpa > Decimal('0.0'):
+            vi = calculate_graham_price(float(lpa), float(vpa))
+            if vi:
+                m["vi_graham"] = Decimal(str(vi))
+                if preco > Decimal('0.0'):
+                    m["mg_graham"] = ((m["vi_graham"] - preco) / preco) * Decimal('100.0')
     except Exception:
         pass
     return m

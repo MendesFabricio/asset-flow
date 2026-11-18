@@ -5,6 +5,7 @@ import { formatMoney } from '@/lib/format';
 import { Asset } from '@/types';
 import { apiCall } from '@/lib/api';
 import { ModalShell } from '@/components/ModalShell';
+import { ValuationPanel } from '@/features/valuation/components/ValuationPanel';
 
 interface AssetDetailsModalProps {
     isOpen: boolean;
@@ -256,26 +257,29 @@ export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalP
                         </div>
 
                         {(asset.tipo === 'Ação' || asset.tipo === 'FII') && (
-                            <div>
-                                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Fundamentos</h3>
-                                <div className="grid grid-cols-2 gap-2">
-                                    <div className="p-3 bg-slate-900 rounded-lg border border-slate-800 text-center">
-                                        <p className="text-[10px] text-slate-500 uppercase">P/VP</p>
-                                        <p className="text-sm font-bold text-blue-400">{asset.p_vp ? asset.p_vp.toFixed(2) : '-'}</p>
-                                    </div>
-                                    <div className="p-3 bg-slate-900 rounded-lg border border-slate-800 text-center">
-                                        <p className="text-[10px] text-slate-500 uppercase">DY Est.</p>
-                                        <p className="text-sm font-bold text-emerald-400">{asset.manual_dy ? (asset.manual_dy * 100).toFixed(2) + '%' : '-'}</p>
-                                    </div>
-                                    {asset.tipo === 'Ação' && (
-                                        <div className="p-3 bg-slate-900 rounded-lg border border-slate-800 text-center col-span-2">
-                                            <p className="text-[10px] text-slate-500 uppercase">Margem Graham</p>
-                                            <p className={`text-sm font-bold ${(asset.mg_graham ?? 0) > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                                {asset.mg_graham ? asset.mg_graham.toFixed(1) + '%' : '-'}
-                                            </p>
+                            <div className="space-y-4">
+                                <div>
+                                    <h3 className="text-xs font-bold text-text-muted uppercase tracking-wider mb-3">Fundamentos</h3>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div className="p-3 bg-surface-card rounded-lg border border-border-subtle text-center">
+                                            <p className="text-[10px] text-text-muted uppercase">P/VP</p>
+                                            <p className="text-sm font-bold text-accent">{asset.p_vp ? asset.p_vp.toFixed(2) : '-'}</p>
                                         </div>
-                                    )}
+                                        <div className="p-3 bg-surface-card rounded-lg border border-border-subtle text-center">
+                                            <p className="text-[10px] text-text-muted uppercase">DY Est.</p>
+                                            <p className="text-sm font-bold text-status-success">{asset.manual_dy ? (asset.manual_dy * 100).toFixed(2) + '%' : '-'}</p>
+                                        </div>
+                                        {asset.tipo === 'Ação' && (
+                                            <div className="p-3 bg-surface-card rounded-lg border border-border-subtle text-center col-span-2">
+                                                <p className="text-[10px] text-text-muted uppercase">Margem Graham</p>
+                                                <p className={`text-sm font-bold ${(asset.mg_graham ?? 0) > 0 ? 'text-status-success' : 'text-status-error'}`}>
+                                                    {asset.mg_graham ? asset.mg_graham.toFixed(1) + '%' : '-'}
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
+                                <ValuationPanel ticker={asset.ticker} assetType={asset.tipo} compact />
                             </div>
                         )}
 

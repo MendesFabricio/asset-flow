@@ -133,6 +133,21 @@ def _do_morning_brief():
         logging.error(f"❌ [BRIEF] Falha geral no job de Morning Brief: {e}", exc_info=True)
 
 
+def _do_radar_refresh():
+    logging.info("📡 JOB 08:15: Atualizando Radar B3 de Valuation & Fundamentos...")
+    try:
+        from db.models import Session as DBSession
+        from infrastructure.screener_service import refresh_b3_screener
+        with DBSession() as session:
+            refresh_b3_screener(session)
+    except Exception as e:
+        logging.error(f"❌ [RADAR] Falha no job diário do Radar B3: {e}", exc_info=True)
+
+
+def scheduled_radar_refresh():
+    _run_with_tracking("scheduled_radar_refresh", _do_radar_refresh)
+
+
 JOB_REGISTRY = {
     "scheduled_update_indices": {
         "func": scheduled_update_indices,
@@ -175,5 +190,11 @@ JOB_REGISTRY = {
         "description": "Atualiza IA Sentiment diário de todos os ativos da carteira",
         "default_type": "cron",
         "default_cron": "30 7 * * *",
+    },
+    "scheduled_radar_refresh": {
+        "func": scheduled_radar_refresh,
+        "description": "Atualiza cache do Radar B3 (Preço Teto, Checklist e Fórmula Mágica)",
+        "default_type": "cron",
+        "default_cron": "15 8 * * *",
     },
 }

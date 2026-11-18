@@ -46,6 +46,18 @@ const JarvisChat = dynamic(
   () => import('@/features/jarvis/JarvisChat').then((mod) => mod.JarvisChat),
   { ssr: false, loading: () => <ChatSkeleton /> }
 );
+const RadarTab = dynamic(
+  () => import('@/features/valuation/components/RadarTab').then((mod) => mod.RadarTab),
+  { ssr: false, loading: () => <QuantSkeleton /> }
+);
+const ComparatorTab = dynamic(
+  () => import('@/features/valuation/components/ComparatorTab').then((mod) => mod.ComparatorTab),
+  { ssr: false, loading: () => <QuantSkeleton /> }
+);
+const PassiveIncomeTab = dynamic(
+  () => import('@/features/valuation/components/PassiveIncomeTab').then((mod) => mod.PassiveIncomeTab),
+  { ssr: false, loading: () => <QuantSkeleton /> }
+);
 
 interface PortfolioMetrics {
   yocMedio: number;
@@ -108,6 +120,30 @@ export function DashboardTabContent({
           <QuantDashboard ativos={ativos} />
         </Section>
       );
+    case 'Radar':
+      return (
+        <Section>
+          <RadarTab />
+        </Section>
+      );
+    case 'Comparador':
+      return (
+        <Section>
+          <ComparatorTab ativos={ativos} />
+        </Section>
+      );
+    case 'RendaPassiva': {
+      const totalPortfolio = ativos.reduce((acc, a) => acc + (a.total_atual || 0), 0);
+      const totalMonthlyIncome = ativos.reduce((acc, a) => acc + (a.renda_mensal_est || 0), 0);
+      return (
+        <Section>
+          <PassiveIncomeTab
+            currentPortfolioTotal={totalPortfolio}
+            currentMonthlyIncome={totalMonthlyIncome}
+          />
+        </Section>
+      );
+    }
     case 'Renda Fixa':
       return (
         <Section>

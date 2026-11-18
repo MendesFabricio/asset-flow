@@ -30,6 +30,9 @@ import {
   TrendingUp,
   Wallet,
   Brain,
+  Compass,
+  GitCompare,
+  PiggyBank,
 } from 'lucide-react';
 
 const RiskRadarModal = dynamic(() => import('./components/RiskRadarModal').then(mod => mod.RiskRadarModal), { ssr: false });
@@ -53,6 +56,9 @@ const portfolioTabs: TabItem[] = [
 const analyticsTabs: TabItem[] = [
   { id: 'Evolução', icon: <LineChart size={14} />, label: 'Evolução' },
   { id: 'Quantitativo', icon: <BarChart3 size={14} />, label: 'Análise Quant' },
+  { id: 'Radar', icon: <Compass size={14} />, label: 'Radar B3' },
+  { id: 'Comparador', icon: <GitCompare size={14} />, label: 'Comparador' },
+  { id: 'RendaPassiva', icon: <PiggyBank size={14} />, label: 'Renda Passiva' },
   { id: 'Jarvis', icon: <Brain size={14} />, label: 'Jarvis AI' },
 ];
 
