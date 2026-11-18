@@ -197,6 +197,9 @@ def apply_strategy(pos, metrics, falta, preco, min_6m, screener_item=None):
     elif falta > Decimal('0.0') and score >= 55:
         status = "COMPRAR"
         rec_text = "🟢 APORTAR"
+    elif falta <= Decimal('0.0') and score >= 60:
+        status = "COMPRAR"
+        rec_text = "🟢 OPORTUNIDADE"
     elif score >= -15:
         status = "NEUTRO"
         rec_text = "🟡 MANTER"

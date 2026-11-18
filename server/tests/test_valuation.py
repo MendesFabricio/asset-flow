@@ -203,3 +203,22 @@ def test_apply_strategy_integrates_ai_bazin_quality_and_reduzir():
     assert rec2 == "🟠 REDUZIR"
     assert "Alerta IA Negativo" in motivo2
     assert "Alavancagem FII Elevada" in motivo2
+
+    # Extreme discount exception: even above target (falta <= 0), score >= 60 unlocks OPORTUNIDADE
+    pos.asset.ai_sentiment = "Positivo"
+    pos.asset.category.name = "Ação"
+    pos.last_report_type = None
+    pos.asset.market_data = [MagicMock(rsi_14=25.0)]
+    screener_oportunidade = MagicMock(bazin_price=100.0, quality_score=90)
+    rec3, status3, score3, motivo3, _ = apply_strategy(
+        pos,
+        {"mg_graham": Decimal("35.0"), "mg_bazin": Decimal("40.0"), "p_vp": Decimal("0.80")},
+        falta=Decimal("-100.0"),
+        preco=Decimal("65.0"),
+        min_6m=Decimal("80.0"),
+        screener_item=screener_oportunidade,
+    )
+    assert score3 >= 60
+    assert status3 == "COMPRAR"
+    assert rec3 == "🟢 OPORTUNIDADE"
+    assert "Acima da Meta" in motivo3

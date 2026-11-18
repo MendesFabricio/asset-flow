@@ -27,7 +27,7 @@ export function AssetRecommendationCell({
   onHide,
 }: AssetRecommendationCellProps) {
   const recLower = (ativo.recomendacao || '').toLowerCase();
-  const isComprar = recLower.includes('aportar') || recLower.includes('comprar');
+  const isComprar = recLower.includes('aportar') || recLower.includes('comprar') || recLower.includes('oportunidade');
   const isManter = recLower.includes('manter');
   const isReduzir = recLower.includes('reduzir');
   const isEvitar = recLower.includes('evitar');
