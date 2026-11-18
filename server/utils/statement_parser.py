@@ -89,10 +89,6 @@ def sanitize_and_categorize(description: str, tx_type: str = "") -> tuple[str, s
     ml_cat, confidence, _ = categorizer_engine.classify(desc_clean)
     return desc_clean, ml_cat
 
-def categorize_transaction(description: str, tx_type: str = "") -> str:
-    _, category = sanitize_and_categorize(description, tx_type)
-    return category
-
 def detect_reference_month(filename: str, period_str: str, transactions: list) -> tuple[str, str]:
     months_map = {
         "JAN": ("01", "Janeiro"), "JANEIRO": ("01", "Janeiro"),

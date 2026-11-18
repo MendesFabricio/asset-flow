@@ -100,7 +100,3 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 }
 
 export const useToast = () => useContext(ToastContext);
-
-export function useToastNotify() {
-  return useToast().notify;
-}

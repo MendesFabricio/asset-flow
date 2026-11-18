@@ -3,6 +3,8 @@ routes/valuation.py
 Endpoints para Preço Teto (Bazin/Graham/Gordon/DCF), Checklist Fundamentalista,
 Radar B3, Watchlist, Comparador de Ativos e Simulador de Renda Passiva.
 """
+from bisect import bisect_left
+from datetime import timedelta
 import logging
 import threading
 from typing import Optional
@@ -362,32 +364,121 @@ def signal_history():
         limit = 180
 
     try:
-        from db.models import SignalSnapshot
+        from db.models import MarketData, SignalSnapshot
         with Session() as session:
             query = session.query(SignalSnapshot).filter_by(user_id=user_id)
             if ticker:
                 query = query.filter(SignalSnapshot.ticker == ticker)
             rows = query.order_by(SignalSnapshot.date.desc(), SignalSnapshot.ticker.asc()).limit(limit).all()
 
-            items = [
-                {
+            asset_ids = sorted({r.asset_id for r in rows if r.asset_id})
+            prices_by_asset: dict[int, tuple[list, list[float]]] = {}
+            if asset_ids:
+                md_rows = (
+                    session.query(MarketData.asset_id, MarketData.date, MarketData.price)
+                    .filter(MarketData.asset_id.in_(asset_ids), MarketData.price > 0)
+                    .order_by(MarketData.asset_id.asc(), MarketData.date.asc())
+                    .all()
+                )
+                tmp_dates: dict[int, list] = {}
+                tmp_prices: dict[int, list[float]] = {}
+                for aid, md_date, md_price in md_rows:
+                    if md_date is None or not md_price:
+                        continue
+                    tmp_dates.setdefault(aid, []).append(md_date)
+                    tmp_prices.setdefault(aid, []).append(float(md_price))
+                for aid in tmp_dates:
+                    prices_by_asset[aid] = (tmp_dates[aid], tmp_prices[aid])
+
+            def _forward_ret(aid: int, base_date, base_price: float, days: int):
+                if base_price <= 0 or not base_date or aid not in prices_by_asset:
+                    return None
+                dates_list, prices_list = prices_by_asset[aid]
+                idx = bisect_left(dates_list, base_date + timedelta(days=days))
+                if idx >= len(dates_list):
+                    return None
+                return round(((prices_list[idx] - base_price) / base_price) * 100.0, 2)
+
+            items = []
+            by_status: dict[str, int] = {}
+            bt_acc: dict[str, dict] = {}
+            for r in rows:
+                base_px = float(r.preco or 0)
+                ret30 = _forward_ret(r.asset_id, r.date, base_px, 30)
+                ret90 = _forward_ret(r.asset_id, r.date, base_px, 90)
+                ret180 = _forward_ret(r.asset_id, r.date, base_px, 180)
+                item = {
                     "ticker": r.ticker,
                     "date": r.date.isoformat() if r.date else None,
                     "score": int(r.score or 0),
                     "status": r.status,
                     "recomendacao": r.recomendacao,
-                    "preco": float(r.preco or 0),
+                    "preco": base_px,
                     "mg_graham": float(r.mg_graham or 0),
                     "mg_bazin": float(r.mg_bazin or 0),
                     "p_vp": float(r.p_vp or 0),
                     "quality_score": r.quality_score,
+                    "forward_return_30d": ret30,
+                    "forward_return_90d": ret90,
+                    "forward_return_180d": ret180,
                 }
-                for r in rows
-            ]
-            by_status = {}
-            for it in items:
-                by_status[it["status"]] = by_status.get(it["status"], 0) + 1
-            return jsonify({"status": "Sucesso", "items": items, "summary": {"total": len(items), "by_status": by_status}})
+                items.append(item)
+                by_status[r.status] = by_status.get(r.status, 0) + 1
+
+                bucket = bt_acc.setdefault(
+                    r.status, {"scores": [], "r30": [], "r90": [], "r180": []}
+                )
+                bucket["scores"].append(item["score"])
+                if ret30 is not None:
+                    bucket["r30"].append(ret30)
+                if ret90 is not None:
+                    bucket["r90"].append(ret90)
+                if ret180 is not None:
+                    bucket["r180"].append(ret180)
+
+            def _avg(vals: list[float]):
+                return round(sum(vals) / len(vals), 2) if vals else None
+
+            backtest = {
+                st: {
+                    "count": len(data["scores"]),
+                    "avg_score": round(sum(data["scores"]) / len(data["scores"]), 1),
+                    "avg_return_30d": _avg(data["r30"]),
+                    "avg_return_90d": _avg(data["r90"]),
+                    "avg_return_180d": _avg(data["r180"]),
+                }
+                for st, data in bt_acc.items()
+            }
+
+            # Detectar mudanças de status entre snapshots consecutivos do mesmo ativo
+            by_asset_chron: dict[int, list] = {}
+            for r in reversed(rows):
+                by_asset_chron.setdefault(r.asset_id, []).append(r)
+
+            recent_changes = []
+            for asset_rows in by_asset_chron.values():
+                for prev_r, cur_r in zip(asset_rows, asset_rows[1:]):
+                    if prev_r.status != cur_r.status:
+                        recent_changes.append({
+                            "ticker": cur_r.ticker,
+                            "date": cur_r.date.isoformat() if cur_r.date else None,
+                            "from_status": prev_r.status,
+                            "to_status": cur_r.status,
+                            "recomendacao": cur_r.recomendacao,
+                            "score": int(cur_r.score or 0),
+                        })
+            recent_changes.sort(key=lambda c: (c["date"] or "", c["ticker"]), reverse=True)
+
+            return jsonify({
+                "status": "Sucesso",
+                "items": items,
+                "summary": {
+                    "total": len(items),
+                    "by_status": by_status,
+                    "backtest": backtest,
+                    "recent_changes": recent_changes[:20],
+                },
+            })
     except Exception as exc:
         logging.error(f"❌ Erro ao carregar histórico de sinais: {exc}", exc_info=True)
         return jsonify({"status": "Erro", "msg": str(exc)}), 500

@@ -11,7 +11,6 @@ interface AssetsTableProps {
   onEdit: (asset: Asset) => void;
   onViewNews: (ticker: string) => void;
   onViewDetails: (asset: Asset) => void;
-  onRefresh?: () => void;
 }
 
 export const AssetsTable = React.memo(({ assets, tab, onEdit, onViewNews, onViewDetails }: AssetsTableProps) => {

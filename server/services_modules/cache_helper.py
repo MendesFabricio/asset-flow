@@ -68,26 +68,6 @@ class CacheHelperService:
             import threading
             threading.Thread(target=background_recalculate, args=(user_id,), daemon=True).start()
 
-    def _get_cached_value(self, session, key, ttl_seconds=3600):
-        try:
-            user_id = getattr(self, "current_user_id", None)
-            if user_id and key in [
-                "risk_metrics", 
-                "risk_metrics_cache", 
-                "correlation_matrix_cache", 
-                "efficient_frontier",
-                "optimize_portfolio",
-                "risk_parity",
-                "morning_brief"
-            ]:
-                key = f"{key}_{user_id}"
-            cache = session.query(SystemCache).filter_by(key=key).first()
-            if cache and datetime.now() - cache.updated_at < timedelta(seconds=ttl_seconds):
-                return json.loads(cache.value)
-        except Exception as e:
-            logging.warning(f"Erro ao obter cache do banco para {key}: {e}")
-        return None
-
     def _set_cached_value(self, session, key, value):
         try:
             user_id = getattr(self, "current_user_id", None)

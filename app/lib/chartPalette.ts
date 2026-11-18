@@ -41,5 +41,3 @@ export const useChartPalette = (): ChartPalette => {
     activeDotFill: '#ffffff',
   };
 };
-
-export const CHART_COLORS = ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ec4899', '#06b6d4', '#ef4444', '#64748b'];

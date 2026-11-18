@@ -31,15 +31,6 @@ _UNIT_BY_CATEGORY = {
 }
 
 
-def _get_start_of_time(session, user_id: int) -> date:
-    first_tx = session.query(func.min(AssetTransaction.transaction_date)).filter(
-        AssetTransaction.user_id == user_id
-    ).scalar()
-    if first_tx:
-        return first_tx.date()
-    return date(2000, 1, 1)
-
-
 def _get_bens_e_direitos(session, user_id: int, year: int) -> list:
     """Reconstruct portfolio at 31/12 of the given year"""
     end_of_year = date(year, 12, 31)

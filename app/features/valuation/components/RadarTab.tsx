@@ -21,8 +21,9 @@ import { ModalShell } from '@/components/ModalShell';
 import { useToast } from '@/context/ToastContext';
 import { ValuationAssetData, WatchlistEntry } from '@/types';
 import { ValuationPanel } from './ValuationPanel';
+import { SignalsBookView } from './SignalsBookView';
 
-type StrategyMode = 'quality' | 'dividends' | 'bargain' | 'magic' | 'fiis' | 'watchlist';
+type StrategyMode = 'quality' | 'dividends' | 'bargain' | 'magic' | 'fiis' | 'watchlist' | 'signals';
 
 interface RadarResponse {
   status: string;
@@ -39,6 +40,7 @@ const STRATEGIES: Array<{ id: StrategyMode; label: string; hint: string }> = [
   { id: 'magic', label: 'Fórmula Mágica', hint: 'EV/EBITDA + ROIC' },
   { id: 'fiis', label: 'Radar FIIs', hint: 'P/VP & DY' },
   { id: 'watchlist', label: 'Minha Watchlist', hint: 'Alvos salvos' },
+  { id: 'signals', label: 'Livro de Sinais', hint: 'Backtest & alertas' },
 ];
 
 export function RadarTab() {
@@ -98,8 +100,10 @@ export function RadarTab() {
   }, [strategy, assetType, sector, search, onlyOutside, notify]);
 
   useEffect(() => {
-    loadRadar();
-  }, [loadRadar]);
+    if (strategy !== 'signals') {
+      loadRadar();
+    }
+  }, [strategy, loadRadar]);
 
   useEffect(() => {
     loadWatchlist();
@@ -258,8 +262,8 @@ export function RadarTab() {
         })}
       </div>
 
-      {/* Filtros (ocultos na aba Watchlist) */}
-      {strategy !== 'watchlist' && (
+      {/* Filtros (ocultos na aba Watchlist e Livro de Sinais) */}
+      {strategy !== 'watchlist' && strategy !== 'signals' && (
         <div className="bg-surface-card border border-border-subtle rounded-xl p-3.5 flex flex-wrap items-center gap-3 text-xs">
           <div className="flex items-center gap-1.5 text-text-muted font-semibold">
             <Filter size={13} /> Filtros:
@@ -313,7 +317,9 @@ export function RadarTab() {
       )}
 
       {/* Conteúdo Principal */}
-      {strategy === 'watchlist' ? (
+      {strategy === 'signals' ? (
+        <SignalsBookView onSelectTicker={(tkr) => setInspectedAsset({ ticker: tkr })} />
+      ) : strategy === 'watchlist' ? (
         <div className="bg-surface-card border border-border-subtle rounded-2xl overflow-hidden">
           {watchlist.length === 0 ? (
             <div className="p-10 text-center space-y-2 text-text-muted text-sm">

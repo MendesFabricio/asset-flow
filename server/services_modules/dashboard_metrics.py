@@ -208,7 +208,7 @@ def apply_strategy(pos, metrics, falta, preco, min_6m, screener_item=None):
     # Regras de integridade de sinal por classe
     if cat_name == "Ação":
         has_valuation = (mg_graham != Decimal('0.0')) or (mg_bazin != 0.0)
-        is_expensive_veto = (mg_graham <= Decimal('-20.0')) or (mg_graham <= Decimal('0.0') and mg_bazin <= -20.0)
+        is_expensive_veto = (mg_graham <= Decimal('-20.0')) or (mg_bazin <= -20.0)
     elif cat_name == "FII":
         has_valuation = (pvp > Decimal('0.0')) or (mg_bazin != 0.0)
         is_expensive_veto = (pvp >= Decimal('1.05')) or (mg_bazin <= -20.0)

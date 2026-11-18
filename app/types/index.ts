@@ -91,20 +91,6 @@ export interface DashboardData {
 
 // 📊 Novas Interfaces Analíticas Avançadas (Sprint 9)
 
-export interface KellyItem {
-  ticker: string;
-  win_rate: number;
-  win_loss_ratio: number;
-  kelly_full: number;
-  kelly_half_limit: number;
-  kelly_quarter_limit: number;
-}
-
-export interface KellyData {
-  status: string;
-  data: KellyItem[];
-}
-
 export interface AlphaAttributionItem {
   ticker: string;
   weight_pct: number;
@@ -180,23 +166,6 @@ export interface EfficientFrontierData {
   cloud: CloudPoint[];
   max_sharpe: FrontierPoint;
   min_vol: FrontierPoint;
-}
-
-export interface SharpeRollingData {
-  status: string;
-  dates: string[];
-  series: { [tickerOrPortfolio: string]: number[] };
-}
-
-export interface MomentumItem {
-  rank: number;
-  ticker: string;
-  momentum_score_pct: number;
-}
-
-export interface MomentumRankingData {
-  status: string;
-  data: MomentumItem[];
 }
 export interface CreditCardInstallmentItem {
   id: number;

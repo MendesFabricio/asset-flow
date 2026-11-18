@@ -6,9 +6,6 @@ from typing import List, Optional
 
 categorize_bp = Blueprint('categorize', __name__)
 
-class CategorizeRequest(BaseModel):
-    description: str = Field(..., min_length=1)
-
 class FeedbackRequest(BaseModel):
     description: str = Field(..., min_length=1)
     category: str = Field(..., min_length=1)

@@ -41,30 +41,6 @@ export function CategorySummarySkeleton() {
   );
 }
 
-export function TableSkeleton() {
-  return (
-    <div className="bg-slate-900/30 border border-slate-800/40 rounded-2xl overflow-hidden animate-pulse">
-      <div className="p-4 border-b border-slate-800/40 flex justify-between">
-        <div className="h-4 bg-slate-850 rounded w-1/4" />
-        <div className="h-6 bg-slate-850 rounded w-48" />
-      </div>
-      <div className="p-5 space-y-4">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="flex items-center justify-between py-2 border-b border-slate-850/50">
-            <div className="flex items-center gap-3 w-1/3">
-              <div className="w-8 h-8 rounded-lg bg-slate-850" />
-              <div className="h-3 bg-slate-850 rounded w-1/2" />
-            </div>
-            <div className="h-3 bg-slate-850 rounded w-16" />
-            <div className="h-3 bg-slate-850 rounded w-12" />
-            <div className="h-3 bg-slate-850 rounded w-20" />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 export function ModalSkeleton() {
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -279,30 +255,6 @@ export function MonteCarloSkeleton() {
         </div>
       </div>
       <div className="flex-1 w-full bg-slate-800/20 rounded-xl mt-4"></div>
-    </div>
-  );
-}
-
-export function HeatmapSkeleton() {
-  return (
-    <div className="flex flex-col bg-slate-900/40 border border-slate-800 rounded-2xl shadow-2xl p-6 animate-pulse min-h-[450px]">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-8 h-8 bg-slate-800/80 rounded-lg"></div>
-        <div className="space-y-2">
-          <div className="w-56 h-4 bg-slate-800 rounded"></div>
-          <div className="w-40 h-3 bg-slate-800/50 rounded"></div>
-        </div>
-      </div>
-      <div className="flex flex-col gap-1 w-full mt-4">
-        {Array.from({ length: 6 }).map((_, rIdx) => (
-          <div key={rIdx} className="flex gap-1">
-            <div className="w-20 h-8 bg-slate-800/40 rounded"></div>
-            {Array.from({ length: 6 }).map((_, cIdx) => (
-              <div key={cIdx} className="flex-1 h-8 bg-slate-800/20 rounded"></div>
-            ))}
-          </div>
-        ))}
-      </div>
     </div>
   );
 }

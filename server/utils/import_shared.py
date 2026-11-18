@@ -26,31 +26,6 @@ class TransactionCandidate:
             "source": self.source
         }
 
-@dataclass
-class DividendCandidate:
-    ticker: str
-    date_payment: Optional[str]
-    date_com: Optional[str]
-    type: str
-    amount: float
-    quantity_at_date: Optional[float]
-    source: str
-    raw_description: str
-
-    def to_dict(self):
-        return {
-            "ticker": self.ticker,
-            "type": self.type,
-            "date": self.date_payment or self.date_com, # fallback for frontend compatibility for now
-            "date_payment": self.date_payment,
-            "date_com": self.date_com,
-            "total_value": self.amount, # fallback for frontend compatibility
-            "amount": self.amount,
-            "quantity_at_date": self.quantity_at_date,
-            "description": self.raw_description,
-            "source": self.source
-        }
-
 def parse_brl_number(value: str) -> str:
     """Converte string formato BRL (1.234,56) para formato numérico (1234.56)."""
     if not value or value.strip() == "-":

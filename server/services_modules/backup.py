@@ -2,19 +2,16 @@
 import logging
 import os
 import sqlite3
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
-from typing import List, Dict, Any
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import joinedload
-from db.models import Position, Asset, PortfolioSnapshot, SignalSnapshot, Category, safe_commit
+from db.models import PortfolioSnapshot, SignalSnapshot, TriggeredAlert, safe_commit
 from db.session import Session
-from utils.formatters import extract_position_metrics
 import json
 
 class BackupService:
     def _upsert_signal_snapshots(self, session, user_id: int, ativos: list, snap_date: date):
-        """Persiste um snapshot diário de sinal por ativo para backtest e histórico de alertas."""
+        """Persiste snapshot diário de sinal e gera alerta quando o status muda."""
         if not ativos:
             return
         existing_map = {
@@ -24,6 +21,28 @@ class BackupService:
             .filter(SignalSnapshot.date == snap_date)
             .all()
         }
+        prior_rows = (
+            session.query(SignalSnapshot)
+            .filter_by(user_id=user_id)
+            .filter(SignalSnapshot.date < snap_date)
+            .order_by(SignalSnapshot.date.desc())
+            .all()
+        )
+        prev_status_by_asset = {}
+        for pr in prior_rows:
+            if pr.asset_id not in prev_status_by_asset:
+                prev_status_by_asset[pr.asset_id] = pr.status
+
+        notified_today = {
+            t[0]
+            for t in session.query(TriggeredAlert.ticker)
+            .filter(
+                TriggeredAlert.condition == "SIGNAL_CHANGE",
+                TriggeredAlert.triggered_at >= datetime.combine(snap_date, datetime.min.time()),
+            )
+            .all()
+        }
+
         for item in ativos or []:
             asset_id = item.get("id")
             if not asset_id:
@@ -33,15 +52,36 @@ class BackupService:
                 row = SignalSnapshot(user_id=user_id, asset_id=asset_id, date=snap_date)
                 session.add(row)
                 existing_map[asset_id] = row
-            row.ticker = item.get("ticker", "")
-            row.score = int(item.get("score") or 0)
-            row.status = str(item.get("status") or "NEUTRO")
-            row.recomendacao = str(item.get("recomendacao") or "")
-            row.preco = Decimal(str(item.get("preco_atual") or 0))
+            ticker = str(item.get("ticker", ""))
+            new_score = int(item.get("score") or 0)
+            new_status = str(item.get("status") or "NEUTRO")
+            new_rec = str(item.get("recomendacao") or "")
+            new_price = Decimal(str(item.get("preco_atual") or 0))
+
+            row.ticker = ticker
+            row.score = new_score
+            row.status = new_status
+            row.recomendacao = new_rec
+            row.preco = new_price
             row.mg_graham = Decimal(str(item.get("mg_graham") or 0))
             row.mg_bazin = Decimal(str(item.get("mg_bazin") or 0))
             row.p_vp = Decimal(str(item.get("p_vp") or 0))
             row.quality_score = int(item.get("quality_score")) if item.get("quality_score") is not None else None
+
+            prev_status = prev_status_by_asset.get(asset_id)
+            if prev_status and prev_status != new_status and ticker and ticker not in notified_today:
+                session.add(
+                    TriggeredAlert(
+                        ticker=ticker,
+                        condition="SIGNAL_CHANGE",
+                        target_price=new_price,
+                        current_price=new_price,
+                        note=f"Mudança de sinal: {prev_status} → {new_status} ({new_rec}, score {new_score})",
+                        triggered_at=datetime.now(),
+                        is_notified=False,
+                    )
+                )
+                notified_today.add(ticker)
 
     def _backup_database(self):
         try:

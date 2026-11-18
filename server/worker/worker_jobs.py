@@ -21,6 +21,7 @@ def _do_daily_snapshot():
     try:
         from datetime import date
         from db.models import Session as DBSession, User
+        from db.models.system import prune_expired_system_cache
         from domain.portfolio.monthly_snapshot import generate_or_update_monthly_snapshot, build_historical_price_cache
         today = date.today()
         with DBSession() as session:
@@ -28,6 +29,7 @@ def _do_daily_snapshot():
                 cache = build_historical_price_cache(session, u.id)
                 generate_or_update_monthly_snapshot(session, u.id, today.year, today.month, price_cache=cache)
             session.commit()
+        prune_expired_system_cache(max_age_days=7)
     except Exception as e:
         logging.warning(f"⚠️ Falha ao atualizar MonthlyPortfolioSnapshot do mês corrente: {e}")
 

@@ -13,7 +13,7 @@ Regras obrigatórias ao criar ou alterar lógica financeira, valuation, sinais o
   - `FII`: exigir `p_vp > 0` (com VPA > 0) ou `mg_bazin != 0`. Sem valuation → `status = "INCONCLUSIVO"`.
   - `Cripto`, `Internacional`, `Reserva`, `Renda Fixa`: não exigir Graham/Bazin.
 - **Veto duro de ativo caro**:
-  - `Ação`: se `mg_graham <= -20` ou (`mg_graham <= 0` e `mg_bazin <= -20`) → vetar compra (`NEUTRO` / `🟡 MANTER`), independente do score acumulado.
+  - `Ação`: se `mg_graham <= -20` ou `mg_bazin <= -20` → vetar compra (`NEUTRO` / `🟡 MANTER`), independente do score acumulado.
   - `FII`: se `p_vp >= 1.05` ou `mg_bazin <= -20` → vetar compra (`NEUTRO` / `🟡 MANTER`).
 - **Qualidade (`quality_score`) e critérios não avaliados**:
   - Nunca ignorar `quality_score == 0` com checagem truthy (`0` recebe penalidade `-15`; apenas `None` representa ausência de dado).

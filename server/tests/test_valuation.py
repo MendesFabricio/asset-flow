@@ -278,6 +278,20 @@ def test_apply_strategy_blocks_missing_valuation_and_expensive_veto_and_zero_qua
     assert rec_veto == "🟡 MANTER"
     assert "Veto Valuation Caro" in motivo_veto
 
+    # A2 OR puro: Graham levemente positivo (+10%), Bazin caro (-25%) -> vetado mesmo com score 81
+    rec_or, status_or, score_or, motivo_or, _ = apply_strategy(
+        pos_exp,
+        {"mg_graham": Decimal("10.0"), "mg_bazin": Decimal("-25.0"), "p_vp": Decimal("1.1")},
+        falta=Decimal("1000.0"),
+        preco=Decimal("50.0"),
+        min_6m=Decimal("49.0"),
+        screener_item=MagicMock(bazin_price=37.5, quality_score=90),
+    )
+    assert score_or >= 70
+    assert status_or == "NEUTRO"
+    assert rec_or == "🟡 MANTER"
+    assert "Veto Valuation Caro" in motivo_or
+
     # A3: quality_score == 0 não escapa por truthiness -> recebe penalidade -15
     rec_q0, status_q0, score_q0, motivo_q0, _ = apply_strategy(
         pos_exp,
@@ -309,7 +323,81 @@ def test_gordon_dcf_g_ge_k_guard_and_usd_pvp_and_signal_history(val_client):
     m_usd = calculate_fundamental_metrics(pos_usd, Decimal("20.0"), fator=Decimal("5.0"))
     assert m_usd["p_vp"] == Decimal("1.0")
 
-    # F5: rota de histórico de sinais responde 200
+    # F5: rota de histórico de sinais responde 200 com estrutura de backtest e recent_changes
     res_hist = val_client.get("/api/valuation/signals/history?ticker=PETR4")
     assert res_hist.status_code == 200
-    assert res_hist.get_json()["status"] == "Sucesso"
+    hist_json = res_hist.get_json()
+    assert hist_json["status"] == "Sucesso"
+    assert "backtest" in hist_json["summary"]
+    assert "recent_changes" in hist_json["summary"]
+
+
+def test_signal_snapshot_change_alert_and_backtest(val_client):
+    from datetime import date, timedelta
+    from decimal import Decimal
+    from db.models import Asset, MarketData, SignalSnapshot, TriggeredAlert, safe_commit
+    from db.session import Session
+    from services_modules.backup import BackupService
+
+    with Session() as session:
+        asset = session.query(Asset).filter_by(ticker="TESTSIG3").first()
+        if not asset:
+            from db.models import Category
+            cat = session.query(Category).first()
+            asset = Asset(ticker="TESTSIG3", name="Test Signal", category_id=cat.id, currency="BRL")
+            session.add(asset)
+            safe_commit(session)
+        asset_id = int(asset.id)
+
+        day_prev = date.today() - timedelta(days=35)
+        day_cur = date.today() - timedelta(days=1)
+
+        # Limpa resíduos anteriores do ticker de teste
+        session.query(SignalSnapshot).filter_by(user_id=1, asset_id=asset_id).delete()
+        session.query(TriggeredAlert).filter_by(ticker="TESTSIG3").delete()
+        session.query(MarketData).filter_by(asset_id=asset_id).delete()
+        safe_commit(session)
+
+        # Snapshot antigo (NEUTRO a R$ 10) e cotação +30d (R$ 12 -> +20%)
+        session.add(SignalSnapshot(
+            user_id=1, asset_id=asset_id, ticker="TESTSIG3", date=day_prev,
+            score=40, status="NEUTRO", recomendacao="🟡 MANTER",
+            preco=Decimal("10.00"), mg_graham=Decimal("5.0"), mg_bazin=Decimal("5.0"),
+            p_vp=Decimal("1.0"), quality_score=70,
+        ))
+        session.add(MarketData(asset_id=asset_id, date=day_prev + timedelta(days=32), price=Decimal("12.00")))
+        safe_commit(session)
+
+        # Novo snapshot mudando status para COMPRA_FORTE gera TriggeredAlert
+        BackupService()._upsert_signal_snapshots(
+            session,
+            user_id=1,
+            ativos=[{
+                "id": asset_id, "ticker": "TESTSIG3", "score": 82, "status": "COMPRA_FORTE",
+                "recomendacao": "🟢 APORTAR FORTE", "preco_atual": 12.0,
+                "mg_graham": 25.0, "mg_bazin": 30.0, "p_vp": 0.9, "quality_score": 85,
+            }],
+            snap_date=day_cur,
+        )
+        safe_commit(session)
+
+        alerts = session.query(TriggeredAlert).filter_by(ticker="TESTSIG3", condition="SIGNAL_CHANGE").all()
+        assert len(alerts) == 1
+        assert "NEUTRO → COMPRA_FORTE" in alerts[0].note
+
+    res = val_client.get("/api/valuation/signals/history?ticker=TESTSIG3")
+    assert res.status_code == 200
+    payload = res.get_json()
+    assert payload["summary"]["total"] == 2
+    assert len(payload["summary"]["recent_changes"]) == 1
+    assert payload["summary"]["recent_changes"][0]["to_status"] == "COMPRA_FORTE"
+    old_item = next(i for i in payload["items"] if i["status"] == "NEUTRO")
+    assert old_item["forward_return_30d"] == 20.0
+    assert payload["summary"]["backtest"]["NEUTRO"]["avg_return_30d"] == 20.0
+
+    # Cleanup
+    with Session() as session:
+        session.query(SignalSnapshot).filter_by(ticker="TESTSIG3").delete()
+        session.query(TriggeredAlert).filter_by(ticker="TESTSIG3").delete()
+        session.query(MarketData).filter_by(asset_id=asset_id).delete()
+        safe_commit(session)

@@ -30,14 +30,6 @@ def guess_category(ticker: str) -> str:
         return "FII"
     return "Ação"
 
-def parse_decimal(value_str):
-    """Converts a Brazilian format string to Decimal (e.g. 1.234,56 -> 1234.56)."""
-    try:
-        clean = value_str.strip().replace('.', '').replace(',', '.')
-        return Decimal(clean)
-    except Exception:
-        return Decimal('0')
-
 def _find_date(clean_text: str) -> str | None:
     """Extracts the pregão date from the note text."""
     m = re.search(r'Data\s+preg.o\s+\d[\d\s]+?(\d{2}/\d{2}/\d{4})', clean_text, re.IGNORECASE)
