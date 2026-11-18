@@ -327,12 +327,12 @@ def update_fundamentals(dolar_rate_callback, state_dict=None, user_id=None):
                         if user_id is not None and pos.user_id != user_id:
                             continue
                         if upd["lpa"] != 0: pos.manual_lpa = round(upd["lpa"], 2)
-                        if upd["vpa"] != 0:
+                        is_fii = db_asset.category and db_asset.category.name == "FII"
+                        report_vpa = _extract_vpa_from_report_json(pos.last_report_type) if is_fii else 0.0
+                        if is_fii and report_vpa > 0:
+                            pos.manual_vpa = round(report_vpa, 2)
+                        elif upd["vpa"] != 0:
                             pos.manual_vpa = round(upd["vpa"], 2)
-                        elif (pos.manual_vpa is None or pos.manual_vpa <= 0) and db_asset.category and db_asset.category.name == "FII":
-                            report_vpa = _extract_vpa_from_report_json(pos.last_report_type)
-                            if report_vpa > 0:
-                                pos.manual_vpa = report_vpa
                         if upd["dy_calculated"] >= 0:
                             pos.manual_dy = round(upd["dy_calculated"], 4)
             safe_commit(session)
