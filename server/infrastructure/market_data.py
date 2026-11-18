@@ -181,7 +181,8 @@ def update_fundamentals(dolar_rate_callback, state_dict=None, user_id=None):
                 "id": asset.id,
                 "ticker": asset.ticker,
                 "category_name": asset.category.name if asset.category else '',
-                "currency": asset.currency
+                "currency": asset.currency,
+                "cvm_code": asset.cvm_code or "",
             })
     finally:
         Session.remove()
@@ -199,6 +200,21 @@ def update_fundamentals(dolar_rate_callback, state_dict=None, user_id=None):
     secure_session = get_secure_session(timeout=15.0)
     
     updates_batch = []
+    cvm_equity_map: dict[str, float] = {}
+    cvm_codes = sorted({
+        a["cvm_code"].zfill(6)
+        for a in assets_info
+        if a.get("cvm_code") and a.get("category_name") == "Ação"
+    })
+    if cvm_codes:
+        try:
+            from utils.cvm_processor import CVMProcessor
+            for item in CVMProcessor.get_historical_summary(cvm_codes, years_back=1):
+                pl = float((item.get("valores") or {}).get("patrimonio_liquido") or 0)
+                if pl > 0:
+                    cvm_equity_map[item["cvm_code"]] = pl
+        except Exception as cvm_err:
+            logging.warning(f"⚠️ Erro ao pré-carregar PL da CVM para VPA: {cvm_err}")
 
     for asset_data in assets_info:
         asset_id = asset_data["id"]
@@ -257,16 +273,30 @@ def update_fundamentals(dolar_rate_callback, state_dict=None, user_id=None):
             
             lpa = 0
             vpa = 0
+            market_cap = 0
             try:
                 info = y_asset.info
                 lpa = info.get('trailingEps') or info.get('forwardEps') or 0
                 vpa = info.get('bookValue') or 0
+                market_cap = info.get('marketCap') or 0
             except Exception as e:
                 logging.warning(f"⚠️ Erro ao obter info para {ticker_raw}: {e}")
 
             if is_intl and not ticker_symbol.endswith('.SA'):
                 lpa *= dolar_rate
                 vpa *= dolar_rate
+
+            cvm_code = (asset_data.get("cvm_code") or "").zfill(6) if asset_data.get("cvm_code") else ""
+            yahoo_pvp = (float(current_price) / float(vpa)) if vpa and current_price > 0 else 0.0
+            if (
+                category_name == "Ação"
+                and cvm_code in cvm_equity_map
+                and market_cap > 0
+                and current_price > 0
+                and (vpa <= 0 or yahoo_pvp < 0.25)
+            ):
+                # Fallback/override via CVM Equity / MarketCap when Yahoo bookValue is missing or Unit-distorted (e.g. SAPR4)
+                vpa = float(current_price) * (cvm_equity_map[cvm_code] / float(market_cap))
 
             # Check for upcoming splits
             upcoming_split_val = None

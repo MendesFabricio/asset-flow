@@ -148,6 +148,22 @@ def scheduled_radar_refresh():
     _run_with_tracking("scheduled_radar_refresh", _do_radar_refresh)
 
 
+def scheduled_fundamentals_and_reports():
+    _run_with_tracking("scheduled_fundamentals_and_reports", _do_fundamentals_and_reports)
+
+
+def _do_fundamentals_and_reports():
+    logging.info("📊 JOB 12h: Sincronizando relatórios CVM/FNet e fundamentos (VPA, LPA, DY)...")
+    try:
+        from services import PortfolioService
+        svc = PortfolioService()
+        svc.sync_reports_with_fnet()
+        svc.update_fundamentals()
+        logging.info("✅ [AUTO] Relatórios CVM/FNet e fundamentos atualizados com sucesso.")
+    except Exception as e:
+        logging.error(f"❌ [AUTO] Falha na sincronização automática de relatórios/fundamentos: {e}", exc_info=True)
+
+
 JOB_REGISTRY = {
     "scheduled_update_indices": {
         "func": scheduled_update_indices,
@@ -196,5 +212,11 @@ JOB_REGISTRY = {
         "description": "Atualiza cache do Radar B3 (Preço Teto, Checklist e Fórmula Mágica)",
         "default_type": "cron",
         "default_cron": "15 8 * * *",
+    },
+    "scheduled_fundamentals_and_reports": {
+        "func": scheduled_fundamentals_and_reports,
+        "description": "Sincroniza automaticamente relatórios CVM/FNet e fundamentos (VPA, LPA, DY) a cada 12h",
+        "default_type": "interval",
+        "default_interval": 720,
     },
 }
