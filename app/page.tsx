@@ -15,7 +15,7 @@ import { usePortfolioHandlers } from './features/assets/hooks/usePortfolioHandle
 import { usePortfolioMetrics } from './features/assets/hooks/usePortfolioMetrics';
 import { useDashboardState, DASHBOARD_CONTENT_TABS } from './features/dashboard/hooks/useDashboardState';
 import { NavigationTabs, TabItem } from './features/dashboard/components/NavigationTabs';
-import { DashboardTabContent } from './features/dashboard/components/DashboardTabContent';
+import { DashboardTabContent, prefetchTabChunk } from './features/dashboard/components/DashboardTabContent';
 import { PortfolioModals } from './features/dashboard/components/PortfolioModals';
 import { SyncStatusIndicators } from './features/dashboard/components/SyncStatusIndicators';
 import {
@@ -137,7 +137,7 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-surface text-text-primary font-sans selection:bg-blue-500/30 pb-20 relative animate-in fade-in duration-500">
+    <main className="min-h-screen bg-surface text-text-primary font-sans selection:bg-blue-500/30 pb-20 relative">
       <Header
         total={data?.resumo?.Total || 0}
         ativos={ativos}
@@ -161,6 +161,7 @@ export default function Home() {
         analyticsTabs={analyticsTabs}
         activeTab={tab}
         onSelect={setTab}
+        onPrefetch={prefetchTabChunk}
       />
 
       <div id="main-content" tabIndex={-1} className="max-w-7xl mx-auto p-4 md:p-6 outline-none">

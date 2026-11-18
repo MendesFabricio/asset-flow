@@ -417,6 +417,7 @@ export default function PerformanceAttributionChart({
                   name="Aportes Líquidos"
                   fill="#3b82f6"
                   radius={[4, 4, 0, 0]}
+                  animationDuration={280}
                 />
                 <Bar
                   yAxisId="left"
@@ -424,6 +425,7 @@ export default function PerformanceAttributionChart({
                   name={mode === 'real' ? 'Mercado Real (pós-IPCA)' : 'Variação Mercado'}
                   fill="#10b981"
                   radius={[4, 4, 0, 0]}
+                  animationDuration={280}
                 />
                 <Bar
                   yAxisId="left"
@@ -431,6 +433,7 @@ export default function PerformanceAttributionChart({
                   name="Dividendos"
                   fill="#f59e0b"
                   radius={[4, 4, 0, 0]}
+                  animationDuration={280}
                 />
                 <Line
                   yAxisId="right"
@@ -441,6 +444,7 @@ export default function PerformanceAttributionChart({
                   strokeWidth={2}
                   strokeDasharray="4 4"
                   dot={false}
+                  animationDuration={280}
                 />
               </ComposedChart>
             </ResponsiveContainer>
@@ -508,6 +512,7 @@ export default function PerformanceAttributionChart({
                     strokeDasharray="4 4"
                     fill="transparent"
                     activeDot={false}
+                    animationDuration={280}
                   />
                   <Area
                     type="monotone"
@@ -517,6 +522,7 @@ export default function PerformanceAttributionChart({
                     strokeWidth={2.5}
                     fill="url(#colorPatrimonioUnified)"
                     activeDot={{ r: 5, strokeWidth: 0, fill: palette.activeDotFill }}
+                    animationDuration={280}
                   />
                 </>
               ) : (
@@ -531,6 +537,7 @@ export default function PerformanceAttributionChart({
                     fill={getClassColor(cls, idx)}
                     fillOpacity={0.4}
                     activeDot={{ r: 4, strokeWidth: 0, fill: palette.activeDotFill }}
+                    animationDuration={280}
                   />
                 ))
               )}

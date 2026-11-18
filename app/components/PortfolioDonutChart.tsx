@@ -14,7 +14,7 @@ interface PortfolioDonutChartProps {
   onOpenRadar: () => void;
 }
 
-export const PortfolioDonutChart: React.FC<PortfolioDonutChartProps> = ({ ativos, onOpenRadar }) => {
+export const PortfolioDonutChart: React.FC<PortfolioDonutChartProps> = React.memo(function PortfolioDonutChart({ ativos, onOpenRadar }) {
   const data = useMemo(() => {
     if (!ativos || ativos.length === 0) return [];
     
@@ -91,6 +91,7 @@ export const PortfolioDonutChart: React.FC<PortfolioDonutChartProps> = ({ ativos
                   dataKey="value"
                   stroke="none"
                   isAnimationActive={true}
+                  animationDuration={300}
                 >
                   {data.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={CATEGORY_COLORS[entry.name] || CATEGORY_COLORS['Outros']} />
@@ -100,7 +101,7 @@ export const PortfolioDonutChart: React.FC<PortfolioDonutChartProps> = ({ ativos
               </PieChart>
             </ResponsiveContainer>
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
-              <div className="p-3 bg-slate-800/50 rounded-full backdrop-blur-md border border-slate-700/50 shadow-inner mb-1">
+              <div className="p-3 bg-slate-800/80 rounded-full border border-slate-700/50 shadow-inner mb-1">
                 <Wallet size={20} className="text-slate-400" />
               </div>
               <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Carteira</span>
@@ -110,4 +111,4 @@ export const PortfolioDonutChart: React.FC<PortfolioDonutChartProps> = ({ ativos
       </div>
     </Card>
   );
-};
+});

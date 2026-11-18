@@ -220,7 +220,7 @@ export default function MonthlyPnLChart() {
                 axisLine={false}
               />
               <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
-              <Bar dataKey="month_variation" radius={[4, 4, 4, 4]}>
+              <Bar dataKey="month_variation" radius={[4, 4, 4, 4]} animationDuration={280}>
                 {(selectedYear === 'all' ? data : data.filter(d => d.period.endsWith(selectedYear))).map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={(entry.month_variation ?? 0) >= 0 ? '#10B981' : '#EF4444'} />
                 ))}

@@ -96,7 +96,7 @@ export function ModalShell({
 
   const content = (
     <div
-      className="fixed inset-0 flex items-center justify-center bg-slate-950/40 dark:bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+      className="fixed inset-0 flex items-center justify-center bg-slate-950/50 dark:bg-black/75 backdrop-blur-sm p-4 animate-in fade-in duration-150"
       style={{ zIndex }}
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
@@ -107,10 +107,10 @@ export function ModalShell({
         role="dialog"
         aria-modal="true"
         tabIndex={-1}
-        className={`relative w-full ${maxWidthMap[maxWidth]} max-h-[90vh] overflow-y-auto bg-white/90 dark:bg-slate-900/90 backdrop-blur-2xl border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-2xl shadow-slate-900/10 dark:shadow-black/60 flex flex-col outline-none`}
+        className={`relative w-full ${maxWidthMap[maxWidth]} max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-2xl shadow-slate-900/10 dark:shadow-black/60 flex flex-col outline-none`}
       >
         {/* Header */}
-        <div className="sticky top-0 z-10 bg-white/80 dark:bg-slate-900/95 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-800 px-6 py-4 flex items-center justify-between shrink-0">
+        <div className="sticky top-0 z-10 bg-white/95 dark:bg-slate-900/95 border-b border-slate-200/80 dark:border-slate-800 px-6 py-4 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             {icon && (
               <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-emerald-600 dark:text-emerald-400 flex items-center justify-center">

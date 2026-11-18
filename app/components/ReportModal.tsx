@@ -67,31 +67,24 @@ const ReportModal = ({ isOpen, onClose, ativo }: ReportModalProps) => {
     const [hoveredBar, setHoveredBar] = useState<number | null>(null);
 
     useEffect(() => {
-        const timer = setTimeout(() => {
-            setMounted(true);
-            let hasFundamentalist = false;
-            try {
-                const rawData = (ativo as unknown as { last_report_type?: string })?.last_report_type;
-                if (typeof rawData === 'string' && rawData.trim().startsWith('{')) {
-                    const parsedData = JSON.parse(rawData);
-                    if (parsedData.fundamentalist !== undefined) {
-                        hasFundamentalist = !!parsedData.fundamentalist;
-                    } else {
-                        hasFundamentalist = ativo?.tipo === 'Ação';
-                    }
+        setMounted(true);
+        let hasFundamentalist = false;
+        try {
+            const rawData = (ativo as unknown as { last_report_type?: string })?.last_report_type;
+            if (typeof rawData === 'string' && rawData.trim().startsWith('{')) {
+                const parsedData = JSON.parse(rawData);
+                if (parsedData.fundamentalist !== undefined) {
+                    hasFundamentalist = !!parsedData.fundamentalist;
+                } else {
+                    hasFundamentalist = ativo?.tipo === 'Ação';
                 }
-            } catch {
-                hasFundamentalist = ativo?.tipo === 'Ação';
             }
+        } catch {
+            hasFundamentalist = ativo?.tipo === 'Ação';
+        }
 
-            if (hasFundamentalist) {
-                setActiveTab('saude');
-            } else {
-                setActiveTab('docs');
-            }
-        }, 0);
+        setActiveTab(hasFundamentalist ? 'saude' : 'docs');
         return () => {
-            clearTimeout(timer);
             setMounted(false);
         };
     }, [isOpen, ativo]);
@@ -156,7 +149,7 @@ const ReportModal = ({ isOpen, onClose, ativo }: ReportModalProps) => {
     ];
 
     return createPortal(
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-150">
             <div className="bg-surface-card w-full max-w-md rounded-2xl border border-slate-800 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
 
                 {/* HEADER */}

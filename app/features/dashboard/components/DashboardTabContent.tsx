@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { ReactNode } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import {
   HistoryChartSkeleton,
   QuantSkeleton,
@@ -80,8 +80,44 @@ interface DashboardTabContentProps {
 }
 
 function Section({ children }: { children: ReactNode }) {
-  return <div className="animate-in fade-in duration-500 w-full">{children}</div>;
+  return <div className="animate-in fade-in duration-150 w-full">{children}</div>;
 }
+
+const TAB_PREFETCHERS: Record<string, () => Promise<unknown>> = {
+  'Evolução': () => Promise.all([
+    import('@/features/evolution/components/ReturnsKpiCards'),
+    import('@/features/evolution/components/PerformanceAttributionChart'),
+    import('@/features/evolution/components/MonthlyPnLChart'),
+  ]),
+  'Quantitativo': () => import('@/features/quant/components/QuantDashboard'),
+  'Radar': () => import('@/features/valuation/components/RadarTab'),
+  'Comparador': () => import('@/features/valuation/components/ComparatorTab'),
+  'RendaPassiva': () => import('@/features/valuation/components/PassiveIncomeTab'),
+  'Renda Fixa': () => import('@/components/FixedIncomeTab'),
+  'Reembolsos': () => import('@/features/assets/tabs/receivables/ReceivablesTab'),
+  'Cartoes': () => import('@/components/CreditCardsTab'),
+  'Jarvis': () => import('@/features/jarvis/JarvisChat'),
+};
+
+export function prefetchTabChunk(tabId: string) {
+  const loader = TAB_PREFETCHERS[tabId];
+  if (loader) {
+    loader().catch(() => {});
+  }
+}
+
+const CONTENT_TAB_IDS = new Set([
+  'Resumo',
+  'Evolução',
+  'Quantitativo',
+  'Radar',
+  'Comparador',
+  'RendaPassiva',
+  'Renda Fixa',
+  'Reembolsos',
+  'Cartoes',
+  'Jarvis',
+]);
 
 export function DashboardTabContent({
   tab,
@@ -93,88 +129,115 @@ export function DashboardTabContent({
   onOpenRadar,
   onUpdate,
 }: DashboardTabContentProps) {
-  switch (tab) {
-    case 'Resumo':
-      return (
-        <SummaryDashboard
-          metrics={metrics}
-          isHidden={isHidden}
-          ativos={ativos}
-          categorias={categorias}
-          onOpenRadar={onOpenRadar}
-          onUpdate={onUpdate}
-        />
-      );
-    case 'Evolução':
-      return (
-        <div className="animate-in fade-in duration-500 w-full flex flex-col gap-6">
-          <ReturnsKpiCards />
-          <PerformanceAttributionChart history={history} />
-          <MonthlyPnLChart />
-        </div>
-      );
+  const normalizedTab = tab === 'Financeiro' ? 'Reembolsos' : tab;
+  const [visitedTabs, setVisitedTabs] = useState<string[]>(() =>
+    CONTENT_TAB_IDS.has(normalizedTab) ? [normalizedTab] : ['Resumo']
+  );
 
-    case 'Quantitativo':
-      return (
-        <Section>
-          <QuantDashboard ativos={ativos} />
-        </Section>
-      );
-    case 'Radar':
-      return (
-        <Section>
-          <RadarTab />
-        </Section>
-      );
-    case 'Comparador':
-      return (
-        <Section>
-          <ComparatorTab ativos={ativos} />
-        </Section>
-      );
-    case 'RendaPassiva': {
-      const totalPortfolio = ativos.reduce((acc, a) => acc + (a.total_atual || 0), 0);
-      const totalMonthlyIncome = ativos.reduce((acc, a) => acc + (a.renda_mensal_est || 0), 0);
-      return (
-        <Section>
-          <PassiveIncomeTab
-            currentPortfolioTotal={totalPortfolio}
-            currentMonthlyIncome={totalMonthlyIncome}
-          />
-        </Section>
-      );
-    }
-    case 'Renda Fixa':
-      return (
-        <Section>
-          <FixedIncomeTab />
-        </Section>
-      );
-    case 'Reembolsos':
-    case 'Financeiro':
-      return (
-        <Section>
-          <ReceivablesTab />
-        </Section>
-      );
-    case 'Cartoes':
-      return (
-        <Section>
-          <CreditCardsTab />
-        </Section>
-      );
-    case 'Jarvis':
-      return (
-        <div className="animate-in fade-in duration-500 w-full grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-1">
-            <MorningBriefing />
-          </div>
-          <div className="lg:col-span-2">
-            <JarvisChat />
-          </div>
-        </div>
-      );
-    default:
-      return null;
+  useEffect(() => {
+    if (!CONTENT_TAB_IDS.has(normalizedTab)) return;
+    setVisitedTabs((prev) => (prev.includes(normalizedTab) ? prev : [...prev, normalizedTab]));
+  }, [normalizedTab]);
+
+  if (!CONTENT_TAB_IDS.has(normalizedTab)) {
+    return null;
   }
+
+  const renderTabPanel = (tabId: string) => {
+    switch (tabId) {
+      case 'Resumo':
+        return (
+          <SummaryDashboard
+            metrics={metrics}
+            isHidden={isHidden}
+            ativos={ativos}
+            categorias={categorias}
+            onOpenRadar={onOpenRadar}
+            onUpdate={onUpdate}
+          />
+        );
+      case 'Evolução':
+        return (
+          <div className="animate-in fade-in duration-150 w-full flex flex-col gap-6">
+            <ReturnsKpiCards />
+            <PerformanceAttributionChart history={history} />
+            <MonthlyPnLChart />
+          </div>
+        );
+      case 'Quantitativo':
+        return (
+          <Section>
+            <QuantDashboard ativos={ativos} />
+          </Section>
+        );
+      case 'Radar':
+        return (
+          <Section>
+            <RadarTab />
+          </Section>
+        );
+      case 'Comparador':
+        return (
+          <Section>
+            <ComparatorTab ativos={ativos} />
+          </Section>
+        );
+      case 'RendaPassiva': {
+        const totalPortfolio = ativos.reduce((acc, a) => acc + (a.total_atual || 0), 0);
+        const totalMonthlyIncome = ativos.reduce((acc, a) => acc + (a.renda_mensal_est || 0), 0);
+        return (
+          <Section>
+            <PassiveIncomeTab
+              currentPortfolioTotal={totalPortfolio}
+              currentMonthlyIncome={totalMonthlyIncome}
+            />
+          </Section>
+        );
+      }
+      case 'Renda Fixa':
+        return (
+          <Section>
+            <FixedIncomeTab />
+          </Section>
+        );
+      case 'Reembolsos':
+        return (
+          <Section>
+            <ReceivablesTab />
+          </Section>
+        );
+      case 'Cartoes':
+        return (
+          <Section>
+            <CreditCardsTab />
+          </Section>
+        );
+      case 'Jarvis':
+        return (
+          <div className="animate-in fade-in duration-150 w-full grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-1">
+              <MorningBriefing />
+            </div>
+            <div className="lg:col-span-2">
+              <JarvisChat />
+            </div>
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <>
+      {visitedTabs.map((tabId) => {
+        const isActive = normalizedTab === tabId;
+        return (
+          <div key={tabId} hidden={!isActive} className={isActive ? 'w-full' : 'hidden'}>
+            {renderTabPanel(tabId)}
+          </div>
+        );
+      })}
+    </>
+  );
 }

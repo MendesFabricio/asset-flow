@@ -13,23 +13,28 @@ interface NavigationTabsProps {
   analyticsTabs: TabItem[];
   activeTab: string;
   onSelect: (id: string) => void;
+  onPrefetch?: (id: string) => void;
 }
 
 function TabButton({
   tab,
   active,
   onSelect,
+  onPrefetch,
 }: {
   tab: TabItem;
   active: boolean;
   onSelect: (id: string) => void;
+  onPrefetch?: (id: string) => void;
 }) {
   return (
     <button
       type="button"
       onClick={() => onSelect(tab.id)}
+      onMouseEnter={() => onPrefetch?.(tab.id)}
+      onFocus={() => onPrefetch?.(tab.id)}
       aria-pressed={active}
-      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-300 border focus:outline-none shadow-none ring-0 overflow-hidden ${
+      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-colors duration-150 active:scale-[0.98] border focus:outline-none shadow-none ring-0 overflow-hidden ${
         active
           ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/40 shadow-sm'
           : 'bg-slate-200/80 dark:bg-slate-900/45 text-slate-700 dark:text-slate-400 border-slate-300 dark:border-slate-800/80 hover:bg-slate-300/60 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200'
@@ -46,6 +51,7 @@ export const NavigationTabs = memo(function NavigationTabs({
   analyticsTabs,
   activeTab,
   onSelect,
+  onPrefetch,
 }: NavigationTabsProps) {
   return (
     <div className="max-w-7xl mx-auto px-4 py-4 space-y-3">
@@ -60,6 +66,7 @@ export const NavigationTabs = memo(function NavigationTabs({
               tab={c}
               active={activeTab === c.id}
               onSelect={onSelect}
+              onPrefetch={onPrefetch}
             />
           ))}
         </div>
@@ -76,6 +83,7 @@ export const NavigationTabs = memo(function NavigationTabs({
               tab={c}
               active={activeTab === c.id}
               onSelect={onSelect}
+              onPrefetch={onPrefetch}
             />
           ))}
         </div>

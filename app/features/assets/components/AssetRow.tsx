@@ -58,7 +58,7 @@ export const AssetRow = React.memo(({ ativo, tab, onEdit, onViewNews, onViewDeta
 
   return (
     <>
-      <tr className="hover:bg-slate-800/50 transition-colors duration-200 border-b border-slate-800/30 last:border-0 group text-xs sm:text-sm">
+      <tr className="hover:bg-slate-800/50 transition-colors duration-100 border-b border-slate-800/30 last:border-0 group text-xs sm:text-sm">
         <AssetInfoCell
           ativo={ativo}
           stats={stats}
@@ -86,9 +86,11 @@ export const AssetRow = React.memo(({ ativo, tab, onEdit, onViewNews, onViewDeta
         />
         {showIndicators && <AssetIndicatorsCell ativo={ativo} tab={tab} />}
       </tr>
-      <ErrorBoundary>
-        <ReportModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} ativo={ativo} />
-      </ErrorBoundary>
+      {isReportModalOpen && (
+        <ErrorBoundary>
+          <ReportModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} ativo={ativo} />
+        </ErrorBoundary>
+      )}
     </>
   );
 });

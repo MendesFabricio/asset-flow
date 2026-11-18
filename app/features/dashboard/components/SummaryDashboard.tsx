@@ -46,7 +46,7 @@ export const SummaryDashboard = memo(function SummaryDashboard({
   const top = metrics.topCompras[0];
 
   return (
-    <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
+    <div className="flex flex-col gap-4 animate-in fade-in duration-150">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Yield on Cost Médio"

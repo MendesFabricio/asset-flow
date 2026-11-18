@@ -60,7 +60,7 @@ export const AssetsTable = React.memo(({ assets, tab, onEdit, onViewNews, onView
   if (isExcludedTab) return null;
 
   return (
-    <div className="bg-slate-900/30 backdrop-blur-md rounded-2xl border border-slate-800/40 overflow-hidden shadow-2xl animate-in slide-in-from-bottom-4 mt-6">
+    <div className="bg-surface-card/90 rounded-2xl border border-slate-800/40 overflow-hidden shadow-2xl animate-in fade-in duration-150 mt-6">
 
       {/* Barra de Busca Premium Integrada */}
       <div className="p-4 bg-slate-950/20 border-b border-slate-800/40 flex flex-col sm:flex-row justify-between items-center gap-3">
