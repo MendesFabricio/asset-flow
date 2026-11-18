@@ -10,6 +10,18 @@ import { formatMoney } from '../lib/format';
 import { Asset } from '../types'; // 🛡️ Importa a interface unificada de ativos
 import { PrivateValue } from './ui/PrivateValue';
 
+function formatCompactMoney(val: number): string {
+    const abs = Math.abs(val);
+    const sign = val < 0 ? '-' : '';
+    if (abs >= 1_000_000_000) {
+        return `${sign}R$ ${(abs / 1_000_000_000).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} bi`;
+    }
+    if (abs >= 1_000_000) {
+        return `${sign}R$ ${(abs / 1_000_000).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} mi`;
+    }
+    return formatMoney(val);
+}
+
 // Interface atualizada para incluir FCL e EBITDA nos tipos
 interface FundamentalistData {
     ticker_info: {
@@ -209,9 +221,9 @@ const ReportModal = ({ isOpen, onClose, ativo }: ReportModalProps) => {
                                                                 {style.icon}
                                                                 <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">{card.titulo}</p>
                                                             </div>
-                                                            <p className="text-sm text-slate-100 font-bold font-mono">
+                                                            <p className="text-sm text-slate-100 font-bold font-mono" title={card.valor !== undefined ? formatMoney(card.valor) : undefined}>
                                                                 <PrivateValue
-                                                                    value={card.valor_formatado || formatMoney(card.valor || 0)}
+                                                                    value={card.valor_formatado || formatCompactMoney(card.valor || 0)}
                                                                 />
                                                             </p>
                                                             {card.subtitulo && <p className="text-[9px] text-slate-500 font-medium italic">{card.subtitulo}</p>}
@@ -276,11 +288,11 @@ const ReportModal = ({ isOpen, onClose, ativo }: ReportModalProps) => {
                                                                     <div className="space-y-1">
                                                                         <div className="flex justify-between items-center gap-4">
                                                                             <span className="text-[8px] text-blue-400 font-bold">LUCRO:</span>
-                                                                            <span className="text-[8px] text-slate-200 font-mono text-right">{formatMoney(item.lucro)}</span>
+                                                                            <span className="text-[8px] text-slate-200 font-mono text-right">{formatCompactMoney(item.lucro)}</span>
                                                                         </div>
                                                                         <div className="flex justify-between items-center gap-4">
                                                                             <span className="text-[8px] text-cyan-400 font-bold">FCO:</span>
-                                                                            <span className="text-[8px] text-slate-200 font-mono text-right">{formatMoney(item.fco || 0)}</span>
+                                                                            <span className="text-[8px] text-slate-200 font-mono text-right">{formatCompactMoney(item.fco || 0)}</span>
                                                                         </div>
                                                                     </div>
                                                                 </div>
