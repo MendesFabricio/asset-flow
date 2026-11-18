@@ -65,6 +65,7 @@ export const AssetsTable = React.memo(({ assets, tab, onEdit, onViewNews, onView
     getScrollElement: () => parentRef.current,
     estimateSize: () => 72,
     overscan: 5,
+    useFlushSync: false,
   });
 
   const virtualRows = rowVirtualizer.getVirtualItems();
