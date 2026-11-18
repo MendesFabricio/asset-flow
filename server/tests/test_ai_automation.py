@@ -268,7 +268,8 @@ class TestAIAutomationTools(unittest.TestCase):
             sys.path.insert(0, worker_dir)
         from worker_jobs import JOB_REGISTRY
         self.assertIn("scheduled_daily_sentiment_analysis", JOB_REGISTRY)
-        self.assertEqual(JOB_REGISTRY["scheduled_daily_sentiment_analysis"]["default_type"], "cron")
+        self.assertEqual(JOB_REGISTRY["scheduled_daily_sentiment_analysis"]["default_type"], "interval")
+        self.assertEqual(JOB_REGISTRY["scheduled_daily_sentiment_analysis"]["default_interval"], 360)
 
     def test_format_rationale_item_attaches_source_hyperlink(self):
         from infrastructure.gemini_service import _format_rationale_item, _normalize_news_items

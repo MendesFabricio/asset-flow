@@ -187,9 +187,9 @@ JOB_REGISTRY = {
     },
     "scheduled_daily_sentiment_analysis": {
         "func": scheduled_daily_sentiment_analysis,
-        "description": "Atualiza IA Sentiment diário de todos os ativos da carteira",
-        "default_type": "cron",
-        "default_cron": "30 7 * * *",
+        "description": "Atualiza IA Sentiment automático de todos os ativos da carteira (checa a cada 6h ativos pendentes ou >20h)",
+        "default_type": "interval",
+        "default_interval": 360,
     },
     "scheduled_radar_refresh": {
         "func": scheduled_radar_refresh,
