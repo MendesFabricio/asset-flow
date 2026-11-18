@@ -8,6 +8,7 @@ export const PORTFOLIO_ASSET_TABS = [
   'FII',
   'Internacional',
   'Cripto',
+  'Renda Fixa',
   'Reserva',
 ] as const;
 
