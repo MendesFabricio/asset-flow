@@ -1,4 +1,4 @@
-﻿import pytest
+import pytest
 from unittest.mock import MagicMock, patch
 from domain.quant.projection import calculate_income_projection, calculate_dividend_forecast
 from datetime import datetime
