@@ -475,6 +475,7 @@ def sync_reports_with_fnet(session, state_dict=None, user_id=None):
                 if doc_package:
                     # Tenta processar o informe mensal do FII para extrair indicadores de saúde
                     fii_indicators = None
+                    fii_leverage_pct = None
                     mensal = doc_package.get('mensal')
                     if mensal and mensal.get('link'):
                         try:
@@ -482,33 +483,50 @@ def sync_reports_with_fnet(session, state_dict=None, user_id=None):
                             if fii_data:
                                 mdata = asset.market_data[0] if asset.market_data else None
                                 price = float(mdata.price) if mdata and mdata.price else 0.0
-                                vpa = fii_data.get('ticker_info', {}).get('vpa', 0.0) or 0.0
+                                t_info = fii_data.get('ticker_info') or {}
+                                vpa = t_info.get('vpa', 0.0) or 0.0
                                 if vpa > 0:
                                     pos.manual_vpa = round(vpa, 2)
                                 p_vp = price / vpa if vpa > 0 else 0.0
-                                
+                                fii_leverage_pct = round(float(t_info.get('alavancagem') or 0.0), 2)
+
                                 fii_indicators = {
                                     "ticker_info": {
                                         "ultimo_periodo": mensal.get('ref_date', 'Mensal'),
-                                        "data_base": mensal.get('date', '')
+                                        "data_base": mensal.get('date', ''),
+                                        "segmento": t_info.get('segmento', 'N/A'),
+                                        "gestao": t_info.get('gestao', 'N/A'),
+                                        "alavancagem": fii_leverage_pct,
                                     },
                                     "cards_indicadores": [
                                         { "titulo": "P/VP", "valor_formatado": f"{p_vp:.2f}", "tipo": "eficiencia" },
                                         { "titulo": "VPA", "valor_formatado": f"R$ {vpa:.2f}", "tipo": "eficiencia" },
                                         { "titulo": "DY Mensal (XML)", "valor_formatado": fii_data["indicadores"].get("DY Mensal (XML)", "0.00%"), "tipo": "rentabilidade" },
-                                        { "titulo": "Patrimônio Líquido", "valor": fii_data["ticker_info"].get("patrimonio"), "tipo": "rentabilidade" },
-                                        { "titulo": "Disponibilidades (Caixa)", "valor": fii_data["raw_xml_data"].get("disponibilidades"), "tipo": "caixa", "subtitulo": f"{fii_data['ticker_info'].get('caixa_pct', 0):.2f}% do PL" },
-                                        { "titulo": "Passivo Total", "valor": fii_data["raw_xml_data"].get("total_passivo"), "tipo": "risco", "subtitulo": f"Alavancagem: {fii_data['ticker_info'].get('alavancagem', 0):.2f}%" },
+                                        { "titulo": "Patrimônio Líquido", "valor": t_info.get("patrimonio"), "tipo": "rentabilidade" },
+                                        { "titulo": "Disponibilidades (Caixa)", "valor": fii_data["raw_xml_data"].get("disponibilidades"), "tipo": "caixa", "subtitulo": f"{t_info.get('caixa_pct', 0):.2f}% do PL" },
+                                        { "titulo": "Passivo Total", "valor": fii_data["raw_xml_data"].get("total_passivo"), "tipo": "risco", "subtitulo": f"Alavancagem: {fii_leverage_pct:.2f}%" },
                                     ],
                                     "evolucao_grafico": []
                                 }
                         except Exception as fii_err:
                             logging.warning(f"⚠️ Erro ao processar XML de FII {ticker}: {fii_err}")
 
+                    prev_rep = {}
+                    if pos.last_report_type:
+                        try:
+                            prev_rep = json.loads(pos.last_report_type) or {}
+                        except Exception:
+                            prev_rep = {}
                     combined = {
                         "reports": list(doc_package.values()),
                         "fundamentalist": fii_indicators
                     }
+                    if fii_leverage_pct is not None:
+                        combined["credit_risk"] = {"leverage_pct": fii_leverage_pct}
+                    elif prev_rep.get("credit_risk"):
+                        combined["credit_risk"] = prev_rep["credit_risk"]
+                    if prev_rep.get("pdf_kpis"):
+                        combined["pdf_kpis"] = prev_rep["pdf_kpis"]
                     pos.last_report_type = json.dumps(combined)
                     
                     gerencial = doc_package.get('gerencial')

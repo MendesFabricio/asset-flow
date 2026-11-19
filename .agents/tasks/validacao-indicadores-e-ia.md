@@ -2,7 +2,7 @@
 
 **Data:** 18/11/2026 · **Escopo:** indicadores fundamentalistas (ação + FII), checklist de saúde, e todos os usos de IA
 **Método:** leitura de código com `arquivo:linha` + verificação manual das afirmações de maior impacto
-**Status:** P0 (`A1`, `A2`, `I1`), P1 (`I3`, `I4`, `I5`, `I2`, `A3`, `A6`), P2 (`I6`, `A5`, `A7`), `I10` e `§3` (Número Mágico) **implementados**; itens `I7`, `I8`, `I9`, `I11`, `A4`, `A8-A12` seguem como melhorias futuras de menor risco.
+**Status:** P0 (`A1`, `A2`, `I1`), P1 (`I3`, `I4` com gate `45`, `I5`, `I2`, `A3`, `A6`), P2 (`I6`, `I7` vacância/segmento FII, `A5`, `A7`), `I10` e `§3` (Número Mágico) **implementados** com corte de `OPORTUNIDADE` restaurado em `60`; itens `I8`, `I9`, `I11`, `A4`, `A8-A12` seguem como melhorias futuras de menor risco.
 
 ---
 

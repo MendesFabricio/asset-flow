@@ -218,7 +218,7 @@ def test_apply_strategy_integrates_ai_bazin_quality_and_reduzir():
         min_6m=Decimal("80.0"),
         screener_item=screener_oportunidade,
     )
-    assert score3 >= 52
+    assert score3 >= 60
     assert status3 == "COMPRAR"
     assert rec3 == "🟢 OPORTUNIDADE"
     assert "Acima da Meta" in motivo3
@@ -486,6 +486,28 @@ def test_indicators_and_ai_validation_suite():
     assert sc_b < 55 and st_b == "NEUTRO"
     assert sc_b2 == 54 and st_b2 == "NEUTRO" and rec_b2 == "🟡 MANTER"
 
+    # A2: corte de OPORTUNIDADE (60) com ativo acima da meta não cruza por causa da IA (+4)
+    pos_border_above = MagicMock()
+    pos_border_above.quantity = Decimal("100")
+    pos_border_above.manual_dy = Decimal("0.08")
+    pos_border_above.last_report_type = None
+    pos_border_above.asset.category.name = "Ação"
+    pos_border_above.asset.ai_sentiment = "Positivo"
+    pos_border_above.asset.market_data = [MagicMock(rsi_14=25.0)]
+    pos_border_above.asset.technical_data = None
+    # acima meta (-20) + DY (+8) + RSI (+20) + 6m (+10) + Graham (+15) + Bazin (+10) + qual<=65 (0) -> 43; ou +18 Bazin extremo -> 61.
+    # Sem Bazin extremo (mg_bazin=20 -> +10) e qual 90 (+10): -20+8+20+10+15+10+10 = 53 (< 60), com +4 IA = 57 (< 60).
+    # Mesmo com qual 75 (+10) e min_6m=29 -> se base ficasse em 57 + 4 = 61, guard deve travar em 59.
+    rec_opp_guard, st_opp_guard, sc_opp_guard, _, _ = apply_strategy(
+        pos_border_above,
+        {"mg_graham": Decimal("35.0"), "mg_bazin": Decimal("40.0"), "p_vp": Decimal("0.80")},
+        falta=Decimal("-100.0"),
+        preco=Decimal("65.0"),
+        min_6m=Decimal("80.0"),
+        screener_item=MagicMock(bazin_price=100.0, quality_score=60),  # sem +10 de qual -> -20+8+20+10+15+18+0 = 51 +4 = 55 (< 60)
+    )
+    assert sc_opp_guard < 60 and st_opp_guard == "NEUTRO"
+
     # I1 + I2: amortização é descontada do DY/div_ps e Bazin usa base 12m
     now = datetime.now()
     idx = pd.to_datetime([now - timedelta(days=30), now - timedelta(days=400)])
@@ -495,7 +517,7 @@ def test_indicators_and_ai_validation_suite():
     div_ps_amort, dy12_amort, _, _ = _compute_dividend_metrics(yf_mock, price=10.0, amort_12m=1.0)
     assert div_ps_amort is None and dy12_amort == 0.0
 
-    # I3 + I4: mínimo de critérios conhecidos e gate de solvência/ROE
+    # I3 + I4 + I7: mínimo de critérios conhecidos, gate de solvência/ROE/vacância limitado a 45 e checklist FII com vacância/segmento
     _, q_sparse = evaluate_fundamental_checklist("Ação", {"price": 20.0, "pl": 8.0})
     assert q_sparse is None
     _, q_fii3 = evaluate_fundamental_checklist("FII", {"price": 100.0, "pvp": 0.9, "dy_12m": 10.0, "bazin_price": 120.0})
@@ -504,7 +526,37 @@ def test_indicators_and_ai_validation_suite():
         "Ação",
         {"price": 20.0, "pl": 8.0, "roe": 20.0, "net_margin": 15.0, "debt_to_ebitda": 5.0, "dy_12m": 8.0, "bazin_price": 30.0, "graham_price": 30.0},
     )
-    assert q_debt_fail is not None and q_debt_fail <= 65
+    assert q_debt_fail == 45
+
+    _, st_q45, _, mot_q45, _ = apply_strategy(
+        pos_border,
+        {"mg_graham": Decimal("25.0"), "mg_bazin": Decimal("25.0"), "p_vp": Decimal("0.9")},
+        falta=Decimal("500.0"),
+        preco=Decimal("30.0"),
+        min_6m=Decimal("29.0"),
+        screener_item=MagicMock(bazin_price=40.0, quality_score=q_debt_fail),
+    )
+    assert "Qualidade Fundamentalista Baixa (-15) [45/100]" in mot_q45
+
+    chk_vac_ok, q_vac_ok = evaluate_fundamental_checklist(
+        "FII",
+        {"price": 100.0, "pvp": 0.9, "dy_12m": 10.0, "bazin_price": 120.0, "leverage_pct": 10.0, "vacancy_pct": 3.5, "segmento": "Logística"},
+    )
+    assert any(i["key"] == "vacancy" and i["status"] == "pass" for i in chk_vac_ok)
+    assert q_vac_ok == 100
+
+    chk_vac_bad, q_vac_bad = evaluate_fundamental_checklist(
+        "FII",
+        {"price": 100.0, "pvp": 0.9, "dy_12m": 10.0, "bazin_price": 120.0, "leverage_pct": 10.0, "vacancy_pct": 18.0, "segmento": "Lajes Corporativas"},
+    )
+    assert any(i["key"] == "vacancy" and i["status"] == "fail" for i in chk_vac_bad)
+    assert q_vac_bad is not None and q_vac_bad <= 45
+
+    chk_paper, _ = evaluate_fundamental_checklist(
+        "FII",
+        {"price": 100.0, "pvp": 0.9, "dy_12m": 11.0, "bazin_price": 120.0, "segmento": "Títulos e Valores Mobiliários"},
+    )
+    assert any(i["key"] == "vacancy" and i["status"] == "pass" for i in chk_paper)
 
     # I5 + §3: Gordon só em Ação, Número Mágico só em FII
     pos_fii = SimpleNamespace(quantity=Decimal("10"), manual_dy=Decimal("0.08"), manual_lpa=Decimal("0"), manual_vpa=Decimal("10"), asset=SimpleNamespace(category=SimpleNamespace(name="FII")))

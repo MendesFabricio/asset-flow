@@ -173,6 +173,9 @@ def apply_strategy(pos, metrics, falta, preco, min_6m, screener_item=None):
     if cat_name in ("Ação", "FII"):
         if mg_bazin == 0.0:
             criterios_nao_avaliados.append("Teto Bazin")
+        elif mg_bazin >= 35.0 and (mg_graham >= Decimal('30.0') or (Decimal('0.0') < pvp <= Decimal('0.85'))):
+            score += 18
+            motivos.append(f"🎯 Abaixo do Teto Bazin (+18) [+{mg_bazin:.1f}%]")
         elif mg_bazin >= 15.0:
             score += 10
             motivos.append(f"🎯 Abaixo do Teto Bazin (+10) [+{mg_bazin:.1f}%]")
@@ -187,7 +190,7 @@ def apply_strategy(pos, metrics, falta, preco, min_6m, screener_item=None):
         if q_score >= 75:
             score += 10
             motivos.append(f"🛡️ Alta Qualidade Fundamentalista (+10) [{q_score}/100]")
-        elif q_score < 45:
+        elif q_score <= 45:
             score -= 15
             motivos.append(f"⚠️ Qualidade Fundamentalista Baixa (-15) [{q_score}/100]")
     elif cat_name in ("Ação", "FII"):
@@ -199,7 +202,7 @@ def apply_strategy(pos, metrics, falta, preco, min_6m, screener_item=None):
     if ai_sent == "positivo":
         score += 4
         motivos.append("🤖 Sentimento IA Positivo (+4)")
-        buy_cutoff = 55 if falta > Decimal('0.0') else 52
+        buy_cutoff = 55 if falta > Decimal('0.0') else 60
         if score_before_ai < buy_cutoff <= score:
             score = buy_cutoff - 1
     elif ai_sent == "negativo":
@@ -239,7 +242,7 @@ def apply_strategy(pos, metrics, falta, preco, min_6m, screener_item=None):
     elif falta > Decimal('0.0') and score >= 55:
         status = "COMPRAR"
         rec_text = "🟢 APORTAR"
-    elif falta <= Decimal('0.0') and score >= 52:
+    elif falta <= Decimal('0.0') and score >= 60:
         status = "COMPRAR"
         rec_text = "🟢 OPORTUNIDADE"
     elif score >= -15:

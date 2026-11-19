@@ -175,6 +175,23 @@ def evaluate_fundamental_checklist(asset_type: str, m: dict) -> tuple[list[dict]
             items.append(_eval_criterion("leverage", "Alavancagem (Relatório)", lev, f"{lev:.1f}%", "Alavancagem moderada (15%–30%)", "warn"))
         else:
             items.append(_eval_criterion("leverage", "Alavancagem (Relatório)", lev, f"{lev:.1f}%", "Alavancagem elevada (> 30%)", "fail"))
+
+        # 5. Vacância & Segmento (Relatório / Informe)
+        vac = _to_finite_float(m.get("vacancy_pct"))
+        seg = str(m.get("segmento") or "").strip()
+        seg_info = f" · Seg: {seg}" if seg and seg not in ("N/D", "N/A", "None") else ""
+        is_paper_fii = any(w in seg.lower() for w in ("títulos", "titulos", "valores mobiliários", "papel", "recebíveis", "cri"))
+        if vac is not None and vac >= 0:
+            if vac <= 5.0:
+                items.append(_eval_criterion("vacancy", "Vacância (Relatório)", vac, f"{vac:.1f}%", f"Vacância controlada (≤ 5%){seg_info}", "pass"))
+            elif vac <= 12.0:
+                items.append(_eval_criterion("vacancy", "Vacância (Relatório)", vac, f"{vac:.1f}%", f"Vacância moderada (5%–12%){seg_info}", "warn"))
+            else:
+                items.append(_eval_criterion("vacancy", "Vacância (Relatório)", vac, f"{vac:.1f}%", f"Vacância elevada (> 12%){seg_info}", "fail"))
+        elif is_paper_fii:
+            items.append(_eval_criterion("vacancy", "Vacância / Segmento", 0.0, f"Papel ({seg})", "FII de recebíveis (sem vacância física)", "pass"))
+        else:
+            items.append(_eval_criterion("vacancy", "Vacância (Relatório)", None, "N/D", f"Ideal ≤ 5% no imóvel{seg_info}", "unknown"))
     else:
         # 1. Lucratividade & Preço/Lucro
         if pl is None:
@@ -246,10 +263,12 @@ def evaluate_fundamental_checklist(asset_type: str, m: dict) -> tuple[list[dict]
 
     points_map = {"pass": 100.0, "warn": 55.0, "fail": 0.0}
     raw_score = sum(points_map[i["status"]] for i in known) / len(known)
-    missing_penalty = (len(items) - len(known)) * 4.0
+    expected_count = 4 if t == "FII" else len(items)
+    missing_penalty = max(0, expected_count - len(known)) * 4.0
     score = round(raw_score - missing_penalty)
-    if t != "FII" and any(i["key"] in ("debt", "roe") and i["status"] == "fail" for i in items):
-        score = min(score, 65)
+    critical_keys = ("leverage", "vacancy") if t == "FII" else ("debt", "roe")
+    if any(i["key"] in critical_keys and i["status"] == "fail" for i in items):
+        score = min(score, 45)
     return items, int(max(0, min(100, score)))
 
 

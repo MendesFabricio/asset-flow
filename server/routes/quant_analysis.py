@@ -533,7 +533,27 @@ def analyze_pdf_endpoint():
                         field,
                         round(idx_val, 2) if idx_val is not None and 0.0 < idx_val <= 100.0 else None,
                     )
-                    
+
+                pdf_vac_fis = kpis.get("vacancia_fisica_pct")
+                pdf_vac_fin = kpis.get("vacancia_financeira_pct")
+                if pdf_vac_fis is not None or pdf_vac_fin is not None:
+                    try:
+                        import json as _json
+                        rep_data = _json.loads(position.last_report_type) if position.last_report_type else {}
+                    except Exception:
+                        rep_data = {}
+                    pdf_kpis = dict(rep_data.get("pdf_kpis") or {})
+                    for v_key, v_raw in (("vacancia_fisica_pct", pdf_vac_fis), ("vacancia_financeira_pct", pdf_vac_fin)):
+                        try:
+                            v_num = float(v_raw) if v_raw is not None else None
+                        except (TypeError, ValueError):
+                            v_num = None
+                        if v_num is not None and 0.0 <= v_num <= 100.0:
+                            pdf_kpis[v_key] = round(v_num, 2)
+                    if pdf_kpis:
+                        rep_data["pdf_kpis"] = pdf_kpis
+                        position.last_report_type = _json.dumps(rep_data)
+
                 position.asset.ai_updated_at = datetime.now()
                 session.query(SystemCache).filter_by(key=f"risk_metrics_{g.user_id}").delete()
                 session.commit()

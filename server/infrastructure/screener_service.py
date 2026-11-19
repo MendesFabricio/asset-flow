@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 import json
 import logging
 import os
+import re
 import time
 from typing import Optional
 
@@ -301,6 +302,8 @@ def fetch_ticker_fundamentals(
                 inferred_type == "FII" and not ov.get("local_div_12m") and amort_12m <= 0
             ),
             "leverage_pct": ov.get("leverage_pct"),
+            "vacancy_pct": ov.get("vacancy_pct"),
+            "segmento": ov.get("segmento"),
             "dividend_history_5y": div_history_5y,
         }
 
@@ -370,8 +373,30 @@ def _collect_db_overrides(session, user_id: Optional[int] = None) -> dict[str, d
                     cred = rep.get("credit_risk") or {}
                     if cred.get("leverage_pct") is not None:
                         entry["leverage_pct"] = float(cred["leverage_pct"])
-                    cards = (rep.get("fundamentalist") or {}).get("cards_indicadores") or []
+                    pdf_kpis = rep.get("pdf_kpis") or {}
+                    for v_key in ("vacancia_financeira_pct", "vacancia_fisica_pct"):
+                        raw_vac = pdf_kpis.get(v_key)
+                        if raw_vac is not None:
+                            try:
+                                v_f = float(raw_vac)
+                                if 0.0 <= v_f <= 100.0:
+                                    entry["vacancy_pct"] = round(v_f, 2)
+                                    break
+                            except (TypeError, ValueError):
+                                pass
+                    fund = rep.get("fundamentalist") or {}
+                    seg = (fund.get("ticker_info") or {}).get("segmento")
+                    if seg and str(seg).strip() not in ("N/D", "N/A", "None"):
+                        entry["segmento"] = str(seg).strip()
+                    cards = fund.get("cards_indicadores") or []
                     for card in cards:
+                        if card.get("titulo") == "Passivo Total" and "leverage_pct" not in entry:
+                            m_lev = re.search(r"Alavancagem:\s*([-+]?\d+(?:[.,]\d+)?)%", str(card.get("subtitulo", "")))
+                            if m_lev:
+                                try:
+                                    entry["leverage_pct"] = round(float(m_lev.group(1).replace(",", ".")), 2)
+                                except ValueError:
+                                    pass
                         if card.get("titulo") == "VPA" and "vpa" not in entry:
                             raw_v = str(card.get("valor_formatado", "")).replace("R$", "").strip()
                             if "," in raw_v:
@@ -419,6 +444,8 @@ def _upsert_screener_items(session, fetched_items: list[dict]) -> int:
         row.checklist_json = item.get("checklist") or []
         row.raw_metrics_json = {
             "leverage_pct": item.get("leverage_pct"),
+            "vacancy_pct": item.get("vacancy_pct"),
+            "segmento": item.get("segmento"),
             "dividend_history_5y": item.get("dividend_history_5y") or [],
             "dcf_is_estimate": bool(item.get("dcf_is_estimate", False)),
             "bazin_base": item.get("bazin_base", "12m"),
@@ -562,12 +589,17 @@ def get_or_fetch_asset_valuation(
     else:
         data["margin_dcf_pct"] = None
 
-    raw_lev = (row.raw_metrics_json or {}).get("leverage_pct") if row.raw_metrics_json else None
-    div_hist_5y = (row.raw_metrics_json or {}).get("dividend_history_5y", []) if row.raw_metrics_json else []
-    eval_input = {**data, "leverage_pct": raw_lev}
+    raw_json = row.raw_metrics_json or {}
+    raw_lev = raw_json.get("leverage_pct")
+    raw_vac = raw_json.get("vacancy_pct")
+    raw_seg = raw_json.get("segmento")
+    div_hist_5y = raw_json.get("dividend_history_5y", [])
+    eval_input = {**data, "leverage_pct": raw_lev, "vacancy_pct": raw_vac, "segmento": raw_seg}
     checklist, q_score = evaluate_fundamental_checklist(data["asset_type"], eval_input)
     data["checklist"] = checklist
     data["quality_score"] = q_score
+    data["vacancy_pct"] = raw_vac
+    data["segmento"] = raw_seg
     data["dividend_history_5y"] = div_hist_5y
     data["bazin_base"] = (row.raw_metrics_json or {}).get("bazin_base", "12m") if row.raw_metrics_json else "12m"
     data["dy_includes_amortization"] = bool(

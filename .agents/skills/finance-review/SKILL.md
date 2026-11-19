@@ -18,11 +18,11 @@ Regras obrigatórias ao criar ou alterar lógica financeira, valuation, sinais o
 - **Qualidade (`quality_score`) e critérios não avaliados**:
   - Nunca ignorar `quality_score == 0` com checagem truthy (`0` recebe penalidade `-15`; apenas `None` representa ausência de dado).
   - Exigir cobertura mínima no checklist (`4/6` critérios conhecidos em `Ação` e `3/4` em `FII`); abaixo disso retornar `quality_score = None`.
-  - Em `Ação`, reprovação crítica em Dívida Líq/EBITDA (`fail`) ou ROE (`fail`) aplica gate (`score <= 65`), bloqueando bônus de Alta Qualidade (`>= 75`).
+  - Reprovação crítica em Dívida Líq/EBITDA ou ROE (`Ação`), ou em Alavancagem ou Vacância (`FII`), aplica gate limitando `quality_score <= 45` (acionando a penalidade `-15` de baixa qualidade em `apply_strategy`).
   - Sempre popular `criterios_nao_avaliados` listando critérios ausentes para transparência na UI.
 - **Uso de IA em sinais e alocação**:
   - Sentimento de IA **não** aplica tilt financeiro na proporção do rebalanceamento (`rebalance.py`) — permanece apenas informativo.
-  - Em `apply_strategy`, sentimento atua apenas como modulador leve (`+4` / `-6`) e **não** pode cruzar sozinho os cortes de compra (`55` / `52`).
+  - Em `apply_strategy`, sentimento atua apenas como modulador leve (`+4` / `-6`) e **não** pode cruzar sozinho os cortes de compra (`55` / `60`).
   - Falha no parse JSON de sentimento grava `ai_status = "error"` (nunca `"success"`).
 
 ## 2. Modelos de Valuation
