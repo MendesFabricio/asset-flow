@@ -1,7 +1,7 @@
 # Verificação: evolução patrimonial e preço médio — 19/11/2026
 
 **Método:** API real contra SQLite real, recomputação independente.
-**Status das correções:** P1 (`BONUS` sem `unit_cost` em `portfolio.py` + recálculo de `GOAU4` R$ 826,27, `ITUB3` R$ 875,67 preservando o `SPIN_OFF` de `XPAR3` `-R$ 34,77` vs R$ 910,60 estimado sem spin-off, e `ROMI3` R$ 1.922,20), P2/P3/P4 (`ADJUSTMENT` em `monthly_snapshot.py`, snapshots mensais alinhados aos diários e mês corrente calculado ao vivo para bater com `/api/index`) **implementados**.
+**Status das correções:** P1 (`BONUS` mantido com `unit_cost` fiscal atribuído da Receita Federal/B3 em `portfolio.py` — quando `unit_cost > 0` soma `added_qty * unit_cost`, quando `0` dilui custo), P2/P3/P4 (`ADJUSTMENT` em `monthly_snapshot.py`, snapshots mensais alinhados aos diários e mês corrente calculado ao vivo para bater com `/api/index`) **implementados**.
 **Cobertura:** 29 posições ativas, 946 transações, 2.397 snapshots diários, 80 meses, 1.178 proventos, 149 despesas de cartão.
 
 ---

@@ -143,7 +143,7 @@ def test_corporate_action_split(mock_session_cls, mock_commit, service):
 
 @patch('services_modules.portfolio.safe_commit')
 @patch('services_modules.portfolio.Session')
-def test_corporate_action_bonus_preserves_total_cost(mock_session_cls, mock_commit, service):
+def test_corporate_action_bonus_uses_attributed_unit_cost(mock_session_cls, mock_commit, service):
     mock_session = MagicMock()
     mock_session_cls.return_value = mock_session
     mock_session.__enter__.return_value = mock_session
@@ -156,11 +156,21 @@ def test_corporate_action_bonus_preserves_total_cost(mock_session_cls, mock_comm
         mock_position,
     ]
 
-    # Bonificação gratuita de 25% mesmo informando unit_cost=12.0 de referência fiscal
+    # Bonificação fiscal com custo atribuído (unit_cost=12.0): ((100*10) + (25*12)) / 125 = 10.4
     payload = {"percent": 25, "unit_cost": 12.0, "date": "2026-08-10T00:00:00Z"}
     res = service.add_corporate_action("GOAU4", "BONUS", payload)
 
     assert "sucesso" in res
     assert mock_position.quantity == Decimal("125")
-    assert mock_position.average_price == Decimal("8.0")
-    assert mock_position.quantity * mock_position.average_price == Decimal("1000.0")
+    assert mock_position.average_price == Decimal("10.4")
+
+    # Sem custo atribuído (unit_cost=0): dilui mantendo custo total intacto (1000 / 125 = 8.0)
+    mock_position2 = MagicMock(id=2, quantity=Decimal("100"), average_price=Decimal("10.0"))
+    mock_session.query.return_value.filter_by.return_value.first.side_effect = [
+        mock_asset,
+        mock_position2,
+    ]
+    res2 = service.add_corporate_action("KLBN11", "BONUS", {"percent": 25, "unit_cost": 0.0, "date": "2026-08-10T00:00:00Z"})
+    assert "sucesso" in res2
+    assert mock_position2.quantity == Decimal("125")
+    assert mock_position2.average_price == Decimal("8.0")

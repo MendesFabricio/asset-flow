@@ -454,9 +454,15 @@ class PortfolioCrudService:
                         new_pm = old_pm * factor
                     elif action_type == "BONUS":
                         percent = Decimal(str(payload.get("percent", 0)))
+                        unit_cost = Decimal(str(payload.get("unit_cost", 0.0)))
+
                         added_qty = old_qty * (percent / Decimal("100"))
                         new_qty = old_qty + added_qty
-                        new_pm = ((old_qty * old_pm) / new_qty) if new_qty > 0 else old_pm
+
+                        if new_qty > 0:
+                            new_pm = ((old_qty * old_pm) + (added_qty * unit_cost)) / new_qty
+                        else:
+                            new_pm = old_pm
                 
                     # Tratar fração (venda automática)
                     fraction = new_qty - Decimal(math.floor(new_qty))
