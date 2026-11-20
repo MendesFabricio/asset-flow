@@ -7,8 +7,17 @@ from typing import Callable, Dict, Optional
 
 from sqlalchemy import event, func
 
-from db.models import Asset, AssetTransaction, Category, MarketData, MonthlyPortfolioSnapshot
+from db.models import (
+    Asset,
+    AssetTransaction,
+    Category,
+    MarketData,
+    MonthlyPortfolioSnapshot,
+    PortfolioSnapshot,
+    get_active_positions,
+)
 from db.session import Session  # noqa: F401 - kept for backwards compatibility
+from utils.formatters import extract_position_metrics
 from utils.ticker_helper import extract_option_meta, get_yf_historical_proxy
 
 _IGNORED_PROXY_TICKERS = frozenset({"VIVR1", "XPAR3", "CCTY1", "GGRC12", "IRIM15", "HGTX3"})
@@ -226,7 +235,7 @@ def apply_transaction_to_position_state(pos: dict, tx, use_decimal: bool = True)
             if pos["quantity"] <= eps:
                 pos["quantity"] = zero
                 pos["total_cost"] = zero
-    elif tx_type in ("SPLIT", "INPLIT", "BONUS", "SPIN_OFF"):
+    elif tx_type in ("SPLIT", "INPLIT", "BONUS", "SPIN_OFF", "ADJUSTMENT"):
         pos["quantity"] = qty
         if unit_price > zero or qty == zero:
             pos["total_cost"] = qty * unit_price
@@ -349,6 +358,25 @@ def generate_or_update_monthly_snapshot(
 
     unrealized_pnl = total_market_value - total_invested_cost
 
+    # Alinha mês com o último snapshot diário fechado quando disponível (elimina divergência diário vs mensal)
+    last_daily = (
+        session.query(PortfolioSnapshot)
+        .filter(
+            PortfolioSnapshot.user_id == user_id,
+            PortfolioSnapshot.date >= start_date,
+            PortfolioSnapshot.date <= end_date,
+        )
+        .order_by(PortfolioSnapshot.date.desc())
+        .first()
+    )
+    daily_aligned = False
+    if last_daily is not None and last_daily.total_equity is not None:
+        total_market_value = Decimal(str(last_daily.total_equity))
+        if last_daily.total_invested is not None:
+            total_invested_cost = Decimal(str(last_daily.total_invested))
+        unrealized_pnl = total_market_value - total_invested_cost
+        daily_aligned = True
+
     all_asset_ids = set(m_start.keys()) | set(m_end.keys()) | set(net_flows.keys())
     month_variation_total = Decimal("0.0")
     asset_performances = []
@@ -364,6 +392,18 @@ def generate_or_update_monthly_snapshot(
                 "ticker": asset_map[aid],
                 "variation": var_float,
             })
+
+    if daily_aligned:
+        prev_y, prev_m = (year - 1, 12) if month == 1 else (year, month - 1)
+        prev_snap = (
+            session.query(MonthlyPortfolioSnapshot)
+            .filter_by(user_id=user_id, year=prev_y, month=prev_m)
+            .first()
+        )
+        if prev_snap is not None and prev_snap.total_market_value is not None:
+            prev_mkt = Decimal(str(prev_snap.total_market_value))
+            total_net_flows = sum(net_flows.values(), Decimal("0.0"))
+            month_variation_total = (total_market_value - prev_mkt) - total_net_flows
 
     asset_performances.sort(key=lambda x: x["variation"])
     top_losers = [p for p in asset_performances[:3] if p["variation"] < 0]
@@ -399,6 +439,39 @@ def generate_or_update_monthly_snapshot(
 
     session.flush()
     return snapshot
+
+
+def _compute_live_equity_and_cost(session, user_id: int) -> Optional[tuple[float, float]]:
+    """Computa patrimônio e custo investido ao vivo com as posições ativas atuais."""
+    positions = get_active_positions(session, user_id).all()
+    if not positions:
+        return None
+
+    dolar_rate = Decimal("1.0")
+    try:
+        from services import PortfolioService
+        rate = PortfolioService().get_usd_rate()
+        if rate:
+            dolar_rate = Decimal(str(rate))
+    except Exception:
+        pass
+
+    total_equity = Decimal("0.0")
+    total_cost = Decimal("0.0")
+    for pos in positions:
+        asset = getattr(pos, "asset", None)
+        if not asset:
+            continue
+        mdata = (
+            max(asset.market_data, key=lambda m: (m.date or datetime.min.date(), m.id or 0))
+            if asset.market_data
+            else None
+        )
+        qtd, pm, preco, _, _ = extract_position_metrics(pos, mdata)
+        fator = dolar_rate if asset.currency == "USD" else Decimal("1.0")
+        total_equity += qtd * preco * fator
+        total_cost += qtd * pm * fator
+    return round(float(total_equity), 2), round(float(total_cost), 2)
 
 
 def get_monthly_evolution_series(session, user_id: int):
@@ -451,6 +524,8 @@ def get_monthly_evolution_series(session, user_id: int):
             existing_map[(y, m)] = snap
 
         snap = existing_map[(y, m)]
+        snap_cost = float(snap.total_invested_cost)
+        snap_mkt = float(snap.total_market_value)
         current_unrealized = float(snap.unrealized_pnl or 0.0)
         current_realized = float(snap.realized_pnl or 0.0)
         perf_data = json.loads(snap.asset_performance) if snap.asset_performance else None
@@ -460,15 +535,26 @@ def get_monthly_evolution_series(session, user_id: int):
         else:
             month_variation = (current_unrealized - previous_unrealized) + current_realized
 
+        if (y, m) == (today.year, today.month):
+            live_pair = _compute_live_equity_and_cost(session, user_id)
+            if live_pair is not None:
+                live_eq, live_cost = live_pair
+                month_variation = round(month_variation + (live_eq - snap_mkt), 2)
+                if perf_data is not None:
+                    perf_data["month_variation"] = month_variation
+                snap_mkt = live_eq
+                snap_cost = live_cost
+                current_unrealized = round(live_eq - live_cost, 2)
+
         previous_unrealized = current_unrealized
 
         results.append({
             "year": snap.year,
             "month": snap.month,
             "period": f"{snap.month:02d}/{snap.year}",
-            "total_invested_cost": float(snap.total_invested_cost),
-            "total_market_value": float(snap.total_market_value),
-            "realized_pnl": float(snap.realized_pnl),
+            "total_invested_cost": snap_cost,
+            "total_market_value": snap_mkt,
+            "realized_pnl": current_realized,
             "unrealized_pnl": current_unrealized,
             "month_variation": month_variation,
             "asset_performance": perf_data,

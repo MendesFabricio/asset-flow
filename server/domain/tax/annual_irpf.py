@@ -7,6 +7,7 @@ from sqlalchemy import func
 
 from db.session import Session
 from db.models import AssetTransaction, TaxProfile, Asset, Category, Dividend, Position
+from utils.ticker_helper import extract_option_meta
 
 
 _TX_ORDER = {
@@ -192,7 +193,9 @@ def calculate_annual_irpf(user_id: int, year: int) -> Dict[str, Any]:
             irrf_fii = Decimal("0.0")
             
             for tx, asset, category in month_sells:
-                sale_value = tx.total_value
+                sale_value = tx.total_value or Decimal("0.0")
+                if sale_value <= Decimal("0.0") and not getattr(tx, "is_option", False) and not extract_option_meta(tx.ticker):
+                    continue
                 cost_value = (tx.cost_basis or Decimal("0.0")) * tx.quantity
                 profit = sale_value - cost_value
                 

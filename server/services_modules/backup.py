@@ -191,12 +191,7 @@ class BackupService:
             latest_total = sum(latest_breakdown.values()) if latest_breakdown else 0
             fractions = {k: v / latest_total for k, v in latest_breakdown.items()} if latest_total > 0 else {}
 
-            first_date = snapshots[0].date
             for s in snapshots:
-                days_elapsed = (s.date - first_date).days
-                years_elapsed = days_elapsed / 365.25
-                benchmark_val = Decimal(str(s.total_invested or 0)) * Decimal(str(1.105 ** years_elapsed))
-                
                 item = {
                     "date": s.date.strftime("%d/%m/%y"), 
                     "Patrimônio": float(s.total_equity or 0),

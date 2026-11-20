@@ -223,3 +223,45 @@ def test_bens_e_direitos_handles_corporate_events_and_same_day_sell_buy():
     assert by_ticker["GGRC11"]["quantity"] == 50.0
     assert by_ticker["GGRC11"]["total_cost"] == 475.0
     assert "cotas de GGRC11" in by_ticker["GGRC11"]["description"]
+
+
+@patch('db.session.Session')
+def test_calculate_monthly_darf_ignores_zero_value_stock_writeoff_but_keeps_option_dust(mock_session_cls):
+    mock_session = MagicMock()
+    mock_session_cls.return_value = mock_session
+    mock_session.__enter__.return_value = mock_session
+
+    mock_profile = MagicMock(
+        accumulated_loss_stocks_st=Decimal("0.0"),
+        accumulated_loss_stocks_dt=Decimal("0.0"),
+        accumulated_loss_fiis=Decimal("0.0"),
+        accumulated_darf_balance=Decimal("0.0"),
+    )
+
+    tx_stock_zero = MagicMock(
+        id=926, ticker="VIVR3", transaction_date=datetime(2026, 1, 5),
+        total_value=Decimal("0.0"), cost_basis=Decimal("12.40"),
+        quantity=Decimal("120"), type="SELL", is_day_trade=False, is_option=False,
+    )
+    tx_option_zero = MagicMock(
+        id=932, ticker="BHIAL700", transaction_date=datetime(2026, 1, 15),
+        total_value=Decimal("0.0"), cost_basis=Decimal("0.50"),
+        quantity=Decimal("100"), type="SELL", is_day_trade=False, is_option=True,
+    )
+
+    mock_query = MagicMock()
+    mock_session.query.return_value = mock_query
+    mock_query.filter_by.return_value.first.return_value = mock_profile
+    mock_query.filter.return_value.distinct.return_value.all.return_value = []
+    mock_query.filter.return_value.all.return_value = []
+    mock_query.join.return_value.join.return_value.filter.return_value.all.return_value = [
+        (tx_stock_zero, MagicMock(ticker="VIVR3"), MagicMock(name="Ação")),
+        (tx_option_zero, MagicMock(ticker="BHIAL700"), MagicMock(name="Opções")),
+    ]
+
+    res = calculate_monthly_darf(1, 1, 2026)
+
+    # VIVR3 a R$ 0 não gera prejuízo fantasma; apenas a opção que virou pó (-50,00) entra no cálculo
+    assert res["profits"]["stocks_st"] == -50.0
+    assert len(res["details"]) == 1
+    assert res["details"][0]["ticker"] == "BHIAL700"

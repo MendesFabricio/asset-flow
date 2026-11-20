@@ -40,60 +40,69 @@ class TestCreditCardsInvoices(unittest.TestCase):
             self.assertIsNotNone(card)
             card_id = card.id
 
-        # 2. Verifica as faturas para o cartão recém-criado (sem despesas)
-        # A fatura do mês atual DEVE existir com R$ 0,00 e status PENDING
-        response_invoices = self.client.get(f'/api/credit-cards/{card_id}/invoices')
-        self.assertEqual(response_invoices.status_code, 200)
-        invoices_data = response_invoices.get_json()
-        self.assertIsInstance(invoices_data, list)
-        self.assertGreaterEqual(len(invoices_data), 1)
-        
-        # Encontra a fatura de hoje
-        from utils.date_helper import get_invoice_month_helper
-        current_month = get_invoice_month_helper(datetime.now(), 5)
-        current_inv = next((inv for inv in invoices_data if inv["invoice_month"] == current_month), None)
-        self.assertIsNotNone(current_inv)
-        self.assertEqual(current_inv["total"], 0.0)
-        self.assertEqual(current_inv["status"], "PENDING")
+        try:
+            # 2. Verifica as faturas para o cartão recém-criado (sem despesas)
+            # A fatura do mês atual DEVE existir com R$ 0,00 e status PENDING
+            response_invoices = self.client.get(f'/api/credit-cards/{card_id}/invoices')
+            self.assertEqual(response_invoices.status_code, 200)
+            invoices_data = response_invoices.get_json()
+            self.assertIsInstance(invoices_data, list)
+            self.assertGreaterEqual(len(invoices_data), 1)
+            
+            # Encontra a fatura de hoje
+            from utils.date_helper import get_invoice_month_helper
+            current_month = get_invoice_month_helper(datetime.now(), 5)
+            current_inv = next((inv for inv in invoices_data if inv["invoice_month"] == current_month), None)
+            self.assertIsNotNone(current_inv)
+            self.assertEqual(current_inv["total"], 0.0)
+            self.assertEqual(current_inv["status"], "PENDING")
 
-        # 3. Registra uma despesa parcelada em 3x no cartão com data explícita (ex: 2025-09-01)
-        response_expense = self.client.post(f'/api/credit-cards/{card_id}/expenses', json={
-            "description": "Compra Parcelada Teste",
-            "total_value": 300.0,
-            "installments_count": 3,
-            "date": "2025-09-01"
-        })
-        self.assertEqual(response_expense.status_code, 201)
+            # 3. Registra uma despesa parcelada em 3x no cartão com data explícita (ex: 2025-09-01)
+            response_expense = self.client.post(f'/api/credit-cards/{card_id}/expenses', json={
+                "description": "Compra Parcelada Teste",
+                "total_value": 300.0,
+                "installments_count": 3,
+                "date": "2025-09-01"
+            })
+            self.assertEqual(response_expense.status_code, 201)
 
-        # 4. Consulta faturas atualizadas
-        response_invoices_updated = self.client.get(f'/api/credit-cards/{card_id}/invoices')
-        self.assertEqual(response_invoices_updated.status_code, 200)
-        invoices_updated = response_invoices_updated.get_json()
-        
-        # Como foi compra de 2025-09 em 3x, teremos faturas para 2025-09, 2025-10 e 2025-11 (e o mês atual se for diferente)
-        inv_sep = next((inv for inv in invoices_updated if inv["invoice_month"] == "2025-09"), None)
-        inv_oct = next((inv for inv in invoices_updated if inv["invoice_month"] == "2025-10"), None)
-        inv_nov = next((inv for inv in invoices_updated if inv["invoice_month"] == "2025-11"), None)
-        
-        self.assertIsNotNone(inv_sep)
-        self.assertEqual(inv_sep["total"], 100.0)
-        self.assertIsNotNone(inv_oct)
-        self.assertEqual(inv_oct["total"], 100.0)
-        self.assertIsNotNone(inv_nov)
-        self.assertEqual(inv_nov["total"], 100.0)
+            # 4. Consulta faturas atualizadas
+            response_invoices_updated = self.client.get(f'/api/credit-cards/{card_id}/invoices')
+            self.assertEqual(response_invoices_updated.status_code, 200)
+            invoices_updated = response_invoices_updated.get_json()
+            
+            # Como foi compra de 2025-09 em 3x, teremos faturas para 2025-09, 2025-10 e 2025-11 (e o mês atual se for diferente)
+            inv_sep = next((inv for inv in invoices_updated if inv["invoice_month"] == "2025-09"), None)
+            inv_oct = next((inv for inv in invoices_updated if inv["invoice_month"] == "2025-10"), None)
+            inv_nov = next((inv for inv in invoices_updated if inv["invoice_month"] == "2025-11"), None)
+            
+            self.assertIsNotNone(inv_sep)
+            self.assertEqual(inv_sep["total"], 100.0)
+            self.assertIsNotNone(inv_oct)
+            self.assertEqual(inv_oct["total"], 100.0)
+            self.assertIsNotNone(inv_nov)
+            self.assertEqual(inv_nov["total"], 100.0)
 
-        # 5. Consulta despesas filtrando especificamente pelo mês 2025-10
-        response_items_oct = self.client.get(f'/api/credit-cards/{card_id}/expenses?invoice_month=2025-10')
-        self.assertEqual(response_items_oct.status_code, 200)
-        data_oct = response_items_oct.get_json()
-        self.assertIn("items", data_oct)
-        items = data_oct["items"]
-        self.assertEqual(len(items), 1)
-        self.assertEqual(items[0]["description"], "Compra Parcelada Teste")
-        self.assertEqual(items[0]["installment_number"], 2)
-        self.assertEqual(items[0]["installments_count"], 3)
-        self.assertEqual(items[0]["value"], 100.0)
-        self.assertEqual(items[0]["total_value"], 300.0)
+            # 5. Consulta despesas filtrando especificamente pelo mês 2025-10
+            response_items_oct = self.client.get(f'/api/credit-cards/{card_id}/expenses?invoice_month=2025-10')
+            self.assertEqual(response_items_oct.status_code, 200)
+            data_oct = response_items_oct.get_json()
+            self.assertIn("items", data_oct)
+            items = data_oct["items"]
+            self.assertEqual(len(items), 1)
+            self.assertEqual(items[0]["description"], "Compra Parcelada Teste")
+            self.assertEqual(items[0]["installment_number"], 2)
+            self.assertEqual(items[0]["installments_count"], 3)
+            self.assertEqual(items[0]["value"], 100.0)
+            self.assertEqual(items[0]["total_value"], 300.0)
+        finally:
+            with Session() as db:
+                exp_ids = [r[0] for r in db.query(CardExpense.id).filter_by(card_id=card_id).all()]
+                if exp_ids:
+                    db.query(CardInstallment).filter(CardInstallment.expense_id.in_(exp_ids)).delete(synchronize_session=False)
+                db.query(CardExpense).filter_by(card_id=card_id).delete(synchronize_session=False)
+                db.query(CreditCard).filter_by(id=card_id).delete(synchronize_session=False)
+                safe_commit(db)
 
     def test_consolidated_invoices_all_cards(self):
         # Valida que card_id=0 ou -1 retorna faturas consolidadas de todos os cartões

@@ -139,3 +139,28 @@ def test_corporate_action_split(mock_session_cls, mock_commit, service):
     assert "sucesso" in res
     assert mock_position.quantity == Decimal("200")
     assert mock_position.average_price == Decimal("5.0")
+
+
+@patch('services_modules.portfolio.safe_commit')
+@patch('services_modules.portfolio.Session')
+def test_corporate_action_bonus_preserves_total_cost(mock_session_cls, mock_commit, service):
+    mock_session = MagicMock()
+    mock_session_cls.return_value = mock_session
+    mock_session.__enter__.return_value = mock_session
+
+    mock_asset = MagicMock(id=1, category_id=1)
+    mock_position = MagicMock(id=1, quantity=Decimal("100"), average_price=Decimal("10.0"))
+
+    mock_session.query.return_value.filter_by.return_value.first.side_effect = [
+        mock_asset,
+        mock_position,
+    ]
+
+    # Bonificação gratuita de 25% mesmo informando unit_cost=12.0 de referência fiscal
+    payload = {"percent": 25, "unit_cost": 12.0, "date": "2026-08-10T00:00:00Z"}
+    res = service.add_corporate_action("GOAU4", "BONUS", payload)
+
+    assert "sucesso" in res
+    assert mock_position.quantity == Decimal("125")
+    assert mock_position.average_price == Decimal("8.0")
+    assert mock_position.quantity * mock_position.average_price == Decimal("1000.0")

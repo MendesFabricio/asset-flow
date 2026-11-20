@@ -262,7 +262,11 @@ def fetch_ticker_fundamentals(
         desired_dy = 8.0 if inferred_type == "FII" else 6.0
         bazin_price = calculate_bazin_price(div_ps, desired_dy)
         graham_price = calculate_graham_price(lpa, vpa) if inferred_type == "Ação" else None
-        gordon_price = calculate_gordon_price(div_ps, required_return_pct=12.0, growth_pct=5.0) if inferred_type == "Ação" else None
+        gordon_price = (
+            calculate_gordon_price(div_ps, required_return_pct=12.0, growth_pct=5.0)
+            if (inferred_type == "Ação" and dy_12m is not None and 0 < dy_12m <= 25.0)
+            else None
+        )
         dcf_price = calculate_dcf_price(fcf_per_share) if inferred_type == "Ação" else None
 
         raw_sector = info.get("sector") or ("Real Estate" if inferred_type == "FII" else "Outros")
@@ -564,7 +568,7 @@ def get_or_fetch_asset_valuation(
     data["graham_price"] = calculate_graham_price(data.get("lpa"), data.get("vpa")) if data["asset_type"] == "Ação" else None
     data["gordon_price"] = (
         calculate_gordon_price(data.get("dividend_per_share"), eff_discount, eff_growth)
-        if data["asset_type"] == "Ação"
+        if (data["asset_type"] == "Ação" and data.get("dy_12m") is not None and 0 < float(data["dy_12m"]) <= 25.0)
         else None
     )
     data["dcf_price"] = (

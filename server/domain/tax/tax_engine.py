@@ -5,6 +5,7 @@ from typing import List, Dict, Any, Optional
 
 from db.session import Session
 from db.models import AssetTransaction, TaxProfile, Asset, Category
+from utils.ticker_helper import extract_option_meta
 
 def get_or_create_tax_profile(session, user_id: int) -> TaxProfile:
     profile = session.query(TaxProfile).filter_by(user_id=user_id).first()
@@ -81,7 +82,9 @@ def calculate_monthly_darf(user_id: int, month: int, year: int) -> Dict[str, Any
         details = []
         
         for tx, asset, category in sells:
-            sale_value = tx.total_value
+            sale_value = tx.total_value or Decimal("0.0")
+            if sale_value <= Decimal("0.0") and not getattr(tx, "is_option", False) and not extract_option_meta(tx.ticker):
+                continue
             cost_value = (tx.cost_basis or Decimal("0.0")) * tx.quantity
             profit = sale_value - cost_value
             

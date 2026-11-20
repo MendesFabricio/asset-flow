@@ -105,7 +105,7 @@ export default function ReturnsKpiCards() {
           {data.benchmarks.pct_cdi !== null ? `${data.benchmarks.pct_cdi.toFixed(1)}% CDI` : 'N/D'}
         </div>
         <p className="text-[11px] text-text-secondary mt-1">
-          CDI: {fmtPct(data.benchmarks.cdi_pct)}
+          No período — CDI: {fmtPct(data.benchmarks.cdi_pct)}
           {data.benchmarks.cdi_source === 'fallback' || data.benchmarks.cdi_source === 'bcb_stale_cache'
             ? ' (estimado)'
             : ''}{' '}

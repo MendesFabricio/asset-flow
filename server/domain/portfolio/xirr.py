@@ -338,6 +338,7 @@ def calculate_portfolio_returns(session, user_id: int) -> dict:
     attribution = calculate_monthly_attribution(session, user_id)
     twr_factor = 1.0
     has_twr = False
+    twr_clamped_months = 0
     for row in attribution.get("series", []):
         v0 = float(row.get("patrimonio_inicio", 0.0))
         v1 = float(row.get("patrimonio_fim", 0.0))
@@ -345,8 +346,10 @@ def calculate_portfolio_returns(session, user_id: int) -> dict:
         d = float(row.get("dividendos", 0.0))
         denom = v0 + 0.5 * cf
         if denom > 1.0:
-            r_m = (v1 - v0 - cf + d) / denom
-            r_m = max(-0.95, min(r_m, 5.0))
+            r_m_raw = (v1 - v0 - cf + d) / denom
+            r_m = max(-0.95, min(r_m_raw, 5.0))
+            if r_m != r_m_raw:
+                twr_clamped_months += 1
             twr_factor *= (1.0 + r_m)
             has_twr = True
     twr_pct = round((twr_factor - 1.0) * 100.0, 2) if has_twr else None
@@ -382,6 +385,7 @@ def calculate_portfolio_returns(session, user_id: int) -> dict:
         "xirr_periodo_pct": xirr_periodo_pct,
         "xirr_real_aa_pct": xirr_real_aa_pct,
         "twr_pct": twr_pct,
+        "twr_clamped_months": twr_clamped_months,
         "roi_simples_pct": roi_simples_pct,
         "benchmarks": {
             "cdi_pct": cdi_pct,
