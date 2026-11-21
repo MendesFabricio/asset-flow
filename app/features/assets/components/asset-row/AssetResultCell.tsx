@@ -22,9 +22,9 @@ export const AssetResultCell = memo(function AssetResultCell({ ativo, isHidden }
       <div className="flex flex-col items-end">
         <PrivateValue
           value={(lucroPositivo ? '+' : '') + formatMoney(ativo.lucro_valor)}
-          className={`font-bold font-mono tabular-nums ${lucroPositivo ? 'text-emerald-400' : 'text-rose-400'}`}
+          className={`font-semibold font-mono tabular-nums ${lucroPositivo ? 'text-status-success' : 'text-status-error'}`}
         />
-        <div className={`text-[10px] flex items-center gap-1 ${lucroPositivo ? 'text-emerald-500/70' : 'text-rose-500/70'}`}>
+        <div className={`text-2xs flex items-center gap-1 ${lucroPositivo ? 'text-status-success/80' : 'text-status-error/80'}`}>
           <PrivateValue
             value={`${lucroPositivo ? '+' : ''}${ativo.lucro_pct.toFixed(2)}%`}
             className="pct tabular-nums"
@@ -41,7 +41,7 @@ export const AssetResultCell = memo(function AssetResultCell({ ativo, isHidden }
           >
             <PrivateValue
               value={`c/ Div.: ${totalReturnPos ? '+' : ''}${(ativo.total_return_pct ?? 0).toFixed(2)}%`}
-              className={`text-[10px] tabular-nums ${totalReturnPos ? 'text-emerald-400/90' : 'text-rose-400/90'}`}
+              className={`text-2xs tabular-nums ${totalReturnPos ? 'text-status-success' : 'text-status-error'}`}
             />
           </span>
         )}

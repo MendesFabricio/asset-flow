@@ -145,29 +145,29 @@ export function ReceivablesModals(props: ReceivablesModalsProps) {
   return (
     <>
       {isConfigOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
-          <div className="bg-surface-card p-6 rounded-2xl border border-border-subtle w-full max-w-sm space-y-4 shadow-2xl animate-in zoom-in-95 relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-surface-card p-6 rounded-xl border border-border-subtle w-full max-w-sm space-y-4 shadow-lg animate-in fade-in zoom-in-95 duration-[120ms] relative">
             <button type="button" onClick={onCloseConfig} aria-label="Fechar" className="absolute top-4 right-4 text-text-muted hover:text-text-primary transition-colors"><X size={20} /></button>
-            <h3 className="text-lg font-bold text-text-primary flex items-center gap-2"><Settings className="text-blue-500" /> Configurar Fatura</h3>
+            <h3 className="text-lg font-semibold text-text-primary flex items-center gap-2"><Settings className="text-accent" /> Configurar Fatura</h3>
             <div className="space-y-4">
               <div>
-                <label className="text-[11px] text-text-muted uppercase font-bold pl-1 mb-1 block">Dia de Fechamento</label>
+                <label className="text-2xs text-text-muted uppercase font-semibold pl-1 mb-1 block">Dia de Fechamento</label>
                 <input
                   type="number"
                   min="1"
                   max="31"
-                  className="w-full bg-surface-input border border-border-subtle p-3 rounded-xl text-text-primary outline-none focus:border-accent transition-colors font-mono font-bold"
+                  className="w-full bg-surface-input border border-border-subtle p-3 rounded-lg text-text-primary outline-none focus:border-accent transition-colors font-mono tabular-nums font-semibold"
                   value={fechamentoDia}
                   onChange={e => setFechamentoDia(e.target.value)}
                 />
               </div>
               <div>
-                <label className="text-[11px] text-text-muted uppercase font-bold pl-1 mb-1 block">Dia de Vencimento</label>
+                <label className="text-2xs text-text-muted uppercase font-semibold pl-1 mb-1 block">Dia de Vencimento</label>
                 <input
                   type="number"
                   min="1"
                   max="31"
-                  className="w-full bg-surface-input border border-border-subtle p-3 rounded-xl text-text-primary outline-none focus:border-accent transition-colors font-mono font-bold"
+                  className="w-full bg-surface-input border border-border-subtle p-3 rounded-lg text-text-primary outline-none focus:border-accent transition-colors font-mono tabular-nums font-semibold"
                   value={vencimentoDia}
                   onChange={e => setVencimentoDia(e.target.value)}
                 />
@@ -176,7 +176,7 @@ export function ReceivablesModals(props: ReceivablesModalsProps) {
             <button
               type="button"
               onClick={onSaveConfig}
-              className="w-full bg-blue-600 hover:bg-blue-500 text-white p-3 rounded-xl font-bold transition-all"
+              className="w-full bg-accent hover:bg-accent/90 text-white p-3 rounded-lg font-semibold transition-colors"
             >
               Salvar Configuração
             </button>
@@ -185,39 +185,39 @@ export function ReceivablesModals(props: ReceivablesModalsProps) {
       )}
 
       {isDebtorModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
-          <div className="bg-surface-card p-6 rounded-2xl border border-border-subtle w-full max-w-sm space-y-4 shadow-2xl animate-in zoom-in-95 relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-surface-card p-6 rounded-xl border border-border-subtle w-full max-w-sm space-y-4 shadow-lg animate-in fade-in zoom-in-95 duration-[120ms] relative">
             <button type="button" onClick={onCloseDebtorModal} aria-label="Fechar" className="absolute top-4 right-4 text-text-muted hover:text-text-primary transition-colors"><X size={20} /></button>
-            <h3 className="text-lg font-bold text-text-primary flex items-center gap-2">
-              <User className="text-blue-500" /> {editingDebtorId ? 'Editar Devedor' : 'Cadastrar Devedor'}
+            <h3 className="text-lg font-semibold text-text-primary flex items-center gap-2">
+              <User className="text-accent" /> {editingDebtorId ? 'Editar Devedor' : 'Cadastrar Devedor'}
             </h3>
             <div className="space-y-3">
               <div>
-                <label className="text-[11px] text-text-muted uppercase font-bold pl-1 mb-1 block">Nome Completo</label>
+                <label className="text-2xs text-text-muted uppercase font-semibold pl-1 mb-1 block">Nome Completo</label>
                 <input
                   type="text"
                   placeholder="Ex: Lucas, Pedro..."
-                  className="w-full bg-surface-input border border-border-subtle p-3 rounded-xl text-text-primary outline-none focus:border-accent transition-colors"
+                  className="w-full bg-surface-input border border-border-subtle p-3 rounded-lg text-text-primary outline-none focus:border-accent transition-colors"
                   value={newDebtorNome}
                   onChange={e => setNewDebtorNome(e.target.value)}
                 />
               </div>
               <div>
-                <label className="text-[11px] text-text-muted uppercase font-bold pl-1 mb-1 block">Telefone (Opcional)</label>
+                <label className="text-2xs text-text-muted uppercase font-semibold pl-1 mb-1 block">Telefone (Opcional)</label>
                 <input
                   type="text"
                   placeholder="Ex: (11) 99999-9999"
-                  className="w-full bg-surface-input border border-border-subtle p-3 rounded-xl text-text-primary outline-none focus:border-accent transition-colors font-mono"
+                  className="w-full bg-surface-input border border-border-subtle p-3 rounded-lg text-text-primary outline-none focus:border-accent transition-colors font-mono"
                   value={newDebtorTelefone}
                   onChange={e => setNewDebtorTelefone(e.target.value)}
                 />
               </div>
               <div>
-                <label className="text-[11px] text-text-muted uppercase font-bold pl-1 mb-1 block">Anotações</label>
+                <label className="text-2xs text-text-muted uppercase font-semibold pl-1 mb-1 block">Anotações</label>
                 <textarea
                   placeholder="Ex: Contato financeiro preferido..."
                   rows={2}
-                  className="w-full bg-surface-input border border-border-subtle p-3 rounded-xl text-text-primary outline-none focus:border-accent transition-colors text-xs resize-none"
+                  className="w-full bg-surface-input border border-border-subtle p-3 rounded-lg text-text-primary outline-none focus:border-accent transition-colors text-xs resize-none"
                   value={newDebtorObs}
                   onChange={e => setNewDebtorObs(e.target.value)}
                 />
@@ -226,7 +226,7 @@ export function ReceivablesModals(props: ReceivablesModalsProps) {
             <button
               type="button"
               onClick={onCreateDebtor}
-              className="w-full bg-blue-600 hover:bg-blue-500 text-white p-3 rounded-xl font-bold transition-all"
+              className="w-full bg-accent hover:bg-accent/90 text-white p-3 rounded-lg font-semibold transition-colors"
             >
               {editingDebtorId ? 'Atualizar Devedor' : 'Criar Devedor'}
             </button>
@@ -235,21 +235,21 @@ export function ReceivablesModals(props: ReceivablesModalsProps) {
       )}
 
       {isLoanModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
-          <div className="bg-surface-card p-6 rounded-2xl border border-border-subtle w-full max-w-md space-y-4 shadow-2xl animate-in zoom-in-95 relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-surface-card p-6 rounded-xl border border-border-subtle w-full max-w-md space-y-4 shadow-lg animate-in fade-in zoom-in-95 duration-[120ms] relative">
             <button type="button" onClick={onCloseLoanModal} aria-label="Fechar" className="absolute top-4 right-4 text-text-muted hover:text-text-primary transition-colors"><X size={20} /></button>
-            <h3 className="text-lg font-bold text-text-primary flex items-center gap-2">
-              <Plus className="text-blue-500" /> {editingLoanId ? 'Editar Detalhes do Empréstimo' : 'Registrar Empréstimo'}
+            <h3 className="text-lg font-semibold text-text-primary flex items-center gap-2">
+              <Plus className="text-accent" /> {editingLoanId ? 'Editar Detalhes do Empréstimo' : 'Registrar Empréstimo'}
             </h3>
             <div className="space-y-3">
               {!editingLoanId ? (
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[11px] text-text-muted uppercase font-bold pl-1 mb-1 block">Devedor</label>
+                    <label className="text-2xs text-text-muted uppercase font-semibold pl-1 mb-1 block">Devedor</label>
                     <select
                       value={newLoanDebtorId}
                       onChange={e => setNewLoanDebtorId(e.target.value)}
-                      className="w-full bg-surface-input border border-border-subtle p-3 rounded-xl text-text-primary outline-none focus:border-accent transition-colors text-xs cursor-pointer"
+                      className="w-full bg-surface-input border border-border-subtle p-3 rounded-lg text-text-primary outline-none focus:border-accent transition-colors text-xs cursor-pointer"
                     >
                       <option value="">Selecione...</option>
                       {debtorOptions.map(opt => (
@@ -258,11 +258,11 @@ export function ReceivablesModals(props: ReceivablesModalsProps) {
                     </select>
                   </div>
                   <div>
-                    <label className="text-[11px] text-text-muted uppercase font-bold pl-1 mb-1 block">Categoria</label>
+                    <label className="text-2xs text-text-muted uppercase font-semibold pl-1 mb-1 block">Categoria</label>
                     <select
                       value={newLoanCat}
                       onChange={e => setNewLoanCat(e.target.value)}
-                      className="w-full bg-surface-input border border-border-subtle p-3 rounded-xl text-text-primary outline-none focus:border-accent transition-colors text-xs cursor-pointer"
+                      className="w-full bg-surface-input border border-border-subtle p-3 rounded-lg text-text-primary outline-none focus:border-accent transition-colors text-xs cursor-pointer"
                     >
                       {LOAN_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
                     </select>
@@ -270,11 +270,11 @@ export function ReceivablesModals(props: ReceivablesModalsProps) {
                 </div>
               ) : (
                 <div>
-                  <label className="text-[11px] text-text-muted uppercase font-bold pl-1 mb-1 block">Categoria</label>
+                  <label className="text-2xs text-text-muted uppercase font-semibold pl-1 mb-1 block">Categoria</label>
                   <select
                     value={newLoanCat}
                     onChange={e => setNewLoanCat(e.target.value)}
-                    className="w-full bg-surface-input border border-border-subtle p-3 rounded-xl text-text-primary outline-none focus:border-accent transition-colors text-xs cursor-pointer"
+                    className="w-full bg-surface-input border border-border-subtle p-3 rounded-lg text-text-primary outline-none focus:border-accent transition-colors text-xs cursor-pointer"
                   >
                     {LOAN_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
                   </select>
@@ -282,11 +282,11 @@ export function ReceivablesModals(props: ReceivablesModalsProps) {
               )}
 
               <div>
-                <label className="text-[11px] text-text-muted uppercase font-bold pl-1 mb-1 block">Descrição</label>
+                <label className="text-2xs text-text-muted uppercase font-semibold pl-1 mb-1 block">Descrição</label>
                 <input
                   type="text"
                   placeholder="Ex: Jantar de aniversário"
-                  className="w-full bg-surface-input border border-border-subtle p-3 rounded-xl text-text-primary outline-none focus:border-accent transition-colors text-xs"
+                  className="w-full bg-surface-input border border-border-subtle p-3 rounded-lg text-text-primary outline-none focus:border-accent transition-colors text-xs"
                   value={newLoanDesc}
                   onChange={e => setNewLoanDesc(e.target.value)}
                 />
@@ -296,20 +296,20 @@ export function ReceivablesModals(props: ReceivablesModalsProps) {
                 <>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-[11px] text-text-muted uppercase font-bold pl-1 mb-1 block">Valor Total</label>
+                      <label className="text-2xs text-text-muted uppercase font-semibold pl-1 mb-1 block">Valor Total</label>
                       <input
                         type="number"
                         placeholder="R$ 0,00"
-                        className="w-full bg-surface-input border border-border-subtle p-3 rounded-xl text-text-primary outline-none focus:border-accent transition-colors font-mono font-bold"
+                        className="w-full bg-surface-input border border-border-subtle p-3 rounded-lg text-text-primary outline-none focus:border-accent transition-colors font-mono tabular-nums font-semibold"
                         value={newLoanVal}
                         onChange={e => setNewLoanVal(e.target.value)}
                       />
                     </div>
                     <div>
-                      <label className="text-[11px] text-text-muted uppercase font-bold pl-1 mb-1 block">Data de Empréstimo</label>
+                      <label className="text-2xs text-text-muted uppercase font-semibold pl-1 mb-1 block">Data de Empréstimo</label>
                       <input
                         type="date"
-                        className="w-full bg-surface-input border border-border-subtle p-3 rounded-xl text-text-primary outline-none focus:border-accent transition-colors font-mono"
+                        className="w-full bg-surface-input border border-border-subtle p-3 rounded-lg text-text-primary outline-none focus:border-accent transition-colors font-mono"
                         value={newLoanDate}
                         onChange={e => setNewLoanDate(e.target.value)}
                       />
@@ -318,22 +318,22 @@ export function ReceivablesModals(props: ReceivablesModalsProps) {
 
                   <div className="bg-surface-elevated p-3 rounded-xl border border-border-subtle space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-text-muted">Empréstimo Parcelado?</span>
+                      <span className="text-xs font-semibold text-text-muted">Empréstimo Parcelado?</span>
                       <input
                         type="checkbox"
                         checked={newLoanParcelado}
                         onChange={e => setNewLoanParcelado(e.target.checked)}
-                        className="cursor-pointer accent-blue-500 w-4 h-4"
+                        className="cursor-pointer accent-accent w-4 h-4"
                       />
                     </div>
                     {newLoanParcelado && (
                       <div>
-                        <label className="text-[11px] text-text-muted uppercase font-bold pl-1 mb-1 block">Quantidade de Parcelas</label>
+                        <label className="text-2xs text-text-muted uppercase font-semibold pl-1 mb-1 block">Quantidade de Parcelas</label>
                         <input
                           type="number"
                           min="2"
                           placeholder="Qtd parcelas"
-                          className="w-full bg-surface-input border border-border-subtle p-2.5 rounded-lg text-text-primary outline-none focus:border-accent transition-colors font-mono"
+                          className="w-full bg-surface-input border border-border-subtle p-2.5 rounded-lg text-text-primary outline-none focus:border-accent transition-colors font-mono tabular-nums"
                           value={newLoanTotalParc}
                           onChange={e => setNewLoanTotalParc(e.target.value)}
                         />
@@ -344,11 +344,11 @@ export function ReceivablesModals(props: ReceivablesModalsProps) {
               )}
 
               <div>
-                <label className="text-[11px] text-text-muted uppercase font-bold pl-1 mb-1 block">Observações / Anotações</label>
+                <label className="text-2xs text-text-muted uppercase font-semibold pl-1 mb-1 block">Observações / Anotações</label>
                 <textarea
                   placeholder="Anotações adicionais para este empréstimo..."
                   rows={2}
-                  className="w-full bg-surface-input border border-border-subtle p-3 rounded-xl text-text-primary outline-none focus:border-accent transition-colors text-xs resize-none"
+                  className="w-full bg-surface-input border border-border-subtle p-3 rounded-lg text-text-primary outline-none focus:border-accent transition-colors text-xs resize-none"
                   value={newLoanObs}
                   onChange={e => setNewLoanObs(e.target.value)}
                 />
@@ -357,7 +357,7 @@ export function ReceivablesModals(props: ReceivablesModalsProps) {
             <button
               type="button"
               onClick={onCreateLoan}
-              className="w-full bg-blue-600 hover:bg-blue-500 text-white p-3 rounded-xl font-bold transition-all"
+              className="w-full bg-accent hover:bg-accent/90 text-white p-3 rounded-lg font-semibold transition-colors"
             >
               {editingLoanId ? 'Salvar Alterações' : 'Criar Empréstimo'}
             </button>
@@ -366,15 +366,15 @@ export function ReceivablesModals(props: ReceivablesModalsProps) {
       )}
 
       {isPaymentModalOpen && payingInstallment && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
-          <div className="bg-surface-card p-6 rounded-2xl border border-border-subtle w-full max-w-sm space-y-4 shadow-2xl animate-in zoom-in-95 relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-surface-card p-6 rounded-xl border border-border-subtle w-full max-w-sm space-y-4 shadow-lg animate-in fade-in zoom-in-95 duration-[120ms] relative">
             <button type="button" onClick={onClosePaymentModal} aria-label="Fechar" className="absolute top-4 right-4 text-text-muted hover:text-text-primary transition-colors"><X size={20} /></button>
-            <h3 className="text-lg font-bold text-text-primary flex items-center gap-2"><CheckSquare className="text-emerald-500" /> Registrar Recebimento</h3>
+            <h3 className="text-lg font-semibold text-text-primary flex items-center gap-2"><CheckSquare className="text-status-success" /> Registrar Recebimento</h3>
 
-            <div className="space-y-1.5 p-3 bg-surface-elevated rounded-xl border border-border-subtle text-xs">
+            <div className="space-y-1.5 p-3 bg-surface-elevated rounded-xl border border-border-subtle text-xs tabular-nums">
               <p className="text-text-muted">Empréstimo: <span className="text-text-primary font-semibold">{payingLoanDesc}</span></p>
               <p className="text-text-muted">Parcela: <span className="text-text-primary font-mono font-semibold">#{payingInstallment.numero_parcela}</span></p>
-              <p className="text-text-muted">Valor Parcela: <span className="text-status-success font-mono font-bold">{money(payingInstallment.valor_parcela)}</span></p>
+              <p className="text-text-muted">Valor Parcela: <span className="text-status-success font-mono font-semibold">{money(payingInstallment.valor_parcela)}</span></p>
               {payingInstallment.valor_pago > 0 && (
                 <p className="text-text-muted">Já Recebido Parcialmente: <span className="text-text-primary font-mono">{money(payingInstallment.valor_pago)}</span></p>
               )}
@@ -382,23 +382,23 @@ export function ReceivablesModals(props: ReceivablesModalsProps) {
 
             <div className="space-y-3">
               <div>
-                <label className="text-[11px] text-text-muted uppercase font-bold pl-1 mb-1 block">Valor Pago (R$)</label>
+                <label className="text-2xs text-text-muted uppercase font-semibold pl-1 mb-1 block">Valor Pago (R$)</label>
                 <input
                   type="number"
                   placeholder="0,00"
-                  className="w-full bg-surface-input border border-border-subtle p-3 rounded-xl text-text-primary outline-none focus:border-accent transition-colors font-mono font-bold text-lg"
+                  className="w-full bg-surface-input border border-border-subtle p-3 rounded-lg text-text-primary outline-none focus:border-accent transition-colors font-mono tabular-nums font-semibold text-lg"
                   value={payingValue}
                   onChange={e => setPayingValue(e.target.value)}
                 />
-                <span className="text-[10px] text-text-muted block pl-1 mt-1">Valores maiores abaterão parcelas futuras sequencialmente.</span>
+                <span className="text-2xs text-text-muted block pl-1 mt-1">Valores maiores abaterão parcelas futuras sequencialmente.</span>
               </div>
 
               <div>
-                <label className="text-[11px] text-text-muted uppercase font-bold pl-1 mb-1 block">Forma de Pagamento</label>
+                <label className="text-2xs text-text-muted uppercase font-semibold pl-1 mb-1 block">Forma de Pagamento</label>
                 <select
                   value={payingMethod}
                   onChange={e => setPayingMethod(e.target.value)}
-                  className="w-full bg-surface-input border border-border-subtle p-3 rounded-xl text-text-primary outline-none focus:border-accent transition-colors text-xs cursor-pointer"
+                  className="w-full bg-surface-input border border-border-subtle p-3 rounded-lg text-text-primary outline-none focus:border-accent transition-colors text-xs cursor-pointer"
                 >
                   {PAYMENT_METHODS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
                 </select>
@@ -408,7 +408,7 @@ export function ReceivablesModals(props: ReceivablesModalsProps) {
             <button
               type="button"
               onClick={onPayInstallment}
-              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white p-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
+              className="w-full bg-status-success hover:bg-status-success/90 text-white p-3 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
             >
               <CheckCircle size={16} /> Confirmar Recebimento
             </button>
@@ -417,35 +417,35 @@ export function ReceivablesModals(props: ReceivablesModalsProps) {
       )}
 
       {isGlobalPayModalOpen && globalPayDebtor && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
-          <div className="bg-surface-card p-6 rounded-2xl border border-border-subtle w-full max-w-sm space-y-4 shadow-2xl animate-in zoom-in-95 relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-surface-card p-6 rounded-xl border border-border-subtle w-full max-w-sm space-y-4 shadow-lg animate-in fade-in zoom-in-95 duration-[120ms] relative">
             <button type="button" onClick={onCloseGlobalPayModal} aria-label="Fechar" className="absolute top-4 right-4 text-text-muted hover:text-text-primary transition-colors"><X size={20} /></button>
-            <h3 className="text-lg font-bold text-text-primary flex items-center gap-2"><CheckSquare className="text-emerald-500" /> Quitação / Recebimento Global</h3>
+            <h3 className="text-lg font-semibold text-text-primary flex items-center gap-2"><CheckSquare className="text-status-success" /> Quitação / Recebimento Global</h3>
 
-            <div className="space-y-1.5 p-3 bg-surface-elevated rounded-xl border border-border-subtle text-xs">
+            <div className="space-y-1.5 p-3 bg-surface-elevated rounded-xl border border-border-subtle text-xs tabular-nums">
               <p className="text-text-muted">Devedor: <span className="text-text-primary font-semibold">{globalPayDebtor.nome}</span></p>
-              <p className="text-text-muted">Saldo Devedor Total: <span className="text-status-warning font-mono font-bold">{money(globalPayDebtor.saldo_pendente)}</span></p>
+              <p className="text-text-muted">Saldo Devedor Total: <span className="text-status-warning font-mono font-semibold">{money(globalPayDebtor.saldo_pendente)}</span></p>
             </div>
 
             <div className="space-y-3">
               <div>
-                <label className="text-[11px] text-text-muted uppercase font-bold pl-1 mb-1 block">Valor Recebido (R$)</label>
+                <label className="text-2xs text-text-muted uppercase font-semibold pl-1 mb-1 block">Valor Recebido (R$)</label>
                 <input
                   type="number"
                   placeholder="0,00"
-                  className="w-full bg-surface-input border border-border-subtle p-3 rounded-xl text-text-primary outline-none focus:border-accent transition-colors font-mono font-bold text-lg"
+                  className="w-full bg-surface-input border border-border-subtle p-3 rounded-lg text-text-primary outline-none focus:border-accent transition-colors font-mono tabular-nums font-semibold text-lg"
                   value={globalPayValue}
                   onChange={e => setGlobalPayValue(e.target.value)}
                 />
-                <span className="text-[10px] text-text-muted block pl-1 mt-1">Este valor quitará as parcelas em aberto mais antigas sequencialmente.</span>
+                <span className="text-2xs text-text-muted block pl-1 mt-1">Este valor quitará as parcelas em aberto mais antigas sequencialmente.</span>
               </div>
 
               <div>
-                <label className="text-[11px] text-text-muted uppercase font-bold pl-1 mb-1 block">Forma de Pagamento</label>
+                <label className="text-2xs text-text-muted uppercase font-semibold pl-1 mb-1 block">Forma de Pagamento</label>
                 <select
                   value={globalPayMethod}
                   onChange={e => setGlobalPayMethod(e.target.value)}
-                  className="w-full bg-surface-input border border-border-subtle p-3 rounded-xl text-text-primary outline-none focus:border-accent transition-colors text-xs cursor-pointer"
+                  className="w-full bg-surface-input border border-border-subtle p-3 rounded-lg text-text-primary outline-none focus:border-accent transition-colors text-xs cursor-pointer"
                 >
                   {PAYMENT_METHODS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
                 </select>
@@ -455,7 +455,7 @@ export function ReceivablesModals(props: ReceivablesModalsProps) {
             <button
               type="button"
               onClick={onPayGlobalDebtor}
-              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white p-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
+              className="w-full bg-status-success hover:bg-status-success/90 text-white p-3 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
             >
               <CheckCircle size={16} /> Confirmar Recebimento Lote
             </button>
