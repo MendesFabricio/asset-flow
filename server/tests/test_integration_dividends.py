@@ -156,3 +156,105 @@ def test_record_confirmed_dividends_statusinvest_enrichment_net_irrf_and_upcomin
         assert [d.date_payment for d in petr_divs[2:]] == [future_pay, future_pay2]
         assert all(d.status == "A RECEBER" for d in petr_divs[2:])
         assert float(petr_divs[2].total_value) == pytest.approx(round(0.5937 * 26, 2), abs=0.01)
+
+
+def test_yoc_history_uses_moment_pm_split_and_market_dy(monkeypatch):
+    from backend import app
+    from db.models import MarketData
+
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    SessionLocal = sessionmaker(bind=engine)
+
+    class _CtxSession:
+        def __init__(self):
+            self._s = SessionLocal()
+
+        def __enter__(self):
+            return self._s
+
+        def __exit__(self, exc_type, exc, tb):
+            self._s.close()
+
+    monkeypatch.setattr("routes.dividends.Session", _CtxSession)
+    monkeypatch.setattr("routes.auth.verify_session_token", lambda _: {"user_id": 1, "username": "Fabricio"})
+
+    with SessionLocal() as seed:
+        user = User(id=1, username="Fabricio", password_hash="x")
+        cat_fii = Category(id=1, name="FII")
+        hgbs = Asset(id=1, ticker="HGBS11", category_id=1, currency="BRL")
+        seed.add_all([user, cat_fii, hgbs])
+        seed.flush()
+
+        # Position today: 50 shares, PM 20.50 (after 1:10 split + later purchase)
+        pos = Position(id=1, user_id=1, asset_id=1, quantity=50, average_price=20.50)
+        seed.add(pos)
+        seed.flush()
+
+        seed.add_all([
+            AssetTransaction(
+                user_id=1, position_id=1, ticker="HGBS11", type="BUY",
+                quantity=4, unit_price=205.50, total_value=822.00, transaction_date=datetime(2024, 1, 10),
+            ),
+            AssetTransaction(
+                user_id=1, position_id=1, ticker="HGBS11", type="SPLIT",
+                quantity=40, unit_price=20.55, total_value=0.0, transaction_date=datetime(2025, 5, 13),
+            ),
+            AssetTransaction(
+                user_id=1, position_id=1, ticker="HGBS11", type="BUY",
+                quantity=10, unit_price=20.30, total_value=203.00, transaction_date=datetime(2025, 12, 1),
+            ),
+            # 2024 dividend when PM was 205.50
+            Dividend(
+                asset_id=1, user_id=1, date_com=date(2024, 6, 14), date_payment=date(2024, 6, 20),
+                type="Rendimento", value_per_share=1.60, quantity_at_date=4, total_value=6.40, status="PAGO",
+            ),
+            # May 2025 dividend declared on 4 pre-split shares (2 days after DB split date)
+            Dividend(
+                asset_id=1, user_id=1, date_com=date(2025, 5, 15), date_payment=date(2025, 5, 15),
+                type="Rendimento", value_per_share=1.60, quantity_at_date=4, total_value=6.40, status="PAGO",
+            ),
+            # December 2025 dividend after BUY changed PM from 20.55 -> 20.50 (gross vps=0.20, net=0.17/cota)
+            Dividend(
+                asset_id=1, user_id=1, date_com=date(2025, 12, 12), date_payment=date(2025, 12, 18),
+                type="Juros Sobre Capital Próprio", value_per_share=0.20, quantity_at_date=50, total_value=8.50, status="PAGO",
+            ),
+            # Future pending dividend must NOT inflate realized YoC history
+            Dividend(
+                asset_id=1, user_id=1, date_com=date(2026, 11, 20), date_payment=date(2026, 11, 27),
+                type="Rendimento", value_per_share=0.20, quantity_at_date=50, total_value=10.00, status="A RECEBER",
+            ),
+            MarketData(asset_id=1, date=datetime(2024, 6, 14), price=220.00),
+            MarketData(asset_id=1, date=datetime(2025, 5, 12), price=200.00),
+            MarketData(asset_id=1, date=datetime(2025, 12, 12), price=19.50),
+        ])
+        seed.commit()
+
+    app.config["TESTING"] = True
+    with app.test_client() as client:
+        client.set_cookie("assetflow_session", "mocked_token")
+        resp = client.get("/api/dividends/yoc-history")
+        assert resp.status_code == 200
+        data = resp.get_json()
+
+    assert list(data.keys()) == ["HGBS11"]
+    hgbs_rows = data["HGBS11"]
+    assert [r["year"] for r in hgbs_rows] == [2024, 2025]
+
+    y2024, y2025 = hgbs_rows
+    # 2024: PM at moment 205.50 (not today's 20.50!)
+    assert y2024["pm_at_moment"] == pytest.approx(205.50, abs=0.01)
+    assert y2024["market_price"] == pytest.approx(220.00, abs=0.01)
+    assert y2024["yoc"] == pytest.approx(round(1.60 / 205.50 * 100, 2), abs=0.02)
+    assert y2024["dy_market"] == pytest.approx(round(1.60 / 220.00 * 100, 2), abs=0.02)
+    assert y2024["total_received"] == pytest.approx(6.40, abs=0.01)
+
+    # 2025: May event stays pre-split (PM=205.50, Cot=200.00) + Dec event uses PM=20.50, Cot=19.50
+    expected_2025_yoc = (1.60 / 205.50 * 100) + (0.17 / 20.50 * 100)
+    expected_2025_dy = (1.60 / 200.00 * 100) + (0.17 / 19.50 * 100)
+    assert y2025["yoc"] == pytest.approx(expected_2025_yoc, abs=0.02)
+    assert y2025["dy_market"] == pytest.approx(expected_2025_dy, abs=0.02)
+    assert y2025["pm_at_moment"] == pytest.approx(20.50, abs=0.01)
+    assert len(y2025["events"]) == 2
+    assert y2025["events"][0]["pm_at_moment"] == pytest.approx(205.50, abs=0.01)
+    assert y2025["events"][1]["pm_at_moment"] == pytest.approx(20.50, abs=0.01)
