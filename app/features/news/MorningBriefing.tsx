@@ -65,18 +65,18 @@ export function MorningBriefing() {
 
   if (loading) {
     return (
-      <div className="bg-surface-card border border-slate-800/80 backdrop-blur-md rounded-2xl p-5 mb-6 animate-pulse">
+      <div className="bg-surface-card border border-border-subtle rounded-xl p-5 mb-6 animate-pulse">
         <div className="flex justify-between items-center mb-3">
-          <div className="h-5 bg-slate-800 rounded w-40" />
+          <div className="h-5 bg-surface-input rounded w-40" />
           <div className="flex gap-2">
-            <div className="h-5 bg-slate-800 rounded w-16" />
-            <div className="h-5 bg-slate-800 rounded w-16" />
+            <div className="h-5 bg-surface-input rounded w-16" />
+            <div className="h-5 bg-surface-input rounded w-16" />
           </div>
         </div>
         <div className="space-y-2">
-          <div className="h-3 bg-slate-800 rounded w-full" />
-          <div className="h-3 bg-slate-800 rounded w-11/12" />
-          <div className="h-3 bg-slate-800 rounded w-9/12" />
+          <div className="h-3 bg-surface-input rounded w-full" />
+          <div className="h-3 bg-surface-input rounded w-11/12" />
+          <div className="h-3 bg-surface-input rounded w-9/12" />
         </div>
       </div>
     );
@@ -84,14 +84,14 @@ export function MorningBriefing() {
 
   if (error || !data) {
     return (
-      <div className="bg-surface-card border border-red-900/30 backdrop-blur-md rounded-2xl p-4 mb-6 flex justify-between items-center gap-3">
-        <div className="flex items-center gap-2 text-red-400">
+      <div className="bg-surface-card border border-status-error/30 rounded-xl p-4 mb-6 flex justify-between items-center gap-3">
+        <div className="flex items-center gap-2 text-status-error">
           <AlertCircle size={16} />
           <span className="text-xs font-medium">{error || 'Briefing temporariamente indisponível.'}</span>
         </div>
         <button
           onClick={() => fetchBrief(false)}
-          className="text-slate-400 hover:text-white transition-colors p-1 hover:bg-slate-800/50 rounded-lg"
+          className="text-text-muted hover:text-text-primary transition-colors p-1 hover:bg-surface-elevated rounded-lg"
         >
           <RefreshCw size={14} />
         </button>
@@ -100,40 +100,40 @@ export function MorningBriefing() {
   }
 
   return (
-    <div className="bg-gradient-to-b from-surface-card via-surface-input to-surface-card border border-slate-800/80 backdrop-blur-md rounded-2xl p-5 shadow-2xl transition-all hover:border-blue-500/30 h-[650px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-800">
-      <div className="flex flex-col justify-between items-start gap-4 border-b border-slate-800/60 pb-4 mb-4">
+    <div className="bg-surface-card border border-border-subtle rounded-xl p-5 shadow-sm transition-colors hover:border-accent/30 h-[650px] overflow-y-auto">
+      <div className="flex flex-col justify-between items-start gap-4 border-b border-border-subtle pb-4 mb-4">
         <div className="flex items-center gap-2.5">
-          <div className="p-1.5 bg-blue-500/10 rounded-lg border border-blue-500/20 text-blue-400">
-            <Coffee size={16} className="animate-pulse" />
+          <div className="p-1.5 bg-accent-soft rounded-lg border border-accent/20 text-accent">
+            <Coffee size={16} />
           </div>
           <div>
-            <h3 className="text-xs font-extrabold uppercase tracking-widest text-slate-200">Briefing Matinal de IA</h3>
-            <p className="text-[10px] text-slate-500">Resumo macroeconômico e riscos ponderados</p>
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-text-primary">Briefing Matinal de IA</h3>
+            <p className="text-2xs text-text-muted">Resumo macroeconômico e riscos ponderados</p>
           </div>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
           {data.selic_rate && (
-            <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-surface-input text-slate-400 border border-slate-800">
-              Selic: <span className="font-mono text-blue-400">{data.selic_rate}</span>
+            <span className="text-2xs font-semibold px-2.5 py-0.5 rounded-md bg-surface-input text-text-muted border border-border-subtle tabular-nums">
+              Selic: <span className="font-mono text-accent">{data.selic_rate}</span>
             </span>
           )}
           {data.dolar_rate && (
-            <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-surface-input text-slate-400 border border-slate-800">
-              Dólar: <span className="font-mono text-emerald-400">
+            <span className="text-2xs font-semibold px-2.5 py-0.5 rounded-md bg-surface-input text-text-muted border border-border-subtle tabular-nums">
+              Dólar: <span className="font-mono text-status-success">
                 {String(data.dolar_rate).includes('R$') ? data.dolar_rate : `R$ ${Number(data.dolar_rate).toFixed(2)}`}
               </span>
             </span>
           )}
           {data.status === 'Processando' && (
-            <span className="flex items-center gap-1 text-[10px] font-bold text-amber-400">
+            <span className="flex items-center gap-1 text-2xs font-semibold text-status-warning">
               <Loader2 size={11} className="animate-spin" /> Gerando IA...
             </span>
           )}
           <button
             onClick={() => fetchBrief(true)}
             title="Reanalisar com IA (forçar recálculo)"
-            className="text-slate-500 hover:text-indigo-400 hover:bg-slate-800/50 p-1.5 rounded-lg transition-all flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider border border-slate-850"
+            className="text-text-muted hover:text-accent hover:bg-surface-elevated p-1.5 rounded-lg transition-colors flex items-center gap-1 text-2xs font-semibold uppercase tracking-wider border border-border-subtle"
           >
             <RefreshCw size={11} className={loading ? "animate-spin" : ""} />
             <span>Reanalisar</span>
@@ -141,25 +141,25 @@ export function MorningBriefing() {
         </div>
       </div>
 
-      <div className="text-xs text-slate-300 leading-relaxed font-normal">
+      <div className="text-xs text-text-primary leading-relaxed font-normal">
         <Markdown text={data.brief_text} />
       </div>
 
       {data.action && (
-        <div className="mt-3 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300">
+        <div className="mt-3 p-3 rounded-xl bg-status-success/10 border border-status-success/30 text-status-success">
           <div className="flex items-center gap-2 mb-1">
             <Target size={14} />
-            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Ação Recomendada</span>
+            <span className="text-2xs font-semibold uppercase tracking-wider text-status-success">Ação Recomendada</span>
           </div>
-          <p className="text-xs text-slate-200 leading-relaxed">{data.action}</p>
+          <p className="text-xs text-text-primary leading-relaxed">{data.action}</p>
         </div>
       )}
 
       {data.risk_metrics && Object.keys(data.risk_metrics).length > 0 && (
         <div className="mt-3 p-3 rounded-xl bg-surface-input border border-border-subtle">
           <div className="flex items-center gap-2 mb-2.5">
-            <BarChart3 size={14} className="text-indigo-400" />
-            <span className="text-[10px] font-bold uppercase tracking-wider text-text-secondary">Métricas de Risco</span>
+            <BarChart3 size={14} className="text-accent" />
+            <span className="text-2xs font-semibold uppercase tracking-wider text-text-muted">Métricas de Risco</span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
             {Object.entries(data.risk_metrics).map(([key, value]) => {
@@ -172,10 +172,10 @@ export function MorningBriefing() {
               const cleanVal = rawVal.includes('|') ? rawVal.split('|')[0].trim() : rawVal;
               return (
                 <div key={key} className="bg-surface-card border border-border-subtle rounded-lg px-3 py-2 text-center">
-                  <div className="text-[10px] text-text-secondary uppercase tracking-wider mb-0.5">
+                  <div className="text-2xs text-text-muted uppercase tracking-wider mb-0.5">
                     {labelMap[key] || key}
                   </div>
-                  <div className="text-xs font-mono font-semibold text-text-primary">{cleanVal}</div>
+                  <div className="text-xs font-mono font-semibold text-text-primary tabular-nums">{cleanVal}</div>
                 </div>
               );
             })}
@@ -187,8 +187,8 @@ export function MorningBriefing() {
       {data.news_highlights && data.news_highlights.length > 0 && (
         <div className="mt-3 p-3 rounded-xl bg-surface-input border border-border-subtle">
           <div className="flex items-center gap-2 mb-2">
-            <Newspaper size={14} className="text-blue-400" />
-            <span className="text-[10px] font-bold uppercase tracking-wider text-text-secondary">
+            <Newspaper size={14} className="text-accent" />
+            <span className="text-2xs font-semibold uppercase tracking-wider text-text-muted">
               Principais Notícias da Carteira
             </span>
           </div>
@@ -199,14 +199,14 @@ export function MorningBriefing() {
                   href={item.link}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-text-primary hover:text-blue-400 transition-colors leading-snug flex-1"
+                  className="text-text-primary hover:text-accent transition-colors leading-snug flex-1"
                 >
-                  <span className="inline-block font-mono text-[10px] font-bold px-1.5 py-0.5 mr-1.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                  <span className="inline-block font-mono text-2xs font-semibold px-1.5 py-0.5 mr-1.5 rounded-md bg-accent-soft text-accent border border-accent/20">
                     {item.ticker}
                   </span>
                   {item.title}
                 </a>
-                <ExternalLink size={12} className="text-text-secondary shrink-0 mt-0.5" />
+                <ExternalLink size={12} className="text-text-muted shrink-0 mt-0.5" />
               </li>
             ))}
           </ul>
@@ -214,10 +214,10 @@ export function MorningBriefing() {
       )}
 
       {data.rationale && (
-        <div className="mt-3 border-t border-slate-800/40 pt-3">
+        <div className="mt-3 border-t border-border-subtle pt-3">
           <button
             onClick={() => setShowCoT(!showCoT)}
-            className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-blue-400/80 hover:text-blue-400 transition-colors"
+            className="flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-wider text-accent hover:text-accent/80 transition-colors"
           >
             <Brain size={12} />
             <span>Ver Raciocínio de Risco (CoT)</span>
@@ -225,7 +225,7 @@ export function MorningBriefing() {
           </button>
           
           {showCoT && (
-            <div className="mt-2.5 p-3 rounded-xl bg-surface-input border border-slate-800 text-[11px] text-slate-400 leading-relaxed animate-in fade-in slide-in-from-top-1">
+            <div className="mt-2.5 p-3 rounded-xl bg-surface-input border border-border-subtle text-2xs text-text-muted leading-relaxed">
               <Markdown text={data.rationale} />
             </div>
           )}

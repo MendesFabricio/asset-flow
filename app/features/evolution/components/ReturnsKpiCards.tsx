@@ -64,18 +64,18 @@ export default function ReturnsKpiCards() {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <Card className="p-4 flex flex-col justify-between">
-        <div className="flex items-center justify-between text-text-secondary">
-          <span className="text-[11px] font-bold uppercase tracking-wider">
+        <div className="flex items-center justify-between text-text-muted">
+          <span className="text-2xs font-semibold uppercase tracking-wider">
             {data.is_short_horizon ? 'TIR no Período' : 'TIR (XIRR a.a.)'}
           </span>
-          <TrendingUp size={16} className={xirrPositive ? 'text-emerald-400' : 'text-rose-400'} />
+          <TrendingUp size={16} className={xirrPositive ? 'text-status-success' : 'text-status-error'} />
         </div>
-        <div className={`text-2xl font-black mt-2 ${xirrPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
+        <div className={`text-2xl font-semibold tabular-nums mt-2 ${xirrPositive ? 'text-status-success' : 'text-status-error'}`}>
           {data.is_short_horizon
             ? fmtPct(data.xirr_periodo_pct)
             : fmtPct(data.xirr_aa_pct, '% a.a.')}
         </div>
-        <p className="text-[11px] text-text-secondary mt-1">
+        <p className="text-2xs text-text-muted mt-1 tabular-nums">
           {data.is_short_horizon
             ? `Janela curta (${data.days ?? 0}d)`
             : `Período: ${fmtPct(data.xirr_periodo_pct)}`}{' '}
@@ -84,28 +84,28 @@ export default function ReturnsKpiCards() {
       </Card>
 
       <Card className="p-4 flex flex-col justify-between">
-        <div className="flex items-center justify-between text-text-secondary">
-          <span className="text-[11px] font-bold uppercase tracking-wider">TWR (Modified Dietz)</span>
-          <Award size={16} className={twrPositive ? 'text-blue-400' : 'text-rose-400'} />
+        <div className="flex items-center justify-between text-text-muted">
+          <span className="text-2xs font-semibold uppercase tracking-wider">TWR (Modified Dietz)</span>
+          <Award size={16} className={twrPositive ? 'text-accent' : 'text-status-error'} />
         </div>
-        <div className={`text-2xl font-black mt-2 ${twrPositive ? 'text-text-primary' : 'text-rose-400'}`}>
+        <div className={`text-2xl font-semibold tabular-nums mt-2 ${twrPositive ? 'text-text-primary' : 'text-status-error'}`}>
           {fmtPct(data.twr_pct)}
         </div>
-        <p className="text-[11px] text-text-secondary mt-1">
+        <p className="text-2xs text-text-muted mt-1 tabular-nums">
           ROI simples s/ compras: {fmtPct(data.roi_simples_pct)}
         </p>
       </Card>
 
       <Card className="p-4 flex flex-col justify-between">
-        <div className="flex items-center justify-between text-text-secondary">
-          <span className="text-[11px] font-bold uppercase tracking-wider">vs. CDI & Benchmarks</span>
-          <Landmark size={16} className="text-amber-400" />
+        <div className="flex items-center justify-between text-text-muted">
+          <span className="text-2xs font-semibold uppercase tracking-wider">vs. CDI &amp; Benchmarks</span>
+          <Landmark size={16} className="text-status-warning" />
         </div>
-        <div className="text-2xl font-black text-text-primary mt-2">
+        <div className="text-2xl font-semibold text-text-primary tabular-nums mt-2">
           {data.benchmarks.pct_cdi !== null ? `${data.benchmarks.pct_cdi.toFixed(1)}% CDI` : 'N/D'}
         </div>
-        <p className="text-[11px] text-text-secondary mt-1">
-          No período — CDI: {fmtPct(data.benchmarks.cdi_pct)}
+        <p className="text-2xs text-text-muted mt-1 tabular-nums">
+          No período, CDI: {fmtPct(data.benchmarks.cdi_pct)}
           {data.benchmarks.cdi_source === 'fallback' || data.benchmarks.cdi_source === 'bcb_stale_cache'
             ? ' (estimado)'
             : ''}{' '}
@@ -115,14 +115,14 @@ export default function ReturnsKpiCards() {
       </Card>
 
       <Card className="p-4 flex flex-col justify-between">
-        <div className="flex items-center justify-between text-text-secondary">
-          <span className="text-[11px] font-bold uppercase tracking-wider">Aporte Líq. & Proventos</span>
-          <Wallet size={16} className="text-purple-400" />
+        <div className="flex items-center justify-between text-text-muted">
+          <span className="text-2xs font-semibold uppercase tracking-wider">Aporte Líq. &amp; Proventos</span>
+          <Wallet size={16} className="text-accent" />
         </div>
-        <div className="text-2xl font-black text-text-primary mt-2">
+        <div className="text-2xl font-semibold text-text-primary tabular-nums mt-2">
           {maskMoney(data.cashflow_summary.aporte_liquido)}
         </div>
-        <p className="text-[11px] text-text-secondary mt-1">
+        <p className="text-2xs text-text-muted mt-1 tabular-nums">
           Proventos recebidos: {maskMoney(data.cashflow_summary.total_dividendos)}
         </p>
       </Card>

@@ -5,10 +5,13 @@ import { portfolioService, MonthlyEvolutionData, SyncStatus } from '@/services/p
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { formatMoney } from '@/lib/format';
 import { usePrivacy } from '@/context/PrivacyContext';
+import { useChartPalette } from '@/lib/chartPalette';
+import { SEMANTIC_CHART_HEX } from '@/lib/colors';
 import { RefreshCw, Loader2 } from 'lucide-react';
 
 export default function MonthlyPnLChart() {
   const { isHidden } = usePrivacy() as { isHidden: boolean };
+  const palette = useChartPalette();
   const [data, setData] = useState<MonthlyEvolutionData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -75,37 +78,37 @@ export default function MonthlyPnLChart() {
       const losers = assetPerformance?.losers ?? [];
 
       return (
-        <div className="bg-white/95 dark:bg-slate-900/85 backdrop-blur-xl border border-slate-200/50 dark:border-slate-700/50 p-3 rounded-xl shadow-xl shadow-slate-900/10 dark:shadow-black/40 min-w-[200px]">
-          <div className="flex items-center gap-2 mb-2 border-b border-slate-200/50 dark:border-slate-800/80 pb-2">
-            <div className={`w-2 h-2 rounded-full shadow-[0_0_6px_rgba(0,0,0,0.5)] ${isProfit ? 'bg-emerald-500 shadow-emerald-500/50' : 'bg-rose-500 shadow-rose-500/50'}`}></div>
-            <p className="font-bold text-slate-800 dark:text-slate-100 text-sm tracking-tight">{label}</p>
+        <div className="bg-surface-elevated border border-border-subtle p-3 rounded-xl shadow-md min-w-[200px]">
+          <div className="flex items-center gap-2 mb-2 border-b border-border-subtle pb-2">
+            <div className={`w-2 h-2 rounded-full ${isProfit ? 'bg-status-success' : 'bg-status-error'}`}></div>
+            <p className="font-semibold text-text-primary text-sm tracking-tight">{label}</p>
           </div>
           
           <div className="flex flex-col gap-1.5 text-xs mb-3">
             <div className="flex justify-between items-center gap-4">
-              <span className="text-slate-500 dark:text-slate-400 font-medium">Oscilação:</span>
-              <span className={`font-bold ${isProfit ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+              <span className="text-text-muted font-medium">Oscilação:</span>
+              <span className={`font-semibold tabular-nums ${isProfit ? 'text-status-success' : 'text-status-error'}`}>
                 {isHidden ? 'R$ •••••' : `${variation > 0 ? '+' : ''}${formatMoney(variation)}`}
               </span>
             </div>
             <div className="flex justify-between items-center gap-6">
-              <span className="text-slate-500 dark:text-slate-400 font-medium">Patrimônio:</span>
-              <span className="font-bold text-slate-700 dark:text-slate-200">
+              <span className="text-text-muted font-medium">Patrimônio:</span>
+              <span className="font-semibold text-text-primary tabular-nums">
                 {isHidden ? 'R$ •••••' : formatMoney(marketValue)}
               </span>
             </div>
           </div>
           
           {(gainers.length > 0 || losers.length > 0) && (
-            <div className="flex flex-col gap-2 mt-1 pt-2 border-t border-slate-200/50 dark:border-slate-800/80">
+            <div className="flex flex-col gap-2 mt-1 pt-2 border-t border-border-subtle">
               {gainers.length > 0 && (
                 <div>
-                  <span className="text-[9px] font-bold text-emerald-600/70 dark:text-emerald-500/70 uppercase tracking-widest mb-1 block">Maiores Altas</span>
+                  <span className="text-2xs font-semibold text-status-success uppercase tracking-wider mb-1 block">Maiores Altas</span>
                   <div className="flex flex-col gap-1">
                     {gainers.map((g) => (
-                      <div key={g.ticker} className="flex justify-between items-center text-[11px]">
-                        <span className="text-slate-700 dark:text-slate-300 font-medium">{g.ticker}</span>
-                        <span className="text-emerald-600 dark:text-emerald-400 font-semibold bg-emerald-500/10 px-1 py-0.5 rounded">{isHidden ? 'R$ •••••' : `+${formatMoney(g.variation)}`}</span>
+                      <div key={g.ticker} className="flex justify-between items-center text-2xs">
+                        <span className="text-text-primary font-medium">{g.ticker}</span>
+                        <span className="text-status-success font-semibold bg-status-success/10 px-1 py-0.5 rounded-md tabular-nums">{isHidden ? 'R$ •••••' : `+${formatMoney(g.variation)}`}</span>
                       </div>
                     ))}
                   </div>
@@ -113,12 +116,12 @@ export default function MonthlyPnLChart() {
               )}
               {losers.length > 0 && (
                 <div>
-                  <span className="text-[9px] font-bold text-rose-600/70 dark:text-rose-500/70 uppercase tracking-widest mb-1 block mt-2">Maiores Baixas</span>
+                  <span className="text-2xs font-semibold text-status-error uppercase tracking-wider mb-1 block mt-2">Maiores Baixas</span>
                   <div className="flex flex-col gap-1">
                     {losers.map((l) => (
-                      <div key={l.ticker} className="flex justify-between items-center text-[11px]">
-                        <span className="text-slate-700 dark:text-slate-300 font-medium">{l.ticker}</span>
-                        <span className="text-rose-600 dark:text-rose-400 font-semibold bg-rose-500/10 px-1 py-0.5 rounded">{isHidden ? 'R$ •••••' : formatMoney(l.variation)}</span>
+                      <div key={l.ticker} className="flex justify-between items-center text-2xs">
+                        <span className="text-text-primary font-medium">{l.ticker}</span>
+                        <span className="text-status-error font-semibold bg-status-error/10 px-1 py-0.5 rounded-md tabular-nums">{isHidden ? 'R$ •••••' : formatMoney(l.variation)}</span>
                       </div>
                     ))}
                   </div>
@@ -133,18 +136,18 @@ export default function MonthlyPnLChart() {
   };
 
   return (
-    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 shadow-sm relative overflow-hidden">
+    <div className="bg-surface-card border border-border-subtle rounded-xl p-6 shadow-sm relative overflow-hidden">
       
       {/* Sincronização Overlay */}
       {syncStatus?.status === 'processing' && (
-        <div className="absolute inset-0 z-10 bg-slate-900/80 backdrop-blur-sm flex flex-col items-center justify-center text-white">
-          <Loader2 className="w-10 h-10 animate-spin text-blue-500 mb-4" />
-          <h3 className="text-xl font-bold mb-2">Recalculando Histórico</h3>
-          <p className="text-slate-300 mb-4">{syncStatus.message}</p>
+        <div className="absolute inset-0 z-10 bg-surface/85 backdrop-blur-sm flex flex-col items-center justify-center text-text-primary">
+          <Loader2 className="w-10 h-10 animate-spin text-accent mb-4" />
+          <h3 className="text-xl font-semibold mb-2">Recalculando Histórico</h3>
+          <p className="text-text-muted mb-4 tabular-nums">{syncStatus.message}</p>
           
-          <div className="w-64 h-2 bg-slate-700 rounded-full overflow-hidden">
+          <div className="w-64 h-2 bg-surface-input rounded-full overflow-hidden">
             <div 
-              className="h-full bg-blue-500 transition-all duration-300"
+              className="h-full bg-accent transition-[width] duration-300"
               style={{ width: `${Math.max(5, (syncStatus.progress / (syncStatus.total || 1)) * 100)}%` }}
             />
           </div>
@@ -153,15 +156,15 @@ export default function MonthlyPnLChart() {
 
       <div className="flex justify-between items-start mb-6">
         <div>
-          <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Variação Patrimonial Mensal</h3>
-          <p className="text-sm text-slate-500">Oscilação (Capital Appreciation) gerada pelas cotações de mercado a cada mês.</p>
+          <h3 className="text-lg font-semibold text-text-primary">Variação Patrimonial Mensal</h3>
+          <p className="text-sm text-text-muted">Oscilação (Capital Appreciation) gerada pelas cotações de mercado a cada mês.</p>
         </div>
         
         <div className="flex items-center gap-3">
           <select 
             value={selectedYear} 
             onChange={(e) => setSelectedYear(e.target.value)}
-            className="bg-slate-100 dark:bg-slate-800 border-none text-sm font-medium text-slate-700 dark:text-slate-300 rounded-lg px-3 py-1.5 outline-none focus:ring-2 focus:ring-slate-500 cursor-pointer"
+            className="bg-surface-input border border-border-subtle text-sm font-medium text-text-primary rounded-lg px-3 py-1.5 outline-none focus:ring-2 focus:ring-accent/40 cursor-pointer tabular-nums"
           >
             <option value="all">Todo o Histórico</option>
             {Array.from(new Set(data.map(d => d.period.split('/')[1]))).sort((a, b) => b.localeCompare(a)).map(y => (
@@ -172,7 +175,7 @@ export default function MonthlyPnLChart() {
           <button
             onClick={handleRecalculate}
             disabled={syncStatus?.status === 'processing'}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg transition-colors"
+            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium bg-surface-input hover:bg-surface-elevated border border-border-subtle text-text-primary rounded-lg transition-colors"
             title="Viaja no tempo recalculando todos os fechamentos diários e mensais até hoje."
           >
             <RefreshCw className="w-4 h-4" />
@@ -182,12 +185,12 @@ export default function MonthlyPnLChart() {
       </div>
 
       {errorMsg && (
-        <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-2.5 text-sm text-rose-400">
+        <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-status-error/30 bg-status-error/10 px-4 py-2.5 text-sm text-status-error">
           <span>{errorMsg}</span>
           <button
             type="button"
             onClick={fetchChartData}
-            className="text-xs font-semibold underline hover:text-rose-300"
+            className="text-xs font-semibold underline hover:opacity-80"
           >
             Tentar novamente
           </button>
@@ -197,20 +200,20 @@ export default function MonthlyPnLChart() {
       <div className="h-80 w-full">
         {isLoading ? (
           <div className="h-full flex items-center justify-center">
-            <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+            <Loader2 className="w-6 h-6 animate-spin text-text-muted" />
           </div>
         ) : data.length === 0 ? (
-          <div className="h-full flex items-center justify-center text-slate-500">Sem dados de lucro/prejuízo no período.</div>
+          <div className="h-full flex items-center justify-center text-text-muted">Sem dados de lucro/prejuízo no período.</div>
         ) : (
           <ResponsiveContainer width="100%" height="100%" minWidth={0}>
             <BarChart
               data={selectedYear === 'all' ? data : data.filter(d => d.period.endsWith(selectedYear))}
               margin={{ top: 10, right: 10, left: 10, bottom: 0 }}
             >
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" opacity={0.2} />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={palette.grid} />
               <XAxis 
                 dataKey="period" 
-                tick={{ fill: '#64748b', fontSize: 12 }}
+                tick={{ fill: palette.axis, fontSize: 12 }}
                 tickLine={false}
                 axisLine={false}
                 dy={10}
@@ -218,14 +221,14 @@ export default function MonthlyPnLChart() {
               <YAxis 
                 width={80}
                 tickFormatter={(value) => isHidden ? '••••' : `R$ ${value}`}
-                tick={{ fill: '#64748b', fontSize: 12 }}
+                tick={{ fill: palette.axis, fontSize: 12 }}
                 tickLine={false}
                 axisLine={false}
               />
               <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
               <Bar dataKey="month_variation" radius={[4, 4, 4, 4]} animationDuration={280}>
                 {(selectedYear === 'all' ? data : data.filter(d => d.period.endsWith(selectedYear))).map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={(entry.month_variation ?? 0) >= 0 ? '#10B981' : '#EF4444'} />
+                  <Cell key={`cell-${index}`} fill={(entry.month_variation ?? 0) >= 0 ? SEMANTIC_CHART_HEX.emerald : SEMANTIC_CHART_HEX.rose} />
                 ))}
               </Bar>
             </BarChart>
