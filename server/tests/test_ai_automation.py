@@ -115,6 +115,29 @@ class TestAIAutomationTools(unittest.TestCase):
         self.assertTrue(status["available"])
         self.assertEqual(status["model"], "qwen2.5:3b")
 
+    def test_get_ollama_status_caches_for_30s(self):
+        import infrastructure.local_ai as local_ai
+
+        calls = []
+
+        def fake_get(url, timeout=1.0):
+            calls.append(url)
+            raise ConnectionError("offline")
+
+        local_ai._OLLAMA_STATUS_CACHE["ts"] = 0.0
+        local_ai._OLLAMA_STATUS_CACHE["data"] = None
+        try:
+            with patch("infrastructure.local_ai.requests.get", new=fake_get):
+                first = local_ai.get_ollama_status(timeout=0.5)
+                second = local_ai.get_ollama_status(timeout=0.5)
+        finally:
+            local_ai._OLLAMA_STATUS_CACHE["ts"] = 0.0
+            local_ai._OLLAMA_STATUS_CACHE["data"] = None
+
+        self.assertFalse(first["available"])
+        self.assertEqual(first, second)
+        self.assertEqual(len(calls), len(local_ai._candidate_base_urls()))
+
     def test_jarvis_chat_falls_back_to_ollama_when_no_gemini_key(self):
         import os
         import routes.ai as ai_routes

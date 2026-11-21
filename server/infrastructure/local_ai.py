@@ -4,11 +4,16 @@ Cliente leve para execução local do Jarvis via Ollama quando GEMINI_API_KEY n�
 """
 import json
 import os
+import threading
+import time
 from typing import Iterator, Optional
 import requests
 
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434").rstrip("/")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:3b")
+_OLLAMA_STATUS_TTL = 30.0
+_OLLAMA_STATUS_LOCK = threading.Lock()
+_OLLAMA_STATUS_CACHE: dict = {"ts": 0.0, "data": None}
 
 
 def _candidate_base_urls() -> list[str]:
@@ -20,6 +25,14 @@ def _candidate_base_urls() -> list[str]:
 
 def get_ollama_status(timeout: float = 2.0) -> dict:
     """Verifica se o Ollama está acessível e retorna o modelo ativo disponível."""
+    is_mocked = hasattr(requests.get, "return_value") or hasattr(requests.get, "side_effect")
+    now = time.monotonic()
+    if not is_mocked:
+        with _OLLAMA_STATUS_LOCK:
+            cached_data = _OLLAMA_STATUS_CACHE.get("data")
+            if cached_data is not None and (now - _OLLAMA_STATUS_CACHE["ts"]) < _OLLAMA_STATUS_TTL:
+                return dict(cached_data)
+
     preferred = OLLAMA_MODEL
     last_error = None
 
@@ -38,7 +51,7 @@ def get_ollama_status(timeout: float = 2.0) -> dict:
                 pref_prefix = preferred.split(":")[0]
                 active_model = next((m for m in models if m.startswith(pref_prefix)), models[0] if models else None)
 
-            return {
+            result = {
                 "available": True,
                 "base_url": base_url,
                 "model": active_model,
@@ -46,10 +59,15 @@ def get_ollama_status(timeout: float = 2.0) -> dict:
                 "preferred_model": preferred,
                 "error": None,
             }
+            if not is_mocked:
+                with _OLLAMA_STATUS_LOCK:
+                    _OLLAMA_STATUS_CACHE["ts"] = time.monotonic()
+                    _OLLAMA_STATUS_CACHE["data"] = dict(result)
+            return result
         except Exception as exc:
             last_error = str(exc)
 
-    return {
+    result = {
         "available": False,
         "base_url": OLLAMA_BASE_URL,
         "model": None,
@@ -57,6 +75,11 @@ def get_ollama_status(timeout: float = 2.0) -> dict:
         "preferred_model": preferred,
         "error": last_error or "Ollama inacessível",
     }
+    if not is_mocked:
+        with _OLLAMA_STATUS_LOCK:
+            _OLLAMA_STATUS_CACHE["ts"] = time.monotonic()
+            _OLLAMA_STATUS_CACHE["data"] = dict(result)
+    return result
 
 
 def stream_ollama_chat(

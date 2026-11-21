@@ -292,6 +292,18 @@ def init_db():
     except Exception as mig_err:
         logging.error(f"❌ Erro ao aplicar migrações Alembic: {mig_err}", exc_info=True)
 
+    try:
+        import db.models  # noqa: F401 - garante todos os modelos e índices em Base.metadata
+        Base.metadata.create_all(bind=engine, checkfirst=True)
+        for table in Base.metadata.sorted_tables:
+            for idx in table.indexes:
+                try:
+                    idx.create(bind=engine, checkfirst=True)
+                except Exception as idx_err:
+                    logging.warning(f"⚠️ Falha ao garantir índice {idx.name} em {table.name}: {idx_err}")
+    except Exception as schema_err:
+        logging.warning(f"⚠️ Falha ao sincronizar tabelas e índices SQLAlchemy: {schema_err}")
+
     db_session = _local_session_factory()
     try:
         from decimal import Decimal

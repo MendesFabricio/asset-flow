@@ -629,3 +629,43 @@ def test_indicators_and_ai_validation_suite():
         full_hist = b_svc.get_history_data(full=True)
     assert len(full_hist) == 600
     assert len(sampled_hist) <= 400 and sampled_hist[-1]["Patrimônio"] == full_hist[-1]["Patrimônio"]
+
+
+def test_collect_db_overrides_ticker_filter_and_fresh_cache_skips_overrides():
+    from datetime import datetime
+    from unittest.mock import MagicMock
+    from infrastructure.screener_service import _collect_db_overrides, get_or_fetch_asset_valuation
+
+    # Filtra _FII_SEGMENT_FALLBACK apenas ao ticker solicitado
+    empty_sess = MagicMock()
+    empty_sess.query.return_value.filter.return_value.group_by.return_value.all.return_value = []
+    empty_sess.query.return_value.options.return_value.filter.return_value.all.return_value = []
+    empty_sess.query.return_value.filter.return_value.all.return_value = []
+    with patch("infrastructure.screener_service.collect_amortization_12m_map", return_value={}):
+        filtered = _collect_db_overrides(empty_sess, user_id=1, tickers=["HGLG11"])
+    assert list(filtered.keys()) == ["HGLG11"]
+
+    # Cache fresco não deve acionar _collect_db_overrides nem fetch externo
+    fresh_row = MagicMock()
+    fresh_row.updated_at = datetime.now()
+    fresh_row.raw_metrics_json = {}
+    fresh_row.to_dict.return_value = {
+        "ticker": "ITUB3",
+        "name": "Itau",
+        "asset_type": "Ação",
+        "sector": "Financeiro & Bancos",
+        "price": 30.0,
+        "dividend_per_share": 2.4,
+        "lpa": 4.0,
+        "vpa": 20.0,
+        "dy_12m": 8.0,
+        "fcf_per_share": 3.0,
+    }
+    fresh_sess = MagicMock()
+    fresh_sess.query.return_value.filter_by.return_value.first.return_value = fresh_row
+    fresh_sess.query.return_value.all.return_value = [fresh_row]
+
+    with patch("infrastructure.screener_service._collect_db_overrides") as mock_ovr:
+        out = get_or_fetch_asset_valuation(fresh_sess, "ITUB3", user_id=1)
+    assert out is not None
+    mock_ovr.assert_not_called()

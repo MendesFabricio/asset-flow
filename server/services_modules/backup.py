@@ -172,7 +172,18 @@ class BackupService:
     def get_history_data(self, full: bool = False):
         user_id = self.current_user_id
         with Session() as session:
-            snapshots = session.query(PortfolioSnapshot).filter_by(user_id=user_id).order_by(PortfolioSnapshot.date).all()
+            snapshots = (
+                session.query(
+                    PortfolioSnapshot.date,
+                    PortfolioSnapshot.total_equity,
+                    PortfolioSnapshot.total_invested,
+                    PortfolioSnapshot.profit,
+                    PortfolioSnapshot.breakdown,
+                )
+                .filter_by(user_id=user_id)
+                .order_by(PortfolioSnapshot.date)
+                .all()
+            )
             history = []
             if not snapshots:
                 return history

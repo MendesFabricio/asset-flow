@@ -13,6 +13,7 @@ import time
 from typing import Optional
 
 import yfinance as yf
+from sqlalchemy.orm import joinedload, selectinload
 
 from db.models import Asset, Dividend, MarketScreenerItem, Position, safe_commit
 from infrastructure.market_data import collect_amortization_12m_map
@@ -361,22 +362,42 @@ def fetch_ticker_fundamentals(
         return None
 
 
-def _collect_db_overrides(session, user_id: Optional[int] = None) -> dict[str, dict]:
+def _collect_db_overrides(
+    session,
+    user_id: Optional[int] = None,
+    tickers: Optional[list[str]] = None,
+) -> dict[str, dict]:
     """Extrai múltiplos manuais/CVM/FII, dividendos e amortizações locais para enriquecer valuation."""
     overrides: dict[str, dict] = {}
+    ticker_set = (
+        {t.strip().upper().replace(".SA", "") for t in tickers if t and t.strip()}
+        if tickers is not None
+        else None
+    )
+    if ticker_set is not None and not ticker_set:
+        return overrides
+
     cutoff_12m = datetime.now() - timedelta(days=365)
     cutoff_12m_date = cutoff_12m.date()
     cutoff_coverage = cutoff_12m_date + timedelta(days=35)
     amort_map = collect_amortization_12m_map(session, cutoff_12m, user_id=user_id)
 
-    div_q = session.query(Dividend)
-    if user_id is not None:
-        div_q = div_q.filter(Dividend.user_id == user_id)
-    local_divs_by_asset: dict[int, list] = {}
-    for d in div_q.all():
-        local_divs_by_asset.setdefault(d.asset_id, []).append(d)
+    asset_q = session.query(Asset).options(selectinload(Asset.positions))
+    if ticker_set is not None:
+        asset_q = asset_q.filter(Asset.ticker.in_(ticker_set))
+    assets = asset_q.all()
 
-    assets = session.query(Asset).all()
+    local_divs_by_asset: dict[int, list] = {}
+    asset_ids = [a.id for a in assets]
+    if asset_ids or ticker_set is None:
+        div_q = session.query(Dividend)
+        if user_id is not None:
+            div_q = div_q.filter(Dividend.user_id == user_id)
+        if ticker_set is not None:
+            div_q = div_q.filter(Dividend.asset_id.in_(asset_ids))
+        for d in div_q.all():
+            local_divs_by_asset.setdefault(d.asset_id, []).append(d)
+
     for a in assets:
         tkr_upper = a.ticker.upper()
         entry: dict = {}
@@ -472,7 +493,10 @@ def _collect_db_overrides(session, user_id: Optional[int] = None) -> dict[str, d
             overrides[tkr_upper] = entry
 
     # Preserva métricas FNet/manuais já salvas no cache do Radar caso o ticker não tenha posição em carteira
-    for scr_row in session.query(MarketScreenerItem).all():
+    scr_q = session.query(MarketScreenerItem)
+    if ticker_set is not None:
+        scr_q = scr_q.filter(MarketScreenerItem.ticker.in_(ticker_set))
+    for scr_row in scr_q.all():
         tkr_u = (scr_row.ticker or "").upper()
         if not tkr_u:
             continue
@@ -491,6 +515,8 @@ def _collect_db_overrides(session, user_id: Optional[int] = None) -> dict[str, d
             ent["segmento"] = _FII_SEGMENT_FALLBACK[tkr_u]
 
     for tkr_fii, seg_fb in _FII_SEGMENT_FALLBACK.items():
+        if ticker_set is not None and tkr_fii not in ticker_set:
+            continue
         ent = overrides.setdefault(tkr_fii, {})
         if "segmento" not in ent:
             ent["segmento"] = seg_fb
@@ -610,9 +636,6 @@ def get_or_fetch_asset_valuation(
 ) -> Optional[dict]:
     """Obtém valuation completo + checklist + média setorial para um ticker específico."""
     clean_ticker = ticker.strip().upper().replace(".SA", "")
-    overrides = _collect_db_overrides(session, user_id)
-    asset_obj = session.query(Asset).filter_by(ticker=clean_ticker).first()
-    cat_name = asset_obj.category.name if (asset_obj and asset_obj.category) else None
 
     row = session.query(MarketScreenerItem).filter_by(ticker=clean_ticker).first()
     is_stale = (
@@ -623,6 +646,14 @@ def get_or_fetch_asset_valuation(
     )
 
     if is_stale:
+        overrides = _collect_db_overrides(session, user_id, tickers=[clean_ticker])
+        asset_obj = (
+            session.query(Asset)
+            .options(joinedload(Asset.category))
+            .filter_by(ticker=clean_ticker)
+            .first()
+        )
+        cat_name = asset_obj.category.name if (asset_obj and asset_obj.category) else None
         fetched = fetch_ticker_fundamentals(
             clean_ticker,
             name=asset_obj.name if asset_obj else None,

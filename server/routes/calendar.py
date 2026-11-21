@@ -1,4 +1,5 @@
 from flask import Blueprint, jsonify, g
+from sqlalchemy.orm import joinedload
 from db.models import Asset, Position, Session, Dividend
 from utils.ticker_helper import to_yf_ticker
 import yfinance as yf
@@ -86,7 +87,14 @@ def get_calendar():
     items_to_process = []
     with Session() as session:
         try:
-            positions = session.query(Position).filter_by(user_id=user_id).join(Asset).filter(Position.quantity > 0).all()
+            positions = (
+                session.query(Position)
+                .filter_by(user_id=user_id)
+                .join(Asset)
+                .options(joinedload(Position.asset).joinedload(Asset.category))
+                .filter(Position.quantity > 0)
+                .all()
+            )
             for pos in positions:
                 ticker_raw = pos.asset.ticker.strip().upper()
                 if any(x in ticker_raw for x in ["CAIXINHA", "BTC", "ETH"]):
@@ -143,18 +151,32 @@ def get_calendar():
     db_events = []
     with Session() as session:
         try:
-            positions = session.query(Position).filter_by(user_id=g.user_id).join(Asset).filter(Position.quantity > 0).all()
-            active_ids = [pos.asset_id for pos in positions]
-            
-            future_divs = session.query(Dividend).filter(
-                Dividend.user_id == g.user_id,
-                Dividend.asset_id.in_(active_ids),
-                Dividend.date_com >= today
-            ).all()
-            
+            positions = (
+                session.query(Position)
+                .filter_by(user_id=g.user_id)
+                .join(Asset)
+                .options(joinedload(Position.asset))
+                .filter(Position.quantity > 0)
+                .all()
+            )
+            qty_by_asset = {pos.asset_id: float(pos.quantity) for pos in positions}
+            active_ids = list(qty_by_asset.keys())
+
+            future_divs = (
+                session.query(Dividend)
+                .options(joinedload(Dividend.asset))
+                .filter(
+                    Dividend.user_id == g.user_id,
+                    Dividend.asset_id.in_(active_ids),
+                    Dividend.date_com >= today,
+                )
+                .all()
+                if active_ids
+                else []
+            )
+
             for div in future_divs:
-                pos = next((p for p in positions if p.asset_id == div.asset_id), None)
-                qty = float(pos.quantity) if pos else 0.0
+                qty = qty_by_asset.get(div.asset_id, 0.0)
                 db_events.append({
                     "ticker": div.asset.ticker,
                     "date": div.date_com.strftime('%Y-%m-%d'),
