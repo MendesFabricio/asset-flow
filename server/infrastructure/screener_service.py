@@ -47,6 +47,47 @@ _NON_FII_11 = {
     "SANB11", "TAEE11", "KLBN11", "SAPR11", "ALUP11", "ENGI11", "BPAC11", "IGTI11",
 }
 
+_FII_SEGMENT_FALLBACK = {
+    "MXRF11": "Títulos e Valores Mobiliários",
+    "KNCR11": "Títulos e Valores Mobiliários",
+    "CPTS11": "Títulos e Valores Mobiliários",
+    "RECR11": "Títulos e Valores Mobiliários",
+    "RBRR11": "Títulos e Valores Mobiliários",
+    "MCCI11": "Títulos e Valores Mobiliários",
+    "DEVA11": "Títulos e Valores Mobiliários",
+    "HCTR11": "Títulos e Valores Mobiliários",
+    "BARI11": "Títulos e Valores Mobiliários",
+    "VGIR11": "Títulos e Valores Mobiliários",
+    "VGIP11": "Títulos e Valores Mobiliários",
+    "VGHF11": "Títulos e Valores Mobiliários",
+    "RZAK11": "Títulos e Valores Mobiliários",
+    "URPR11": "Títulos e Valores Mobiliários",
+    "IRDM11": "Títulos e Valores Mobiliários",
+    "VGIA11": "Títulos e Valores Mobiliários",
+    "RZAG11": "Títulos e Valores Mobiliários",
+    "BTAL11": "Títulos e Valores Mobiliários",
+    "HGLG11": "Logística",
+    "BTLG11": "Logística",
+    "VILG11": "Logística",
+    "XPLG11": "Logística",
+    "LVBI11": "Logística",
+    "GGRC11": "Logística",
+    "VISC11": "Shoppings",
+    "XPML11": "Shoppings",
+    "HGBS11": "Shoppings",
+    "HSML11": "Shoppings",
+    "PVBI11": "Lajes Corporativas",
+    "JSRE11": "Lajes Corporativas",
+    "KNRI11": "Híbrido / Renda Urbana",
+    "HGRU11": "Híbrido / Renda Urbana",
+    "ALZR11": "Híbrido / Renda Urbana",
+    "RBVA11": "Híbrido / Renda Urbana",
+    "TRXF11": "Híbrido / Renda Urbana",
+    "RBRF11": "Fundo de Fundos (FoF)",
+    "TGAR11": "Desenvolvimento / Terras",
+    "RZTR11": "Desenvolvimento / Terras",
+}
+
 _DATA_PATH = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "data", "tickers_cache.json")
 )
@@ -307,7 +348,7 @@ def fetch_ticker_fundamentals(
             ),
             "leverage_pct": ov.get("leverage_pct"),
             "vacancy_pct": ov.get("vacancy_pct"),
-            "segmento": ov.get("segmento"),
+            "segmento": ov.get("segmento") or (_FII_SEGMENT_FALLBACK.get(clean_ticker) if inferred_type == "FII" else None),
             "dividend_history_5y": div_history_5y,
         }
 
@@ -429,6 +470,30 @@ def _collect_db_overrides(session, user_id: Optional[int] = None) -> dict[str, d
                     pass
         if entry:
             overrides[tkr_upper] = entry
+
+    # Preserva métricas FNet/manuais já salvas no cache do Radar caso o ticker não tenha posição em carteira
+    for scr_row in session.query(MarketScreenerItem).all():
+        tkr_u = (scr_row.ticker or "").upper()
+        if not tkr_u:
+            continue
+        ent = overrides.setdefault(tkr_u, {})
+        raw = scr_row.raw_metrics_json or {}
+        if scr_row.asset_type == "FII" and scr_row.vpa and float(scr_row.vpa) > 0 and "vpa" not in ent:
+            ent["vpa"] = float(scr_row.vpa)
+        if raw.get("leverage_pct") is not None and "leverage_pct" not in ent:
+            ent["leverage_pct"] = raw["leverage_pct"]
+        if raw.get("vacancy_pct") is not None and "vacancy_pct" not in ent:
+            ent["vacancy_pct"] = raw["vacancy_pct"]
+        if raw.get("segmento") and "segmento" not in ent:
+            ent["segmento"] = raw["segmento"]
+        elif scr_row.asset_type == "FII" and "segmento" not in ent and tkr_u in _FII_SEGMENT_FALLBACK:
+            ent["segmento"] = _FII_SEGMENT_FALLBACK[tkr_u]
+
+    for tkr_fii, seg_fb in _FII_SEGMENT_FALLBACK.items():
+        ent = overrides.setdefault(tkr_fii, {})
+        if "segmento" not in ent:
+            ent["segmento"] = seg_fb
+
     return overrides
 
 

@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { verifySessionToken } from './app/lib/session';
 
-// Rotas públicas: login, auth e os proxies que o backend já protege.
-const PUBLIC_PREFIXES = ['/login', '/api/auth', '/api/health', '/api/sync/stream', '/api/ai/chat', '/_next'];
+// Rotas públicas: login, autenticação e healthcheck.
+const PUBLIC_PREFIXES = ['/login', '/api/auth', '/api/health', '/_next'];
 const isPublic = (pathname: string) =>
   PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix)) ||
   pathname === '/favicon.ico' ||

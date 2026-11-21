@@ -43,7 +43,10 @@ export default function AvancadoPage() {
 
   useEffect(() => {
     loadJobs();
-    const interval = setInterval(loadJobs, 30000);
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      loadJobs();
+    }, 30000);
     return () => clearInterval(interval);
   }, []);
 

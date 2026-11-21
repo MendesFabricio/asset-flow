@@ -381,7 +381,7 @@ export default function PerformanceAttributionChart({
               {data.summary.ipca_acumulado_pct.toFixed(2)}%
             </span>
             <span className="text-[10px] text-text-secondary block mt-0.5">
-              Patrimônio: {maskMoney(data.summary.patrimonio_atual)}
+              Fechamento ({data.series[data.series.length - 1]?.period || 'atual'}): {maskMoney(data.summary.patrimonio_atual)}
             </span>
           </div>
         </div>

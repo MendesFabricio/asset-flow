@@ -112,6 +112,7 @@ export function RadarTab() {
   useEffect(() => {
     if (!refreshing) return;
     const interval = setInterval(async () => {
+      if (typeof document !== 'undefined' && document.hidden) return;
       try {
         const res = await apiCall<RadarResponse>('/api/valuation/radar');
         if (res.sync_state?.status !== 'processing') {

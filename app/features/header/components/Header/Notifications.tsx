@@ -153,7 +153,10 @@ export function Notifications({ onFixAsset }: NotificationsProps) {
     }, 8000);
 
     // 120s de intervalo para não colidir com o MarketTicker
-    const interval = setInterval(fetchAlerts, 120000);
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      fetchAlerts();
+    }, 120000);
     return () => {
       clearTimeout(timer);
       clearInterval(interval);

@@ -26,7 +26,10 @@ export function MarketStatus({ minimal = false }: MarketStatusProps) {
     }
 
     checkB3Status();
-    const interval = setInterval(checkB3Status, 30000);
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      checkB3Status();
+    }, 30000);
     return () => clearInterval(interval);
   }, []);
 

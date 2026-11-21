@@ -35,5 +35,23 @@ class TestAuthSecurity(unittest.TestCase):
             # 6ª tentativa bloqueada
             self.assertTrue(is_rate_limited(ip, limit=5, window_seconds=60))
 
+    def test_register_blocked_when_user_exists(self):
+        import os
+        from backend import app
+        old_flag = os.environ.pop("ALLOW_REGISTRATION", None)
+        old_testing = app.config.get("TESTING", False)
+        try:
+            app.config["TESTING"] = False
+            with app.test_client() as client:
+                res = client.post('/api/auth/register', json={
+                    "username": "novo_atacante",
+                    "password": "Password123!",
+                })
+                self.assertEqual(res.status_code, 403)
+        finally:
+            app.config["TESTING"] = old_testing
+            if old_flag is not None:
+                os.environ["ALLOW_REGISTRATION"] = old_flag
+
 if __name__ == '__main__':
     unittest.main()

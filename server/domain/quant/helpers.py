@@ -70,8 +70,8 @@ def _read_cached_selic() -> float | None:
                 val = float(rec.value)
                 if 0.02 <= val <= 0.30:
                     return val
-    except Exception:
-        pass
+    except Exception as exc:
+        logging.debug(f"Selic cache read fallback: {exc}")
     return None
 
 
@@ -87,8 +87,8 @@ def _write_cached_selic(val: float) -> None:
             rec.value = f"{val:.6f}"
             rec.updated_at = datetime.now()
             safe_commit(session)
-    except Exception:
-        pass
+    except Exception as exc:
+        logging.debug(f"Selic cache write fallback: {exc}")
 
 
 def get_risk_free_rate() -> float:
@@ -105,8 +105,8 @@ def get_risk_free_rate() -> float:
             if 0.02 <= val <= 0.30:
                 rate = val
                 _write_cached_selic(val)
-    except Exception:
-        pass
+    except Exception as exc:
+        logging.debug(f"BCB Selic fetch fallback: {exc}")
     if rate is not None:
         _RF_CACHE["value"] = rate
         _RF_CACHE["expires_at"] = now + 3600.0
@@ -123,8 +123,8 @@ def _get_current_user_id():
         from flask import has_request_context, g
         if has_request_context() and hasattr(g, 'user_id'):
             return g.user_id
-    except Exception:
-        pass
+    except Exception as exc:
+        logging.debug(f"Request context user_id fallback: {exc}")
     return 1
 
 def _extract_close_prices(raw_df):
@@ -175,8 +175,8 @@ def _load_sector_cache() -> None:
                 data = json.loads(rec.value)
                 if isinstance(data, dict):
                     _SECTOR_CACHE.update({str(k): str(v) for k, v in data.items()})
-    except Exception:
-        pass
+    except Exception as exc:
+        logging.debug(f"Sector cache load fallback: {exc}")
 
 
 def _save_sector_cache() -> None:
@@ -192,8 +192,8 @@ def _save_sector_cache() -> None:
             rec.value = json.dumps(_SECTOR_CACHE)
             rec.updated_at = datetime.now()
             safe_commit(session)
-    except Exception:
-        pass
+    except Exception as exc:
+        logging.debug(f"Sector cache save fallback: {exc}")
 
 
 def classify_asset_sector(ticker: str, category_name: str) -> str:

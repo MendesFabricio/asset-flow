@@ -260,8 +260,8 @@
     "type": "Ação"
   },
   {
-    "ticker": "VIIA3.SA",
-    "name": "Via",
+    "ticker": "BHIA3.SA",
+    "name": "Casas Bahia",
     "type": "Ação"
   },
   {
@@ -400,7 +400,7 @@
     "type": "FII"
   },
   {
-    "ticker": "Bari11.SA",
+    "ticker": "BARI11.SA",
     "name": "Barigui Rendimentos",
     "type": "FII"
   },

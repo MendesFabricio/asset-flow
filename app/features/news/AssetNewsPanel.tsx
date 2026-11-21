@@ -76,6 +76,7 @@ export function AssetNewsPanel({ ticker, onClose }: Props) {
 
     if (ticker && aiSentiment?.status === 'processing') {
       intervalId = setInterval(() => {
+        if (typeof document !== 'undefined' && document.hidden) return;
         apiCall<NewsResponse>(`/api/news/${ticker}`, { signal: controller.signal })
           .then(data => {
             setAiSentiment(data.ai_sentiment || null);

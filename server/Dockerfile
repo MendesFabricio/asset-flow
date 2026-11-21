@@ -55,7 +55,7 @@ USER appuser
 # --- Estágio 3: Backend (Flask + Gunicorn) ---
 FROM base AS backend
 EXPOSE 5328
-CMD ["gunicorn", "--bind", "0.0.0.0:5328", "--workers", "2", "--threads", "4", "--timeout", "120", "backend:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:5328", "-k", "gthread", "--workers", "1", "--threads", "12", "--timeout", "120", "backend:app"]
 
 # --- Estágio 4: Worker (Background Tasks) ---
 FROM base AS worker

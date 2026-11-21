@@ -1,4 +1,5 @@
 # server/routes/auth.py
+import os
 import logging
 from flask import Blueprint, request, jsonify, current_app, g
 from db.models import User, RefundConfig, safe_commit
@@ -141,6 +142,15 @@ def login():
 
 @auth_bp.route('/api/auth/register', methods=['POST'])
 def register():
+    allow_reg = os.environ.get("ALLOW_REGISTRATION", "").strip().lower() in ("1", "true", "yes")
+    if not allow_reg and not current_app.config.get("TESTING"):
+        with Session() as session:
+            if session.query(User.id).first() is not None:
+                return jsonify({
+                    "status": "Erro",
+                    "msg": "Cadastro público desabilitado neste servidor."
+                }), 403
+
     ip = _get_client_ip()
     if is_rate_limited(ip, limit=5, window_seconds=60):
         return jsonify({

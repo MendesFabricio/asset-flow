@@ -36,6 +36,7 @@ export default function MonthlyPnLChart() {
     
     if (syncStatus?.status === 'processing') {
       interval = setInterval(async () => {
+        if (typeof document !== 'undefined' && document.hidden) return;
         try {
           const status = await portfolioService.getHistorySyncStatus();
           setSyncStatus(status);

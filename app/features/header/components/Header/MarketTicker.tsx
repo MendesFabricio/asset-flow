@@ -39,7 +39,10 @@ export const MarketTicker = React.memo(() => {
     // Atraso de 3s para escalonar os pollings iniciais do header
     const initialTimer = setTimeout(fetchIndices, 3000);
     // Índices são atualizados pelo worker a cada 3min; polling a cada 2min é suficiente
-    const intervalFetch = setInterval(fetchIndices, 120000);
+    const intervalFetch = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      fetchIndices();
+    }, 120000);
     return () => {
       clearTimeout(initialTimer);
       clearInterval(intervalFetch);

@@ -81,8 +81,14 @@ def create_app(config_object=None) -> Flask:
 
     # 3. Criação e Configuração da Instância Flask
     app = Flask(__name__)
-    app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "asset_flow_dev_secret_key_default_value_change_in_prod")
-    if app.config["SECRET_KEY"] == "asset_flow_dev_secret_key_default_value_change_in_prod":
+    default_dev_secret = "asset_flow_dev_secret_key_default_value_change_in_prod"
+    secret_key = os.environ.get("SECRET_KEY") or default_dev_secret
+    is_prod = os.environ.get("ENVIRONMENT", "").strip().lower() == "production"
+    is_testing = bool((config_object or {}).get("TESTING") or app.config.get("TESTING"))
+    if is_prod and secret_key == default_dev_secret and not is_testing:
+        raise RuntimeError("SECRET_KEY de produção ausente ou igual ao valor padrão de desenvolvimento.")
+    app.config["SECRET_KEY"] = secret_key
+    if secret_key == default_dev_secret:
         logging.warning("⚠️ SECRET_KEY não definida no ambiente! Utilizando chave padrão de desenvolvimento.")
 
     if config_object:
@@ -105,7 +111,7 @@ def create_app(config_object=None) -> Flask:
             g.username = "test_user"
             return
 
-        if request.method == "OPTIONS" or request.path in ["/api/health", "/api/auth/login", "/api/auth/register", "/api/auth/logout", "/api/sync/stream"]:
+        if request.method == "OPTIONS" or request.path in ["/api/health", "/api/auth/login", "/api/auth/register", "/api/auth/logout"]:
             return
         if request.method == "GET" and request.path.startswith("/api/assets/icon/"):
             return
@@ -138,12 +144,17 @@ def create_app(config_object=None) -> Flask:
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "SAMEORIGIN"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        connect_src = (
+            "connect-src 'self'; "
+            if os.environ.get("ENVIRONMENT", "").strip().lower() == "production"
+            else "connect-src 'self' http://localhost:5328 http://127.0.0.1:5328; "
+        )
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
             "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
             "style-src 'self' 'unsafe-inline'; "
             "img-src 'self' https://raw.githubusercontent.com data:; "
-            "connect-src 'self' http://localhost:5328 http://127.0.0.1:5328; "
+            f"{connect_src}"
             "font-src 'self' data:; "
             "frame-ancestors 'none';"
         )
