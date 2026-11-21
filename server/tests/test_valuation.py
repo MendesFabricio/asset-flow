@@ -581,3 +581,51 @@ def test_indicators_and_ai_validation_suite():
         gem_svc._run_sentiment_analysis(999, "ERR3", [{"title": "Fato relevante", "source": "RI", "link": "https://ex.com"}], {})
     assert fake_asset.ai_status == "error"
     assert fake_asset.ai_sentiment == "Neutro"
+
+    # I8: setor financeiro/bancos não sofre penalidade de Dívida/EBITDA e fica fora da Fórmula Mágica
+    chk_bank, q_bank = evaluate_fundamental_checklist(
+        "Ação",
+        {"sector": "Financeiro & Bancos", "price": 14.0, "pl": 7.0, "roe": 20.0, "net_margin": 18.0, "debt_to_ebitda": 9.5, "dy_12m": 8.0, "bazin_price": 20.0, "graham_price": 22.0},
+    )
+    assert any(i["key"] == "debt" and i["status"] == "unknown" and i["formatted"] == "N/A" for i in chk_bank)
+    assert q_bank == 100
+    ranks_bank = compute_magic_formula_ranks([
+        {"ticker": "BBDC4", "asset_type": "Ação", "sector": "Financeiro & Bancos", "ev_ebitda": 3.0, "roic": 20.0},
+        {"ticker": "WEGE3", "asset_type": "Ação", "sector": "Bens Industriais", "ev_ebitda": 12.0, "roic": 25.0},
+    ])
+    assert "BBDC4" not in ranks_bank and ranks_bank.get("WEGE3") == 100.0
+
+    # I9: dados oficiais CVM/locais prevalecem sobre Yahoo Finance para Ações
+    from infrastructure.screener_service import fetch_ticker_fundamentals
+    fake_yt = SimpleNamespace(
+        info={"currentPrice": 20.0, "previousClose": 19.5, "trailingEps": 1.0, "bookValue": 10.0, "returnOnEquity": 0.10, "sector": "Energy"},
+        dividends=pd.Series([1.5], index=pd.to_datetime([now - timedelta(days=30)])),
+    )
+    with patch("infrastructure.screener_service.yf.Ticker", return_value=fake_yt):
+        res_i9 = fetch_ticker_fundamentals(
+            "PETR4",
+            asset_type="Ação",
+            db_overrides={"lpa": 4.0, "vpa": 25.0, "roe": 31.23, "debt_to_ebitda": 0.98},
+        )
+    assert res_i9 is not None
+    assert res_i9["lpa"] == 4.0 and res_i9["vpa"] == 25.0
+    assert res_i9["roe"] == 31.23 and res_i9["debt_to_ebitda"] == 0.98
+
+    # §4.5: get_history_data aplica downsample preservando últimos 260 pontos quando > 400 e full=True retorna tudo
+    from datetime import date as _date
+    from services_modules.backup import BackupService
+    fake_snaps = [
+        SimpleNamespace(date=_date(2024, 1, 1) + timedelta(days=i), total_equity=1000.0 + i, total_invested=900.0, profit=100.0 + i, breakdown=None)
+        for i in range(600)
+    ]
+    fake_hist_sess = MagicMock()
+    fake_hist_sess.__enter__.return_value = fake_hist_sess
+    fake_hist_sess.__exit__.return_value = False
+    fake_hist_sess.query.return_value.filter_by.return_value.order_by.return_value.all.return_value = fake_snaps
+    b_svc = BackupService()
+    b_svc.current_user_id = 1
+    with patch("services_modules.backup.Session", return_value=fake_hist_sess):
+        sampled_hist = b_svc.get_history_data(full=False)
+        full_hist = b_svc.get_history_data(full=True)
+    assert len(full_hist) == 600
+    assert len(sampled_hist) <= 400 and sampled_hist[-1]["Patrimônio"] == full_hist[-1]["Patrimônio"]

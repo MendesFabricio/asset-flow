@@ -238,8 +238,8 @@ def fetch_ticker_fundamentals(
             fcf_per_share = round(lpa * 0.7, 4)
             dcf_is_estimate = True
 
-        # Mescla overrides locais do DB (CVM / FII relatório gerencial / posição manual)
-        if ov.get("lpa") and ov["lpa"] > 0 and not lpa:
+        # Mescla overrides locais/oficiais CVM do DB (CVM prevalece sobre Yahoo para Ação e FII)
+        if ov.get("lpa") and ov["lpa"] > 0:
             lpa = float(ov["lpa"])
             pl = price / lpa
         if ov.get("vpa") and ov["vpa"] > 0:
@@ -252,11 +252,11 @@ def fetch_ticker_fundamentals(
             dy_12m = round(float(ov["dy"]) * 100.0, 2)
             dy_5y = dy_12m
             div_ps = price * float(ov["dy"])
-        if ov.get("roe") is not None and roe is None:
+        if ov.get("roe") is not None:
             roe = float(ov["roe"])
         if ov.get("net_margin") is not None and net_margin is None:
             net_margin = float(ov["net_margin"])
-        if ov.get("debt_to_ebitda") is not None and debt_to_ebitda is None:
+        if ov.get("debt_to_ebitda") is not None:
             debt_to_ebitda = float(ov["debt_to_ebitda"])
 
         desired_dy = 8.0 if inferred_type == "FII" else 6.0
@@ -394,14 +394,28 @@ def _collect_db_overrides(session, user_id: Optional[int] = None) -> dict[str, d
                         entry["segmento"] = str(seg).strip()
                     cards = fund.get("cards_indicadores") or []
                     for card in cards:
-                        if card.get("titulo") == "Passivo Total" and "leverage_pct" not in entry:
+                        titulo = card.get("titulo")
+                        if titulo == "Passivo Total" and "leverage_pct" not in entry:
                             m_lev = re.search(r"Alavancagem:\s*([-+]?\d+(?:[.,]\d+)?)%", str(card.get("subtitulo", "")))
                             if m_lev:
                                 try:
                                     entry["leverage_pct"] = round(float(m_lev.group(1).replace(",", ".")), 2)
                                 except ValueError:
                                     pass
-                        if card.get("titulo") == "VPA" and "vpa" not in entry:
+                        elif titulo == "ROE" and "roe" not in entry:
+                            raw_r = str(card.get("valor_formatado", "")).replace("%", "").replace(",", ".").strip()
+                            try:
+                                entry["roe"] = round(float(raw_r), 2)
+                            except ValueError:
+                                pass
+                        elif titulo == "Dívida Líquida" and "debt_to_ebitda" not in entry:
+                            m_debt = re.search(r"([-+]?\d+(?:[.,]\d+)?)x\s*EBITDA", str(card.get("subtitulo", "")), re.IGNORECASE)
+                            if m_debt:
+                                try:
+                                    entry["debt_to_ebitda"] = round(float(m_debt.group(1).replace(",", ".")), 2)
+                                except ValueError:
+                                    pass
+                        elif titulo == "VPA" and "vpa" not in entry:
                             raw_v = str(card.get("valor_formatado", "")).replace("R$", "").strip()
                             if "," in raw_v:
                                 raw_v = raw_v.replace(".", "").replace(",", ".")

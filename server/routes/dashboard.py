@@ -101,7 +101,8 @@ def get_data():
 @dashboard_bp.route('/api/history', methods=['GET'])
 def get_history():
     try:
-        data = service.get_history_data()
+        full = request.args.get("full", "0").lower() in ("1", "true")
+        data = service.get_history_data(full=full)
         return jsonify(data)
     except Exception as e:
         logging.error(f"❌ Erro ao buscar histórico patrimonial: {e}")

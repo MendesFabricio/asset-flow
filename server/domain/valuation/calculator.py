@@ -121,6 +121,14 @@ def _eval_criterion(
     }
 
 
+_FINANCIAL_SECTOR_KEYS = ("financ", "banco", "segur", "bank", "insurance")
+
+
+def _is_financial_sector(sector: Optional[str]) -> bool:
+    sec = str(sector or "").lower()
+    return any(k in sec for k in _FINANCIAL_SECTOR_KEYS)
+
+
 def evaluate_fundamental_checklist(asset_type: str, m: dict) -> tuple[list[dict], Optional[int]]:
     """Avalia critérios objetivos de saúde financeira e retorna (itens, quality_score 0..100 ou None)."""
     t = (asset_type or "Ação").strip()
@@ -223,8 +231,11 @@ def evaluate_fundamental_checklist(asset_type: str, m: dict) -> tuple[list[dict]
         else:
             items.append(_eval_criterion("margin", "Margem Líquida", net_margin, f"{net_margin:.1f}%", "Margem pressionada ou negativa", "fail"))
 
-        # 4. Endividamento
-        if debt_ebitda is None:
+        # 4. Endividamento (não aplicável a bancos/seguradoras)
+        is_financial = _is_financial_sector(m.get("sector"))
+        if is_financial:
+            items.append(_eval_criterion("debt", "Dívida Líq. / EBITDA", None, "N/A", "Não aplicável ao setor financeiro/bancos", "unknown"))
+        elif debt_ebitda is None:
             items.append(_eval_criterion("debt", "Dívida Líq. / EBITDA", None, "N/D", "Ideal ≤ 2,5x", "unknown"))
         elif debt_ebitda <= 2.5:
             items.append(_eval_criterion("debt", "Dívida Líq. / EBITDA", debt_ebitda, f"{debt_ebitda:.2f}x", "Endividamento sob controle", "pass"))
@@ -263,7 +274,7 @@ def evaluate_fundamental_checklist(asset_type: str, m: dict) -> tuple[list[dict]
 
     points_map = {"pass": 100.0, "warn": 55.0, "fail": 0.0}
     raw_score = sum(points_map[i["status"]] for i in known) / len(known)
-    expected_count = 4 if t == "FII" else len(items)
+    expected_count = 4 if t == "FII" else (5 if _is_financial_sector(m.get("sector")) else len(items))
     missing_penalty = max(0, expected_count - len(known)) * 4.0
     score = round(raw_score - missing_penalty)
     critical_keys = ("leverage", "vacancy") if t == "FII" else ("debt", "roe")
@@ -276,7 +287,7 @@ def compute_magic_formula_ranks(items: list[dict]) -> dict[str, float]:
     """Calcula score (0..100) baseado na Fórmula Mágica de Greenblatt (Earnings Yield + ROIC/ROE)."""
     eligible = []
     for it in items:
-        if it.get("asset_type") != "Ação":
+        if it.get("asset_type") != "Ação" or _is_financial_sector(it.get("sector")):
             continue
         ev_ebitda = _to_pos_float(it.get("ev_ebitda"))
         pl = _to_pos_float(it.get("pl"))

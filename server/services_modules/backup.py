@@ -169,7 +169,7 @@ class BackupService:
                 session.rollback()
                 logging.error(f"❌ Erro ao salvar snapshot diário: {e}")
 
-    def get_history_data(self):
+    def get_history_data(self, full: bool = False):
         user_id = self.current_user_id
         with Session() as session:
             snapshots = session.query(PortfolioSnapshot).filter_by(user_id=user_id).order_by(PortfolioSnapshot.date).all()
@@ -214,4 +214,37 @@ class BackupService:
                         item[k] = round(item["Patrimônio"] * frac, 2)
                         
                 history.append(item)
-            return history
+
+            if full or len(history) <= 400:
+                return history
+
+            # Mantém os últimos 260 pontos diários exatos (1Y completo) e aplica envelope min/max no trecho antigo
+            recent_keep = 260
+            older = history[:-recent_keep]
+            recent = history[-recent_keep:]
+            if len(older) <= 140:
+                return history
+            bucket_count = 69
+            body = older[1:]
+            bucket_size = len(body) / bucket_count
+            sampled = [older[0]]
+            for b in range(bucket_count):
+                s_idx = int(b * bucket_size)
+                e_idx = min(len(body), int((b + 1) * bucket_size))
+                if s_idx >= e_idx:
+                    continue
+                min_i = s_idx
+                max_i = s_idx
+                for idx in range(s_idx + 1, e_idx):
+                    v = body[idx]["Patrimônio"]
+                    if v < body[min_i]["Patrimônio"]:
+                        min_i = idx
+                    if v > body[max_i]["Patrimônio"]:
+                        max_i = idx
+                if min_i == max_i:
+                    sampled.append(body[min_i])
+                elif min_i < max_i:
+                    sampled.extend([body[min_i], body[max_i]])
+                else:
+                    sampled.extend([body[max_i], body[min_i]])
+            return sampled + recent
