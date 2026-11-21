@@ -34,22 +34,21 @@ const analyzeAlert = (text: string) => {
   if (t.includes('mínima') || t.includes('fundo') || t.includes('suporte')) {
     return { icon: Anchor, color: 'text-cyan-400', bg: 'bg-cyan-500/5', border: 'border-cyan-500/20', label: 'Suporte' };
   }
-  return { icon: Activity, color: 'text-slate-400', bg: 'bg-slate-500/5', border: 'border-slate-500/20', label: 'Movimentação' };
+  return { icon: Activity, color: 'text-text-muted', bg: 'bg-surface-input', border: 'border-border-subtle', label: 'Movimentação' };
 };
 
 export const RiskRadar = React.memo(({ alertas }: { alertas: (string | Alerta)[] }) => {
   return (
     <div className="flex flex-col h-[525px] overflow-hidden w-full">
-      {/* Área de Scroll com otimização (sem backdrop-blur por item) */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
+      <div className="flex-1 overflow-y-auto p-4 space-y-3">
         <div className="flex justify-end mb-2">
            <Badge label={`${alertas.length} Insights`} variant="slate" />
         </div>
 
         {alertas.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-slate-600 gap-3 opacity-40">
+          <div className="flex flex-col items-center justify-center h-full text-text-muted gap-3 opacity-50">
             <ShieldCheck size={40} strokeWidth={1.5} />
-            <p className="text-[10px] font-bold uppercase tracking-widest text-center">Nenhum sinal relevante</p>
+            <p className="text-2xs font-semibold uppercase tracking-wider text-center">Nenhum sinal relevante</p>
           </div>
         ) : (
           alertas.map((alerta, index) => {
@@ -61,33 +60,33 @@ export const RiskRadar = React.memo(({ alertas }: { alertas: (string | Alerta)[]
             const style = analyzeAlert(titulo);
             const Icon = style.icon;
             return (
-              <div key={index} className={`relative p-4 rounded-xl border ${style.bg} ${style.border} transition-colors duration-300 hover:bg-slate-800/10`}>
+              <div key={index} className={`relative p-4 rounded-xl border ${style.bg} ${style.border} transition-colors duration-150 hover:bg-surface-elevated/40`}>
                 <div className="flex items-start gap-3">
-                  <div className={`p-2 rounded-xl bg-surface-card border border-slate-700/30 shrink-0 ${style.color}`}>
+                  <div className={`p-2 rounded-lg bg-surface-card border border-border-subtle shrink-0 ${style.color}`}>
                     <Icon size={16} />
                   </div>
 
                   <div className="flex-1 space-y-1.5">
                     <div className="space-y-0.5">
-                      <span className={`text-[9px] font-extrabold uppercase tracking-widest ${style.color}`}>
+                      <span className={`text-2xs font-semibold uppercase tracking-wider ${style.color}`}>
                         {style.label}
                       </span>
-                      <p className="text-[12px] text-slate-200 leading-relaxed font-bold">
+                      <p className="text-xs text-text-primary leading-relaxed font-semibold">
                         {titulo.replace(/⚠️|💎|📈|📉|⚖️|🚨|❗|🏆|🛡️|⚡|🔥/g, '').trim()}
                       </p>
                       {significado && (
-                        <p className="text-[11px] text-slate-400 leading-normal font-medium mt-1">
+                        <p className="text-2xs text-text-muted leading-normal font-medium mt-1">
                           {significado}
                         </p>
                       )}
                     </div>
 
                     {acao && (
-                      <div className="p-2.5 bg-surface-card/60 border border-slate-700/20 rounded-lg flex items-center gap-2 mt-2">
-                        <span className="text-[9px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded uppercase shrink-0">
+                      <div className="p-2.5 bg-surface-card border border-border-subtle rounded-lg flex items-center gap-2 mt-2">
+                        <span className="text-2xs font-semibold text-status-success bg-status-success/10 border border-status-success/20 px-2 py-0.5 rounded-md uppercase shrink-0">
                           Ação
                         </span>
-                        <p className="text-[10px] text-slate-300 leading-snug font-semibold">
+                        <p className="text-2xs text-text-primary leading-snug font-medium">
                           {acao}
                         </p>
                       </div>
@@ -100,8 +99,8 @@ export const RiskRadar = React.memo(({ alertas }: { alertas: (string | Alerta)[]
         )}
       </div>
 
-      <div className="p-4 bg-surface-card/30 border-t border-slate-800/50 text-center shrink-0">
-        <p className="text-[9px] text-slate-500 font-bold uppercase tracking-[0.2em]">
+      <div className="p-4 bg-surface-elevated border-t border-border-subtle text-center shrink-0">
+        <p className="text-2xs text-text-muted font-semibold uppercase tracking-wider">
             Preço • RSI • VaR • Correlação EWMA • Risco
         </p>
       </div>

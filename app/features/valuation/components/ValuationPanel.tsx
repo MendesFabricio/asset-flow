@@ -27,7 +27,7 @@ interface ValuationPanelProps {
 
 function MarginBadge({ pct }: { pct: number | null | undefined }) {
   if (pct === null || pct === undefined) {
-    return <span className="text-[10px] text-text-muted">N/D</span>;
+    return <span className="text-2xs text-text-muted">N/D</span>;
   }
   const cls =
     pct >= 10
@@ -36,7 +36,7 @@ function MarginBadge({ pct }: { pct: number | null | undefined }) {
       ? 'bg-accent-soft text-accent border-accent/30'
       : 'bg-status-error/10 text-status-error border-status-error/30';
   return (
-    <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border ${cls}`}>
+    <span className={`text-2xs font-mono font-semibold tabular-nums px-1.5 py-0.5 rounded-md border ${cls}`}>
       {pct > 0 ? '+' : ''}
       {pct.toFixed(1)}%
     </span>
@@ -124,7 +124,7 @@ export function ValuationPanel({ ticker, assetType, compact = false }: Valuation
         <button
           type="button"
           onClick={() => fetchValuation(true)}
-          className="px-2.5 py-1 rounded bg-surface-card border border-border-subtle text-text-primary hover:border-accent text-[11px] font-semibold"
+          className="px-2.5 py-1 rounded-md bg-surface-card border border-border-subtle text-text-primary hover:border-accent text-2xs font-semibold"
         >
           Tentar novamente
         </button>
@@ -179,19 +179,19 @@ export function ValuationPanel({ ticker, assetType, compact = false }: Valuation
           <div className="flex items-center gap-2">
             <ShieldCheck size={16} className="text-accent shrink-0" />
             <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-text-primary">
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-text-primary">
                 Qualidade & Valuation
               </h4>
-              <p className="text-[11px] text-text-muted">
+              <p className="text-2xs text-text-muted">
                 {data.sector} • {data.asset_type}
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-lg font-mono font-extrabold text-text-primary tabular-nums">
+            <span className="text-lg font-mono font-semibold text-text-primary tabular-nums">
               {qualityScore}
-              <span className="text-[11px] text-text-muted font-normal">/100</span>
+              <span className="text-2xs text-text-muted font-normal">/100</span>
             </span>
             <button
               type="button"
@@ -214,7 +214,7 @@ export function ValuationPanel({ ticker, assetType, compact = false }: Valuation
 
         <div className="w-full h-2 rounded-full bg-surface-input overflow-hidden">
           <div
-            className={`h-full transition-all duration-500 ${qualityColor.split(' ')[1]}`}
+            className={`h-full transition-[width] duration-500 ${qualityColor.split(' ')[1]}`}
             style={{ width: `${Math.max(4, qualityScore)}%` }}
           />
         </div>
@@ -226,7 +226,7 @@ export function ValuationPanel({ ticker, assetType, compact = false }: Valuation
           <label className="space-y-1">
             <div className="flex justify-between text-text-muted">
               <span>DY Mínimo Bazin</span>
-              <span className="font-mono font-bold text-text-primary">{bazinDy.toFixed(1)}%</span>
+              <span className="font-mono font-semibold tabular-nums text-text-primary">{bazinDy.toFixed(1)}%</span>
             </div>
             <input
               type="range"
@@ -243,7 +243,7 @@ export function ValuationPanel({ ticker, assetType, compact = false }: Valuation
           <label className="space-y-1">
             <div className="flex justify-between text-text-muted">
               <span>Taxa de Desconto (Ke/WACC)</span>
-              <span className="font-mono font-bold text-text-primary">{discountRate.toFixed(1)}%</span>
+              <span className="font-mono font-semibold tabular-nums text-text-primary">{discountRate.toFixed(1)}%</span>
             </div>
             <input
               type="range"
@@ -260,7 +260,7 @@ export function ValuationPanel({ ticker, assetType, compact = false }: Valuation
           <label className="space-y-1">
             <div className="flex justify-between text-text-muted">
               <span>Crescimento 5 anos (g)</span>
-              <span className="font-mono font-bold text-text-primary">{growthRate.toFixed(1)}%</span>
+              <span className="font-mono font-semibold tabular-nums text-text-primary">{growthRate.toFixed(1)}%</span>
             </div>
             <input
               type="range"
@@ -277,7 +277,7 @@ export function ValuationPanel({ ticker, assetType, compact = false }: Valuation
           <label className="space-y-1">
             <div className="flex justify-between text-text-muted">
               <span>Cresc. Perpétuo DCF</span>
-              <span className="font-mono font-bold text-text-primary">{terminalGrowth.toFixed(1)}%</span>
+              <span className="font-mono font-semibold tabular-nums text-text-primary">{terminalGrowth.toFixed(1)}%</span>
             </div>
             <input
               type="range"
@@ -297,16 +297,16 @@ export function ValuationPanel({ ticker, assetType, compact = false }: Valuation
       <div className="grid grid-cols-2 gap-2.5">
         <div className="p-3 rounded-xl bg-surface-card border border-border-subtle space-y-1">
           <div className="flex items-center justify-between gap-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
+            <span className="text-2xs font-semibold uppercase tracking-wider text-text-muted">
               Teto Bazin ({bazinDy.toFixed(0)}%)
             </span>
             <MarginBadge pct={data.margin_bazin_pct} />
           </div>
-          <p className="text-sm font-mono font-bold text-text-primary">
+          <p className="text-sm font-mono font-semibold tabular-nums text-text-primary">
             {data.bazin_price ? money(data.bazin_price) : 'N/D'}
           </p>
           <div className="flex items-center justify-between gap-1">
-            <p className="text-[10px] text-text-muted">
+            <p className="text-2xs text-text-muted tabular-nums">
               Div./cota: {data.dividend_per_share ? money(data.dividend_per_share) : 'N/D'}
             </p>
             {data.bazin_price && (
@@ -315,7 +315,7 @@ export function ValuationPanel({ ticker, assetType, compact = false }: Valuation
                 onClick={handleCreateBazinAlert}
                 disabled={creatingAlert}
                 title="Criar alerta quando cotação cair abaixo do Preço Teto Bazin"
-                className="text-[10px] font-bold text-accent hover:underline inline-flex items-center gap-0.5 disabled:opacity-50"
+                className="text-2xs font-semibold text-accent hover:underline inline-flex items-center gap-0.5 disabled:opacity-50"
               >
                 <BellPlus size={11} /> Alerta
               </button>
@@ -325,12 +325,12 @@ export function ValuationPanel({ ticker, assetType, compact = false }: Valuation
 
         <div className="p-3 rounded-xl bg-surface-card border border-border-subtle space-y-1">
           <div className="flex items-center justify-between gap-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
+            <span className="text-2xs font-semibold uppercase tracking-wider text-text-muted">
               {data.asset_type === 'FII' ? 'P/VP Justo' : 'V.I. Graham'}
             </span>
             {data.asset_type === 'Ação' && <MarginBadge pct={data.margin_graham_pct} />}
           </div>
-          <p className="text-sm font-mono font-bold text-text-primary">
+          <p className="text-sm font-mono font-semibold tabular-nums text-text-primary">
             {data.asset_type === 'FII'
               ? data.vpa
                 ? money(data.vpa)
@@ -339,32 +339,32 @@ export function ValuationPanel({ ticker, assetType, compact = false }: Valuation
               ? money(data.graham_price)
               : 'N/D'}
           </p>
-          <p className="text-[10px] text-text-muted">
+          <p className="text-2xs text-text-muted tabular-nums">
             P/VP: {data.pvp ? `${data.pvp.toFixed(2)}x` : 'N/D'}
           </p>
         </div>
 
         <div className="p-3 rounded-xl bg-surface-card border border-border-subtle space-y-1">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted block">
+          <span className="text-2xs font-semibold uppercase tracking-wider text-text-muted block">
             Modelo Gordon
           </span>
-          <p className="text-sm font-mono font-bold text-text-primary">
+          <p className="text-sm font-mono font-semibold tabular-nums text-text-primary">
             {data.gordon_price ? money(data.gordon_price) : 'N/D'}
           </p>
-          <p className="text-[10px] text-text-muted">DY 12m: {data.dy_12m ? `${data.dy_12m.toFixed(2)}%` : 'N/D'}</p>
+          <p className="text-2xs text-text-muted tabular-nums">DY 12m: {data.dy_12m ? `${data.dy_12m.toFixed(2)}%` : 'N/D'}</p>
         </div>
 
         <div className="p-3 rounded-xl bg-surface-card border border-border-subtle space-y-1">
           <div className="flex items-center justify-between gap-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
+            <span className="text-2xs font-semibold uppercase tracking-wider text-text-muted">
               DCF / FCD (5a)
             </span>
             <MarginBadge pct={data.margin_dcf_pct} />
           </div>
-          <p className="text-sm font-mono font-bold text-text-primary">
+          <p className="text-sm font-mono font-semibold tabular-nums text-text-primary">
             {data.dcf_price ? money(data.dcf_price) : 'N/D'}
           </p>
-          <p className="text-[10px] text-text-muted">
+          <p className="text-2xs text-text-muted tabular-nums">
             {data.magic_score !== null && data.magic_score !== undefined
               ? `Fórmula Mágica: ${data.magic_score.toFixed(0)} pts`
               : `P/L: ${data.pl ? `${data.pl.toFixed(1)}x` : 'N/D'}`}
@@ -375,7 +375,7 @@ export function ValuationPanel({ ticker, assetType, compact = false }: Valuation
       {/* Histórico Anual de Proventos (5 Anos) */}
       {divHist.length > 0 && (
         <div className="p-3.5 rounded-xl bg-surface-card border border-border-subtle space-y-2.5">
-          <h5 className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
+          <h5 className="text-2xs font-semibold uppercase tracking-wider text-text-muted">
             Proventos por Cota/Ação (Últimos {divHist.length} Anos)
           </h5>
           <div className="grid grid-cols-5 gap-2 items-end h-20 pt-2">
@@ -383,16 +383,16 @@ export function ValuationPanel({ ticker, assetType, compact = false }: Valuation
               const pct = Math.max(12, Math.round((d.total / maxDivYear) * 100));
               return (
                 <div key={d.year} className="flex flex-col items-center justify-end h-full gap-1">
-                  <span className="text-[9px] font-mono text-text-primary font-semibold">
+                  <span className="text-2xs font-mono tabular-nums text-text-primary font-semibold">
                     {money(d.total)}
                   </span>
                   <div className="w-full max-w-[28px] bg-surface-input rounded-t overflow-hidden flex items-end h-10">
                     <div
-                      className="w-full bg-status-success rounded-t transition-all duration-500"
+                      className="w-full bg-status-success rounded-t transition-[height] duration-500"
                       style={{ height: `${pct}%` }}
                     />
                   </div>
-                  <span className="text-[10px] font-mono text-text-muted">{d.year}</span>
+                  <span className="text-2xs font-mono tabular-nums text-text-muted">{d.year}</span>
                 </div>
               );
             })}
@@ -403,7 +403,7 @@ export function ValuationPanel({ ticker, assetType, compact = false }: Valuation
       {/* Checklist de Saúde Financeira */}
       {data.checklist && data.checklist.length > 0 && (
         <div className="p-3.5 rounded-xl bg-surface-card border border-border-subtle space-y-2">
-          <h5 className="text-[11px] font-bold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+          <h5 className="text-2xs font-semibold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
             <Sparkles size={13} className="text-accent" />
             Checklist de Saúde Fundamentalista
           </h5>
@@ -414,10 +414,10 @@ export function ValuationPanel({ ticker, assetType, compact = false }: Valuation
                   <ChecklistStatusIcon status={item.status} />
                   <div className="min-w-0">
                     <p className="font-semibold text-text-primary truncate">{item.label}</p>
-                    <p className="text-[10px] text-text-muted truncate">{item.rule}</p>
+                    <p className="text-2xs text-text-muted truncate">{item.rule}</p>
                   </div>
                 </div>
-                <span className="font-mono font-bold text-text-primary shrink-0">{item.formatted}</span>
+                <span className="font-mono font-semibold tabular-nums text-text-primary shrink-0">{item.formatted}</span>
               </div>
             ))}
           </div>
@@ -427,28 +427,28 @@ export function ValuationPanel({ ticker, assetType, compact = false }: Valuation
       {/* Comparação com Média do Setor */}
       {sectorAvg && sectorAvg.count > 1 && (
         <div className="p-3.5 rounded-xl bg-surface-elevated border border-border-subtle space-y-2">
-          <h5 className="text-[11px] font-bold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+          <h5 className="text-2xs font-semibold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
             <TrendingUp size={13} className="text-accent" />
             Ativo vs Mediana do Setor ({sectorAvg.count} pares)
           </h5>
-          <div className="grid grid-cols-3 gap-2 text-[11px]">
+          <div className="grid grid-cols-3 gap-2 text-2xs">
             <div className="p-2 rounded-lg bg-surface-card border border-border-subtle text-center">
               <p className="text-text-muted">DY 12m</p>
-              <p className="font-mono font-bold text-text-primary">
+              <p className="font-mono font-semibold tabular-nums text-text-primary">
                 {data.dy_12m !== null ? `${data.dy_12m.toFixed(1)}%` : 'N/D'}
               </p>
-              <p className="text-[10px] text-text-muted">
+              <p className="text-2xs text-text-muted tabular-nums">
                 Setor: {sectorAvg.dy_12m !== null ? `${sectorAvg.dy_12m.toFixed(1)}%` : 'N/D'}
               </p>
             </div>
             <div className="p-2 rounded-lg bg-surface-card border border-border-subtle text-center">
               <p className="text-text-muted">{data.asset_type === 'FII' ? 'P/VP' : 'P/L'}</p>
-              <p className="font-mono font-bold text-text-primary">
+              <p className="font-mono font-semibold tabular-nums text-text-primary">
                 {data.asset_type === 'FII'
                   ? data.pvp !== null ? `${data.pvp.toFixed(2)}x` : 'N/D'
                   : data.pl !== null ? `${data.pl.toFixed(1)}x` : 'N/D'}
               </p>
-              <p className="text-[10px] text-text-muted">
+              <p className="text-2xs text-text-muted tabular-nums">
                 Setor:{' '}
                 {data.asset_type === 'FII'
                   ? sectorAvg.pvp !== null ? `${sectorAvg.pvp.toFixed(2)}x` : 'N/D'
@@ -457,12 +457,12 @@ export function ValuationPanel({ ticker, assetType, compact = false }: Valuation
             </div>
             <div className="p-2 rounded-lg bg-surface-card border border-border-subtle text-center">
               <p className="text-text-muted">{data.asset_type === 'FII' ? 'Qualidade' : 'ROE'}</p>
-              <p className="font-mono font-bold text-text-primary">
+              <p className="font-mono font-semibold tabular-nums text-text-primary">
                 {data.asset_type === 'FII'
                   ? `${data.quality_score}/100`
                   : data.roe !== null ? `${data.roe.toFixed(1)}%` : 'N/D'}
               </p>
-              <p className="text-[10px] text-text-muted">
+              <p className="text-2xs text-text-muted tabular-nums">
                 Setor:{' '}
                 {data.asset_type === 'FII'
                   ? sectorAvg.quality_score !== null ? `${sectorAvg.quality_score.toFixed(0)}/100` : 'N/D'

@@ -14,6 +14,8 @@ import {
 } from 'recharts';
 import { apiCall } from '@/lib/api';
 import { formatMoney } from '@/lib/format';
+import { useChartPalette } from '@/lib/chartPalette';
+import { SEMANTIC_CHART_HEX } from '@/lib/colors';
 import { usePrivacy } from '@/context/PrivacyContext';
 import { PrivateValue } from '@/components/ui/PrivateValue';
 import { PassiveIncomeSimulation } from '@/types';
@@ -28,6 +30,7 @@ export function PassiveIncomeTab({
   currentMonthlyIncome = 0,
 }: PassiveIncomeTabProps) {
   const { isHidden } = usePrivacy() as { isHidden: boolean };
+  const palette = useChartPalette();
 
   const estimatedDy =
     currentPortfolioTotal > 0 && currentMonthlyIncome > 0
@@ -96,11 +99,11 @@ export function PassiveIncomeTab({
   return (
     <div className="space-y-6">
       {/* Cabeçalho */}
-      <div className="bg-surface-card border border-border-subtle rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="bg-surface-card border border-border-subtle rounded-xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <PiggyBank size={18} className="text-status-success" />
-            <h2 className="text-base font-extrabold text-text-primary">
+            <h2 className="text-base font-semibold text-text-primary">
               Planejador de Renda Passiva (Efeito Bola de Neve)
             </h2>
           </div>
@@ -115,7 +118,7 @@ export function PassiveIncomeTab({
               setInitialPortfolio(Math.round(currentPortfolioTotal));
               setAnnualDyPct(estimatedDy);
             }}
-            className="px-3 py-1.5 rounded-lg bg-surface-elevated border border-border-subtle text-xs font-bold text-text-primary hover:border-accent"
+            className="px-3 py-1.5 rounded-lg bg-surface-elevated border border-border-subtle text-xs font-semibold text-text-primary hover:border-accent tabular-nums transition-colors"
           >
             Usar carteira atual ({isHidden ? '••••' : formatMoney(currentPortfolioTotal)})
           </button>
@@ -124,7 +127,7 @@ export function PassiveIncomeTab({
 
       {/* Parâmetros + KPIs */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div className="lg:col-span-4 bg-surface-card border border-border-subtle rounded-2xl p-5 space-y-4 text-xs">
+        <div className="lg:col-span-4 bg-surface-card border border-border-subtle rounded-xl p-5 space-y-4 text-xs">
           <label className="block space-y-1">
             <span className="text-text-muted font-semibold">Patrimônio Inicial (R$)</span>
             <input
@@ -134,7 +137,7 @@ export function PassiveIncomeTab({
               step="1000"
               value={initialPortfolio}
               onChange={(e) => setInitialPortfolio(Math.max(0, Number(e.target.value)))}
-              className="w-full px-3 py-2 rounded-lg bg-surface-input border border-border-subtle font-mono text-text-primary focus:outline-none focus:border-accent"
+              className="w-full px-3 py-2 rounded-lg bg-surface-input border border-border-subtle font-mono tabular-nums text-text-primary focus:outline-none focus:border-accent"
             />
           </label>
 
@@ -147,7 +150,7 @@ export function PassiveIncomeTab({
               step="100"
               value={monthlyContribution}
               onChange={(e) => setMonthlyContribution(Math.max(0, Number(e.target.value)))}
-              className="w-full px-3 py-2 rounded-lg bg-surface-input border border-border-subtle font-mono text-text-primary focus:outline-none focus:border-accent"
+              className="w-full px-3 py-2 rounded-lg bg-surface-input border border-border-subtle font-mono tabular-nums text-text-primary focus:outline-none focus:border-accent"
             />
           </label>
 
@@ -160,7 +163,7 @@ export function PassiveIncomeTab({
               step="250"
               value={targetMonthlyIncome}
               onChange={(e) => setTargetMonthlyIncome(Math.max(100, Number(e.target.value)))}
-              className="w-full px-3 py-2 rounded-lg bg-surface-input border border-border-subtle font-mono text-text-primary focus:outline-none focus:border-accent"
+              className="w-full px-3 py-2 rounded-lg bg-surface-input border border-border-subtle font-mono tabular-nums text-text-primary focus:outline-none focus:border-accent"
             />
           </label>
 
@@ -175,7 +178,7 @@ export function PassiveIncomeTab({
                 step="0.1"
                 value={Number(annualDyPct.toFixed(1))}
                 onChange={(e) => setAnnualDyPct(Number(e.target.value))}
-                className="w-full px-3 py-2 rounded-lg bg-surface-input border border-border-subtle font-mono text-text-primary focus:outline-none focus:border-accent"
+                className="w-full px-3 py-2 rounded-lg bg-surface-input border border-border-subtle font-mono tabular-nums text-text-primary focus:outline-none focus:border-accent"
               />
             </label>
 
@@ -189,7 +192,7 @@ export function PassiveIncomeTab({
                 step="0.5"
                 value={annualGrowthPct}
                 onChange={(e) => setAnnualGrowthPct(Number(e.target.value))}
-                className="w-full px-3 py-2 rounded-lg bg-surface-input border border-border-subtle font-mono text-text-primary focus:outline-none focus:border-accent"
+                className="w-full px-3 py-2 rounded-lg bg-surface-input border border-border-subtle font-mono tabular-nums text-text-primary focus:outline-none focus:border-accent"
               />
             </label>
           </div>
@@ -197,7 +200,7 @@ export function PassiveIncomeTab({
           <label className="block space-y-1">
             <div className="flex justify-between text-text-muted font-semibold">
               <span>Horizonte</span>
-              <span className="font-mono text-text-primary">{maxYears} anos</span>
+              <span className="font-mono text-text-primary tabular-nums">{maxYears} anos</span>
             </div>
             <input
               type="range"
@@ -227,48 +230,48 @@ export function PassiveIncomeTab({
         <div className="lg:col-span-8 space-y-4">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="p-4 rounded-xl bg-surface-card border border-border-subtle space-y-1">
-              <div className="text-[10px] font-bold uppercase text-text-muted flex items-center gap-1">
+              <div className="text-2xs font-semibold uppercase text-text-muted flex items-center gap-1">
                 <CalendarClock size={12} className="text-accent" /> Prazo até a Meta
               </div>
-              <p className="text-sm font-mono font-extrabold text-text-primary">
+              <p className="text-sm font-mono font-semibold text-text-primary tabular-nums">
                 {loading && !result ? '...' : timeToGoalLabel}
               </p>
             </div>
 
             <div className="p-4 rounded-xl bg-surface-card border border-border-subtle space-y-1">
-              <div className="text-[10px] font-bold uppercase text-text-muted flex items-center gap-1">
+              <div className="text-2xs font-semibold uppercase text-text-muted flex items-center gap-1">
                 <Target size={12} className="text-status-warning" /> Patrimônio Alvo
               </div>
-              <p className="text-sm font-mono font-extrabold text-text-primary">
+              <p className="text-sm font-mono font-semibold text-text-primary tabular-nums">
                 <PrivateValue value={formatMoney(result?.required_patrimony || 0)} />
               </p>
             </div>
 
             <div className="p-4 rounded-xl bg-surface-card border border-border-subtle space-y-1">
-              <div className="text-[10px] font-bold uppercase text-text-muted flex items-center gap-1">
+              <div className="text-2xs font-semibold uppercase text-text-muted flex items-center gap-1">
                 <Coins size={12} className="text-status-success" /> Renda Final ({maxYears}a)
               </div>
-              <p className="text-sm font-mono font-extrabold text-status-success">
+              <p className="text-sm font-mono font-semibold text-status-success tabular-nums">
                 <PrivateValue value={`${formatMoney(result?.final_monthly_income || 0)}/mês`} />
               </p>
             </div>
 
             <div className="p-4 rounded-xl bg-surface-card border border-border-subtle space-y-1">
-              <div className="text-[10px] font-bold uppercase text-text-muted flex items-center gap-1">
+              <div className="text-2xs font-semibold uppercase text-text-muted flex items-center gap-1">
                 <TrendingUp size={12} className="text-accent" /> Yield on Cost Final
               </div>
-              <p className="text-sm font-mono font-extrabold text-accent">
+              <p className="text-sm font-mono font-semibold text-accent tabular-nums">
                 {(result?.yield_on_cost_pct || 0).toFixed(1)}% a.a.
               </p>
             </div>
           </div>
 
-          <div className="bg-surface-card border border-border-subtle rounded-2xl p-5 space-y-3">
+          <div className="bg-surface-card border border-border-subtle rounded-xl p-5 space-y-3">
             <div className="flex items-center justify-between text-xs">
-              <h3 className="font-bold uppercase tracking-wider text-text-muted">
+              <h3 className="font-semibold uppercase tracking-wider text-text-muted">
                 Evolução da Renda Passiva Mensal (R$/mês)
               </h3>
-              <span className="text-[11px] font-mono text-text-muted">
+              <span className="text-2xs font-mono text-text-muted tabular-nums">
                 Meta: <PrivateValue value={formatMoney(targetMonthlyIncome)} />
               </span>
             </div>
@@ -278,27 +281,27 @@ export function PassiveIncomeTab({
                 <AreaChart data={result?.annual_series || []} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="passiveIncomeGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.35} />
-                      <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                      <stop offset="5%" stopColor={SEMANTIC_CHART_HEX.emerald} stopOpacity={0.35} />
+                      <stop offset="95%" stopColor={SEMANTIC_CHART_HEX.emerald} stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
+                  <CartesianGrid strokeDasharray="3 3" stroke={palette.grid} />
                   <XAxis
                     dataKey="year"
                     tickFormatter={(v) => `Ano ${v}`}
-                    stroke="var(--text-muted)"
+                    stroke={palette.axis}
                     fontSize={11}
                   />
                   <YAxis
-                    stroke="var(--text-muted)"
+                    stroke={palette.axis}
                     fontSize={11}
                     tickFormatter={(v) => (isHidden ? '•••' : `R$ ${Math.round(v).toLocaleString('pt-BR')}`)}
                   />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: 'var(--surface-card)',
-                      borderColor: 'var(--border-subtle)',
-                      color: 'var(--text-primary)',
+                      backgroundColor: palette.tooltipBg,
+                      borderColor: palette.tooltipBorder,
+                      color: palette.tooltipLabel,
                       borderRadius: '0.75rem',
                       fontSize: '12px',
                     }}
@@ -311,11 +314,11 @@ export function PassiveIncomeTab({
                   />
                   <ReferenceLine
                     y={targetMonthlyIncome}
-                    stroke="#f59e0b"
+                    stroke={SEMANTIC_CHART_HEX.amber}
                     strokeDasharray="4 4"
                     label={{
                       value: isHidden ? 'Meta' : `Meta ${formatMoney(targetMonthlyIncome)}`,
-                      fill: '#f59e0b',
+                      fill: SEMANTIC_CHART_HEX.amber,
                       fontSize: 10,
                       position: 'insideTopRight',
                     }}
@@ -323,7 +326,7 @@ export function PassiveIncomeTab({
                   <Area
                     type="monotone"
                     dataKey="monthly_income"
-                    stroke="#10b981"
+                    stroke={SEMANTIC_CHART_HEX.emerald}
                     strokeWidth={2.5}
                     fillOpacity={1}
                     fill="url(#passiveIncomeGrad)"

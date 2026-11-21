@@ -9,6 +9,8 @@ import {
 import { apiCall } from '@/lib/api';
 import { formatMoney } from '@/lib/format';
 import { usePrivacy } from '@/context/PrivacyContext';
+import { useChartPalette } from '@/lib/chartPalette';
+import { SEMANTIC_CHART_HEX } from '@/lib/colors';
 
 
 interface RiskMetrics {
@@ -82,29 +84,29 @@ function MetricCard({
   const [showTip, setShowTip] = useState(false);
 
   return (
-    <div className="relative bg-slate-900/60 border border-slate-800 rounded-xl p-4 flex flex-col gap-1 hover:border-slate-700 transition-all group">
+    <div className="relative bg-surface-elevated border border-border-subtle rounded-xl p-4 flex flex-col gap-1 transition-colors group">
       <div className="flex items-center justify-between">
-        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{label}</span>
+        <span className="text-2xs font-semibold text-text-muted uppercase tracking-wider">{label}</span>
         <div className="flex items-center gap-1.5">
           <Icon size={14} className={color} />
           {tooltip && (
             <button
               onMouseEnter={() => setShowTip(true)}
               onMouseLeave={() => setShowTip(false)}
-              className="text-slate-600 hover:text-slate-400 transition-colors"
+              className="text-text-muted hover:text-text-primary transition-colors"
             >
               <Info size={11} />
             </button>
           )}
         </div>
       </div>
-      <div className={`text-2xl font-bold font-mono tracking-tight ${color}`}>
-        {value}<span className="text-sm font-normal text-slate-500 ml-0.5">{unit}</span>
+      <div className={`text-2xl font-semibold font-mono tracking-tight tabular-nums ${color}`}>
+        {value}<span className="text-sm font-normal text-text-muted ml-0.5">{unit}</span>
       </div>
-      {subtext && <p className="text-[10px] text-slate-500 leading-tight mt-0.5">{subtext}</p>}
+      {subtext && <p className="text-2xs text-text-muted leading-tight mt-0.5 tabular-nums">{subtext}</p>}
 
       {showTip && tooltip && (
-        <div className="absolute z-50 bottom-full left-0 mb-2 w-56 bg-slate-800 border border-slate-700 rounded-lg p-2.5 shadow-2xl text-[10px] text-slate-300 leading-relaxed pointer-events-none">
+        <div className="absolute z-50 bottom-full left-0 mb-2 w-56 bg-surface-elevated border border-border-subtle rounded-lg p-2.5 shadow-lg text-2xs text-text-primary leading-relaxed pointer-events-none">
           {tooltip}
         </div>
       )}
@@ -114,8 +116,8 @@ function MetricCard({
 
 /** Formatador de cores por valor */
 function colorByValue(v: number, goodPositive = true): string {
-  if (goodPositive) return v > 0 ? 'text-emerald-400' : v < 0 ? 'text-red-400' : 'text-slate-400';
-  return v > 0 ? 'text-red-400' : v < 0 ? 'text-emerald-400' : 'text-slate-400';
+  if (goodPositive) return v > 0 ? 'text-status-success' : v < 0 ? 'text-status-error' : 'text-text-muted';
+  return v > 0 ? 'text-status-error' : v < 0 ? 'text-status-success' : 'text-text-muted';
 }
 
 /** Tooltip personalizado para o gráfico de drawdown */
@@ -123,9 +125,9 @@ const DrawdownTooltip = ({ active, payload, label }: { active?: boolean; payload
   if (!active || !payload?.length) return null;
   const v = payload[0].value as number;
   return (
-    <div className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs shadow-xl">
-      <p className="text-slate-400 mb-1">{label}</p>
-      <p className={`font-bold font-mono ${v < 0 ? 'text-red-400' : 'text-emerald-400'}`}>
+    <div className="bg-surface-elevated border border-border-subtle rounded-lg px-3 py-2 text-xs shadow-lg">
+      <p className="text-text-muted mb-1">{label}</p>
+      <p className={`font-semibold font-mono tabular-nums ${v < 0 ? 'text-status-error' : 'text-status-success'}`}>
         {v.toFixed(2)}%
       </p>
     </div>
@@ -134,6 +136,7 @@ const DrawdownTooltip = ({ active, payload, label }: { active?: boolean; payload
 
 export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
   const { isHidden } = usePrivacy();
+  const palette = useChartPalette();
   const money = (val: number) => (isHidden ? 'R$ •••••' : formatMoney(val));
   const [data, setData] = useState<RiskMetrics | null>(null);
   const [loading, setLoading] = useState(true);
@@ -200,11 +203,11 @@ export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
 
   if (loading) {
     return (
-      <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-6 animate-pulse">
-        <div className="h-4 bg-slate-800 rounded w-48 mb-4" />
+      <div className="bg-surface-card border border-border-subtle rounded-xl p-6 animate-pulse">
+        <div className="h-4 bg-surface-input rounded w-48 mb-4" />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="h-20 bg-slate-800 rounded-xl" />
+            <div key={i} className="h-20 bg-surface-input rounded-xl" />
           ))}
         </div>
       </div>
@@ -213,12 +216,12 @@ export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
 
   if (error || !data || data.status !== 'Sucesso') {
     return (
-      <div className="bg-[#0f172a] border border-slate-800 rounded-2xl p-8 flex flex-col items-center justify-center text-center min-h-[400px]">
-        <AlertTriangle className="text-amber-500 mb-3" size={36} />
-        <p className="text-sm font-semibold text-slate-300">
+      <div className="bg-surface-card border border-border-subtle rounded-xl p-8 flex flex-col items-center justify-center text-center min-h-[400px]">
+        <AlertTriangle className="text-status-warning mb-3" size={36} />
+        <p className="text-sm font-semibold text-text-primary">
            {error || data?.msg || 'Métricas de Risco Indisponíveis'}
         </p>
-        <p className="text-xs text-slate-500 mt-2 max-w-md">
+        <p className="text-xs text-text-muted mt-2 max-w-md">
           Aguarde o cadastro de pelo menos 2 ativos de renda variável ou a consolidação de dados históricos mínimos (30 dias) para o cálculo destas métricas.
         </p>
       </div>
@@ -226,11 +229,11 @@ export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
   }
 
   const betaValue = data?.beta ?? 1;
-  const betaColor = betaValue > 1.1 ? 'text-amber-400' : betaValue < 0.9 ? 'text-blue-400' : 'text-emerald-400';
+  const betaColor = betaValue > 1.1 ? 'text-status-warning' : betaValue < 0.9 ? 'text-accent' : 'text-status-success';
   const alphaValue = data?.alpha_anual_pct ?? 0;
   const alphaColor = colorByValue(alphaValue);
   const sharpeValue = data?.sharpe_12m ?? 0;
-  const sharpeColor = sharpeValue > 1 ? 'text-emerald-400' : sharpeValue > 0 ? 'text-amber-400' : 'text-red-400';
+  const sharpeColor = sharpeValue > 1 ? 'text-status-success' : sharpeValue > 0 ? 'text-status-warning' : 'text-status-error';
   const drawdownChart = data?.drawdown_chart ?? [];
   const drawdownMin = drawdownChart.length > 0
     ? Math.min(...drawdownChart.map(d => d.drawdown))
@@ -238,34 +241,34 @@ export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
   const drawdownMax = Math.max(0, ...drawdownChart.map(d => d.drawdown));
 
   return (
-    <div className="bg-slate-950 border border-slate-900 rounded-2xl">
+    <div className="bg-surface-card border border-border-subtle rounded-xl">
       {/* Header */}
-      <div className="px-5 py-4 border-b border-slate-900 flex items-center justify-between bg-gradient-to-r from-slate-950 via-indigo-950/20 to-slate-950 rounded-t-2xl">
+      <div className="px-5 py-4 border-b border-border-subtle flex items-center justify-between bg-surface-elevated rounded-t-xl">
         <div className="flex items-center gap-2.5 group relative cursor-pointer">
-          <div className="p-1.5 bg-indigo-500/10 rounded-lg border border-indigo-500/20">
-            <Activity size={16} className="text-indigo-400" />
+          <div className="p-1.5 bg-accent-soft rounded-lg border border-accent/20">
+            <Activity size={16} className="text-accent" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-white flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
               Atribuição de Performance
-              <HelpCircle size={14} className="text-slate-500" />
+              <HelpCircle size={14} className="text-text-muted" />
             </h3>
-            <p className="text-[10px] text-slate-500">vs. {data?.benchmark ?? 'IBOV'} - {data?.periodo ?? '12m'} - {data?.n_pregoes ?? 0} pregões</p>
+            <p className="text-2xs text-text-muted tabular-nums">vs. {data?.benchmark ?? 'IBOV'} - {data?.periodo ?? '12m'} - {data?.n_pregoes ?? 0} pregões</p>
           </div>
           
-          <div className="absolute top-full left-0 mt-2 hidden group-hover:block w-72 p-3 bg-slate-900 text-slate-300 text-xs rounded shadow-xl border border-slate-700 z-50">
+          <div className="absolute top-full left-0 mt-2 hidden group-hover:block w-72 p-3 bg-surface-elevated text-text-primary text-xs rounded-lg shadow-lg border border-border-subtle z-50">
             Exibe o risco real do portfólio comparado ao benchmark e divide o retorno entre o gerado pelo mercado (Beta) e o gerado ativamente (Alpha).
           </div>
         </div>
-        <div className="flex items-center gap-1.5 bg-slate-800/50 border border-slate-700 rounded-lg px-2.5 py-1">
-          <BarChart3 size={11} className="text-slate-500" />
-          <span className="text-[10px] text-slate-400">CDI: {data?.taxa_livre_risco_pct?.toFixed(2) ?? '0.00'}% a.a.</span>
+        <div className="flex items-center gap-1.5 bg-surface-input border border-border-subtle rounded-lg px-2.5 py-1">
+          <BarChart3 size={11} className="text-text-muted" />
+          <span className="text-2xs text-text-muted tabular-nums">CDI: {data?.taxa_livre_risco_pct?.toFixed(2) ?? '0.00'}% a.a.</span>
         </div>
       </div>
 
       <div className="p-5 space-y-5 flex flex-col">
         {/* Sub-Tabs Nav */}
-        <div className="w-full lg:w-3/4 p-1 bg-slate-900/50 rounded-xl border border-slate-800/60 shadow-inner mb-4 self-center">
+        <div className="w-full lg:w-3/4 p-1 bg-surface-input rounded-xl border border-border-subtle mb-4 self-center">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-1">
             {[
               { id: 'overview', label: 'Visão Geral', icon: <Activity size={14} /> },
@@ -277,10 +280,10 @@ export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveSubTab(tab.id as 'overview' | 'exposure' | 'credit')}
-                  className={`flex flex-col sm:flex-row items-center justify-center gap-1.5 px-2 py-2 rounded-lg text-[10px] sm:text-xs font-semibold uppercase tracking-wider transition-all duration-300 ${
+                  className={`flex flex-col sm:flex-row items-center justify-center gap-1.5 px-2 py-2 rounded-lg text-2xs sm:text-xs font-semibold uppercase tracking-wider transition-colors ${
                     isActive
-                      ? 'bg-slate-800 text-blue-400 shadow-md ring-1 ring-slate-700/50'
-                      : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/40'
+                      ? 'bg-surface-card text-accent border border-border-subtle'
+                      : 'text-text-muted hover:text-text-primary hover:bg-surface-card/60'
                   }`}
                 >
                   {tab.icon}
@@ -316,7 +319,7 @@ export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
           />
           <MetricCard
             label="Sortino (12m)" value={(data?.sortino_12m ?? 0).toFixed(3)} icon={ShieldAlert}
-            color={(data?.sortino_12m ?? 0) > 1 ? 'text-emerald-400' : (data?.sortino_12m ?? 0) > 0 ? 'text-amber-400' : 'text-red-400'}
+            color={(data?.sortino_12m ?? 0) > 1 ? 'text-status-success' : (data?.sortino_12m ?? 0) > 0 ? 'text-status-warning' : 'text-status-error'}
             tooltip="Sortino: como Sharpe, mas divide apenas pela volatilidade negativa. Penaliza perdas, não ganhos."
             subtext={`Calmar: ${(data?.calmar_ratio ?? 0).toFixed(2)}`}
           />
@@ -337,7 +340,7 @@ export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
           <MetricCard
             label="Volatilidade" value={(data?.volatilidade_anual_pct ?? 0).toFixed(2)}
             unit="% a.a." icon={Zap}
-            color={(data?.volatilidade_anual_pct ?? 0) > 30 ? 'text-red-400' : (data?.volatilidade_anual_pct ?? 0) > 20 ? 'text-amber-400' : 'text-emerald-400'}
+            color={(data?.volatilidade_anual_pct ?? 0) > 30 ? 'text-status-error' : (data?.volatilidade_anual_pct ?? 0) > 20 ? 'text-status-warning' : 'text-status-success'}
             tooltip="Desvio-padrão anualizado dos retornos diários do portfólio."
             subtext={`Max Drawdown: ${(data?.max_drawdown_pct ?? 0).toFixed(2)}%`}
           />
@@ -350,7 +353,7 @@ export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
             value={(data?.var_95_monthly_pct ?? 0).toFixed(2)}
             unit="%"
             icon={ShieldAlert}
-            color="text-amber-500"
+            color="text-status-warning"
             tooltip="VaR Histórico 95% Mensal: A perda máxima esperada para o portfólio no período de 1 mês, com 95% de nível de confiança."
             subtext={`Diário: ${(data?.var_95_daily_pct ?? 0).toFixed(2)}%`}
           />
@@ -359,7 +362,7 @@ export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
             value={(data?.cvar_95_monthly_pct ?? 0).toFixed(2)}
             unit="%"
             icon={Zap}
-            color="text-red-400"
+            color="text-status-error"
             tooltip="CVaR (Expected Shortfall): Perda média esperada nos piores 5% dos cenários do período."
             subtext={`Diário: ${(data?.cvar_95_daily_pct ?? 0).toFixed(2)}%`}
           />
@@ -368,7 +371,7 @@ export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
             value={(data?.tracking_error_pct ?? 0).toFixed(2)}
             unit="%"
             icon={Activity}
-            color="text-indigo-400"
+            color="text-accent"
             tooltip="Tracking Error anualizado: Desvio-padrão da diferença de retornos entre a carteira e o IBOVESPA. Mede o risco ativo do gestor."
             subtext="Volatilidade ativa vs. IBOV"
           />
@@ -377,11 +380,11 @@ export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
         {/* Gráfico de Drawdown */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-              <ShieldAlert size={12} className="text-red-400" />
+            <h4 className="text-xs font-semibold text-text-muted uppercase tracking-wider flex items-center gap-1.5">
+              <ShieldAlert size={12} className="text-status-error" />
               Drawdown Histórico (12m)
             </h4>
-            <span className="text-[10px] bg-red-900/20 text-red-400 border border-red-900/30 px-2 py-0.5 rounded-full font-mono">
+            <span className="text-2xs bg-status-error/10 text-status-error border border-status-error/20 px-2 py-0.5 rounded-md font-mono tabular-nums">
               Pior: {(data?.max_drawdown_pct ?? 0).toFixed(2)}%
             </span>
           </div>
@@ -390,20 +393,20 @@ export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
               <AreaChart data={drawdownChart} margin={{ top: 4, right: 4, bottom: 0, left: -10 }}>
                 <defs>
                   <linearGradient id="ddGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#f87171" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#f87171" stopOpacity={0.0} />
+                    <stop offset="5%" stopColor={SEMANTIC_CHART_HEX.redLight} stopOpacity={0.3} />
+                    <stop offset="95%" stopColor={SEMANTIC_CHART_HEX.redLight} stopOpacity={0.0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke={palette.grid} vertical={false} />
                 <XAxis
                   dataKey="date"
-                  tick={{ fill: '#475569', fontSize: 9 }}
+                  tick={{ fill: palette.axis, fontSize: 9 }}
                   tickLine={false}
                   axisLine={false}
                   interval={Math.floor(data.drawdown_chart.length / 5)}
                 />
                 <YAxis
-                  tick={{ fill: '#475569', fontSize: 9 }}
+                  tick={{ fill: palette.axis, fontSize: 9 }}
                   tickLine={false}
                   axisLine={false}
                   domain={[drawdownMin * 1.1, Math.max(0.5, drawdownMax * 1.1)]}
@@ -413,11 +416,11 @@ export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
                 <Area
                   type="monotone"
                   dataKey="drawdown"
-                  stroke="#f87171"
+                  stroke={SEMANTIC_CHART_HEX.redLight}
                   strokeWidth={1.5}
                   fill="url(#ddGrad)"
                   dot={false}
-                  activeDot={{ r: 3, fill: '#f87171', strokeWidth: 0 }}
+                  activeDot={{ r: 3, fill: SEMANTIC_CHART_HEX.redLight, strokeWidth: 0 }}
                 />
                 {/* Linha de referência zero */}
                 <CartesianGrid
@@ -427,43 +430,43 @@ export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
               </AreaChart>
             </ResponsiveContainer>
           </div>
-          <p className="text-[10px] text-slate-600 text-center mt-1">
+          <p className="text-2xs text-text-muted text-center mt-1">
             {data?.interpretacao?.drawdown ?? ''}
           </p>
         </div>
         </>
         )}
 
-        {/* ??? EXPOSIÇÃO E SETORES */}
+        {/* Exposição e Setores */}
         {activeSubTab === 'exposure' && (
         <div className="pt-2 grid grid-cols-1 lg:grid-cols-2 gap-5">
           
           {/* 1. Concentração Setorial Real */}
           {data?.sectors_alloc && data.sectors_alloc.length > 0 && (
-            <div className="bg-slate-950/30 p-4 rounded-xl border border-slate-800/50 h-full">
-              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                <Scale size={12} className="text-indigo-400" />
+            <div className="bg-surface p-4 rounded-xl border border-border-subtle h-full">
+              <h4 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                <Scale size={12} className="text-accent" />
                 Concentração Setorial Real
               </h4>
               <div className="space-y-2.5">
                 {data.sectors_alloc.map((s, idx) => (
                   <div key={idx} className="space-y-1">
-                    <div className="flex justify-between items-center text-[10px] font-bold">
-                      <span className="text-slate-300">{s.sector}</span>
-                      <span className="text-slate-400 font-mono">{s.percent}% <span className="text-[8px] text-slate-600">({money(s.value)})</span></span>
+                    <div className="flex justify-between items-center text-2xs font-semibold">
+                      <span className="text-text-primary">{s.sector}</span>
+                      <span className="text-text-muted font-mono tabular-nums">{s.percent}% <span className="text-2xs text-text-muted">({money(s.value)})</span></span>
                     </div>
-                    <div className="w-full h-1.5 bg-slate-900 rounded-full relative group cursor-pointer">
+                    <div className="w-full h-1.5 bg-surface-input rounded-full relative group cursor-pointer">
                       <div 
-                        className="h-full bg-indigo-500 rounded-full" 
+                        className="h-full bg-accent rounded-full" 
                         style={{ width: `${s.percent}%` }}
                       />
                       {s.assets && s.assets.length > 0 && (
-                        <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block w-48 p-2 bg-slate-900 rounded shadow-xl border border-slate-700 z-50 pointer-events-none">
-                          <div className="font-bold text-white mb-1 border-b border-slate-800 pb-1 text-[10px] uppercase tracking-wider">{s.sector}</div>
+                        <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block w-48 p-2 bg-surface-elevated rounded-lg shadow-lg border border-border-subtle z-50 pointer-events-none">
+                          <div className="font-semibold text-text-primary mb-1 border-b border-border-subtle pb-1 text-2xs uppercase tracking-wider">{s.sector}</div>
                           {s.assets.map(a => (
-                            <div key={a.ticker} className="flex justify-between items-center py-0.5 text-[10px]">
-                              <span className="text-slate-300">{a.ticker}</span>
-                              <span className="font-mono text-slate-400">{a.percent}%</span>
+                            <div key={a.ticker} className="flex justify-between items-center py-0.5 text-2xs tabular-nums">
+                              <span className="text-text-primary">{a.ticker}</span>
+                              <span className="font-mono text-text-muted">{a.percent}%</span>
                             </div>
                           ))}
                         </div>
@@ -480,27 +483,27 @@ export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
             
             {/* Cambial */}
             {data?.usd_exposure_pct !== undefined && (
-              <div className="bg-slate-950/30 p-4 rounded-xl border border-slate-800/50 flex flex-col gap-2 h-full">
+              <div className="bg-surface p-4 rounded-xl border border-border-subtle flex flex-col gap-2 h-full">
                 <div className="flex justify-between items-center">
-                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                    <Zap size={12} className="text-amber-400" />
+                  <h4 className="text-xs font-semibold text-text-muted uppercase tracking-wider flex items-center gap-1.5">
+                    <Zap size={12} className="text-status-warning" />
                     Hedge Ratio Cambial
                   </h4>
-                  <span className="text-[10px] font-black font-mono text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                  <span className="text-2xs font-semibold font-mono tabular-nums text-status-warning bg-status-warning/10 px-2 py-0.5 rounded-md border border-status-warning/20">
                     {data.usd_exposure_pct}% USD
                   </span>
                 </div>
                 {data?.usd_assets && data.usd_assets.length > 0 && (
                   <div className="space-y-1 mt-1">
                     {data.usd_assets.map((a, i) => (
-                      <div key={i} className="flex justify-between items-center text-[10px] font-mono">
-                        <span className="text-slate-300">{a.ticker}</span>
-                        <span className="text-slate-400">{money(a.value)}</span>
+                      <div key={i} className="flex justify-between items-center text-2xs font-mono tabular-nums">
+                        <span className="text-text-primary">{a.ticker}</span>
+                        <span className="text-text-muted">{money(a.value)}</span>
                       </div>
                     ))}
                   </div>
                 )}
-                <p className="text-[9px] text-slate-500 mt-auto leading-relaxed border-t border-slate-800/50 pt-2">
+                <p className="text-2xs text-text-muted mt-auto leading-relaxed border-t border-border-subtle pt-2">
                   {data?.usd_hedge_suggestion}
                 </p>
               </div>
@@ -508,16 +511,16 @@ export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
 
             {/* Alavancagem */}
             {data?.leverage_ratio !== undefined && (
-              <div className="bg-slate-950/30 p-4 rounded-xl border border-slate-800/50 flex flex-col gap-2 h-full">
+              <div className="bg-surface p-4 rounded-xl border border-border-subtle flex flex-col gap-2 h-full">
                 <div className="flex justify-between items-center">
-                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                    <Scale size={12} className="text-red-400" />
+                  <h4 className="text-xs font-semibold text-text-muted uppercase tracking-wider flex items-center gap-1.5">
+                    <Scale size={12} className="text-status-error" />
                     Alavancagem
                   </h4>
-                  <span className={`text-[10px] font-black font-mono px-2 py-0.5 rounded border ${
+                  <span className={`text-2xs font-semibold font-mono tabular-nums px-2 py-0.5 rounded-md border ${
                     data.leverage_ratio > 1.0 
-                      ? 'text-red-400 bg-red-500/10 border-red-500/20' 
-                      : 'text-slate-400 bg-slate-900 border-slate-800'
+                      ? 'text-status-error bg-status-error/10 border-status-error/20' 
+                      : 'text-text-muted bg-surface-input border-border-subtle'
                   }`}>
                     {data.leverage_ratio}x
                   </span>
@@ -525,14 +528,14 @@ export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
                 {data?.leveraged_assets && data.leveraged_assets.length > 0 ? (
                   <div className="space-y-1 mt-1">
                     {data.leveraged_assets.map((a, i) => (
-                      <div key={i} className="flex justify-between items-center text-[10px] font-mono">
-                        <span className="text-slate-300">{a.ticker} (x{a.leverage})</span>
-                        <span className="text-slate-400">{money(a.value)}</span>
+                      <div key={i} className="flex justify-between items-center text-2xs font-mono tabular-nums">
+                        <span className="text-text-primary">{a.ticker} (x{a.leverage})</span>
+                        <span className="text-text-muted">{money(a.value)}</span>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-[9px] text-slate-500 mt-auto leading-relaxed text-center">
+                  <p className="text-2xs text-text-muted mt-auto leading-relaxed text-center">
                     Sem derivativos alavancados.
                   </p>
                 )}
@@ -540,30 +543,27 @@ export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
             )}
           </div>
 
-
-
-          
           {/* 3. Upside/Downside Capture Ratios */}
           {data?.upside_capture_pct !== undefined && (
-            <div className="bg-slate-950/30 p-4 rounded-xl border border-slate-800/50 h-full flex flex-col">
-              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                <Activity size={12} className="text-emerald-400" />
+            <div className="bg-surface p-4 rounded-xl border border-border-subtle h-full flex flex-col">
+              <h4 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                <Activity size={12} className="text-status-success" />
                 Capture Ratio vs IBOV
               </h4>
               <div className="grid grid-cols-2 gap-3 text-center flex-1">
-                <div className="bg-slate-900/40 p-3 rounded-lg border border-slate-850 h-full">
-                  <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wide">Upside Capture</span>
-                  <div className="text-xl font-bold font-mono text-emerald-400 mt-1">
+                <div className="bg-surface-card p-3 rounded-lg border border-border-subtle h-full">
+                  <span className="text-2xs font-semibold text-text-muted uppercase tracking-wide">Upside Capture</span>
+                  <div className="text-xl font-semibold font-mono text-status-success tabular-nums mt-1">
                     {data.upside_capture_pct}%
                   </div>
-                  <p className="text-[8px] text-slate-500 mt-1 leading-normal">Fração capturada em meses de alta do IBOV</p>
+                  <p className="text-2xs text-text-muted mt-1 leading-normal">Fração capturada em meses de alta do IBOV</p>
                 </div>
-                <div className="bg-slate-900/40 p-3 rounded-lg border border-slate-850">
-                  <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wide">Downside Capture</span>
-                  <div className="text-xl font-bold font-mono text-red-400 mt-1">
+                <div className="bg-surface-card p-3 rounded-lg border border-border-subtle">
+                  <span className="text-2xs font-semibold text-text-muted uppercase tracking-wide">Downside Capture</span>
+                  <div className="text-xl font-semibold font-mono text-status-error tabular-nums mt-1">
                     {data?.downside_capture_pct}%
                   </div>
-                  <p className="text-[8px] text-slate-500 mt-1 leading-normal">Fração capturada em meses de queda do IBOV</p>
+                  <p className="text-2xs text-text-muted mt-1 leading-normal">Fração capturada em meses de queda do IBOV</p>
                 </div>
               </div>
             </div>
@@ -575,20 +575,20 @@ export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
         {activeSubTab === 'credit' && (
           <>
           {data?.fii_credit_map && data.fii_credit_map.length > 0 ? (
-            <div className="bg-slate-950/30 p-4 rounded-xl border border-slate-800/50 h-full mt-2">
+            <div className="bg-surface p-4 rounded-xl border border-border-subtle h-full mt-2">
               <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                  <ShieldAlert size={12} className="text-indigo-400" />
+                <h4 className="text-xs font-semibold text-text-muted uppercase tracking-wider flex items-center gap-1.5">
+                  <ShieldAlert size={12} className="text-accent" />
                   Mapa de Risco de Crédito &amp; Saúde (FIIs &amp; Renda Fixa)
                 </h4>
                 {analyzeMsg && (
-                  <span className="text-[10px] text-indigo-300 font-medium">{analyzeMsg}</span>
+                  <span className="text-2xs text-accent font-medium">{analyzeMsg}</span>
                 )}
               </div>
               <div className="overflow-x-auto w-full">
-                <table className="w-full text-[10px] text-slate-400 uppercase tracking-wider font-semibold text-left border-collapse">
+                <table className="w-full text-2xs text-text-muted uppercase tracking-wider font-semibold text-left border-collapse">
                   <thead>
-                    <tr className="border-b border-slate-900 pb-1 text-slate-500">
+                    <tr className="border-b border-border-subtle pb-1 text-text-muted">
                       <th className="py-1.5">Ativo</th>
                       <th className="py-1.5 text-right">P/VP</th>
                       <th className="py-1.5 text-right">Alavancagem</th>
@@ -598,28 +598,28 @@ export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
                       <th className="py-1.5 text-right">PDF</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-900">
+                  <tbody className="divide-y divide-border-subtle">
                     {data.fii_credit_map.map((f, i) => {
                       const hasCredit = f.rating !== 'N/D' || (f.duration !== null && f.duration !== undefined);
                       return (
-                        <tr key={i} className="hover:bg-slate-900/20">
-                          <td className="py-2 text-white font-mono font-bold">
+                        <tr key={i} className="hover:bg-surface-input/40">
+                          <td className="py-2 text-text-primary font-mono font-semibold">
                             <span>{f.ticker}</span>
                             {f.category && (
-                              <span className="ml-2 text-[8px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">
+                              <span className="ml-2 text-2xs px-1.5 py-0.5 rounded-md bg-surface-input text-text-muted">
                                 {f.category}
                               </span>
                             )}
                           </td>
-                          <td className="py-2 text-right font-mono text-slate-200">{f.p_vp || '—'}</td>
-                          <td className="py-2 text-right font-mono text-amber-400">{f.alavancagem || '—'}</td>
-                          <td className="py-2 text-right font-mono text-emerald-400">{f.caixa_pct || '—'}</td>
-                          <td className="py-2 text-right font-mono text-indigo-400">
+                          <td className="py-2 text-right font-mono tabular-nums text-text-primary">{f.p_vp || '-'}</td>
+                          <td className="py-2 text-right font-mono tabular-nums text-status-warning">{f.alavancagem || '-'}</td>
+                          <td className="py-2 text-right font-mono tabular-nums text-status-success">{f.caixa_pct || '-'}</td>
+                          <td className="py-2 text-right font-mono tabular-nums text-accent">
                             {hasCredit
                               ? `${f.rating}${f.duration !== null && f.duration !== undefined && f.duration > 0 ? ` · ${f.duration}a` : ''}`
                               : 'N/D'}
                           </td>
-                          <td className="py-2 text-right font-mono text-[9px] text-slate-400">
+                          <td className="py-2 text-right font-mono text-2xs text-text-muted tabular-nums">
                             {Object.keys(f.indexers).length > 0
                               ? Object.entries(f.indexers).map(([k, v]) => `${k}:${v}%`).join(' | ')
                               : 'N/D'}
@@ -630,12 +630,12 @@ export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
                                 type="button"
                                 disabled={analyzingTicker === f.ticker}
                                 onClick={() => handleAnalyzePdf(f.ticker)}
-                                className="px-2 py-0.5 rounded bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/30 text-[9px] font-bold uppercase disabled:opacity-50"
+                                className="px-2 py-0.5 rounded-md bg-accent-soft hover:bg-accent/20 text-accent border border-accent/30 text-2xs font-semibold uppercase disabled:opacity-50"
                               >
                                 {analyzingTicker === f.ticker ? 'Lendo...' : hasCredit ? 'Re-ler' : 'Ler PDF'}
                               </button>
                             ) : (
-                              <span className="text-slate-600">—</span>
+                              <span className="text-text-muted">-</span>
                             )}
                           </td>
                         </tr>
@@ -646,10 +646,10 @@ export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
               </div>
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center py-10 text-slate-500 bg-slate-900/20 rounded-xl border border-dashed border-slate-800 mt-2">
-              <ShieldAlert size={32} className="mb-3 text-slate-700" />
-              <p className="text-sm font-semibold text-slate-400">Sem FIIs ou Renda Fixa</p>
-              <p className="text-xs text-slate-500 mt-1 text-center max-w-sm">
+            <div className="flex flex-col items-center justify-center py-10 text-text-muted bg-surface rounded-xl border border-dashed border-border-subtle mt-2">
+              <ShieldAlert size={32} className="mb-3 text-text-muted" />
+              <p className="text-sm font-semibold text-text-primary">Sem FIIs ou Renda Fixa</p>
+              <p className="text-xs text-text-muted mt-1 text-center max-w-sm">
                 Esta aba monitora o risco de crédito e prazo de vencimento de suas posições em Renda Fixa e FIIs de Papel.
               </p>
             </div>

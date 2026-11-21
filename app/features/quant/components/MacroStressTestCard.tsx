@@ -103,12 +103,12 @@ export default function MacroStressTestCard({ ativos = [] }: { ativos?: Asset[] 
     <Card className="p-6 mt-6 flex flex-col gap-5">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border-subtle pb-3">
         <div className="flex items-center gap-2">
-          <ShieldAlert className="text-amber-400" size={18} />
+          <ShieldAlert className="text-status-warning" size={18} />
           <div>
-            <h3 className="font-bold text-text-primary text-sm uppercase tracking-wider">
+            <h3 className="font-semibold text-text-primary text-sm uppercase tracking-wider">
               Stress Test Macroeconômico Instantâneo
             </h3>
-            <p className="text-xs text-text-secondary">
+            <p className="text-xs text-text-muted">
               Avalie a resiliência do patrimônio diante de choques em Bolsa, FIIs, Dólar e Cripto em tempo real.
             </p>
           </div>
@@ -116,7 +116,7 @@ export default function MacroStressTestCard({ ativos = [] }: { ativos?: Asset[] 
         <button
           type="button"
           onClick={() => setShocks(DEFAULT_SHOCKS)}
-          className="inline-flex items-center gap-1.5 text-xs text-text-secondary hover:text-text-primary border border-border-subtle px-3 py-1.5 rounded-lg self-start"
+          className="inline-flex items-center gap-1.5 text-xs text-text-muted hover:text-text-primary border border-border-subtle px-3 py-1.5 rounded-lg self-start transition-colors"
         >
           <RotateCcw size={12} />
           Resetar
@@ -130,7 +130,7 @@ export default function MacroStressTestCard({ ativos = [] }: { ativos?: Asset[] 
             key={preset.label}
             type="button"
             onClick={() => setShocks(preset.shocks)}
-            className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-border-subtle bg-surface hover:border-amber-500/50 text-text-primary transition"
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-border-subtle bg-surface hover:border-status-warning/50 text-text-primary transition-colors"
           >
             {preset.label}
           </button>
@@ -147,9 +147,9 @@ export default function MacroStressTestCard({ ativos = [] }: { ativos?: Asset[] 
           { key: 'criptoPct' as const, label: 'Cripto' },
         ].map(({ key, label }) => (
           <div key={key} className="p-3 rounded-xl bg-surface border border-border-subtle space-y-2">
-            <div className="flex justify-between font-bold">
-              <span className="text-text-secondary">{label}</span>
-              <span className={shocks[key] >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
+            <div className="flex justify-between font-semibold">
+              <span className="text-text-muted">{label}</span>
+              <span className={`tabular-nums ${shocks[key] >= 0 ? 'text-status-success' : 'text-status-error'}`}>
                 {shocks[key] > 0 ? `+${shocks[key]}` : shocks[key]}%
               </span>
             </div>
@@ -160,7 +160,7 @@ export default function MacroStressTestCard({ ativos = [] }: { ativos?: Asset[] 
               step={1}
               value={shocks[key]}
               onChange={(e) => setShocks((prev) => ({ ...prev, [key]: Number(e.target.value) }))}
-              className="w-full accent-amber-500 cursor-pointer"
+              className="w-full accent-accent cursor-pointer"
             />
           </div>
         ))}
@@ -169,16 +169,16 @@ export default function MacroStressTestCard({ ativos = [] }: { ativos?: Asset[] 
       {/* Resumo de Impacto */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
         <div className="p-3 rounded-xl bg-surface border border-border-subtle">
-          <span className="text-[10px] uppercase text-text-secondary block">Patrimônio Base</span>
-          <span className="text-lg font-black text-text-primary">{maskMoney(simulation.baseTotal)}</span>
+          <span className="text-2xs uppercase text-text-muted block">Patrimônio Base</span>
+          <span className="text-lg font-semibold text-text-primary tabular-nums">{maskMoney(simulation.baseTotal)}</span>
         </div>
         <div className="p-3 rounded-xl bg-surface border border-border-subtle">
-          <span className="text-[10px] uppercase text-text-secondary block">Patrimônio Pós-Choque</span>
-          <span className="text-lg font-black text-text-primary">{maskMoney(simulation.stressedTotal)}</span>
+          <span className="text-2xs uppercase text-text-muted block">Patrimônio Pós-Choque</span>
+          <span className="text-lg font-semibold text-text-primary tabular-nums">{maskMoney(simulation.stressedTotal)}</span>
         </div>
         <div className="p-3 rounded-xl bg-surface border border-border-subtle">
-          <span className="text-[10px] uppercase text-text-secondary block">Impacto Estimado</span>
-          <span className={`text-lg font-black ${simulation.delta >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+          <span className="text-2xs uppercase text-text-muted block">Impacto Estimado</span>
+          <span className={`text-lg font-semibold tabular-nums ${simulation.delta >= 0 ? 'text-status-success' : 'text-status-error'}`}>
             {simulation.delta >= 0 ? '+' : ''}
             {maskMoney(simulation.delta)} ({simulation.deltaPct >= 0 ? '+' : ''}
             {simulation.deltaPct.toFixed(1)}%)
@@ -190,7 +190,7 @@ export default function MacroStressTestCard({ ativos = [] }: { ativos?: Asset[] 
       <div className="overflow-x-auto">
         <table className="w-full text-left text-xs border-collapse">
           <thead>
-            <tr className="border-b border-border-subtle text-[10px] uppercase text-text-secondary">
+            <tr className="border-b border-border-subtle text-2xs uppercase text-text-muted">
               <th className="py-2">Classe</th>
               <th className="py-2 text-right">Antes</th>
               <th className="py-2 text-right">Pós-Choque</th>
@@ -200,10 +200,10 @@ export default function MacroStressTestCard({ ativos = [] }: { ativos?: Asset[] 
           <tbody className="divide-y divide-border-subtle">
             {simulation.categories.map((row) => (
               <tr key={row.name}>
-                <td className="py-2 font-bold text-text-primary">{row.name}</td>
-                <td className="py-2 text-right text-text-secondary">{maskMoney(row.before)}</td>
-                <td className="py-2 text-right text-text-primary font-semibold">{maskMoney(row.after)}</td>
-                <td className={`py-2 text-right font-bold ${row.delta >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                <td className="py-2 font-semibold text-text-primary">{row.name}</td>
+                <td className="py-2 text-right text-text-muted tabular-nums">{maskMoney(row.before)}</td>
+                <td className="py-2 text-right text-text-primary font-semibold tabular-nums">{maskMoney(row.after)}</td>
+                <td className={`py-2 text-right font-semibold tabular-nums ${row.delta >= 0 ? 'text-status-success' : 'text-status-error'}`}>
                   {row.delta >= 0 ? '+' : ''}
                   {maskMoney(row.delta)} ({row.deltaPct >= 0 ? '+' : ''}
                   {row.deltaPct.toFixed(1)}%)

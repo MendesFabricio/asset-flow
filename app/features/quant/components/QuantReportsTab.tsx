@@ -3,6 +3,7 @@
 import React from 'react';
 import { Brain, Download, FileText, HelpCircle } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
+import { SEMANTIC_CHART_HEX } from '@/lib/colors';
 import { FearGreedData, QuantReportItem } from '../hooks/useQuantReports';
 
 interface QuantReportsTabProps {
@@ -23,15 +24,15 @@ export function QuantReportsTab({
   const score = fearGreedData?.score ?? 50;
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in fade-in duration-300">
-      <Card className="lg:col-span-1 flex flex-col justify-between gap-4 bg-surface-card border-border-subtle p-6">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <Card className="lg:col-span-1 flex flex-col justify-between gap-4 p-6">
         <div className="flex items-center gap-2 border-b border-border-subtle pb-3">
-          <Brain className="text-purple-400" size={18} />
-          <h3 className="font-bold text-text-primary text-sm uppercase tracking-wider flex items-center gap-2">
+          <Brain className="text-accent" size={18} />
+          <h3 className="font-semibold text-text-primary text-sm uppercase tracking-wider flex items-center gap-2">
             Fear &amp; Greed Index Local
             <div className="relative group/tt flex items-center cursor-pointer normal-case">
-              <HelpCircle size={14} className="text-text-muted hover:text-purple-400 transition-colors" />
-              <div className="absolute bottom-full mb-2 hidden group-hover/tt:block w-60 p-2 bg-surface-elevated text-text-primary text-[11px] rounded shadow-xl border border-border-subtle z-50 font-normal text-left">
+              <HelpCircle size={14} className="text-text-muted hover:text-accent transition-colors" />
+              <div className="absolute bottom-full mb-2 hidden group-hover/tt:block w-60 p-2 bg-surface-elevated text-text-primary text-2xs rounded-lg shadow-lg border border-border-subtle z-50 font-normal text-left">
                 Mede o humor técnico da sua própria carteira (0 = Medo Extremo / Oportunidade; 100 = Ganância Extrema / Euforia).
               </div>
             </div>
@@ -59,37 +60,37 @@ export function QuantReportsTab({
                   fill="none"
                   stroke={
                     score < 25
-                      ? '#ef4444'
+                      ? SEMANTIC_CHART_HEX.rose
                       : score < 45
-                      ? '#f97316'
+                      ? SEMANTIC_CHART_HEX.orange
                       : score <= 55
-                      ? '#eab308'
+                      ? SEMANTIC_CHART_HEX.yellow
                       : score <= 75
-                      ? '#84cc16'
-                      : '#22c55e'
+                      ? SEMANTIC_CHART_HEX.lime
+                      : SEMANTIC_CHART_HEX.green
                   }
                   strokeWidth="8"
                   strokeLinecap="round"
                   strokeDasharray="157.08"
                   strokeDashoffset={157.08 - (157.08 * score) / 100}
-                  className="transition-all duration-1000 ease-out"
+                  className="transition-[stroke-dashoffset] duration-500 ease-out"
                 />
               </svg>
               <div className="absolute inset-x-0 bottom-0 flex flex-col items-center justify-end h-full">
-                <span className="text-2xl font-black text-text-primary tracking-tight leading-none">
+                <span className="text-2xl font-semibold text-text-primary tracking-tight leading-none tabular-nums">
                   {score}
                 </span>
                 <span
-                  className={`text-[10px] font-bold uppercase tracking-wider mt-1 px-1.5 py-0.5 rounded ${
+                  className={`text-2xs font-semibold uppercase tracking-wider mt-1 px-1.5 py-0.5 rounded-md ${
                     score < 25
-                      ? 'bg-red-500/10 text-red-400'
+                      ? 'bg-status-error/10 text-status-error'
                       : score < 45
-                      ? 'bg-orange-500/10 text-orange-400'
+                      ? 'bg-status-warning/10 text-status-warning'
                       : score <= 55
-                      ? 'bg-yellow-500/10 text-yellow-400'
+                      ? 'bg-status-warning/10 text-status-warning'
                       : score <= 75
-                      ? 'bg-lime-500/10 text-lime-400'
-                      : 'bg-emerald-500/10 text-emerald-400'
+                      ? 'bg-status-success/10 text-status-success'
+                      : 'bg-status-success/10 text-status-success'
                   }`}
                 >
                   {fearGreedData?.label || 'Neutro'}
@@ -97,37 +98,37 @@ export function QuantReportsTab({
               </div>
             </div>
 
-            <p className="text-[11px] text-text-muted max-w-[200px] leading-relaxed mt-2">
+            <p className="text-2xs text-text-muted max-w-[200px] leading-relaxed mt-2">
               Índice proprietário derivado do RSI médio, do percentual acima da média 20d e da volatilidade dos seus próprios ativos.
             </p>
 
             <div className="w-full flex flex-col gap-2 mt-4 text-xs text-left border-t border-border-subtle pt-4">
               <div className="flex justify-between items-center py-1">
                 <span className="text-text-muted">RSI Médio Ponderado:</span>
-                <span className="font-bold text-text-primary">{fearGreedData?.avg_rsi || 50}/100</span>
+                <span className="font-semibold text-text-primary tabular-nums">{fearGreedData?.avg_rsi || 50}/100</span>
               </div>
               <div className="flex justify-between items-center py-1">
                 <span className="text-text-muted">Acima da Média 20d:</span>
-                <span className="font-bold text-text-primary">{fearGreedData?.above_sma_pct || 0}% dos ativos</span>
+                <span className="font-semibold text-text-primary tabular-nums">{fearGreedData?.above_sma_pct || 0}% dos ativos</span>
               </div>
               <div className="flex justify-between items-center py-1">
                 <span className="text-text-muted">Força de Drawdown/Retorno:</span>
-                <span className="font-bold text-text-primary">{fearGreedData?.drawdown_score || 50}/100</span>
+                <span className="font-semibold text-text-primary tabular-nums">{fearGreedData?.drawdown_score || 50}/100</span>
               </div>
             </div>
           </div>
         )}
       </Card>
 
-      <Card className="lg:col-span-2 flex flex-col gap-4 bg-surface-card border-border-subtle p-6 min-h-[400px]">
+      <Card className="lg:col-span-2 flex flex-col gap-4 p-6 min-h-[400px]">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border-subtle pb-3">
           <div className="flex items-center gap-2">
-            <FileText className="text-blue-400" size={18} />
-            <h3 className="font-bold text-text-primary text-sm uppercase tracking-wider flex items-center gap-2">
+            <FileText className="text-accent" size={18} />
+            <h3 className="font-semibold text-text-primary text-sm uppercase tracking-wider flex items-center gap-2">
               Central de Relatórios Patrimoniais (PDF)
               <div className="relative group/tt flex items-center cursor-pointer normal-case">
-                <HelpCircle size={14} className="text-text-muted hover:text-blue-400 transition-colors" />
-                <div className="absolute bottom-full mb-2 hidden group-hover/tt:block w-64 p-2 bg-surface-elevated text-text-primary text-[11px] rounded shadow-xl border border-border-subtle z-50 font-normal text-left">
+                <HelpCircle size={14} className="text-text-muted hover:text-accent transition-colors" />
+                <div className="absolute bottom-full mb-2 hidden group-hover/tt:block w-64 p-2 bg-surface-elevated text-text-primary text-2xs rounded-lg shadow-lg border border-border-subtle z-50 font-normal text-left">
                   Gera uma fotografia imutável em PDF da sua alocação, lucros e posições no instante atual. Ideal para prestação de contas, imposto de renda ou arquivo pessoal trimestral.
                 </div>
               </div>
@@ -137,7 +138,7 @@ export function QuantReportsTab({
             type="button"
             disabled={generatingReport || loadingReports}
             onClick={onGenerateReport}
-            className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold uppercase tracking-wider transition disabled:opacity-40 flex items-center gap-2"
+            className="px-3.5 py-1.5 bg-accent hover:bg-accent/90 text-white rounded-lg text-xs font-semibold uppercase tracking-wider transition-colors disabled:opacity-40 flex items-center gap-2"
           >
             {generatingReport ? (
               <>
@@ -163,7 +164,7 @@ export function QuantReportsTab({
           <div className="overflow-x-auto w-full">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-border-subtle text-[11px] text-text-muted font-bold uppercase tracking-wider">
+                <tr className="border-b border-border-subtle text-2xs text-text-muted font-semibold uppercase tracking-wider">
                   <th className="pb-3 pl-2">Relatório</th>
                   <th className="pb-3">Data de Criação</th>
                   <th className="pb-3 text-right">Tamanho</th>
@@ -187,13 +188,13 @@ export function QuantReportsTab({
                     : 'Relatório Patrimonial';
 
                   return (
-                    <tr key={rep.filename} className="hover:bg-surface-elevated/40 transition">
-                      <td className="py-3 pl-2 font-bold text-text-primary flex items-center gap-2">
+                    <tr key={rep.filename} className="hover:bg-surface-elevated/40 transition-colors">
+                      <td className="py-3 pl-2 font-semibold text-text-primary flex items-center gap-2">
                         <FileText size={14} className="text-text-muted" />
                         {repLabel}
                       </td>
-                      <td className="py-3 text-text-muted">{cleanDate}</td>
-                      <td className="py-3 text-right text-text-muted">{sizeKb} KB</td>
+                      <td className="py-3 text-text-muted tabular-nums">{cleanDate}</td>
+                      <td className="py-3 text-right text-text-muted tabular-nums">{sizeKb} KB</td>
                       <td className="py-3 text-right pr-2">
                         <button
                           type="button"
@@ -203,7 +204,7 @@ export function QuantReportsTab({
                               '_blank'
                             )
                           }
-                          className="px-2 py-1 bg-surface-elevated hover:bg-surface-input border border-border-subtle text-text-primary rounded text-[10px] font-bold uppercase tracking-wider transition flex items-center gap-1.5 ml-auto"
+                          className="px-2 py-1 bg-surface-elevated hover:bg-surface-input border border-border-subtle text-text-primary rounded-md text-2xs font-semibold uppercase tracking-wider transition-colors flex items-center gap-1.5 ml-auto"
                         >
                           <Download size={10} />
                           Baixar

@@ -193,14 +193,14 @@ export function RadarTab() {
   return (
     <div className="space-y-6">
       {/* Cabeçalho + Ações */}
-      <div className="bg-surface-card border border-border-subtle rounded-2xl p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      <div className="bg-surface-card border border-border-subtle rounded-xl p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <Compass size={18} className="text-accent" />
-            <h2 className="text-base font-extrabold text-text-primary tracking-tight">
+            <h2 className="text-base font-semibold text-text-primary tracking-tight">
               Radar de Oportunidades B3 &amp; Watchlist
             </h2>
-            <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-accent-soft text-accent">
+            <span className="text-2xs font-mono font-semibold tabular-nums px-2 py-0.5 rounded-md bg-accent-soft text-accent">
               {totalCached} ativos em cache
             </span>
           </div>
@@ -225,7 +225,7 @@ export function RadarTab() {
             <button
               type="submit"
               disabled={searchingCustom || !customTicker.trim()}
-              className="px-3 py-2 rounded-lg bg-surface-elevated border border-border-subtle text-xs font-bold text-text-primary hover:border-accent disabled:opacity-50 flex items-center gap-1.5"
+              className="px-3 py-2 rounded-lg bg-surface-elevated border border-border-subtle text-xs font-semibold text-text-primary hover:border-accent disabled:opacity-50 flex items-center gap-1.5"
             >
               {searchingCustom ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
               Consultar
@@ -236,7 +236,7 @@ export function RadarTab() {
             type="button"
             onClick={handleRefreshScreener}
             disabled={refreshing}
-            className="px-3.5 py-2 rounded-lg bg-accent text-white text-xs font-bold hover:opacity-90 disabled:opacity-60 flex items-center gap-1.5 transition-all"
+            className="px-3.5 py-2 rounded-lg bg-accent text-white text-xs font-semibold hover:opacity-90 disabled:opacity-60 flex items-center gap-1.5 transition-colors"
           >
             <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} />
             {refreshing ? 'Varrendo B3...' : 'Atualizar Radar B3'}
@@ -253,14 +253,14 @@ export function RadarTab() {
               key={s.id}
               type="button"
               onClick={() => setStrategy(s.id)}
-              className={`px-3.5 py-2 rounded-xl border text-left transition-all flex items-center gap-2 ${
+              className={`px-3.5 py-2 rounded-lg border text-left transition-colors flex items-center gap-2 ${
                 active
                   ? 'bg-accent-soft border-accent text-accent shadow-sm'
                   : 'bg-surface-card border-border-subtle text-text-muted hover:text-text-primary'
               }`}
             >
-              <span className="text-xs font-bold">{s.label}</span>
-              <span className="text-[10px] opacity-75 hidden sm:inline">• {s.hint}</span>
+              <span className="text-xs font-semibold">{s.label}</span>
+              <span className="text-2xs opacity-75 hidden sm:inline">• {s.hint}</span>
             </button>
           );
         })}
@@ -324,7 +324,7 @@ export function RadarTab() {
       {strategy === 'signals' ? (
         <SignalsBookView onSelectTicker={(tkr) => setInspectedAsset({ ticker: tkr })} />
       ) : strategy === 'watchlist' ? (
-        <div className="bg-surface-card border border-border-subtle rounded-2xl overflow-hidden">
+        <div className="bg-surface-card border border-border-subtle rounded-xl overflow-hidden">
           {watchlist.length === 0 ? (
             <div className="p-10 text-center space-y-2 text-text-muted text-sm">
               <Star size={28} className="mx-auto text-status-warning opacity-70" />
@@ -336,7 +336,7 @@ export function RadarTab() {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead className="bg-surface-elevated text-text-muted uppercase text-[10px] tracking-wider border-b border-border-subtle">
+                <thead className="bg-surface-elevated text-text-muted uppercase text-2xs tracking-wider border-b border-border-subtle">
                   <tr>
                     <th scope="col" className="px-4 py-3">Ativo</th>
                     <th scope="col" className="px-4 py-3 text-right">Cotação</th>
@@ -358,19 +358,19 @@ export function RadarTab() {
                         className="hover:bg-surface-elevated cursor-pointer transition-colors"
                       >
                         <td className="px-4 py-3">
-                          <div className="font-bold text-text-primary">{w.ticker}</div>
-                          <div className="text-[10px] text-text-muted">{m.name || m.sector || 'B3'}</div>
+                          <div className="font-semibold text-text-primary">{w.ticker}</div>
+                          <div className="text-2xs text-text-muted">{m.name || m.sector || 'B3'}</div>
                         </td>
-                        <td className="px-4 py-3 text-right font-mono font-semibold text-text-primary">
+                        <td className="px-4 py-3 text-right font-mono font-semibold tabular-nums text-text-primary">
                           {m.price ? money(m.price) : 'N/D'}
                         </td>
-                        <td className="px-4 py-3 text-right font-mono text-text-muted">
+                        <td className="px-4 py-3 text-right font-mono tabular-nums text-text-muted">
                           {w.desired_bazin_dy.toFixed(1)}%
                         </td>
-                        <td className="px-4 py-3 text-right font-mono font-bold text-text-primary">
+                        <td className="px-4 py-3 text-right font-mono font-semibold tabular-nums text-text-primary">
                           {w.effective_target_price ? money(w.effective_target_price) : 'N/D'}
                         </td>
-                        <td className="px-4 py-3 text-right font-mono font-bold">
+                        <td className="px-4 py-3 text-right font-mono font-semibold tabular-nums">
                           {discount !== null && discount !== undefined ? (
                             <span className={discount >= 0 ? 'text-status-success' : 'text-status-error'}>
                               {discount > 0 ? '+' : ''}
@@ -380,7 +380,7 @@ export function RadarTab() {
                             'N/D'
                           )}
                         </td>
-                        <td className="px-4 py-3 text-right font-mono font-bold text-text-primary">
+                        <td className="px-4 py-3 text-right font-mono font-semibold tabular-nums text-text-primary">
                           {m.quality_score ?? 0}/100
                         </td>
                         <td className="px-4 py-3 text-center">
@@ -402,7 +402,7 @@ export function RadarTab() {
           )}
         </div>
       ) : (
-        <div className="bg-surface-card border border-border-subtle rounded-2xl overflow-hidden">
+        <div className="bg-surface-card border border-border-subtle rounded-xl overflow-hidden">
           {loading ? (
             <div className="p-10 text-center text-xs text-text-muted flex items-center justify-center gap-2">
               <Loader2 size={16} className="animate-spin text-accent" />
@@ -412,7 +412,7 @@ export function RadarTab() {
             <div className="p-10 text-center space-y-3">
               <Sparkles size={28} className="mx-auto text-accent opacity-80" />
               <div className="space-y-1">
-                <p className="text-sm font-bold text-text-primary">
+                <p className="text-sm font-semibold text-text-primary">
                   {totalCached === 0 ? 'Cache do Radar B3 ainda vazio' : 'Nenhum ativo encontrado com esses filtros'}
                 </p>
                 <p className="text-xs text-text-muted">
@@ -425,7 +425,7 @@ export function RadarTab() {
                 <button
                   type="button"
                   onClick={handleRefreshScreener}
-                  className="px-4 py-2 rounded-lg bg-accent text-white text-xs font-bold inline-flex items-center gap-1.5"
+                  className="px-4 py-2 rounded-lg bg-accent text-white text-xs font-semibold inline-flex items-center gap-1.5"
                 >
                   <RefreshCw size={13} /> Popular Radar Agora
                 </button>
@@ -434,7 +434,7 @@ export function RadarTab() {
           ) : (
             <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
               <table className="w-full text-left text-xs">
-                <thead className="bg-surface-elevated text-text-muted uppercase text-[10px] tracking-wider border-b border-border-subtle sticky top-0 z-10">
+                <thead className="bg-surface-elevated text-text-muted uppercase text-2xs tracking-wider border-b border-border-subtle sticky top-0 z-10">
                   <tr>
                     <th scope="col" className="px-4 py-3">Ativo</th>
                     <th scope="col" className="px-4 py-3 text-right">Preço</th>
@@ -462,51 +462,51 @@ export function RadarTab() {
                       >
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1.5">
-                            <span className="font-bold text-text-primary">{item.ticker}</span>
-                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-surface-input text-text-muted border border-border-subtle font-semibold">
+                            <span className="font-semibold text-text-primary">{item.ticker}</span>
+                            <span className="text-2xs px-1.5 py-0.5 rounded-md bg-surface-input text-text-muted border border-border-subtle font-semibold">
                               {item.asset_type === 'FII' ? <Building2 size={10} className="inline mr-0.5" /> : <TrendingUp size={10} className="inline mr-0.5" />}
                               {item.asset_type}
                             </span>
                             {item.in_portfolio && (
-                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-accent-soft text-accent font-bold">
+                              <span className="text-2xs px-1.5 py-0.5 rounded-md bg-accent-soft text-accent font-semibold">
                                 Em carteira
                               </span>
                             )}
                           </div>
-                          <div className="text-[10px] text-text-muted truncate max-w-[200px]">
+                          <div className="text-2xs text-text-muted truncate max-w-[200px]">
                             {item.name} • {item.sector}
                           </div>
                         </td>
 
-                        <td className="px-4 py-3 text-right font-mono font-semibold text-text-primary whitespace-nowrap">
+                        <td className="px-4 py-3 text-right font-mono font-semibold tabular-nums text-text-primary whitespace-nowrap">
                           <div>{money(item.price)}</div>
                           {item.change_percent !== null && (
-                            <div className={`text-[10px] ${item.change_percent >= 0 ? 'text-status-success' : 'text-status-error'}`}>
+                            <div className={`text-2xs ${item.change_percent >= 0 ? 'text-status-success' : 'text-status-error'}`}>
                               {item.change_percent > 0 ? '+' : ''}
                               {item.change_percent.toFixed(2)}%
                             </div>
                           )}
                         </td>
 
-                        <td className="px-4 py-3 text-right font-mono font-bold text-status-success whitespace-nowrap">
+                        <td className="px-4 py-3 text-right font-mono font-semibold tabular-nums text-status-success whitespace-nowrap">
                           {item.dy_12m !== null ? `${item.dy_12m.toFixed(2)}%` : 'N/D'}
                         </td>
 
-                        <td className="px-4 py-3 text-right font-mono whitespace-nowrap">
+                        <td className="px-4 py-3 text-right font-mono tabular-nums whitespace-nowrap">
                           <div className="font-semibold text-text-primary">
                             {item.bazin_price ? money(item.bazin_price) : 'N/D'}
                           </div>
                           {mgBazin !== null && mgBazin !== undefined && (
-                            <div className={`text-[10px] font-bold ${mgBazin >= 0 ? 'text-status-success' : 'text-status-error'}`}>
+                            <div className={`text-2xs font-semibold ${mgBazin >= 0 ? 'text-status-success' : 'text-status-error'}`}>
                               {mgBazin > 0 ? '+' : ''}
                               {mgBazin.toFixed(1)}%
                             </div>
                           )}
                         </td>
 
-                        <td className="px-4 py-3 text-right font-mono whitespace-nowrap">
+                        <td className="px-4 py-3 text-right font-mono tabular-nums whitespace-nowrap">
                           {item.asset_type === 'FII' ? (
-                            <span className={`font-bold ${(item.pvp || 9) <= 1.0 ? 'text-status-success' : 'text-text-primary'}`}>
+                            <span className={`font-semibold ${(item.pvp || 9) <= 1.0 ? 'text-status-success' : 'text-text-primary'}`}>
                               {item.pvp ? `${item.pvp.toFixed(2)}x` : 'N/D'}
                             </span>
                           ) : (
@@ -515,7 +515,7 @@ export function RadarTab() {
                                 {item.graham_price ? money(item.graham_price) : 'N/D'}
                               </div>
                               {item.margin_graham_pct !== null && item.margin_graham_pct !== undefined && (
-                                <div className={`text-[10px] font-bold ${item.margin_graham_pct >= 0 ? 'text-status-success' : 'text-status-error'}`}>
+                                <div className={`text-2xs font-semibold ${item.margin_graham_pct >= 0 ? 'text-status-success' : 'text-status-error'}`}>
                                   {item.margin_graham_pct > 0 ? '+' : ''}
                                   {item.margin_graham_pct.toFixed(0)}%
                                 </div>
@@ -524,12 +524,12 @@ export function RadarTab() {
                           )}
                         </td>
 
-                        <td className="px-4 py-3 text-right font-mono whitespace-nowrap">
+                        <td className="px-4 py-3 text-right font-mono tabular-nums whitespace-nowrap">
                           <div className="text-text-primary font-semibold">
                             {item.roe !== null ? `ROE ${item.roe.toFixed(1)}%` : item.pl !== null ? `P/L ${item.pl.toFixed(1)}x` : 'N/D'}
                           </div>
                           {item.magic_score !== null && (
-                            <div className="text-[10px] text-accent font-bold">
+                            <div className="text-2xs text-accent font-semibold">
                               Magic: {item.magic_score.toFixed(0)} pts
                             </div>
                           )}
@@ -537,7 +537,7 @@ export function RadarTab() {
 
                         <td className="px-4 py-3 text-right whitespace-nowrap">
                           <div className="flex flex-col items-end gap-1">
-                            <span className="font-mono font-bold text-text-primary">{q}/100</span>
+                            <span className="font-mono font-semibold tabular-nums text-text-primary">{q}/100</span>
                             <div className="w-16 h-1.5 rounded-full bg-surface-input overflow-hidden">
                               <div className={`h-full ${qBarCls}`} style={{ width: `${Math.max(4, q)}%` }} />
                             </div>
@@ -570,7 +570,7 @@ export function RadarTab() {
       {inspectedAsset && (
         <ModalShell
           onClose={() => setInspectedAsset(null)}
-          title={`Valuation & Checklist — ${inspectedAsset.ticker}`}
+          title={`Valuation & Checklist: ${inspectedAsset.ticker}`}
           subtitle={inspectedAsset.asset_type || 'B3'}
           icon={<ShieldCheck size={20} />}
           maxWidth="2xl"
