@@ -334,6 +334,14 @@ def update_fundamentals(dolar_rate_callback, state_dict=None, user_id=None):
             ):
                 # Fallback/override via CVM Equity / MarketCap when Yahoo bookValue is missing or Unit-distorted (e.g. SAPR4)
                 vpa = float(current_price) * (cvm_equity_map[cvm_code] / float(market_cap))
+            if (
+                category_name == "Ação"
+                and ticker_raw[-1:] in ("3", "4", "5", "6")
+                and vpa
+                and current_price > 0
+                and (float(current_price) / float(vpa)) < 0.22
+            ):
+                vpa = float(vpa) / 5.0
 
             # Check for upcoming splits
             upcoming_split_val = None

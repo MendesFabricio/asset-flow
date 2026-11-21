@@ -747,7 +747,24 @@ def test_fetch_ticker_fundamentals_scales_unit_distorted_vpa_for_sapr4():
     )
     with patch("infrastructure.screener_service.yf.Ticker", return_value=fake_yt):
         res = fetch_ticker_fundamentals("SAPR4", asset_type="Ação")
+        res_ov = fetch_ticker_fundamentals("SAPR4", asset_type="Ação", db_overrides={"vpa": 41.05})
 
     assert res is not None
     assert res["vpa"] == pytest.approx(8.2096, abs=0.01)
     assert res["pvp"] == pytest.approx(6.62 / 8.2096, abs=0.05)
+    assert res_ov is not None
+    assert res_ov["vpa"] == pytest.approx(8.21, abs=0.01)
+    assert res_ov["pvp"] == pytest.approx(6.62 / 8.21, abs=0.05)
+
+    fake_etf = SimpleNamespace(
+        info={"currentPrice": 46.99, "previousClose": 46.50, "quoteType": "ETF"},
+        dividends=pd.Series(dtype=float),
+    )
+    with patch("infrastructure.screener_service.yf.Ticker", return_value=fake_etf):
+        res_eth = fetch_ticker_fundamentals(
+            "ETHY11",
+            asset_type="Cripto",
+            db_overrides={"local_div_fallback": 18.3177},
+        )
+    assert res_eth is not None
+    assert res_eth["dy_12m"] == pytest.approx(round((18.3177 / 46.99) * 100.0, 2), abs=0.02)

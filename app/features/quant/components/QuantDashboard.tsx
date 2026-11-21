@@ -44,6 +44,8 @@ import {
 } from 'recharts';
 
 import { useToast } from '@/context/ToastContext';
+import { usePrivacy } from '@/context/PrivacyContext';
+import { formatMoney } from '@/lib/format';
 import type { Asset } from '@/types';
 import { useQuantData } from '../hooks/useQuantData';
 import { useDcaSimulation } from '../hooks/useDcaSimulation';
@@ -51,6 +53,7 @@ import { useQuantReports } from '../hooks/useQuantReports';
 
 export const QuantDashboard = React.memo(function QuantDashboard({ ativos }: { ativos?: Asset[] }) {
   const { notify } = useToast();
+  const { isHidden } = usePrivacy();
   const [activeTab, setActiveTab] = useState<'performance' | 'optimization' | 'simulations' | 'reports'>('performance');
 
   // Slider State (Aversão ao Risco)
@@ -67,6 +70,8 @@ export const QuantDashboard = React.memo(function QuantDashboard({ ativos }: { a
     attributionData,
     kellyData,
     momentumData,
+    sharpeRollingData,
+    exposureData,
     markowitz,
     riskParity,
     currentAlloc,
@@ -119,6 +124,39 @@ export const QuantDashboard = React.memo(function QuantDashboard({ ativos }: { a
     if (name === 'Volatilidade') return [`${value ?? 0}% a.a.`, String(name)];
     return [value ?? '', String(name ?? '')];
   };
+
+  // Accordion: Correlação será abaixo; prepara séries de Sharpe Rolling & Exposição Setorial
+  const rollingChartData = useMemo(() => {
+    const dates = sharpeRollingData?.dates;
+    const port = sharpeRollingData?.series?.portfolio;
+    if (!dates || !port || dates.length === 0) return [];
+    const len = Math.min(dates.length, port.length);
+    const items: { date: string; label: string; sharpe: number }[] = [];
+    for (let i = 0; i < len; i++) {
+      const d = dates[i];
+      const parts = d.split('-');
+      const label = parts.length === 3 ? `${parts[2]}/${parts[1]}` : d;
+      items.push({ date: d, label, sharpe: Number(port[i] ?? 0) });
+    }
+    return items;
+  }, [sharpeRollingData]);
+
+  const sectorExposureRows = useMemo(() => {
+    if (!exposureData) return { rows: [], total: 0, maxPct: 0 };
+    const raw = Object.entries(exposureData).map(([sector, tickers]) => {
+      const entries = Object.entries(tickers || {}).sort((a, b) => b[1] - a[1]);
+      const sectorTotal = entries.reduce((acc, [, v]) => acc + (Number(v) || 0), 0);
+      return { sector, sectorTotal, tickers: entries };
+    }).filter((r) => r.sectorTotal > 0);
+    const grandTotal = raw.reduce((acc, r) => acc + r.sectorTotal, 0);
+    const rows = raw
+      .sort((a, b) => b.sectorTotal - a.sectorTotal)
+      .map((r) => ({
+        ...r,
+        pct: grandTotal > 0 ? (r.sectorTotal / grandTotal) * 100 : 0,
+      }));
+    return { rows, total: grandTotal, maxPct: rows[0]?.pct ?? 0 };
+  }, [exposureData]);
 
   // Otimizando o Render do ScatterChart (Pesado)
   const renderScatterChart = useMemo(() => {
@@ -1102,6 +1140,122 @@ export const QuantDashboard = React.memo(function QuantDashboard({ ativos }: { a
                       ))}
                     </tbody>
                   </table>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Sharpe Rolling (Janela 60d) & Exposição Setorial */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Sharpe Rolling */}
+            <div className="bg-surface-card border border-border-subtle rounded-xl p-5 flex flex-col gap-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-sky-500/10 rounded-lg border border-sky-500/20 text-sky-400">
+                    <Activity size={16} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-text-primary">Sharpe Rolling (Janela 60d)</h3>
+                    <p className="text-[11px] text-text-secondary">Evolução da relação retorno/risco ajustada à Selic</p>
+                  </div>
+                </div>
+                {rollingChartData.length > 0 && (
+                  <span className={`text-[10px] font-mono px-2 py-0.5 rounded bg-surface border border-border-subtle font-semibold ${
+                    rollingChartData[rollingChartData.length - 1].sharpe >= 0 ? 'text-emerald-400' : 'text-rose-400'
+                  }`}>
+                    Atual: {rollingChartData[rollingChartData.length - 1].sharpe.toFixed(2)}
+                  </span>
+                )}
+              </div>
+
+              {loading ? (
+                <div className="py-10 text-center text-xs text-text-secondary">Calculando série de Sharpe móvel...</div>
+              ) : rollingChartData.length === 0 ? (
+                <div className="py-10 text-center text-xs text-text-secondary">Histórico insuficiente para Sharpe Rolling (mín. 60 pregões).</div>
+              ) : (
+                <div className="h-[220px] w-full">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                    <LineChart data={rollingChartData} margin={{ top: 8, right: 12, left: -12, bottom: 4 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.15)" />
+                      <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#94a3b8' }} minTickGap={24} />
+                      <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} />
+                      <Tooltip
+                        contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', fontSize: '11px' }}
+                        formatter={(value) => [Number(value).toFixed(3), 'Sharpe 60d']}
+                        labelFormatter={(_, payload) => (payload?.[0]?.payload?.date ? `Pregão: ${payload[0].payload.date}` : '')}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="sharpe"
+                        name="Carteira"
+                        stroke="#38bdf8"
+                        strokeWidth={2}
+                        dot={false}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </div>
+
+            {/* Exposição Setorial & Concentração */}
+            <div className="bg-surface-card border border-border-subtle rounded-xl p-5 flex flex-col gap-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-indigo-500/10 rounded-lg border border-indigo-500/20 text-indigo-400">
+                    <Compass size={16} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-text-primary">Exposição Setorial & Concentração</h3>
+                    <p className="text-[11px] text-text-secondary">Distribuição patrimonial por setor econômico</p>
+                  </div>
+                </div>
+                {sectorExposureRows.rows.length > 0 && (
+                  <span className={`text-[10px] font-mono px-2 py-0.5 rounded border ${
+                    sectorExposureRows.maxPct > 30
+                      ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                      : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                  }`}>
+                    {sectorExposureRows.maxPct > 30 ? 'Concentração (>30%)' : 'Diversificada'}
+                  </span>
+                )}
+              </div>
+
+              {loading ? (
+                <div className="py-10 text-center text-xs text-text-secondary">Analisando exposição setorial...</div>
+              ) : sectorExposureRows.rows.length === 0 ? (
+                <div className="py-10 text-center text-xs text-text-secondary">Sem posições ativas para calcular exposição setorial.</div>
+              ) : (
+                <div className="flex flex-col gap-2.5 max-h-[220px] overflow-y-auto pr-1">
+                  {sectorExposureRows.rows.map((sec) => {
+                    const over = sec.pct > 30;
+                    const topTickers = sec.tickers.slice(0, 4).map(([t]) => t).join(', ');
+                    const moreCount = sec.tickers.length > 4 ? ` +${sec.tickers.length - 4}` : '';
+                    return (
+                      <div key={sec.sector} className="flex flex-col gap-1">
+                        <div className="flex items-center justify-between text-xs gap-2">
+                          <span className="font-semibold text-text-primary truncate">{sec.sector}</span>
+                          <div className="flex items-center gap-2 shrink-0 font-mono">
+                            <span className="text-text-secondary">
+                              {isHidden ? 'R$ •••••' : formatMoney(sec.sectorTotal)}
+                            </span>
+                            <span className={`font-bold ${over ? 'text-amber-400' : 'text-sky-400'}`}>
+                              {sec.pct.toFixed(1)}%
+                            </span>
+                          </div>
+                        </div>
+                        <div className="w-full h-1.5 rounded-full bg-surface overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${over ? 'bg-amber-400' : 'bg-indigo-400'}`}
+                            style={{ width: `${Math.min(100, Math.max(2, sec.pct))}%` }}
+                          />
+                        </div>
+                        <p className="text-[10px] text-text-secondary truncate">
+                          {topTickers}{moreCount}
+                        </p>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>

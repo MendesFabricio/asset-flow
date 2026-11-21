@@ -81,6 +81,17 @@ class CVMProcessor:
                 if not os.path.exists(zip_path):
                     return None
 
+        if os.path.isdir(cache_dir):
+            cutoff_year = ano_atual - 2
+            for fname in os.listdir(cache_dir):
+                if fname.startswith("itr_cia_aberta_") and fname.endswith(".zip"):
+                    try:
+                        y = int(fname[len("itr_cia_aberta_"):-4])
+                        if y < cutoff_year:
+                            os.remove(os.path.join(cache_dir, fname))
+                    except (ValueError, OSError):
+                        pass
+
         return zip_path if os.path.exists(zip_path) else None
 
     @staticmethod

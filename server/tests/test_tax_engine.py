@@ -317,3 +317,59 @@ def test_calculate_annual_irpf_separates_jcp_and_reserva_deposit(
     bens = _get_bens_e_direitos(pos_sess, user_id=1, year=date.today().year)
     assert len(bens) == 1
     assert bens[0]["total_cost"] == pytest.approx(9600.0)
+
+
+@patch('domain.tax.annual_irpf._get_bens_e_direitos', return_value=[])
+@patch('domain.tax.tax_engine._detect_day_trades')
+@patch('domain.tax.tax_engine.get_or_create_tax_profile')
+@patch('domain.tax.annual_irpf.Session')
+@patch('db.session.Session')
+def test_etf_and_options_swing_trade_not_exempt_under_20k(
+    mock_tax_sess_cls, mock_irpf_sess_cls, mock_profile, _mock_dt, _mock_bens
+):
+    from domain.tax.annual_irpf import calculate_annual_irpf
+
+    profile = MagicMock(
+        accumulated_loss_stocks_st=Decimal("0.0"),
+        accumulated_loss_stocks_dt=Decimal("0.0"),
+        accumulated_loss_fiis=Decimal("0.0"),
+        accumulated_darf_balance=Decimal("0.0"),
+    )
+    mock_profile.return_value = profile
+
+    tx_etf = MagicMock(
+        id=101,
+        ticker="COIN11",
+        type="SELL",
+        quantity=Decimal("100"),
+        cost_basis=Decimal("40.0"),
+        total_value=Decimal("5000.0"),
+        transaction_date=datetime(2026, 6, 10),
+        is_day_trade=False,
+        is_option=False,
+    )
+    cat_cripto = MagicMock()
+    cat_cripto.name = "Cripto"
+
+    for sess_cls in (mock_tax_sess_cls, mock_irpf_sess_cls):
+        sess = MagicMock()
+        sess_cls.return_value = sess
+        sess.__enter__.return_value = sess
+        sess.query.return_value.filter_by.return_value.first.return_value = profile
+        sess.query.return_value.filter.return_value.all.return_value = []
+        sess.query.return_value.join.return_value.join.return_value.filter.return_value.all.return_value = [
+            (tx_etf, MagicMock(ticker="COIN11"), cat_cripto)
+        ]
+
+    darf_res = calculate_monthly_darf(1, 6, 2026)
+    assert darf_res["sales_total_stocks"] == 0.0
+    assert darf_res["profits"]["stocks_st"] == pytest.approx(1000.0)
+    assert darf_res["taxable_profits"]["stocks_st"] == pytest.approx(1000.0)
+    assert darf_res["taxes"]["stocks_st"] == pytest.approx(150.0)
+    assert darf_res["darf"]["darf_to_pay"] == pytest.approx(150.0)
+
+    irpf_res = calculate_annual_irpf(user_id=1, year=2026)
+    june = next(m for m in irpf_res["renda_variavel"] if m["month"] == 6)
+    assert irpf_res["rendimentos_isentos"]["lucro_vendas_20k"] == pytest.approx(0.0)
+    assert june["profit_st"] == pytest.approx(1000.0)
+    assert june["tax_due"] == pytest.approx(150.0)

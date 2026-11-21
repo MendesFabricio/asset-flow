@@ -249,16 +249,6 @@ def fetch_ticker_fundamentals(
 
         lpa = _safe_float(info.get("trailingEps") or info.get("forwardEps"))
         vpa = _safe_float(info.get("bookValue"))
-        if (
-            inferred_type == "Ação"
-            and clean_ticker[-1:] in ("3", "4", "5", "6")
-            and not (ov.get("vpa") and ov["vpa"] > 0)
-            and vpa
-            and price
-            and (price / vpa) < 0.22
-        ):
-            # Yahoo ocasionalmente retorna bookValue na escala da Unit (ex.: SAPR11 = 5 ações em SAPR4)
-            vpa = round(vpa / 5.0, 4)
         pl = _safe_float(info.get("trailingPE")) or ((price / lpa) if (lpa and lpa > 0) else None)
         pvp = ((price / vpa) if (vpa and vpa > 0) else None) if (
             inferred_type == "Ação"
@@ -301,8 +291,21 @@ def fetch_ticker_fundamentals(
         if ov.get("vpa") and ov["vpa"] > 0:
             vpa = float(ov["vpa"])
             pvp = price / vpa
+        if (
+            inferred_type == "Ação"
+            and clean_ticker[-1:] in ("3", "4", "5", "6")
+            and vpa
+            and price
+            and (price / vpa) < 0.22
+        ):
+            # Yahoo e CVM/FNet ocasionalmente trazem VPA na escala da Unit (ex.: SAPR11 = 5 ações em SAPR4)
+            vpa = round(vpa / 5.0, 4)
+            pvp = price / vpa
         if ov.get("local_div_12m") and float(ov["local_div_12m"]) > 0:
             div_ps = float(ov["local_div_12m"])
+            dy_12m = round((div_ps / price) * 100.0, 2)
+        elif ov.get("local_div_fallback") and float(ov["local_div_fallback"]) > 0 and not div_ps and dy_12m is None:
+            div_ps = float(ov["local_div_fallback"])
             dy_12m = round((div_ps / price) * 100.0, 2)
         elif ov.get("dy") and ov["dy"] > 0 and not div_ps and dy_12m is None:
             dy_12m = round(float(ov["dy"]) * 100.0, 2)
@@ -421,21 +424,22 @@ def _collect_db_overrides(
         asset_divs = local_divs_by_asset.get(a.id) or []
         if asset_divs:
             valid_dates = [d.date_com for d in asset_divs if d.date_com]
-            if valid_dates and min(valid_dates) <= cutoff_coverage:
-                seen_div_events: set[tuple] = set()
-                div_sum = 0.0
-                for d in asset_divs:
-                    if not d.date_com or d.date_com < cutoff_12m_date:
-                        continue
-                    dtype = (d.type or "").lower()
-                    if "amort" in dtype:
-                        continue
-                    ev_key = (d.date_com, dtype, round(float(d.value_per_share or 0), 4))
-                    if ev_key in seen_div_events:
-                        continue
-                    seen_div_events.add(ev_key)
-                    div_sum += float(d.value_per_share or 0)
-                if div_sum > 0:
+            seen_div_events: set[tuple] = set()
+            div_sum = 0.0
+            for d in asset_divs:
+                if not d.date_com or d.date_com < cutoff_12m_date:
+                    continue
+                dtype = (d.type or "").lower()
+                if "amort" in dtype:
+                    continue
+                ev_key = (d.date_com, dtype, round(float(d.value_per_share or 0), 4))
+                if ev_key in seen_div_events:
+                    continue
+                seen_div_events.add(ev_key)
+                div_sum += float(d.value_per_share or 0)
+            if div_sum > 0:
+                entry["local_div_fallback"] = round(div_sum, 4)
+                if valid_dates and min(valid_dates) <= cutoff_coverage:
                     entry["local_div_12m"] = round(div_sum, 4)
 
         positions = a.positions or []

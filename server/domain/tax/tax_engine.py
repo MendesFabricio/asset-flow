@@ -7,6 +7,16 @@ from db.session import Session
 from db.models import AssetTransaction, TaxProfile, Asset, Category
 from utils.ticker_helper import extract_option_meta
 
+
+def is_non_exempt_swing_asset(tx, category) -> bool:
+    """ETFs, Opções, Cripto/Internacional e Renda Fixa não têm isenção de R$ 20k no swing trade."""
+    cat_name = category.name if isinstance(getattr(category, "name", None), str) else ""
+    return (
+        (getattr(tx, "is_option", False) is True)
+        or bool(extract_option_meta(tx.ticker))
+        or (cat_name in ("Opções", "ETF", "Internacional", "Cripto", "Renda Fixa"))
+    )
+
 def get_or_create_tax_profile(session, user_id: int) -> TaxProfile:
     profile = session.query(TaxProfile).filter_by(user_id=user_id).first()
     if not profile:
@@ -74,23 +84,25 @@ def calculate_monthly_darf(user_id: int, month: int, year: int) -> Dict[str, Any
         
         # Tracking buckets
         sales_total_stocks = Decimal("0.0")
-        
+
         profit_stocks_st = Decimal("0.0")
+        profit_non_exempt_st = Decimal("0.0")
         profit_stocks_dt = Decimal("0.0")
         profit_fiis = Decimal("0.0")
-        
+
         details = []
-        
+
         for tx, asset, category in sells:
             sale_value = tx.total_value or Decimal("0.0")
             if sale_value <= Decimal("0.0") and not getattr(tx, "is_option", False) and not extract_option_meta(tx.ticker):
                 continue
             cost_value = (tx.cost_basis or Decimal("0.0")) * tx.quantity
             profit = sale_value - cost_value
-            
+
             is_fii = (category.name == "FII")
             is_dt = tx.is_day_trade
-            
+            is_non_exempt_st = (not is_fii and not is_dt and is_non_exempt_swing_asset(tx, category))
+
             tx_detail = {
                 "id": tx.id,
                 "ticker": tx.ticker,
@@ -103,32 +115,43 @@ def calculate_monthly_darf(user_id: int, month: int, year: int) -> Dict[str, Any
                 "is_day_trade": is_dt
             }
             details.append(tx_detail)
-            
+
             if is_fii:
                 profit_fiis += profit
+            elif is_dt:
+                sales_total_stocks += sale_value
+                profit_stocks_dt += profit
+            elif is_non_exempt_st:
+                profit_non_exempt_st += profit
             else:
                 sales_total_stocks += sale_value
-                if is_dt:
-                    profit_stocks_dt += profit
-                else:
-                    profit_stocks_st += profit
-                    
-        # Apply Isenção de 20k para Ações (Swing Trade) — cálculo idempotente em memória
+                profit_stocks_st += profit
+
+        # Apply Isenção de 20k apenas para Ações no Swing Trade — cálculo idempotente em memória
         loss_stocks_st = Decimal(str(profile.accumulated_loss_stocks_st or 0))
         loss_stocks_dt = Decimal(str(profile.accumulated_loss_stocks_dt or 0))
         loss_fiis = Decimal(str(profile.accumulated_loss_fiis or 0))
         prev_darf_balance = Decimal(str(profile.accumulated_darf_balance or 0))
 
         is_exempt_stocks_st = (sales_total_stocks <= Decimal("20000.0"))
-        
+
         taxable_profit_stocks_st = Decimal("0.0")
         if profit_stocks_st < 0:
             loss_stocks_st += abs(profit_stocks_st)
         else:
             if not is_exempt_stocks_st:
                 deduction = min(profit_stocks_st, loss_stocks_st)
-                taxable_profit_stocks_st = profit_stocks_st - deduction
+                taxable_profit_stocks_st += profit_stocks_st - deduction
                 loss_stocks_st -= deduction
+
+        if profit_non_exempt_st < 0:
+            loss_stocks_st += abs(profit_non_exempt_st)
+        elif profit_non_exempt_st > 0:
+            deduction = min(profit_non_exempt_st, loss_stocks_st)
+            taxable_profit_stocks_st += profit_non_exempt_st - deduction
+            loss_stocks_st -= deduction
+
+        total_profit_st = profit_stocks_st + profit_non_exempt_st
                 
         # Day Trade Ações
         taxable_profit_stocks_dt = Decimal("0.0")
@@ -172,7 +195,7 @@ def calculate_monthly_darf(user_id: int, month: int, year: int) -> Dict[str, Any
             "sales_total_stocks": float(sales_total_stocks),
             "is_exempt_stocks_st": is_exempt_stocks_st,
             "profits": {
-                "stocks_st": float(profit_stocks_st),
+                "stocks_st": float(total_profit_st),
                 "stocks_dt": float(profit_stocks_dt),
                 "fiis": float(profit_fiis)
             },

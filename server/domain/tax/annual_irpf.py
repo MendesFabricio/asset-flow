@@ -170,7 +170,7 @@ def calculate_annual_irpf(user_id: int, year: int) -> Dict[str, Any]:
                 total_dividends += val
         
         # 3. Renda Variável (Mês a Mês) and Lucros Isentos
-        from domain.tax.tax_engine import get_or_create_tax_profile, _detect_day_trades
+        from domain.tax.tax_engine import get_or_create_tax_profile, _detect_day_trades, is_non_exempt_swing_asset
         profile = get_or_create_tax_profile(session, user_id)
         
         # Load starting losses 
@@ -202,51 +202,65 @@ def calculate_annual_irpf(user_id: int, year: int) -> Dict[str, Any]:
             month_sells = sells_by_month[month]
             
             sales_total_stocks = Decimal("0.0")
-            profit_st = Decimal("0.0")
+            profit_stocks_st = Decimal("0.0")
+            profit_non_exempt_st = Decimal("0.0")
             profit_dt = Decimal("0.0")
             profit_fii = Decimal("0.0")
-            
+
             irrf_st = Decimal("0.0")
             irrf_dt = Decimal("0.0")
             irrf_fii = Decimal("0.0")
-            
+
             for tx, asset, category in month_sells:
                 sale_value = tx.total_value or Decimal("0.0")
                 if sale_value <= Decimal("0.0") and not getattr(tx, "is_option", False) and not extract_option_meta(tx.ticker):
                     continue
                 cost_value = (tx.cost_basis or Decimal("0.0")) * tx.quantity
                 profit = sale_value - cost_value
-                
+
                 is_fii = (category.name == "FII")
                 is_dt = tx.is_day_trade
-                
+                is_non_exempt_st = (not is_fii and not is_dt and is_non_exempt_swing_asset(tx, category))
+
                 if is_fii:
                     profit_fii += profit
                     irrf_fii += sale_value * Decimal("0.00005")
+                elif is_dt:
+                    sales_total_stocks += sale_value
+                    profit_dt += profit
+                    if profit > 0:
+                        irrf_dt += profit * Decimal("0.01")
+                elif is_non_exempt_st:
+                    profit_non_exempt_st += profit
+                    irrf_st += sale_value * Decimal("0.00005")
                 else:
                     sales_total_stocks += sale_value
-                    if is_dt:
-                        profit_dt += profit
-                        if profit > 0:
-                            irrf_dt += profit * Decimal("0.01")
-                    else:
-                        profit_st += profit
-                        
+                    profit_stocks_st += profit
+
             is_exempt_stocks_st = (sales_total_stocks <= Decimal("20000.0"))
-            
+
             if not is_exempt_stocks_st:
-                irrf_st = sales_total_stocks * Decimal("0.00005")
-            
+                irrf_st += sales_total_stocks * Decimal("0.00005")
+
             taxable_st = Decimal("0.0")
-            if profit_st < 0:
-                loss_st += abs(profit_st)
+            if profit_stocks_st < 0:
+                loss_st += abs(profit_stocks_st)
             else:
                 if not is_exempt_stocks_st:
-                    deduction = min(profit_st, loss_st)
-                    taxable_st = profit_st - deduction
+                    deduction = min(profit_stocks_st, loss_st)
+                    taxable_st += profit_stocks_st - deduction
                     loss_st -= deduction
                 else:
-                    total_isentos_vendas += float(profit_st)
+                    total_isentos_vendas += float(profit_stocks_st)
+
+            if profit_non_exempt_st < 0:
+                loss_st += abs(profit_non_exempt_st)
+            elif profit_non_exempt_st > 0:
+                deduction = min(profit_non_exempt_st, loss_st)
+                taxable_st += profit_non_exempt_st - deduction
+                loss_st -= deduction
+
+            profit_st = profit_stocks_st + profit_non_exempt_st
                     
             taxable_dt = Decimal("0.0")
             if profit_dt < 0:

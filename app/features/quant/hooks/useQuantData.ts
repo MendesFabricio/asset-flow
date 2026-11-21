@@ -25,6 +25,14 @@ export interface MomentumRankingItem {
   momentum_score_pct: number;
 }
 
+export interface SharpeRollingData {
+  status: string;
+  dates?: string[];
+  series?: Record<string, number[]>;
+}
+
+export type SectorExposureData = Record<string, Record<string, number>>;
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 function computeAllocMapping(assetsList: { ticker?: string; total_atual?: number | string }[]): Record<string, number> {
@@ -53,6 +61,8 @@ export function useQuantData(riskAversion: number, ativos?: Asset[], activeTab: 
   const [attributionData, setAttributionData] = useState<AlphaAttributionData | null>(null);
   const [kellyData, setKellyData] = useState<KellyCriterionItem[]>([]);
   const [momentumData, setMomentumData] = useState<MomentumRankingItem[]>([]);
+  const [sharpeRollingData, setSharpeRollingData] = useState<SharpeRollingData | null>(null);
+  const [exposureData, setExposureData] = useState<SectorExposureData | null>(null);
   const [markowitz, setMarkowitz] = useState<Record<string, number>>({});
   const [riskParity, setRiskParity] = useState<Record<string, number>>({});
   const [fetchedAlloc, setFetchedAlloc] = useState<Record<string, number>>({});
@@ -72,12 +82,16 @@ export function useQuantData(riskAversion: number, ativos?: Asset[], activeTab: 
       apiCall<AlphaAttributionData>('/api/quant/attribution-analysis'),
       apiCall<{ status: string; data?: KellyCriterionItem[] }>('/api/quant/kelly-criterion').catch(() => ({ status: 'Erro', data: [] })),
       apiCall<{ status: string; data?: MomentumRankingItem[] }>('/api/quant/momentum-ranking').catch(() => ({ status: 'Erro', data: [] })),
+      apiCall<SharpeRollingData>('/api/quant/sharpe-rolling').catch(() => ({ status: 'Erro' })),
+      apiCall<SectorExposureData>('/api/simulation/exposure').catch(() => null),
     ])
-      .then(([rebalance, attribution, kelly, momentum]) => {
+      .then(([rebalance, attribution, kelly, momentum, sharpeRolling, exposure]) => {
         setRebalanceData(rebalance.status === 'Sucesso' ? rebalance : null);
         setAttributionData(attribution.status === 'Sucesso' ? attribution : null);
         setKellyData(kelly.status === 'Sucesso' && Array.isArray(kelly.data) ? kelly.data : []);
         setMomentumData(momentum.status === 'Sucesso' && Array.isArray(momentum.data) ? momentum.data : []);
+        setSharpeRollingData(sharpeRolling.status === 'Sucesso' ? sharpeRolling : null);
+        setExposureData(exposure && typeof exposure === 'object' && !('status' in exposure) ? exposure : null);
       })
       .catch((err) => {
         console.error(err);
@@ -86,6 +100,8 @@ export function useQuantData(riskAversion: number, ativos?: Asset[], activeTab: 
         setAttributionData(null);
         setKellyData([]);
         setMomentumData([]);
+        setSharpeRollingData(null);
+        setExposureData(null);
       })
       .finally(() => setLoading(false));
 
@@ -157,6 +173,8 @@ export function useQuantData(riskAversion: number, ativos?: Asset[], activeTab: 
     attributionData,
     kellyData,
     momentumData,
+    sharpeRollingData,
+    exposureData,
     markowitz,
     riskParity,
     currentAlloc,

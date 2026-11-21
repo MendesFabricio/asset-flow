@@ -119,17 +119,12 @@ export function StatementImportModal({
       const formData = new FormData();
       formData.append('file', file);
 
-      // Usamos fetch direto para suportar FormData com credenciais e cookies
-      const res = await fetch('/api/statements/parse', {
+      const json = await apiCall<{ status: string; msg?: string; data: ParsedData }>('/api/statements/parse', {
         method: 'POST',
         body: formData,
-        headers: {
-          // Não define Content-Type para o browser preencher boundary no FormData
-        }
       });
 
-      const json = await res.json();
-      if (!res.ok || json.status === 'Erro') {
+      if (json.status === 'Erro') {
         throw new Error(json.msg || 'Erro ao processar arquivo.');
       }
 

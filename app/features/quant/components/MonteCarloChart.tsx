@@ -5,6 +5,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 import { usePrivacy } from '@/context/PrivacyContext';
+import { apiCall } from '@/lib/api';
 import { Card } from '@/components/ui/Card';
 import { BrainCircuit, Info, HelpCircle } from 'lucide-react';
 
@@ -37,8 +38,7 @@ export const MonteCarloChart = React.memo(function MonteCarloChart() {
     // ⚡ BLINDAGEM DE MEMÓRIA: Injetado o AbortController para abortar chamadas pendentes no desmonte
     const controller = new AbortController();
 
-    fetch('/api/simulation', { signal: controller.signal })
-      .then(res => res.json() as Promise<SimulationApiResponse>)
+    apiCall<SimulationApiResponse>('/api/simulation', { signal: controller.signal })
       .then(d => {
         // Alimenta o estado do React apenas se a requisição não tiver sido abortada
         if (!controller.signal.aborted && d.status === 'Sucesso') {

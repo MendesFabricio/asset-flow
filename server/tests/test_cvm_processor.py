@@ -156,3 +156,18 @@ def test_ensure_cvm_zip_refreshes_stale_current_year_on_size_change(tmp_path):
 def test_format_brl_compact():
     assert _format_brl_compact(2_952_303_000.0) == "R$ 2,95 bi"
     assert _format_brl_compact(-322_880_000.0) == "-R$ 322,88 mi"
+
+
+def test_ensure_cvm_zip_prunes_older_than_two_years(tmp_path):
+    cur_year = datetime.now().year
+    old_zip = tmp_path / f"itr_cia_aberta_{cur_year - 3}.zip"
+    recent_zip = tmp_path / f"itr_cia_aberta_{cur_year - 1}.zip"
+    old_zip.write_bytes(b"stale")
+    recent_zip.write_bytes(b"recent")
+
+    with patch("utils.cvm_processor.requests.head", return_value=MagicMock(status_code=200, headers={"Content-Length": str(len(b'recent'))})):
+        res = CVMProcessor._ensure_cvm_zip(str(tmp_path), cur_year - 1, cur_year)
+
+    assert res == str(recent_zip)
+    assert recent_zip.exists()
+    assert not old_zip.exists()

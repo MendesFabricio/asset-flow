@@ -8,6 +8,7 @@ import {
   Download, Database
 } from 'lucide-react';
 import { useToast } from '@/context/ToastContext';
+import { apiCall } from '@/lib/api';
 import { UnifiedImportModal } from '@/features/transactions/components/UnifiedImportModal';
 import { Asset } from '@/types';
 
@@ -62,11 +63,7 @@ async function exportTreatedHistoryJSON(
   notify: (msg: string, type?: 'success' | 'error' | 'info') => void
 ) {
   try {
-    const res = await fetch('/api/portfolio/export-history');
-    if (!res.ok) {
-      throw new Error('Falha ao baixar histórico tratado');
-    }
-    const payload = await res.json();
+    const payload = await apiCall<Record<string, unknown>>('/api/portfolio/export-history');
     const jsonText = JSON.stringify(payload, null, 2);
     const blob = new Blob([jsonText], { type: 'application/json;charset=utf-8;' });
     const url = URL.createObjectURL(blob);

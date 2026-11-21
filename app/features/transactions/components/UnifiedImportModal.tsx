@@ -92,12 +92,16 @@ export function UnifiedImportModal({ isOpen, onClose, onSuccess }: UnifiedImport
         for (const file of pdfFiles) {
           const formData = new FormData();
           formData.append('file', file);
-          const res = await fetch('/api/ocr/parse-brokerage-note', { method: 'POST', body: formData });
-          const data = await res.json();
-          if (res.ok && data.transactions) {
-            allNewTxs.push(...data.transactions);
-            if (data.date) lastDate = data.date;
-          }
+          try {
+            const data = await apiCall<{ transactions?: ParsedTransaction[]; date?: string }>(
+              '/api/ocr/parse-brokerage-note',
+              { method: 'POST', body: formData }
+            );
+            if (data.transactions) {
+              allNewTxs.push(...data.transactions);
+              if (data.date) lastDate = data.date;
+            }
+          } catch {}
         }
         
         if (allNewTxs.length === 0) {
@@ -123,11 +127,12 @@ export function UnifiedImportModal({ isOpen, onClose, onSuccess }: UnifiedImport
         for (const file of pdfFiles) {
           const formData = new FormData();
           formData.append('file', file);
-          const res = await fetch('/api/ocr/parse-b3-extract', { method: 'POST', body: formData });
-          const data = await res.json();
-          
-          if (!res.ok) throw new Error(data.msg || `Erro ao processar o arquivo ${file.name}.`);
-          
+          const data = await apiCall<{
+            transactions?: ParsedTransaction[];
+            dividends?: ParsedTransaction[];
+            corporate_events_suggestions?: ParsedTransaction[];
+          }>('/api/ocr/parse-b3-extract', { method: 'POST', body: formData });
+
           if (data.transactions) allB3Txs.push(...data.transactions);
           if (data.dividends) allDividends.push(...data.dividends);
           if (data.corporate_events_suggestions) allCorporateEvents.push(...data.corporate_events_suggestions);
@@ -164,9 +169,8 @@ export function UnifiedImportModal({ isOpen, onClose, onSuccess }: UnifiedImport
       for (let i = 0; i < brokerageTxs.length; i++) {
         const tx = brokerageTxs[i];
         try {
-          const res = await fetch('/api/asset-transactions', {
+          await apiCall('/api/asset-transactions', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               ticker: tx.ticker.trim(),
               type: tx.type,
@@ -177,14 +181,9 @@ export function UnifiedImportModal({ isOpen, onClose, onSuccess }: UnifiedImport
               force_duplicate: tx.force_duplicate
             })
           });
-          
-          if (res.ok) {
-            successCount++;
-            newTransactions[i] = { ...tx, error: 'SUCCESS' };
-          } else {
-            const errData = await res.json();
-            newTransactions[i] = { ...tx, error: errData.msg || 'Erro' };
-          }
+
+          successCount++;
+          newTransactions[i] = { ...tx, error: 'SUCCESS' };
         } catch (err: unknown) {
           newTransactions[i] = { ...tx, error: err instanceof Error ? err.message : 'Erro' };
         }
@@ -222,9 +221,8 @@ export function UnifiedImportModal({ isOpen, onClose, onSuccess }: UnifiedImport
         if (div.type.toLowerCase().includes("rendimento")) typeVal = "RENDIMENTO";
         
         try {
-          const res = await fetch('/api/dividends', {
+          await apiCall('/api/dividends', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               ticker: div.ticker,
               type: typeVal,
@@ -232,11 +230,9 @@ export function UnifiedImportModal({ isOpen, onClose, onSuccess }: UnifiedImport
               date: div.date
             })
           });
-          
-          if (res.ok) {
-            successCount++;
-            newDividends[i] = { ...div, error: 'SUCCESS' };
-          }
+
+          successCount++;
+          newDividends[i] = { ...div, error: 'SUCCESS' };
         } catch {}
       }
 
@@ -286,9 +282,8 @@ export function UnifiedImportModal({ isOpen, onClose, onSuccess }: UnifiedImport
         if (tx.db_matched || tx.error === 'SUCCESS') continue;
 
         try {
-          const res = await fetch('/api/asset-transactions', {
+          await apiCall('/api/asset-transactions', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               ticker: tx.ticker.trim(),
               type: tx.type,
@@ -299,13 +294,8 @@ export function UnifiedImportModal({ isOpen, onClose, onSuccess }: UnifiedImport
             })
           });
 
-          if (res.ok) {
-            successCount++;
-            newB3Txs[i] = { ...tx, db_matched: true, error: 'SUCCESS' };
-          } else {
-            const errData = await res.json();
-            newB3Txs[i] = { ...tx, error: errData.msg || 'Erro' };
-          }
+          successCount++;
+          newB3Txs[i] = { ...tx, db_matched: true, error: 'SUCCESS' };
         } catch (err: unknown) {
           newB3Txs[i] = { ...tx, error: err instanceof Error ? err.message : 'Erro' };
         }
@@ -348,9 +338,7 @@ export function UnifiedImportModal({ isOpen, onClose, onSuccess }: UnifiedImport
 
   const handleExportBackup = async () => {
     try {
-      const res = await fetch('/api/portfolio/export-history');
-      if (!res.ok) throw new Error('Falha ao baixar histórico tratado');
-      const data = await res.json();
+      const data = await apiCall<Record<string, unknown>>('/api/portfolio/export-history');
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -393,16 +381,12 @@ export function UnifiedImportModal({ isOpen, onClose, onSuccess }: UnifiedImport
     if (!backupPayload) return;
     setIsImporting(true);
     try {
-      const res = await fetch('/api/portfolio/import-history', {
+      const data = await apiCall<{
+        imported?: { positions?: number; transactions?: number; dividends?: number };
+      }>('/api/portfolio/import-history', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...backupPayload, mode: backupMode }),
       });
-      const data = await res.json();
-      if (!res.ok) {
-        toast(data.msg || 'Erro ao restaurar histórico tratado.', 'error');
-        return;
-      }
       const imp = data.imported || {};
       toast(
         `Histórico restaurado! ${imp.positions ?? 0} posições, ${imp.transactions ?? 0} transações e ${imp.dividends ?? 0} proventos.`,
@@ -411,8 +395,8 @@ export function UnifiedImportModal({ isOpen, onClose, onSuccess }: UnifiedImport
       setBackupPayload(null);
       onSuccess();
       onClose();
-    } catch {
-      toast('Erro de conexão ao restaurar histórico tratado.', 'error');
+    } catch (err: unknown) {
+      toast(err instanceof Error ? err.message : 'Erro de conexão ao restaurar histórico tratado.', 'error');
     } finally {
       setIsImporting(false);
     }
