@@ -35,7 +35,7 @@ export function CategoryRow({
 
   let barColor = 'bg-accent';
   if (pctAtual > meta * 1.15) barColor = 'bg-status-warning';
-  else if (pctAtual < meta * 0.85) barColor = 'bg-sky-500';
+  else if (pctAtual < meta * 0.85) barColor = 'bg-accent';
 
   return (
     <tr className="hover:bg-surface-elevated transition-colors group relative">

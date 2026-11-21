@@ -308,7 +308,7 @@ export function ToolsMenu({
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold flex items-center justify-between">
                       <span>CVM (FNET Sync)</span>
-                      {syncingReports && <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse" />}
+                      {syncingReports && <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />}
                     </p>
                     <p className="text-2xs text-text-muted truncate">
                       {syncingReports ? syncStatus.message : "Fatos relevantes e PDFs de Fundos"}

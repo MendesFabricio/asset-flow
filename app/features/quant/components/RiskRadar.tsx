@@ -14,25 +14,25 @@ import { Alerta } from '@/types';
 const analyzeAlert = (text: string) => {
   const t = text.toLowerCase();
   if (t.includes('oportunidade') || t.includes('graham') || t.includes('desconto') || t.includes('desempenho')) {
-    return { icon: Sparkles, color: 'text-status-success', bg: 'bg-emerald-500/5', border: 'border-emerald-500/20', label: 'Desempenho / Op.' };
+    return { icon: Sparkles, color: 'text-status-success', bg: 'bg-status-success/5', border: 'border-status-success/20', label: 'Desempenho / Op.' };
   }
   if (t.includes('rebalancear') || t.includes('meta')) {
-    return { icon: Scale, color: 'text-status-warning', bg: 'bg-amber-500/5', border: 'border-amber-500/20', label: 'Ajuste' };
+    return { icon: Scale, color: 'text-status-warning', bg: 'bg-status-warning/5', border: 'border-status-warning/20', label: 'Ajuste' };
   }
   if (t.includes('correlação') || t.includes('correlacao')) {
-    return { icon: Activity, color: 'text-accent', bg: 'bg-purple-500/5', border: 'border-purple-500/20', label: 'Correlação EWMA' };
+    return { icon: Activity, color: 'text-accent', bg: 'bg-accent/5', border: 'border-accent/20', label: 'Correlação EWMA' };
   }
   if (t.includes('var') || t.includes('risco de cauda') || t.includes('queda') || t.includes('recuo')) {
-    return { icon: Siren, color: 'text-status-error', bg: 'bg-rose-500/5', border: 'border-rose-500/20', label: 'Risco / VaR' };
+    return { icon: Siren, color: 'text-status-error', bg: 'bg-status-error/5', border: 'border-status-error/20', label: 'Risco / VaR' };
   }
   if (t.includes('sistemático') || t.includes('sistematico') || t.includes('beta')) {
-    return { icon: ShieldCheck, color: 'text-accent', bg: 'bg-indigo-500/5', border: 'border-indigo-500/20', label: 'Métrica Quant' };
+    return { icon: ShieldCheck, color: 'text-accent', bg: 'bg-accent/5', border: 'border-accent/20', label: 'Métrica Quant' };
   }
   if (t.includes('esticado') || t.includes('rsi alto') || t.includes('alerta')) {
-    return { icon: Siren, color: 'text-status-error', bg: 'bg-rose-500/5', border: 'border-rose-500/20', label: 'Risco Elevado' };
+    return { icon: Siren, color: 'text-status-error', bg: 'bg-status-error/5', border: 'border-status-error/20', label: 'Risco Elevado' };
   }
   if (t.includes('mínima') || t.includes('fundo') || t.includes('suporte')) {
-    return { icon: Anchor, color: 'text-accent', bg: 'bg-cyan-500/5', border: 'border-cyan-500/20', label: 'Suporte' };
+    return { icon: Anchor, color: 'text-accent', bg: 'bg-accent/5', border: 'border-accent/20', label: 'Suporte' };
   }
   return { icon: Activity, color: 'text-text-muted', bg: 'bg-surface-input', border: 'border-border-subtle', label: 'Movimentação' };
 };
