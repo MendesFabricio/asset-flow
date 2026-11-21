@@ -27,13 +27,13 @@ export const SyncStatusIndicators = memo(function SyncStatusIndicators({
   return (
     <>
       {syncProcessing && (
-        <div className="fixed bottom-5 left-5 z-50 flex items-center gap-3 px-4 py-3 rounded-xl bg-surface-card border border-accent/30 shadow-md transition-all duration-300 animate-in slide-in-from-left-10 fade-in">
+        <div className="fixed bottom-5 left-5 z-50 flex items-center gap-3 px-4 py-3 rounded-xl bg-surface-card border border-accent/30 shadow-sm transition-opacity duration-150">
           <RefreshCw size={18} className="text-accent animate-spin" />
           <div className="flex flex-col">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-accent">
+            <span className="text-2xs font-semibold uppercase tracking-wider text-accent">
               Inteligência Operando
             </span>
-            <span className="text-xs font-semibold text-slate-200 tabular-nums">
+            <span className="text-xs font-semibold text-text-primary tabular-nums">
               {syncStatus.message || 'Processando lote de dados...'}
             </span>
           </div>
@@ -42,14 +42,14 @@ export const SyncStatusIndicators = memo(function SyncStatusIndicators({
 
       {fundProcessing && (
         <div
-          className={`fixed ${syncProcessing ? 'bottom-24' : 'bottom-5'} left-5 z-50 flex items-center gap-3 px-4 py-3 rounded-xl bg-surface-card border border-status-success/30 shadow-md transition-all duration-300 animate-in slide-in-from-left-10 fade-in`}
+          className={`fixed ${syncProcessing ? 'bottom-24' : 'bottom-5'} left-5 z-50 flex items-center gap-3 px-4 py-3 rounded-xl bg-surface-card border border-status-success/30 shadow-sm transition-opacity duration-150`}
         >
           <Brain size={18} className="text-status-success animate-pulse" />
           <div className="flex flex-col">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-status-success">
+            <span className="text-2xs font-semibold uppercase tracking-wider text-status-success">
               Valuation &amp; Múltiplos
             </span>
-            <span className="text-xs font-semibold text-slate-200">
+            <span className="text-xs font-semibold text-text-primary">
               {fundamentalsStatus.message || 'Conectando ao Yahoo Finance...'}
             </span>
           </div>

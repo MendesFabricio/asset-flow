@@ -11,6 +11,7 @@ import { apiCall } from '../lib/api';
 import { usePrivacy } from '../context/PrivacyContext';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
 import { useChartPalette } from '../lib/chartPalette';
+import { CHART_PALETTE_SERIES } from '../lib/colors';
 
 interface CardItem {
   id: number;
@@ -238,28 +239,28 @@ export function StatementImportModal({
     name,
     value
   }));
-  const COLORS = ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ec4899', '#06b6d4', '#ef4444', '#64748b'];
+  const COLORS = CHART_PALETTE_SERIES;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div className="bg-surface-card border border-border-subtle rounded-xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-lg overflow-hidden animate-in fade-in zoom-in-95 duration-[120ms]">
         
         {/* Header */}
-        <div className="p-6 border-b border-slate-800 flex items-center justify-between bg-slate-900/80 sticky top-0 z-10">
+        <div className="p-6 border-b border-border-subtle flex items-center justify-between bg-surface-elevated sticky top-0 z-10">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-blue-500/10 text-blue-400 rounded-xl">
+            <div className="p-2.5 bg-accent-soft text-accent rounded-xl">
               <Upload className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-white">Importar Extrato / Fatura</h2>
-              <p className="text-sm text-slate-400">
+              <h2 className="text-xl font-semibold text-text-primary">Importar Extrato / Fatura</h2>
+              <p className="text-sm text-text-muted">
                 Extraia gastos do PDF (Nubank/outros), Excel ou Word de forma inteligente
               </p>
             </div>
           </div>
           <button 
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800/60 transition-colors"
+            className="p-2 text-text-muted hover:text-text-primary rounded-lg hover:bg-surface-input transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -268,7 +269,7 @@ export function StatementImportModal({
         {/* Body */}
         <div className="p-6 overflow-y-auto flex-1 space-y-6">
           {errorMsg && (
-            <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl flex items-center gap-3 text-red-400 text-sm">
+            <div className="p-4 bg-status-error/10 border border-status-error/30 rounded-xl flex items-center gap-3 text-status-error text-sm">
               <AlertCircle className="w-5 h-5 flex-shrink-0" />
               <span>{errorMsg}</span>
             </div>
@@ -277,16 +278,16 @@ export function StatementImportModal({
           {!parsedData ? (
             /* PASSO 1: UPLOAD E SELEÇÃO DE CARTÃO */
             <div className="space-y-6">
-              <div className="bg-slate-800/40 p-5 rounded-xl border border-slate-700/60 space-y-4">
-                <label className="block text-sm font-semibold text-slate-200">
+              <div className="bg-surface-elevated p-5 rounded-xl border border-border-subtle space-y-4">
+                <label className="block text-sm font-semibold text-text-primary">
                   1. Selecione o Cartão de Crédito de Destino
                 </label>
                 <div className="relative">
-                  <CreditCard className="w-5 h-5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <CreditCard className="w-5 h-5 text-text-muted absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <select
                     value={selectedCardId}
                     onChange={(e) => setSelectedCardId(e.target.value ? Number(e.target.value) : '')}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl pl-11 pr-4 py-3 text-white focus:outline-none focus:border-blue-500 transition-colors appearance-none"
+                    className="w-full bg-surface-input border border-border-subtle rounded-lg pl-11 pr-4 py-3 text-text-primary focus:outline-none focus:border-accent transition-colors appearance-none"
                   >
                     <option value="">-- Escolha um cartão cadastrado --</option>
                     {cards.map((c) => (
@@ -297,18 +298,18 @@ export function StatementImportModal({
                   </select>
                 </div>
                 {cards.length === 0 && (
-                  <p className="text-xs text-amber-400">
+                  <p className="text-xs text-status-warning">
                     Nenhum cartão encontrado. Cadastre um cartão na aba antes de importar.
                   </p>
                 )}
               </div>
 
-              <div className="bg-slate-800/40 p-5 rounded-xl border border-slate-700/60 space-y-4">
-                <label className="block text-sm font-semibold text-slate-200">
+              <div className="bg-surface-elevated p-5 rounded-xl border border-border-subtle space-y-4">
+                <label className="block text-sm font-semibold text-text-primary">
                   2. Anexe o Arquivo de Relatório / Extrato
                 </label>
                 
-                <div className="border-2 border-dashed border-slate-700 hover:border-blue-500/60 rounded-2xl p-8 text-center transition-colors bg-slate-900/40 relative">
+                <div className="border-2 border-dashed border-border-subtle hover:border-accent/60 rounded-xl p-8 text-center transition-colors bg-surface relative">
                   <input
                     type="file"
                     accept=".pdf,.xlsx,.xls,.docx,.csv"
@@ -316,19 +317,19 @@ export function StatementImportModal({
                     className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
                   />
                   <div className="flex flex-col items-center justify-center space-y-3">
-                    <div className="p-4 bg-slate-800 rounded-full text-blue-400">
+                    <div className="p-4 bg-surface-input rounded-lg text-accent">
                       <FileText className="w-8 h-8" />
                     </div>
                     <div>
-                      <p className="text-white font-medium">
+                      <p className="text-text-primary font-medium">
                         {file ? file.name : 'Clique para escolher ou arraste o arquivo aqui'}
                       </p>
-                      <p className="text-xs text-slate-400 mt-1">
+                      <p className="text-xs text-text-muted mt-1">
                         Suporta arquivos PDF (faturas e relatórios), Excel (.xlsx/.xls) ou Word (.docx)
                       </p>
                     </div>
                     {file && (
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                      <span className="inline-flex items-center px-3 py-1 rounded-md text-xs font-medium bg-accent-soft text-accent border border-accent/30 tabular-nums">
                         Pronto para análise ({(file.size / 1024).toFixed(1)} KB)
                       </span>
                     )}
@@ -340,7 +341,7 @@ export function StatementImportModal({
                 <button
                   onClick={handleParseFile}
                   disabled={loading || !file || !selectedCardId}
-                  className="px-6 py-3.5 rounded-xl font-semibold text-white bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2 shadow-lg shadow-blue-600/20"
+                  className="px-6 py-3.5 rounded-lg font-semibold text-white bg-accent hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
                 >
                   {loading ? (
                     <>
@@ -361,27 +362,27 @@ export function StatementImportModal({
             <div className="space-y-6">
               {/* Cards de Resumo */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="bg-slate-800/60 p-4 rounded-xl border border-slate-700/60">
-                  <span className="text-xs text-slate-400 font-medium uppercase">Período</span>
-                  <p className="text-sm font-semibold text-white mt-1 truncate">
+                <div className="bg-surface-elevated p-4 rounded-xl border border-border-subtle">
+                  <span className="text-xs text-text-muted font-medium uppercase">Período</span>
+                  <p className="text-sm font-semibold text-text-primary mt-1 truncate">
                     {parsedData.period || 'Período não especificado'}
                   </p>
                 </div>
-                <div className="bg-slate-800/60 p-4 rounded-xl border border-slate-700/60">
-                  <span className="text-xs text-slate-400 font-medium uppercase">Total de Entradas</span>
-                  <p className="text-lg font-bold text-emerald-400 mt-1">
+                <div className="bg-surface-elevated p-4 rounded-xl border border-border-subtle">
+                  <span className="text-xs text-text-muted font-medium uppercase">Total de Entradas</span>
+                  <p className="text-lg font-semibold text-status-success mt-1 tabular-nums">
                     {money(parsedData.summary.total_entradas)}
                   </p>
                 </div>
-                <div className="bg-slate-800/60 p-4 rounded-xl border border-slate-700/60">
-                  <span className="text-xs text-slate-400 font-medium uppercase">Total de Saídas</span>
-                  <p className="text-lg font-bold text-rose-400 mt-1">
+                <div className="bg-surface-elevated p-4 rounded-xl border border-border-subtle">
+                  <span className="text-xs text-text-muted font-medium uppercase">Total de Saídas</span>
+                  <p className="text-lg font-semibold text-status-error mt-1 tabular-nums">
                     {money(parsedData.summary.total_saidas)}
                   </p>
                 </div>
-                <div className="bg-slate-800/60 p-4 rounded-xl border border-slate-700/60">
-                  <span className="text-xs text-slate-400 font-medium uppercase">Saldo Final</span>
-                  <p className="text-lg font-bold text-blue-400 mt-1">
+                <div className="bg-surface-elevated p-4 rounded-xl border border-border-subtle">
+                  <span className="text-xs text-text-muted font-medium uppercase">Saldo Final</span>
+                  <p className="text-lg font-semibold text-accent mt-1 tabular-nums">
                     {money(parsedData.summary.saldo_final)}
                   </p>
                 </div>
@@ -390,18 +391,18 @@ export function StatementImportModal({
               {/* Seletor de Mês e Gráfico de Pizza por Categoria */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Painel do Mês Detectado / Seletor */}
-                <div className="bg-slate-800/60 p-5 rounded-xl border border-slate-700/60 flex flex-col justify-between">
+                <div className="bg-surface-elevated p-5 rounded-xl border border-border-subtle flex flex-col justify-between">
                   <div>
-                    <div className="flex items-center gap-2 text-blue-400 text-xs font-bold uppercase tracking-wider mb-2">
+                    <div className="flex items-center gap-2 text-accent text-xs font-semibold uppercase tracking-wider mb-2">
                       <Calendar className="w-4 h-4" /> Mês da Fatura Detectado
                     </div>
-                    <p className="text-xl font-bold text-white mb-1">
+                    <p className="text-xl font-semibold text-text-primary mb-1">
                       {parsedData.detected_month_label || 'Mês de Referência'}
                     </p>
-                    <p className="text-xs text-slate-400 mb-4">
+                    <p className="text-xs text-text-muted mb-4">
                       As despesas selecionadas serão vinculadas a esta fatura/competência.
                     </p>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    <label className="block text-xs font-semibold text-text-primary mb-1">
                       Ajustar Competência (Mês/Ano):
                     </label>
                     <input
@@ -420,21 +421,21 @@ export function StatementImportModal({
                           setReferenceMonth(val);
                         }
                       }}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500 transition-colors"
+                      className="w-full bg-surface-input border border-border-subtle rounded-lg px-3 py-2 text-text-primary text-sm focus:outline-none focus:border-accent transition-colors"
                     />
                   </div>
-                  <div className="mt-4 pt-3 border-t border-slate-700/50 text-xs text-slate-400">
-                    💡 Pessoas físicas estão unificadas na fatia <strong>Transferências/Pessoas</strong>.
+                  <div className="mt-4 pt-3 border-t border-border-subtle text-xs text-text-muted">
+                    Pessoas físicas estão unificadas na fatia <strong>Transferências/Pessoas</strong>.
                   </div>
                 </div>
 
                 {/* Gráfico de Pizza interativo Recharts */}
-                <div className="lg:col-span-2 bg-slate-800/60 p-5 rounded-xl border border-slate-700/60 flex flex-col justify-between">
+                <div className="lg:col-span-2 bg-surface-elevated p-5 rounded-xl border border-border-subtle flex flex-col justify-between">
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                      <span>🥧 Distribuição por Categoria (Itens Selecionados)</span>
+                    <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
+                      <span>Distribuição por Categoria (Itens Selecionados)</span>
                     </h3>
-                    <span className="text-xs text-slate-400 font-medium">
+                    <span className="text-xs text-text-muted font-medium tabular-nums">
                       {selectedCount} {selectedCount === 1 ? 'item' : 'itens'} ({money(selectedTotal)})
                     </span>
                   </div>
@@ -464,13 +465,13 @@ export function StatementImportModal({
                             layout="vertical" 
                             verticalAlign="middle" 
                             align="right"
-                            wrapperStyle={{ fontSize: '12px', color: '#94a3b8' }}
+                            wrapperStyle={{ fontSize: '12px', color: palette.axis }}
                           />
                         </PieChart>
                       </ResponsiveContainer>
                     </div>
                   ) : (
-                    <div className="h-56 flex items-center justify-center text-slate-500 text-sm">
+                    <div className="h-56 flex items-center justify-center text-text-muted text-sm">
                       Selecione itens na tabela abaixo para visualizar o gráfico por categoria
                     </div>
                   )}
@@ -478,34 +479,34 @@ export function StatementImportModal({
               </div>
 
               {/* Barra de Seleção e Ações */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-slate-800/40 p-4 rounded-xl border border-slate-700/60">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-surface-elevated p-4 rounded-xl border border-border-subtle">
                 <div className="flex items-center gap-3">
                   <button
                     onClick={handleToggleSelectAll}
-                    className="flex items-center gap-2 text-sm font-medium text-slate-300 hover:text-white transition-colors"
+                    className="flex items-center gap-2 text-sm font-medium text-text-primary hover:text-accent transition-colors"
                   >
                     {rows.every(r => r.selected) ? (
-                      <CheckSquare className="w-5 h-5 text-blue-400" />
+                      <CheckSquare className="w-5 h-5 text-accent" />
                     ) : (
-                      <Square className="w-5 h-5 text-slate-500" />
+                      <Square className="w-5 h-5 text-text-muted" />
                     )}
                     <span>{rows.every(r => r.selected) ? 'Desmarcar Todos' : 'Selecionar Todos'}</span>
                   </button>
-                  <span className="text-slate-600">|</span>
-                  <span className="text-sm text-slate-300">
-                    <strong className="text-white">{selectedCount}</strong> de {rows.length} itens marcados para importar
+                  <span className="text-border-subtle">|</span>
+                  <span className="text-sm text-text-muted tabular-nums">
+                    <strong className="text-text-primary">{selectedCount}</strong> de {rows.length} itens marcados para importar
                   </span>
                 </div>
-                <div className="text-sm font-semibold text-blue-400">
+                <div className="text-sm font-semibold text-accent tabular-nums">
                   Total Selecionado: {money(selectedTotal)}
                 </div>
               </div>
 
               {/* Tabela de Transações */}
-              <div className="border border-slate-800 rounded-xl overflow-hidden bg-slate-900/50">
+              <div className="border border-border-subtle rounded-xl overflow-hidden bg-surface">
                 <div className="max-h-96 overflow-y-auto">
                   <table className="w-full text-left text-sm border-collapse">
-                    <thead className="bg-slate-800/80 sticky top-0 z-10 text-slate-400 text-xs uppercase font-semibold border-b border-slate-800">
+                    <thead className="bg-surface-elevated sticky top-0 z-10 text-text-muted text-xs uppercase font-semibold border-b border-border-subtle">
                       <tr>
                         <th className="p-3.5 w-12 text-center">Sel.</th>
                         <th className="p-3.5 w-28">Data</th>
@@ -515,25 +516,25 @@ export function StatementImportModal({
                         <th className="p-3.5 w-32 text-right">Valor</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-800/60">
+                    <tbody className="divide-y divide-border-subtle">
                       {rows.map((row) => (
                         <tr 
                           key={row.id} 
-                          className={`hover:bg-slate-800/40 transition-colors ${!row.selected ? 'opacity-50 bg-slate-900/30' : ''}`}
+                          className={`hover:bg-surface-elevated transition-colors ${!row.selected ? 'opacity-50' : ''}`}
                         >
                           <td className="p-3.5 text-center">
                             <button
                               onClick={() => handleToggleRow(row.id)}
-                              className="text-slate-400 hover:text-blue-400 transition-colors"
+                              className="text-text-muted hover:text-accent transition-colors"
                             >
                               {row.selected ? (
-                                <CheckSquare className="w-5 h-5 text-blue-400" />
+                                <CheckSquare className="w-5 h-5 text-accent" />
                               ) : (
                                 <Square className="w-5 h-5" />
                               )}
                             </button>
                           </td>
-                          <td className="p-3.5 text-slate-300 whitespace-nowrap text-xs">
+                          <td className="p-3.5 text-text-muted whitespace-nowrap text-xs tabular-nums">
                             {row.date}
                           </td>
                           <td className="p-3.5">
@@ -541,11 +542,11 @@ export function StatementImportModal({
                               type="text"
                               value={row.description}
                               onChange={(e) => handleDescriptionChange(row.id, e.target.value)}
-                              className="w-full bg-transparent border border-transparent hover:border-slate-700 focus:border-blue-500 rounded px-2 py-1 text-white text-sm focus:outline-none focus:bg-slate-900 transition-all"
+                              className="w-full bg-transparent border border-transparent hover:border-border-subtle focus:border-accent rounded-lg px-2 py-1 text-text-primary text-sm focus:outline-none focus:bg-surface-input transition-colors"
                             />
                           </td>
                           <td className="p-3.5">
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700/60">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-surface-input text-text-primary border border-border-subtle">
                               {row.category}
                             </span>
                           </td>
@@ -554,7 +555,7 @@ export function StatementImportModal({
                               value={row.installments_count}
                               onChange={(e) => handleInstallmentChange(row.id, Number(e.target.value))}
                               disabled={!row.selected}
-                              className="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-blue-500 transition-colors w-full"
+                              className="bg-surface-input border border-border-subtle rounded-lg px-2 py-1 text-xs text-text-primary focus:outline-none focus:border-accent transition-colors w-full"
                             >
                               {[...Array(12)].map((_, idx) => (
                                 <option key={idx + 1} value={idx + 1}>
@@ -563,8 +564,8 @@ export function StatementImportModal({
                               ))}
                             </select>
                           </td>
-                          <td className={`p-3.5 text-right font-semibold whitespace-nowrap ${
-                            row.signed_value < 0 ? 'text-rose-400' : 'text-emerald-400'
+                          <td className={`p-3.5 text-right font-semibold whitespace-nowrap tabular-nums ${
+                            row.signed_value < 0 ? 'text-status-error' : 'text-status-success'
                           }`}>
                             {row.signed_value < 0 ? '- ' : '+ '}
                             {money(Math.abs(row.value))}
@@ -577,10 +578,10 @@ export function StatementImportModal({
               </div>
 
               {/* Rodapé do Passo 2 */}
-              <div className="flex items-center justify-between pt-4 border-t border-slate-800">
+              <div className="flex items-center justify-between pt-4 border-t border-border-subtle">
                 <button
                   onClick={handleReset}
-                  className="px-4 py-2.5 rounded-xl font-medium text-slate-300 hover:text-white hover:bg-slate-800/60 transition-colors flex items-center gap-2 text-sm"
+                  className="px-4 py-2.5 rounded-lg font-medium text-text-primary hover:bg-surface-input transition-colors flex items-center gap-2 text-sm"
                 >
                   <ArrowLeft className="w-4 h-4" />
                   <span>Outro Arquivo</span>
@@ -588,14 +589,14 @@ export function StatementImportModal({
                 <div className="flex items-center gap-3">
                   <button
                     onClick={onClose}
-                    className="px-5 py-2.5 rounded-xl font-medium text-slate-400 hover:text-white hover:bg-slate-800/60 transition-colors text-sm"
+                    className="px-5 py-2.5 rounded-lg font-medium text-text-muted hover:text-text-primary hover:bg-surface-input transition-colors text-sm"
                   >
                     Cancelar
                   </button>
                   <button
                     onClick={handleConfirmImport}
                     disabled={submitting || selectedCount === 0}
-                    className="px-6 py-2.5 rounded-xl font-semibold text-white bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2 shadow-lg shadow-emerald-600/20 text-sm"
+                    className="px-6 py-2.5 rounded-lg font-semibold text-white bg-status-success hover:bg-status-success/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2 text-sm"
                   >
                     {submitting ? (
                       <>

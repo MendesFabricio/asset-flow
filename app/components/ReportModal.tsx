@@ -136,8 +136,8 @@ const ReportModal = ({ isOpen, onClose, ativo }: ReportModalProps) => {
         switch (tipo) {
             case 'risco': return { border: 'border-orange-500/20', bg: 'bg-orange-500/5', icon: <ShieldAlert size={14} className="text-orange-400" /> };
             case 'rentabilidade': return { border: 'border-purple-500/20', bg: 'bg-purple-500/5', icon: <PieChart size={14} className="text-purple-400" /> };
-            case 'caixa': return { border: 'border-emerald-500/20', bg: 'bg-emerald-500/5', icon: <Coins size={14} className="text-emerald-400" /> };
-            default: return { border: 'border-slate-700', bg: 'bg-slate-800/40', icon: <BarChart3 size={14} className="text-slate-500" /> };
+            case 'caixa': return { border: 'border-status-success/20', bg: 'bg-status-success/5', icon: <Coins size={14} className="text-status-success" /> };
+            default: return { border: 'border-border-subtle', bg: 'bg-surface-elevated', icon: <BarChart3 size={14} className="text-text-muted" /> };
         }
     };
 
@@ -149,31 +149,31 @@ const ReportModal = ({ isOpen, onClose, ativo }: ReportModalProps) => {
     ];
 
     return createPortal(
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-150">
-            <div className="bg-surface-card w-full max-w-md rounded-2xl border border-slate-800 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-[120ms]">
+            <div className="bg-surface-card w-full max-w-md rounded-xl border border-border-subtle shadow-lg overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-[120ms]">
 
                 {/* HEADER */}
-                <div className="flex justify-between items-center p-4 border-b border-slate-800 bg-slate-900/50">
+                <div className="flex justify-between items-center p-4 border-b border-border-subtle bg-surface-elevated">
                     <div className="flex items-center gap-3">
-                        <div className="bg-blue-600/20 p-2 rounded-lg border border-blue-500/30">
-                            <Layers size={18} className="text-blue-400" />
+                        <div className="bg-accent-soft p-2 rounded-lg border border-accent/30">
+                            <Layers size={18} className="text-accent" />
                         </div>
                         <div>
-                            <h3 className="text-white font-bold text-sm tracking-tight">{ativo.ticker}</h3>
-                            <p className="text-[10px] text-slate-500 uppercase font-black tracking-widest">Terminal Fundamentalista</p>
+                            <h3 className="text-text-primary font-semibold text-sm tracking-tight">{ativo.ticker}</h3>
+                            <p className="text-2xs text-text-muted uppercase font-semibold tracking-wider">Terminal Fundamentalista</p>
                         </div>
                     </div>
-                    <button type="button" onClick={onClose} className="p-2 hover:bg-slate-800 rounded-full text-slate-400 transition-colors">
+                    <button type="button" onClick={onClose} className="p-2 hover:bg-surface-input rounded-lg text-text-muted hover:text-text-primary transition-colors">
                         <X size={18} />
                     </button>
                 </div>
 
                 {/* ABAS PRINCIPAIS */}
-                <div className="flex p-1 bg-slate-900 border-b border-slate-800">
-                    <button type="button" onClick={() => setActiveTab('saude')} className={`flex-1 flex items-center justify-center gap-2 py-2 text-[10px] font-bold uppercase transition-all rounded-md ${activeTab === 'saude' ? 'bg-slate-800 text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}>
+                <div className="flex p-1 bg-surface-elevated border-b border-border-subtle">
+                    <button type="button" onClick={() => setActiveTab('saude')} className={`flex-1 flex items-center justify-center gap-2 py-2 text-2xs font-semibold uppercase transition-colors rounded-md ${activeTab === 'saude' ? 'bg-surface-card text-accent shadow-sm' : 'text-text-muted hover:text-text-primary'}`}>
                         <Activity size={14} /> Saúde e Risco
                     </button>
-                    <button type="button" onClick={() => setActiveTab('docs')} className={`flex-1 flex items-center justify-center gap-2 py-2 text-[10px] font-bold uppercase transition-all rounded-md ${activeTab === 'docs' ? 'bg-slate-800 text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}>
+                    <button type="button" onClick={() => setActiveTab('docs')} className={`flex-1 flex items-center justify-center gap-2 py-2 text-2xs font-semibold uppercase transition-colors rounded-md ${activeTab === 'docs' ? 'bg-surface-card text-accent shadow-sm' : 'text-text-muted hover:text-text-primary'}`}>
                         <FileText size={14} /> Documentos
                     </button>
                 </div>
@@ -181,18 +181,18 @@ const ReportModal = ({ isOpen, onClose, ativo }: ReportModalProps) => {
                 {/* CONTEÚDO */}
                 <div className="p-4 overflow-y-auto space-y-4 custom-scrollbar flex-1">
                     {activeTab === 'saude' && (
-                        <div className="space-y-6 animate-in slide-in-from-right-2 duration-300">
+                        <div className="space-y-6">
 
                             {/* SUB-ABAS (PILLS) strongly typed */}
-                            <div className="flex gap-1 p-1 bg-slate-900/50 rounded-lg border border-slate-800">
+                            <div className="flex gap-1 p-1 bg-surface-elevated rounded-lg border border-border-subtle">
                                 {subTabsMenu.map((tab) => (
                                     <button
                                         type="button"
                                         key={tab.id}
                                         onClick={() => setSubTab(tab.id)}
-                                        className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-[9px] font-black uppercase transition-all rounded-md border ${subTab === tab.id
-                                            ? 'bg-blue-600/20 border-blue-500/50 text-blue-400'
-                                            : 'border-transparent text-slate-500 hover:text-slate-300'
+                                        className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-2xs font-semibold uppercase transition-colors rounded-md border ${subTab === tab.id
+                                            ? 'bg-accent-soft border-accent/40 text-accent'
+                                            : 'border-transparent text-text-muted hover:text-text-primary'
                                             }`}
                                     >
                                         {tab.icon} {tab.label}
@@ -208,31 +208,31 @@ const ReportModal = ({ isOpen, onClose, ativo }: ReportModalProps) => {
                                             filteredCards.map((card, i) => {
                                                 const style = getIndicatorStyles(card.tipo);
                                                 return (
-                                                    <div key={i} className={`${style.bg} border ${style.border} p-4 rounded-xl flex justify-between items-center group hover:border-opacity-50 transition-all`}>
+                                                    <div key={i} className={`${style.bg} border ${style.border} p-4 rounded-xl flex justify-between items-center group transition-colors`}>
                                                         <div className="space-y-1">
                                                             <div className="flex items-center gap-2">
                                                                 {style.icon}
-                                                                <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">{card.titulo}</p>
+                                                                <p className="text-2xs text-text-muted uppercase font-semibold tracking-wider">{card.titulo}</p>
                                                             </div>
-                                                            <p className="text-sm text-slate-100 font-bold font-mono" title={card.valor !== undefined ? formatMoney(card.valor) : undefined}>
+                                                            <p className="text-sm text-text-primary font-semibold font-mono tabular-nums" title={card.valor !== undefined ? formatMoney(card.valor) : undefined}>
                                                                 <PrivateValue
                                                                     value={card.valor_formatado || formatCompactMoney(card.valor || 0)}
                                                                 />
                                                             </p>
-                                                            {card.subtitulo && <p className="text-[9px] text-slate-500 font-medium italic">{card.subtitulo}</p>}
+                                                            {card.subtitulo && <p className="text-2xs text-text-muted font-medium italic">{card.subtitulo}</p>}
                                                         </div>
 
-                                                        <div className="text-right flex flex-col gap-1">
+                                                        <div className="text-right flex flex-col gap-1 tabular-nums">
                                                             {card.yoy !== undefined && (
-                                                                <div className={`flex items-center justify-end gap-1 text-[10px] font-bold ${card.yoy >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                                                <div className={`flex items-center justify-end gap-1 text-2xs font-semibold ${card.yoy >= 0 ? 'text-status-success' : 'text-status-error'}`}>
                                                                     {card.yoy > 0 ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
-                                                                    {card.yoy > 0 ? '+' : ''}{card.yoy}% <span className="text-[8px] opacity-60 font-normal">YoY</span>
+                                                                    {card.yoy > 0 ? '+' : ''}{card.yoy}% <span className="text-2xs opacity-60 font-normal">YoY</span>
                                                                 </div>
                                                             )}
                                                             {card.qoq !== undefined && (
-                                                                <div className={`flex items-center justify-end gap-1 text-[10px] font-bold ${card.qoq >= 0 ? 'text-blue-400' : 'text-orange-400'}`}>
+                                                                <div className={`flex items-center justify-end gap-1 text-2xs font-semibold ${card.qoq >= 0 ? 'text-accent' : 'text-status-warning'}`}>
                                                                     {card.qoq > 0 ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
-                                                                    {card.qoq > 0 ? '+' : ''}{card.qoq}% <span className="text-[8px] opacity-60 font-normal">QoQ</span>
+                                                                    {card.qoq > 0 ? '+' : ''}{card.qoq}% <span className="text-2xs opacity-60 font-normal">QoQ</span>
                                                                 </div>
                                                             )}
                                                         </div>
@@ -240,7 +240,7 @@ const ReportModal = ({ isOpen, onClose, ativo }: ReportModalProps) => {
                                                 );
                                             })
                                         ) : (
-                                            <div className="py-12 text-center text-slate-600 text-[10px] uppercase font-bold tracking-widest border border-dashed border-slate-800 rounded-xl">
+                                            <div className="py-12 text-center text-text-muted text-2xs uppercase font-semibold tracking-wider border border-dashed border-border-subtle rounded-xl">
                                                 Nenhum indicador nesta categoria
                                             </div>
                                         )}
@@ -248,19 +248,19 @@ const ReportModal = ({ isOpen, onClose, ativo }: ReportModalProps) => {
 
                                     {/* GRÁFICO: QUALIDADE DO LUCRO */}
                                     {subTab === 'divida' && fundamentalist.evolucao_grafico.length > 0 && (
-                                        <div className="bg-slate-900/40 border border-slate-800 p-5 rounded-xl space-y-6 relative animate-in fade-in duration-500">
+                                        <div className="bg-surface-elevated border border-border-subtle p-5 rounded-xl space-y-6 relative">
                                             <div className="flex justify-between items-center">
                                                 <div className="space-y-0.5">
-                                                    <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest">Qualidade do Lucro</p>
-                                                    <p className="text-[8px] text-slate-500 italic">Comparativo Lucro Líquido vs FCO</p>
+                                                    <p className="text-2xs text-text-muted uppercase font-semibold tracking-wider">Qualidade do Lucro</p>
+                                                    <p className="text-2xs text-text-muted italic">Comparativo Lucro Líquido vs FCO</p>
                                                 </div>
-                                                <div className="flex gap-3 bg-slate-800/50 p-1.5 rounded-md border border-slate-700/50">
-                                                    <div className="flex items-center gap-1.5"><div className="w-2 h-2 bg-blue-500 rounded-sm"></div><span className="text-[8px] text-slate-300 font-bold uppercase">Lucro</span></div>
-                                                    <div className="flex items-center gap-1.5"><div className="w-2 h-2 bg-cyan-400 rounded-sm"></div><span className="text-[8px] text-slate-300 font-bold uppercase">FCO</span></div>
+                                                <div className="flex gap-3 bg-surface-card p-1.5 rounded-md border border-border-subtle">
+                                                    <div className="flex items-center gap-1.5"><div className="w-2 h-2 bg-accent rounded-sm"></div><span className="text-2xs text-text-primary font-semibold uppercase">Lucro</span></div>
+                                                    <div className="flex items-center gap-1.5"><div className="w-2 h-2 bg-cyan-400 rounded-sm"></div><span className="text-2xs text-text-primary font-semibold uppercase">FCO</span></div>
                                                 </div>
                                             </div>
 
-                                            <div className="h-40 flex items-end justify-around gap-2 px-2 pb-8 pt-4 border-b border-slate-800/50 relative">
+                                            <div className="h-40 flex items-end justify-around gap-2 px-2 pb-8 pt-4 border-b border-border-subtle relative">
                                                 {fundamentalist.evolucao_grafico.slice(-6).map((item, idx) => {
                                                     const allValues = fundamentalist!.evolucao_grafico.map(e => [Math.abs(e.lucro), Math.abs(e.fco || 0)]).flat();
                                                     const maxVal = Math.max(...allValues, 1);
@@ -276,16 +276,16 @@ const ReportModal = ({ isOpen, onClose, ativo }: ReportModalProps) => {
                                                             onMouseLeave={() => setHoveredBar(null)}
                                                         >
                                                             {hoveredBar === idx && (
-                                                                <div className="absolute -top-16 left-1/2 -translate-x-1/2 bg-slate-900 border border-blue-500/30 p-2.5 rounded-lg shadow-2xl z-30 min-w-[130px] pointer-events-none animate-in zoom-in-95 duration-200">
-                                                                    <p className="text-[7px] text-slate-500 font-bold uppercase mb-1 border-b border-slate-800 pb-1">{item.label}</p>
-                                                                    <div className="space-y-1">
+                                                                <div className="absolute -top-16 left-1/2 -translate-x-1/2 bg-surface-card border border-accent/30 p-2.5 rounded-xl shadow-lg z-30 min-w-[130px] pointer-events-none">
+                                                                    <p className="text-2xs text-text-muted font-semibold uppercase mb-1 border-b border-border-subtle pb-1">{item.label}</p>
+                                                                    <div className="space-y-1 tabular-nums">
                                                                         <div className="flex justify-between items-center gap-4">
-                                                                            <span className="text-[8px] text-blue-400 font-bold">LUCRO:</span>
-                                                                            <span className="text-[8px] text-slate-200 font-mono text-right">{formatCompactMoney(item.lucro)}</span>
+                                                                            <span className="text-2xs text-accent font-semibold">LUCRO:</span>
+                                                                            <span className="text-2xs text-text-primary font-mono text-right">{formatCompactMoney(item.lucro)}</span>
                                                                         </div>
                                                                         <div className="flex justify-between items-center gap-4">
-                                                                            <span className="text-[8px] text-cyan-400 font-bold">FCO:</span>
-                                                                            <span className="text-[8px] text-slate-200 font-mono text-right">{formatCompactMoney(item.fco || 0)}</span>
+                                                                            <span className="text-2xs text-cyan-400 font-semibold">FCO:</span>
+                                                                            <span className="text-2xs text-text-primary font-mono text-right">{formatCompactMoney(item.fco || 0)}</span>
                                                                         </div>
                                                                     </div>
                                                                 </div>
@@ -294,68 +294,63 @@ const ReportModal = ({ isOpen, onClose, ativo }: ReportModalProps) => {
                                                             <div className="w-full flex items-end justify-center gap-1.5 h-full mb-1">
                                                                 <div
                                                                     style={{ height: `${lucroHeight}%` }}
-                                                                    className={`w-3 rounded-t-[2px] transition-all duration-300 ${item.lucro < 0 ? 'bg-rose-500 shadow-[0_0_12px_rgba(244,63,94,0.4)]' : 'bg-blue-500/40 group-hover:bg-blue-500'}`}
+                                                                    className={`w-3 rounded-t-[2px] transition-colors duration-150 ${item.lucro < 0 ? 'bg-status-error' : 'bg-accent/50 group-hover:bg-accent'}`}
                                                                 />
                                                                 <div
                                                                     style={{ height: `${fcoHeight}%` }}
-                                                                    className={`w-3 rounded-t-[2px] transition-all duration-300 ${(item.fco || 0) < 0 ? 'bg-orange-500 shadow-[0_0_12px_rgba(249,115,22,0.4)]' : 'bg-cyan-400/40 group-hover:bg-cyan-400'}`}
+                                                                    className={`w-3 rounded-t-[2px] transition-colors duration-150 ${(item.fco || 0) < 0 ? 'bg-status-warning' : 'bg-cyan-400/50 group-hover:bg-cyan-400'}`}
                                                                 />
                                                             </div>
 
                                                             <div className="absolute -bottom-6 flex flex-col items-center">
-                                                                <span className="text-[8px] text-slate-500 font-black tracking-tighter">{item.label}</span>
-                                                                <div className={`w-1 h-1 rounded-full mt-1 ${idx % 2 === 0 ? 'bg-blue-500/20' : 'bg-transparent'}`}></div>
+                                                                <span className="text-2xs text-text-muted font-semibold tracking-tighter">{item.label}</span>
                                                             </div>
                                                         </div>
                                                     );
                                                 })}
                                             </div>
-
-                                            <div className="flex justify-center items-center pt-2 opacity-50">
-                                                <p className="text-[7px] text-slate-500 italic">Passe o mouse nas barras para detalhes</p>
-                                            </div>
                                         </div>
                                     )}
 
-                                    <div className="bg-slate-900/80 border border-slate-800 p-3 rounded-lg">
-                                        <p className="text-[9px] text-slate-500 font-bold text-center uppercase tracking-widest">
-                                            Fonte: Dados Oficiais CVM • Ref: {fundamentalist.ticker_info.ultimo_periodo}
+                                    <div className="bg-surface-elevated border border-border-subtle p-3 rounded-lg">
+                                        <p className="text-2xs text-text-muted font-semibold text-center uppercase tracking-wider">
+                                            Fonte: Dados Oficiais CVM · Ref: {fundamentalist.ticker_info.ultimo_periodo}
                                         </p>
                                     </div>
                                 </div>
                             ) : (
                                 <div className="py-12 text-center space-y-3">
-                                    <Activity size={32} className="text-slate-800 mx-auto animate-pulse" />
-                                    <p className="text-xs text-slate-500 italic px-4 text-center">Nenhum dado disponível.</p>
+                                    <Activity size={32} className="text-text-muted mx-auto opacity-40" />
+                                    <p className="text-xs text-text-muted italic px-4 text-center">Nenhum dado disponível.</p>
                                 </div>
                             )}
                         </div>
                     )}
 
                     {activeTab === 'docs' && (
-                        <div className="space-y-3 animate-in slide-in-from-left-2 duration-300">
+                        <div className="space-y-3">
                             {reports.length > 0 ? reports.map((doc: ReportItem, i: number) => ( // 🧼 Tipado como ReportItem
-                                <div key={i} className="bg-slate-800/40 border border-slate-700 p-4 rounded-xl space-y-3">
+                                <div key={i} className="bg-surface-elevated border border-border-subtle p-4 rounded-xl space-y-3">
                                     <div className="flex flex-col gap-2">
-                                        <span className="text-[10px] text-blue-400 font-bold uppercase tracking-widest">
-                                            {(doc.type || "").toLowerCase().includes('gerencial') ? '⭐ Relatório Principal' : 'Documento Oficial'}
+                                        <span className="text-2xs text-accent font-semibold uppercase tracking-wider">
+                                            {(doc.type || "").toLowerCase().includes('gerencial') ? 'Relatório Principal' : 'Documento Oficial'}
                                         </span>
                                         <div className="flex items-start gap-3">
-                                            <Calendar size={14} className="text-blue-400 mt-0.5" />
+                                            <Calendar size={14} className="text-accent mt-0.5" />
                                             <div>
-                                                <p className="text-[10px] text-slate-500 uppercase font-bold">Referência</p>
-                                                <p className="text-xs text-slate-200 font-medium">{doc.date || 'Recente'}</p>
+                                                <p className="text-2xs text-text-muted uppercase font-semibold">Referência</p>
+                                                <p className="text-xs text-text-primary font-medium">{doc.date || 'Recente'}</p>
                                             </div>
                                         </div>
                                     </div>
                                     {typeof doc.link === 'string' && (
-                                        <a href={doc.link} target="_blank" rel="noopener noreferrer" className="w-full flex items-center justify-center gap-2 bg-slate-700 hover:bg-blue-600 text-white py-2 rounded-lg font-bold text-[10px] uppercase transition-all">
+                                        <a href={doc.link} target="_blank" rel="noopener noreferrer" className="w-full flex items-center justify-center gap-2 bg-surface-input hover:bg-accent text-text-primary hover:text-white py-2 rounded-lg font-semibold text-2xs uppercase transition-colors">
                                             Abrir no Navegador <ExternalLink size={12} />
                                         </a>
                                     )}
                                 </div>
                             )) : (
-                                <div className="py-8 text-center text-slate-500 text-xs italic">Nenhum documento disponível.</div>
+                                <div className="py-8 text-center text-text-muted text-xs italic">Nenhum documento disponível.</div>
                             )}
                         </div>
                     )}

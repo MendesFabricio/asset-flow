@@ -21,23 +21,23 @@ export function MetaEditor({
   onClose,
 }: MetaEditorProps) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <Card className="w-full max-w-sm !bg-slate-900 shadow-2xl p-6 space-y-6 border-slate-700">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-[120ms]">
+      <Card className="w-full max-w-sm bg-surface-card shadow-lg p-6 space-y-6 border-border-subtle">
         <div className="flex justify-between items-center">
-          <h3 className="text-lg font-bold text-white leading-tight">Meta: {categoryName}</h3>
+          <h3 className="text-lg font-semibold text-text-primary leading-tight">Meta: {categoryName}</h3>
           <button
             type="button"
             onClick={onClose}
             aria-label="Fechar"
-            className="p-1.5 text-slate-500 hover:text-white transition-colors"
+            className="p-1.5 text-text-muted hover:text-text-primary transition-colors"
           >
             <X size={20} />
           </button>
         </div>
         <div className="space-y-4">
           <div className="flex justify-between items-end px-1">
-            <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Ajustar Alocação</span>
-            <span className="text-3xl font-bold text-blue-400 font-mono">{value}%</span>
+            <span className="text-xs text-text-muted font-semibold uppercase tracking-wider">Ajustar Alocação</span>
+            <span className="text-2xl font-semibold text-accent font-mono tabular-nums">{value}%</span>
           </div>
           <input
             type="range"
@@ -46,14 +46,14 @@ export function MetaEditor({
             step="1"
             value={value}
             onChange={(e) => onChange(Number(e.target.value))}
-            className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500 outline-none"
+            className="w-full h-2 bg-surface-input rounded-lg appearance-none cursor-pointer accent-accent outline-none"
           />
         </div>
         <div className="flex justify-end gap-3">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-white transition-colors uppercase tracking-widest"
+            className="px-4 py-2 text-xs font-semibold text-text-muted hover:text-text-primary transition-colors uppercase tracking-wider"
           >
             Cancelar
           </button>
@@ -61,7 +61,7 @@ export function MetaEditor({
             type="button"
             onClick={onSave}
             disabled={loading}
-            className="px-6 py-2 text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white rounded-lg flex items-center gap-2 shadow-lg shadow-blue-900/20 uppercase tracking-widest"
+            className="px-6 py-2 text-xs font-semibold bg-accent hover:bg-accent/90 text-white rounded-lg flex items-center gap-2 transition-colors uppercase tracking-wider"
           >
             {loading ? 'Salvando...' : <><Save size={14} /> Salvar Meta</>}
           </button>
