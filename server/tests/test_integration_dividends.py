@@ -237,7 +237,7 @@ def test_yoc_history_uses_moment_pm_split_and_market_dy(monkeypatch):
         assert resp.status_code == 200
         data = resp.get_json()
 
-    assert list(data.keys()) == ["HGBS11"]
+    assert set(data.keys()) == {"HGBS11", "CARTEIRA"}
     hgbs_rows = data["HGBS11"]
     assert [r["year"] for r in hgbs_rows] == [2024, 2025]
 
@@ -258,3 +258,11 @@ def test_yoc_history_uses_moment_pm_split_and_market_dy(monkeypatch):
     assert len(y2025["events"]) == 2
     assert y2025["events"][0]["pm_at_moment"] == pytest.approx(205.50, abs=0.01)
     assert y2025["events"][1]["pm_at_moment"] == pytest.approx(20.50, abs=0.01)
+    assert y2025["events"][0]["ticker"] == "HGBS11"
+
+    carteira_rows = data["CARTEIRA"]
+    assert [r["year"] for r in carteira_rows] == [2024, 2025]
+    assert carteira_rows[0]["total_received"] == pytest.approx(6.40, abs=0.01)
+    assert carteira_rows[0]["pm_at_moment"] == pytest.approx(822.00, abs=0.01)
+    assert carteira_rows[1]["total_received"] == pytest.approx(14.90, abs=0.01)
+    assert all(ev["ticker"] == "HGBS11" for r in carteira_rows for ev in r["events"])

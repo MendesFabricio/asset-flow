@@ -10,6 +10,7 @@ from db.models import (
     AssetTransaction,
     Dividend,
     MarketData,
+    MonthlyPortfolioSnapshot,
     Session,
     SystemCache,
     get_active_positions,
@@ -496,13 +497,10 @@ def _get_dividend_market_prices(
 
 @dividends_bp.route('/api/dividends/yoc-history', methods=['GET'])
 def get_yoc_history():
-    """Retorna a série histórica de YoC (PM do momento) e DY do ativo por ano e por recebimento."""
+    """Retorna a série histórica de YoC (PM do momento) e DY do ativo (e da Carteira toda) por ano e recebimento."""
     with Session() as session:
         try:
-            positions = (
-                get_active_positions(session, g.user_id)
-                .all()
-            )
+            positions = get_active_positions(session, g.user_id).all()
             positions.sort(key=lambda p: (p.asset.ticker if p.asset and p.asset.ticker else "").upper())
 
             all_txs = (
@@ -512,11 +510,15 @@ def get_yoc_history():
                 .all()
             )
             txs_by_pos: dict[int, list] = {}
+            txs_by_ticker: dict[str, list] = {}
             for tx in all_txs:
                 txs_by_pos.setdefault(tx.position_id, []).append(tx)
+                if tx.ticker:
+                    txs_by_ticker.setdefault(tx.ticker.upper(), []).append(tx)
 
             all_paid_divs = (
                 session.query(Dividend)
+                .options(joinedload(Dividend.asset).joinedload(Asset.category))
                 .filter_by(user_id=g.user_id, status="PAGO")
                 .order_by(func.coalesce(Dividend.date_payment, Dividend.date_com).asc(), Dividend.id.asc())
                 .all()
@@ -607,6 +609,7 @@ def get_yoc_history():
                     bucket["pms"].append(pm_mom)
                     bucket["mkts"].append(mkt_p)
                     bucket["events"].append({
+                        "ticker": ticker,
                         "date": dt_pay.strftime("%Y-%m-%d"),
                         "date_com": dt_com.strftime("%Y-%m-%d"),
                         "type": div.type or "Dividendo",
@@ -664,10 +667,223 @@ def get_yoc_history():
                 if history:
                     results[ticker] = history
 
+            # Visão consolidada da Carteira Toda (ex-Reserva) com custo e valor de mercado no momento
+            portfolio_history = _build_portfolio_yoc_history(
+                session=session,
+                user_id=g.user_id,
+                all_paid_divs=all_paid_divs,
+                all_txs=all_txs,
+                txs_by_ticker=txs_by_ticker,
+                pos_by_aid=pos_by_aid,
+                mkt_prices=mkt_prices,
+            )
+            if portfolio_history:
+                results["CARTEIRA"] = portfolio_history
+
             return jsonify(results)
         except Exception as e:
             logging.error(f"Erro ao calcular histórico de YOC: {e}", exc_info=True)
             return jsonify({}), 500
+
+
+def _build_portfolio_yoc_history(
+    session,
+    user_id: int,
+    all_paid_divs: list[Dividend],
+    all_txs: list,
+    txs_by_ticker: dict[str, list],
+    pos_by_aid: dict[int, object],
+    mkt_prices: dict[tuple[int, date], float],
+) -> list[dict]:
+    """Calcula YoC e DY consolidados da carteira toda (ex-Reserva) considerando custo/valor da época."""
+    if not all_paid_divs:
+        return []
+
+    snaps = (
+        session.query(MonthlyPortfolioSnapshot)
+        .filter_by(user_id=user_id)
+        .order_by(MonthlyPortfolioSnapshot.year.asc(), MonthlyPortfolioSnapshot.month.asc())
+        .all()
+    )
+    snap_by_ym = {
+        (s.year, s.month): (float(s.total_invested_cost or 0), float(s.total_market_value or 0))
+        for s in snaps
+    }
+
+    # Identifica ativos de Reserva pelas transações/categorias para isolar capital de renda fixa líquida
+    reserva_tickers: set[str] = set()
+    reserva_aids = {
+        a.id for a in session.query(Asset).join(Asset.category).filter_by(name="Reserva").all()
+    }
+    reserva_txs = []
+    non_res_txs = []
+    for tx in all_txs:
+        tx_d = _to_date(tx.transaction_date)
+        if not tx_d:
+            continue
+        t_up = (tx.ticker or "").upper()
+        if t_up in ("NUBANK TURBO", "CAIXINHA TURBO", "NUBANK CAIXINHA") or "CAIXINHA" in t_up:
+            reserva_tickers.add(t_up)
+            reserva_txs.append((tx_d, t_up, tx))
+        else:
+            non_res_txs.append((tx_d, t_up, tx))
+
+    # Inclui Reserva marcada diretamente na categoria dos ativos pagos/posições
+    for aid, pos in pos_by_aid.items():
+        if pos.asset and pos.asset.category and pos.asset.category.name == "Reserva":
+            reserva_tickers.add(pos.asset.ticker.upper())
+    if reserva_aids:
+        for res_a in session.query(Asset).filter(Asset.id.in_(reserva_aids)).all():
+            reserva_tickers.add(res_a.ticker.upper())
+        # Reclassifica se havia transação em Reserva por categoria no banco
+        moved = [item for item in non_res_txs if item[1] in reserva_tickers]
+        if moved:
+            non_res_txs = [item for item in non_res_txs if item[1] not in reserva_tickers]
+            reserva_txs.extend(moved)
+            reserva_txs.sort(key=lambda x: (x[0], getattr(x[2], "id", 0) or 0))
+
+    # Índice de cotações mais recentes por ativo caso um snapshot não exista
+    latest_mkt_by_aid: dict[int, float] = {}
+    for (aid, dt), price in sorted(mkt_prices.items(), key=lambda kv: kv[0][1]):
+        if price > 0:
+            latest_mkt_by_aid[aid] = price
+
+    res_state: dict[str, dict] = {}
+    port_state: dict[str, dict] = {}
+    r_idx = 0
+    p_idx = 0
+
+    def _lookup_snapshot(yr: int, mo: int) -> tuple[float, float] | None:
+        cy, cm = yr, mo
+        for _ in range(12):
+            if (cy, cm) in snap_by_ym:
+                return snap_by_ym[(cy, cm)]
+            cm -= 1
+            if cm == 0:
+                cm = 12
+                cy -= 1
+        return None
+
+    # Cache por (ticker, eval_dt) para ativos já calculados ou antigos
+    asset_aid_by_ticker = {p.asset.ticker.upper(): aid for aid, p in pos_by_aid.items() if p.asset}
+    year_map: dict[int, dict] = {}
+
+    for div in all_paid_divs:
+        if not div.asset:
+            continue
+        dt_com = div.date_com or div.date_payment
+        dt_pay = div.date_payment or div.date_com
+        if not dt_com or not dt_pay:
+            continue
+
+        ticker = div.asset.ticker.upper()
+        total_val = float(div.total_value or 0)
+        qty_at_dt = float(div.quantity_at_date or 0)
+        if total_val <= 0:
+            continue
+        dpa = (total_val / qty_at_dt) if qty_at_dt > 0 else float(div.value_per_share or 0)
+
+        while r_idx < len(reserva_txs) and reserva_txs[r_idx][0] <= dt_pay:
+            _, r_tkr, r_tx = reserva_txs[r_idx]
+            st = res_state.setdefault(r_tkr, {"quantity": Decimal("0.0"), "total_cost": Decimal("0.0")})
+            apply_transaction_to_position_state(st, r_tx, use_decimal=True)
+            r_idx += 1
+
+        while p_idx < len(non_res_txs) and non_res_txs[p_idx][0] <= dt_pay:
+            _, p_tkr, p_tx = non_res_txs[p_idx]
+            st = port_state.setdefault(p_tkr, {"quantity": Decimal("0.0"), "total_cost": Decimal("0.0")})
+            apply_transaction_to_position_state(st, p_tx, use_decimal=True)
+            p_idx += 1
+
+        res_cost = float(sum(max(Decimal("0.0"), st["total_cost"]) for st in res_state.values()))
+
+        # PM e cotação do ativo individual neste provento
+        pos = pos_by_aid.get(div.asset_id)
+        fallback_pm = float(pos.average_price or 0) if pos else 0.0
+        txs_asset = txs_by_ticker.get(ticker, [])
+        eval_dt, pm_mom = _compute_position_pm_at_dividend(txs_asset, div, fallback_pm)
+        if pm_mom <= 0:
+            pm_mom = float(pos.average_price or 0) if pos else 0.0
+
+        mkt_p = mkt_prices.get((div.asset_id, eval_dt), 0.0)
+        if mkt_p <= 0:
+            mkt_p = pm_mom
+
+        asset_yoc = (dpa / pm_mom) * 100.0 if pm_mom > 0 else 0.0
+        asset_dy = (dpa / mkt_p) * 100.0 if mkt_p > 0 else 0.0
+
+        # Custo e valor de mercado da carteira ex-Reserva na época
+        snap = _lookup_snapshot(dt_pay.year, dt_pay.month)
+        if snap:
+            port_cost = max(0.0, snap[0] - res_cost)
+            port_mkt = max(0.0, snap[1] - res_cost)
+        else:
+            port_cost = 0.0
+            port_mkt = 0.0
+            for p_tkr, st in port_state.items():
+                if st["quantity"] <= Decimal("0.0001"):
+                    continue
+                port_cost += float(max(Decimal("0.0"), st["total_cost"]))
+                p_aid = asset_aid_by_ticker.get(p_tkr)
+                p_mkt = mkt_prices.get((p_aid, eval_dt), 0.0) if p_aid else 0.0
+                if p_mkt <= 0 and p_aid:
+                    p_mkt = latest_mkt_by_aid.get(p_aid, 0.0)
+                if p_mkt > 0:
+                    port_mkt += float(st["quantity"]) * p_mkt
+                else:
+                    port_mkt += float(max(Decimal("0.0"), st["total_cost"]))
+
+        port_yoc_ev = (total_val / port_cost) * 100.0 if port_cost > 0 else 0.0
+        port_dy_ev = (total_val / port_mkt) * 100.0 if port_mkt > 0 else 0.0
+
+        yr = dt_pay.year
+        bucket = year_map.setdefault(yr, {
+            "total_received": 0.0,
+            "yoc": 0.0,
+            "dy_market": 0.0,
+            "costs": [],
+            "mkts": [],
+            "events": [],
+        })
+        bucket["total_received"] += total_val
+        bucket["yoc"] += port_yoc_ev
+        bucket["dy_market"] += port_dy_ev
+        if port_cost > 0:
+            bucket["costs"].append(port_cost)
+        if port_mkt > 0:
+            bucket["mkts"].append(port_mkt)
+        bucket["events"].append({
+            "ticker": ticker,
+            "date": dt_pay.strftime("%Y-%m-%d"),
+            "date_com": dt_com.strftime("%Y-%m-%d"),
+            "type": div.type or "Dividendo",
+            "dpa": round(dpa, 4),
+            "total": round(total_val, 2),
+            "quantity": round(qty_at_dt, 4),
+            "pm_at_moment": round(pm_mom, 2),
+            "market_price": round(mkt_p, 2),
+            "yoc_at_moment": round(asset_yoc, 2),
+            "dy_at_moment": round(asset_dy, 2),
+        })
+
+    history = []
+    for yr in sorted(year_map.keys()):
+        bucket = year_map[yr]
+        costs = bucket["costs"]
+        mkts = bucket["mkts"]
+        history.append({
+            "year": yr,
+            "dpa": round(bucket["total_received"], 2),
+            "total_received": round(bucket["total_received"], 2),
+            "yoc": round(bucket["yoc"], 2),
+            "dy_market": round(bucket["dy_market"], 2),
+            "pm_at_moment": round(costs[-1], 2) if costs else 0.0,
+            "pm_avg_year": round(sum(costs) / len(costs), 2) if costs else 0.0,
+            "market_price": round(sum(mkts) / len(mkts), 2) if mkts else 0.0,
+            "payments_count": len(bucket["events"]),
+            "events": bucket["events"],
+        })
+    return history
 
 @dividends_bp.route('/api/dividends/seasonality', methods=['GET'])
 def get_dividend_seasonality():
