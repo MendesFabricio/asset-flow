@@ -4,8 +4,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { apiCall } from '@/lib/api';
 import { DCASimulationData } from '@/types';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 /**
  * Encapsula o simulador de DCA vs. Aporte Único (Lump Sum).
  * `defaultTicker` permite semear o ticker inicial quando os dados de
@@ -24,19 +22,19 @@ export function useDcaSimulation(defaultTicker?: string) {
     setLoading(true);
     setError(null);
 
-    apiCall<DCASimulationData>(
+    apiCall<DCASimulationData & { msg?: string }>(
       `/api/quant/dca-lump-sum?ticker=${encodeURIComponent(ticker)}&initial_amount=${initialAmount}&monthly_contribution=${monthlyContribution}`
     )
       .then((res) => {
         if (res.status === 'Sucesso') {
           setResult(res);
         } else {
-          setError((res as any).msg || 'Falha ao processar simulação.');
+          setError(res.msg || 'Falha ao processar simulação.');
         }
       })
-      .catch((err: any) => {
+      .catch((err: unknown) => {
         console.error(err);
-        setError(err?.message || 'Erro ao comunicar com a API do simulador.');
+        setError(err instanceof Error ? err.message : 'Erro ao comunicar com a API do simulador.');
       })
       .finally(() => setLoading(false));
   }, [ticker, initialAmount, monthlyContribution]);

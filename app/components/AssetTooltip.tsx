@@ -1,5 +1,6 @@
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { formatMoney } from '../lib/format';
+import { usePrivacy } from '../context/PrivacyContext';
 import { createPortal } from 'react-dom';
 import { useEffect, useState } from 'react';
 
@@ -20,6 +21,7 @@ interface AssetTooltipProps {
 
 export const AssetTooltip = ({ type, data, style }: AssetTooltipProps) => {
     const [mounted, setMounted] = useState(false);
+    const { isHidden } = usePrivacy();
 
     useEffect(() => {
         setMounted(true);
@@ -27,9 +29,11 @@ export const AssetTooltip = ({ type, data, style }: AssetTooltipProps) => {
 
     const isPositive = data.variacaoFinanceira >= 0;
 
-    const formattedMoney = data.isUSD
-        ? `$ ${Math.abs(data.variacaoFinanceira).toFixed(2)}`
-        : formatMoney(Math.abs(data.variacaoFinanceira));
+    const formattedMoney = isHidden
+        ? (data.isUSD ? '$ •••••' : 'R$ •••••')
+        : (data.isUSD
+            ? `$ ${Math.abs(data.variacaoFinanceira).toFixed(2)}`
+            : formatMoney(Math.abs(data.variacaoFinanceira)));
 
     const getBulletClass = (text: string) => {
         const t = text.toLowerCase();

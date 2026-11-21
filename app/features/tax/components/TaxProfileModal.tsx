@@ -4,8 +4,10 @@ import { useState, useEffect } from 'react';
 import { taxService, TaxProfile } from '@/services/tax';
 import { Settings, Save } from 'lucide-react';
 import { ModalShell } from '@/components/ModalShell';
+import { useToast } from '@/context/ToastContext';
 
 export default function TaxProfileModal() {
+  const { notify } = useToast();
   const [opened, setOpened] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -32,10 +34,11 @@ export default function TaxProfileModal() {
     setSaving(true);
     try {
       await taxService.updateTaxProfile(profile);
+      notify('Saldos anteriores atualizados com sucesso!', 'success');
       setOpened(false);
     } catch (error) {
       console.error(error);
-      alert('Erro ao salvar os saldos anteriores.');
+      notify('Erro ao salvar os saldos anteriores.', 'error');
     } finally {
       setSaving(false);
     }

@@ -61,16 +61,16 @@ export const Header = memo(({
   }, []);
 
   return (
-    <header className="sticky top-0 z-30 w-full bg-slate-950/80 backdrop-blur-md border-b border-slate-900 select-none">
+    <header className="sticky top-0 z-30 w-full bg-surface/85 backdrop-blur-md border-b border-border-subtle select-none">
       <div className="max-w-7xl mx-auto px-4 lg:px-6 py-3 flex justify-between items-center h-16">
         
         {/* ESQUERDA: LOGO + THEME TOGGLE + USER INFO + STATUS */}
         <div className="flex items-center gap-2.5 sm:gap-3.5 shrink-0">
           <Logo />
           <ThemeToggle />
-          <div className="hidden sm:block h-6 w-px bg-slate-800" />
+          <div className="hidden sm:block h-6 w-px bg-border-subtle" />
           <div className="hidden sm:flex flex-col justify-center leading-none">
-            <span className="text-[10px] font-bold text-slate-300 tracking-wide uppercase">
+            <span className="text-[11px] font-bold text-text-primary tracking-wide uppercase">
               {username || 'Investidor'}
             </span>
             <div className="mt-1">
@@ -107,11 +107,11 @@ export const Header = memo(({
             <div className="hidden lg:block">
                <SystemStatus />
             </div>
-            <div className="hidden lg:block h-6 w-px bg-slate-800 mx-1" />
+            <div className="hidden lg:block h-6 w-px bg-border-subtle mx-1" />
             
             <UserMenu />
             
-            <div className="hidden lg:block h-6 w-px bg-slate-800 mx-1" />
+            <div className="hidden lg:block h-6 w-px bg-border-subtle mx-1" />
             <div className="hidden lg:block">
               <PortfolioSummary total={total} ativos={ativos} money={money} />
             </div>
@@ -125,7 +125,7 @@ export const Header = memo(({
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               aria-label={mobileMenuOpen ? 'Fechar menu' : 'Abrir menu'}
               aria-expanded={mobileMenuOpen}
-              className="p-2 text-slate-400 hover:text-accent focus:outline-none rounded-lg bg-slate-900/60 border border-slate-800"
+              className="p-2 text-text-muted hover:text-accent focus:outline-none rounded-lg bg-surface-card border border-border-subtle"
             >
               {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
             </button>
@@ -135,19 +135,19 @@ export const Header = memo(({
 
       {/* MOBILE DRAWER */}
       {mobileMenuOpen && (
-        <div className="sm:hidden border-t border-slate-900 bg-slate-950 p-4 space-y-4 animate-in slide-in-from-top-3 duration-250 z-40">
+        <div className="md:hidden border-t border-border-subtle bg-surface p-4 space-y-4 animate-in slide-in-from-top-3 duration-250 z-40">
           
           {/* Status do Pregão */}
           <div className="flex justify-between items-center">
-            <span className="text-[10px] uppercase font-bold text-slate-500">Status Mercado</span>
+            <span className="text-[11px] uppercase font-bold text-text-muted">Status Mercado</span>
             <MarketStatus />
           </div>
 
-          <div className="h-px bg-slate-900" />
+          <div className="h-px bg-border-subtle" />
 
           {/* Ferramentas e Configurações */}
           <div className="flex flex-col gap-2">
-            <span className="text-[10px] uppercase font-bold text-slate-500 mb-1">Ações da Carteira</span>
+            <span className="text-[11px] uppercase font-bold text-text-muted mb-1">Ações da Carteira</span>
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
@@ -166,23 +166,23 @@ export const Header = memo(({
                   setMobileMenuOpen(false);
                 }}
                 disabled={loading || isRefetching || showRefreshSuccess}
-                className="bg-slate-900 border border-slate-800 text-slate-200 text-xs font-bold py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 disabled:opacity-50"
+                className="bg-surface-card border border-border-subtle text-text-primary text-xs font-bold py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 disabled:opacity-50"
               >
                 Recarregar Cotações
               </button>
             </div>
           </div>
 
-          <div className="h-px bg-slate-900" />
+          <div className="h-px bg-border-subtle" />
 
           {/* Links adicionais */}
           <div className="flex flex-col gap-2">
-            <span className="text-[10px] uppercase font-bold text-slate-500 mb-1">Análises & Sincronias</span>
+            <span className="text-[11px] uppercase font-bold text-text-muted mb-1">Análises & Sincronias</span>
             <div className="flex flex-col gap-1">
               <Link
                 href="/tax"
                 onClick={() => setMobileMenuOpen(false)}
-                className="w-full text-left px-2 py-2 text-xs font-bold rounded-lg hover:bg-slate-900 text-slate-300 hover:text-white"
+                className="w-full text-left px-2 py-2 text-xs font-bold rounded-lg hover:bg-surface-elevated text-text-muted hover:text-text-primary"
               >
                 Imposto de Renda (DARF)
               </Link>
@@ -192,7 +192,7 @@ export const Header = memo(({
                   onOpenSmartModal();
                   setMobileMenuOpen(false);
                 }}
-                className="w-full text-left px-2 py-2 text-xs font-bold rounded-lg hover:bg-slate-900 text-slate-300 hover:text-white"
+                className="w-full text-left px-2 py-2 text-xs font-bold rounded-lg hover:bg-surface-elevated text-text-muted hover:text-text-primary"
               >
                 Otimização de Aportes
               </button>
@@ -202,7 +202,7 @@ export const Header = memo(({
                   onSyncReports();
                   setMobileMenuOpen(false);
                 }}
-                className="w-full text-left px-2 py-2 text-xs font-bold rounded-lg hover:bg-slate-900 text-slate-300 hover:text-white"
+                className="w-full text-left px-2 py-2 text-xs font-bold rounded-lg hover:bg-surface-elevated text-text-muted hover:text-text-primary"
               >
                 Sincronizar CVM (FNET)
               </button>
@@ -212,14 +212,14 @@ export const Header = memo(({
                   onUpdateFundamentals();
                   setMobileMenuOpen(false);
                 }}
-                className="w-full text-left px-2 py-2 text-xs font-bold rounded-lg hover:bg-slate-900 text-slate-300 hover:text-white"
+                className="w-full text-left px-2 py-2 text-xs font-bold rounded-lg hover:bg-surface-elevated text-text-muted hover:text-text-primary"
               >
                 Atualizar Yahoo Finance
               </button>
             </div>
           </div>
 
-          <div className="h-px bg-slate-900" />
+          <div className="h-px bg-border-subtle" />
 
           {/* Sistema & Perfil */}
           <div className="flex justify-between items-center">

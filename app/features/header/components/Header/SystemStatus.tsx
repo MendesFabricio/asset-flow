@@ -6,8 +6,9 @@ import {
   Activity, Database, TrendingUp, Brain, CheckCircle2, 
   XCircle, AlertTriangle 
 } from 'lucide-react';
+import { apiCall } from '@/lib/api';
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+const fetcher = (url: string) => apiCall<HealthResponse>(url);
 
 interface ServiceStatus {
   status: 'online' | 'offline';

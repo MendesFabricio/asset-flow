@@ -27,6 +27,7 @@ def calculate_smart_rebalance(
     fetch_prices,
     monthly_contribution: float = 0.0,
     dolar_rate: float = 1.0,
+    max_asset_pct: float | None = None,
 ) -> dict:
     logging.info(f"⚖️ Smart Rebalance (aporte R$ {monthly_contribution:.2f})...")
 
@@ -136,7 +137,15 @@ def calculate_smart_rebalance(
     for s in buyable:
         prop = s["score"] / score_total if score_total > 0 else 0
         val_sug = monthly_contribution * prop
-        price = next(a["price"] for a in assets_data if a["ticker"] == s["ticker"])
+        asset_entry = next(a for a in assets_data if a["ticker"] == s["ticker"])
+        price = asset_entry["price"]
+        capped_note = ""
+        if max_asset_pct is not None and max_asset_pct > 0 and s["category"] != "Reserva":
+            cap_val = total_after * (max_asset_pct / 100.0)
+            headroom = max(0.0, cap_val - asset_entry["current_value"])
+            if val_sug > headroom:
+                val_sug = headroom
+                capped_note = f" · 🛡️ Limitado ao teto de {max_asset_pct:.0f}%"
         sent_note = ""
         ai_note_key = (s.get("ai_sentiment") or "").strip().lower()
         if ai_note_key == "negativo":
@@ -149,8 +158,8 @@ def calculate_smart_rebalance(
             s["suggested_lots"] = lots
             s["suggested_value"] = round(actual, 2)
             s["rationale"] = (
-                f"{lots} lote(s) × R$ {price:.2f} = R$ {actual:.2f}{sent_note}"
-                if lots > 0 else f"Aporte insuficiente para 1 lote.{sent_note}"
+                f"{lots} lote(s) × R$ {price:.2f} = R$ {actual:.2f}{capped_note}{sent_note}"
+                if lots > 0 else f"Aporte insuficiente para 1 lote.{capped_note}{sent_note}"
             )
         else:
             s["suggested_lots"] = 0

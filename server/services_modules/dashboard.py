@@ -2,7 +2,8 @@
 import logging
 import traceback
 from decimal import Decimal
-from db.models import Category, MarketScreenerItem, get_active_positions
+from sqlalchemy import func
+from db.models import Category, Dividend, MarketScreenerItem, get_active_positions
 from utils.formatters import extract_position_metrics
 from db.session import Session
 
@@ -25,10 +26,22 @@ class DashboardService:
                 positions = get_active_positions(session, user_id).all()
                 categories = session.query(Category).all()
                 tickers_list = [p.asset.ticker for p in positions if p.asset]
+                asset_ids = [p.asset_id for p in positions if p.asset_id]
                 screener_by_ticker = {
                     s.ticker: s
                     for s in session.query(MarketScreenerItem).filter(MarketScreenerItem.ticker.in_(tickers_list)).all()
                 } if tickers_list else {}
+                dividends_by_asset = {}
+                if asset_ids:
+                    div_q = session.query(Dividend.asset_id, func.sum(Dividend.total_value)).filter(
+                        Dividend.asset_id.in_(asset_ids),
+                        Dividend.status == "PAGO",
+                    )
+                    if user_id is not None:
+                        div_q = div_q.filter(Dividend.user_id == user_id)
+                    dividends_by_asset = {
+                        aid: Decimal(str(total or 0)) for aid, total in div_q.group_by(Dividend.asset_id).all()
+                    }
                 
                 resumo = {
                     "Total": Decimal('0.0'),
@@ -74,6 +87,7 @@ class DashboardService:
                 resumo.update(cat_totals)
 
                 final_list = []
+                total_dividendos_pagos = Decimal('0.0')
                 
                 for item in ativos_proc:
                     pos = item["obj"]
@@ -118,6 +132,20 @@ class DashboardService:
                     mdata_date_str = item.get("mdata_date")
                     final_change_percent = float(change_percent) if mdata_date_str == today_str else 0.0
 
+                    fator = dolar_rate if asset.currency == 'USD' else Decimal('1.0')
+                    div_recebidos = dividends_by_asset.get(asset.id, Decimal('0.0'))
+                    total_dividendos_pagos += div_recebidos
+                    pm_ajustado_div = None
+                    if div_recebidos > Decimal('0') and pos.quantity and pos.quantity > Decimal('0') and fator > Decimal('0'):
+                        div_por_cota = (div_recebidos / fator) / pos.quantity
+                        pm_ajustado_div = max(0.0, float(pos.average_price - div_por_cota))
+                    total_return_val = total_atual - total_investido + div_recebidos
+                    total_return_pct = (
+                        (total_return_val / total_investido * Decimal('100.0'))
+                        if total_investido > 0
+                        else Decimal('0.0')
+                    )
+
                     final_list.append({
                         "id": asset.id,
                         "ticker": asset.ticker,
@@ -133,6 +161,8 @@ class DashboardService:
                         "quantidade": float(pos.quantity),
                         "pm": float(pos.average_price),
                         "preco_medio": float(pos.average_price),
+                        "dividendos_recebidos": float(div_recebidos),
+                        "pm_ajustado_dividendos": pm_ajustado_div,
                         "preco_atual": float(preco),
                         "min_6m": float(min_6m),
                         "change_percent": final_change_percent,
@@ -142,6 +172,8 @@ class DashboardService:
                         "lucro": float(total_atual - total_investido),
                         "lucro_pct": float(((total_atual - total_investido) / total_investido * 100) if total_investido > 0 else 0),
                         "lucro_percent": float(((total_atual - total_investido) / total_investido * 100) if total_investido > 0 else 0),
+                        "total_return_valor": float(total_return_val),
+                        "total_return_pct": float(total_return_pct),
                         "meta": float(pos.target_percent),
                         "meta_carteira": float(pos.target_percent),
                         "pct_na_categoria": float(pct_na_categoria),
@@ -176,6 +208,14 @@ class DashboardService:
                         "renda_mensal_est": float(item["metrics"].get("renda_mensal_est", 0)),
                         "criterios_nao_avaliados": item["metrics"].get("criterios_nao_avaliados", []),
                     })
+
+                resumo["TotalDividendos"] = total_dividendos_pagos
+                resumo["TotalReturnValor"] = resumo["LucroTotal"] + total_dividendos_pagos
+                resumo["TotalReturnPct"] = (
+                    (resumo["TotalReturnValor"] / resumo["TotalInvestido"] * Decimal('100.0'))
+                    if resumo["TotalInvestido"] > 0
+                    else Decimal('0.0')
+                )
 
                 alertas = build_alerts(ativos_proc, cat_totals, cat_metas, resumo, self, session)
 

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
@@ -17,6 +16,16 @@ import { formatMoney } from '@/lib/format';
 import { apiCall } from '@/lib/api';
 import { useToast } from '@/context/ToastContext';
 import { usePrivacy } from '@/context/PrivacyContext';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { ReceivablesModals } from './ReceivablesModals';
+
+type ReceivablesConfirmAction =
+  | { kind: 'batch' }
+  | { kind: 'loan'; id: number; desc: string }
+  | { kind: 'debtor'; id: number; nome: string };
+
+const getErrorMessage = (err: unknown, fallback: string) =>
+  err instanceof Error ? err.message : fallback;
 
 interface DebtorItem {
   id: number;
@@ -65,6 +74,8 @@ export const ReceivablesTab = () => {
   const [isDebtorModalOpen, setIsDebtorModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isGlobalPayModalOpen, setIsGlobalPayModalOpen] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<ReceivablesConfirmAction | null>(null);
+  const [confirmLoading, setConfirmLoading] = useState(false);
 
   // Selection
   const [selectedFatura, setSelectedFatura] = useState<string>('Todas');
@@ -111,10 +122,10 @@ export const ReceivablesTab = () => {
   const refreshAll = async () => {
     try {
       const [dashData, debtorsData, loansData, configData] = await Promise.all([
-        apiCall<any>('/api/refunds/dashboard'),
-        apiCall<any>('/api/refunds/debtors'),
-        apiCall<any>('/api/refunds/loans'),
-        apiCall<any>('/api/refunds/config')
+        apiCall<ReceivablesDashboardData>('/api/refunds/dashboard'),
+        apiCall<DebtorItem[]>('/api/refunds/debtors'),
+        apiCall<LoanItem[]>('/api/refunds/loans'),
+        apiCall<{ fechamento_dia: number; vencimento_dia: number }>('/api/refunds/config')
       ]);
 
       setDashboard(dashData);
@@ -151,8 +162,8 @@ export const ReceivablesTab = () => {
       });
       setIsConfigOpen(false);
       refreshAll();
-    } catch (err: any) {
-      notify(err.message || "Erro ao salvar configuração.", "error");
+    } catch (err: unknown) {
+      notify(getErrorMessage(err, "Erro ao salvar configuração."), "error");
     }
   };
 
@@ -179,8 +190,8 @@ export const ReceivablesTab = () => {
       setEditingDebtorId(null);
       setIsDebtorModalOpen(false);
       refreshAll();
-    } catch (err: any) {
-      notify(err.message || "Erro ao cadastrar/editar devedor.", "error");
+    } catch (err: unknown) {
+      notify(getErrorMessage(err, "Erro ao cadastrar/editar devedor."), "error");
     }
   };
 
@@ -223,8 +234,8 @@ export const ReceivablesTab = () => {
       setEditingLoanId(null);
       setIsLoanModalOpen(false);
       refreshAll();
-    } catch (err: any) {
-      notify(err.message || "Erro ao cadastrar/editar empréstimo.", "error");
+    } catch (err: unknown) {
+      notify(getErrorMessage(err, "Erro ao cadastrar/editar empréstimo."), "error");
     }
   };
 
@@ -251,8 +262,8 @@ export const ReceivablesTab = () => {
       setIsPaymentModalOpen(false);
       setPayingInstallment(null);
       refreshAll();
-    } catch (err: any) {
-      notify(err.message || "Erro ao efetuar pagamento.", "error");
+    } catch (err: unknown) {
+      notify(getErrorMessage(err, "Erro ao efetuar pagamento."), "error");
     }
   };
 
@@ -277,49 +288,51 @@ export const ReceivablesTab = () => {
       setGlobalPayDebtor(null);
       setGlobalPayValue('');
       refreshAll();
-    } catch (err: any) {
-      notify(err.message || "Erro ao processar recebimento global.", "error");
+    } catch (err: unknown) {
+      notify(getErrorMessage(err, "Erro ao processar recebimento global."), "error");
     }
   };
 
-  const handlePayBatch = async () => {
+  const handlePayBatch = () => {
     if (selectedInstallments.length === 0) return;
-    if (!confirm(`Confirmar liquidação das ${selectedInstallments.length} parcelas selecionadas?`)) return;
-    try {
-      await apiCall('/api/refunds/installments/pay-batch', {
-        method: 'POST',
-        body: JSON.stringify({
-          ids: selectedInstallments
-        })
-      });
-      setSelectedInstallments([]);
-      refreshAll();
-    } catch (err) {
-      notify("Erro ao liquidar parcelas selecionadas.", "error");
-    }
+    setConfirmAction({ kind: 'batch' });
   };
 
-  const handleDeleteLoan = async (id: number, desc: string) => {
-    if (!confirm(`Deseja excluir permanentemente o empréstimo "${desc}" e todas as suas parcelas?`)) return;
-    try {
-      await apiCall(`/api/refunds/loans/${id}`, {
-        method: 'DELETE'
-      });
-      refreshAll();
-    } catch (err) {
-      notify("Erro ao excluir empréstimo.", "error");
-    }
+  const handleDeleteLoan = (id: number, desc: string) => {
+    setConfirmAction({ kind: 'loan', id, desc });
   };
 
-  const handleDeleteDebtor = async (id: number, nome: string) => {
-    if (!confirm(`Deseja excluir o perfil de "${nome}"? Todos os empréstimos ativos dele serão arquivados.`)) return;
+  const handleDeleteDebtor = (id: number, nome: string) => {
+    setConfirmAction({ kind: 'debtor', id, nome });
+  };
+
+  const executeConfirmAction = async () => {
+    if (!confirmAction) return;
+    setConfirmLoading(true);
     try {
-      await apiCall(`/api/refunds/debtors/${id}`, {
-        method: 'DELETE'
-      });
+      if (confirmAction.kind === 'batch') {
+        await apiCall('/api/refunds/installments/pay-batch', {
+          method: 'POST',
+          body: JSON.stringify({ ids: selectedInstallments })
+        });
+        setSelectedInstallments([]);
+      } else if (confirmAction.kind === 'loan') {
+        await apiCall(`/api/refunds/loans/${confirmAction.id}`, { method: 'DELETE' });
+      } else {
+        await apiCall(`/api/refunds/debtors/${confirmAction.id}`, { method: 'DELETE' });
+      }
+      setConfirmAction(null);
       refreshAll();
-    } catch (err) {
-      notify("Erro ao excluir devedor.", "error");
+    } catch {
+      const errMsg =
+        confirmAction.kind === 'batch'
+          ? 'Erro ao liquidar parcelas selecionadas.'
+          : confirmAction.kind === 'loan'
+          ? 'Erro ao excluir empréstimo.'
+          : 'Erro ao excluir devedor.';
+      notify(errMsg, 'error');
+    } finally {
+      setConfirmLoading(false);
     }
   };
 
@@ -592,7 +605,7 @@ export const ReceivablesTab = () => {
               >
                 <div className="flex justify-between items-start w-full gap-2">
                   <span className="text-xs font-bold uppercase tracking-wider truncate">{fat.fatura}</span>
-                  <span className={`text-[8px] px-1 rounded border shrink-0 font-bold ${statusColor}`}>{fat.status}</span>
+                  <span className={`text-[8px] px-1 rounded border shrink-0 font-bold ${statusColor}`}>{fat.status.replaceAll('_', ' ')}</span>
                 </div>
                 <div>
                   <p className={`text-lg font-bold font-mono ${isSelected ? 'text-blue-400' : 'text-white'}`}>{money(fat.pendente)}</p>
@@ -927,12 +940,12 @@ export const ReceivablesTab = () => {
                         <span className={`text-[9px] px-2 py-0.5 rounded border font-bold ${statusBadge}`}>{item.installment.status}</span>
                       </td>
                       <td className="p-4 text-center">
-                        <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                        <div className="flex items-center justify-center gap-1 opacity-75 group-hover:opacity-100 transition-all">
                           {item.installment.status !== 'PAGA' && (
                             <button
                               type="button"
                               onClick={() => handleOpenPay(item.installment, item.loanDesc)}
-                              className="text-slate-400 hover:text-emerald-400 p-1.5 rounded-full hover:bg-emerald-550/10 transition-colors"
+                              className="text-slate-400 hover:text-emerald-400 p-1.5 rounded-full hover:bg-emerald-500/10 transition-colors"
                               title="Registrar recebimento"
                             >
                               <CheckCircle size={14} />
@@ -941,16 +954,16 @@ export const ReceivablesTab = () => {
                           <button
                             type="button"
                             onClick={() => handleOpenEditLoan(item.loanId)}
-                            className="text-slate-400 hover:text-blue-450 p-1.5 rounded-full hover:bg-blue-500/10 transition-colors"
-                            title="Editar descrição/categoria do emprÃ©stimo"
+                            className="text-slate-400 hover:text-blue-400 p-1.5 rounded-full hover:bg-blue-500/10 transition-colors"
+                            title="Editar descrição/categoria do empréstimo"
                           >
                             <Pencil size={13} />
                           </button>
                           <button
                             type="button"
                             onClick={() => handleDeleteLoan(item.loanId, item.loanDesc)}
-                            className="text-slate-600 hover:text-red-400 p-1.5 rounded-full hover:bg-red-500/10"
-                            title="Excluir emprÃ©stimo"
+                            className="text-slate-400 hover:text-red-400 p-1.5 rounded-full hover:bg-red-500/10 transition-colors"
+                            title="Excluir empréstimo"
                           >
                             <Trash2 size={13} />
                           </button>
@@ -965,350 +978,93 @@ export const ReceivablesTab = () => {
         </div>
       </div>
 
-      {/* ?? Config Modal */}
-      {isConfigOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 w-full max-w-sm space-y-4 shadow-2xl animate-in zoom-in-95 relative">
-            <button type="button" onClick={() => setIsConfigOpen(false)} className="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors"><X size={20} /></button>
-            <h3 className="text-lg font-bold text-white flex items-center gap-2"><Settings className="text-blue-500" /> Configurar Fatura</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="text-[10px] text-slate-500 uppercase font-bold pl-1 mb-1 block">Dia de Fechamento</label>
-                <input
-                  type="number"
-                  min="1"
-                  max="31"
-                  className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-white outline-none focus:border-blue-500 transition-colors font-mono font-bold"
-                  value={fechamentoDia}
-                  onChange={e => setFechamentoDia(e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="text-[10px] text-slate-500 uppercase font-bold pl-1 mb-1 block">Dia de Vencimento</label>
-                <input
-                  type="number"
-                  min="1"
-                  max="31"
-                  className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-white outline-none focus:border-blue-500 transition-colors font-mono font-bold"
-                  value={vencimentoDia}
-                  onChange={e => setVencimentoDia(e.target.value)}
-                />
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={handleSaveConfig}
-              className="w-full bg-blue-600 hover:bg-blue-500 text-white p-3 rounded-xl font-bold transition-all"
-            >
-              Salvar Configuração
-            </button>
-          </div>
-        </div>
-      )}
+      <ReceivablesModals
+        money={money}
+        isConfigOpen={isConfigOpen}
+        onCloseConfig={() => setIsConfigOpen(false)}
+        fechamentoDia={fechamentoDia}
+        setFechamentoDia={setFechamentoDia}
+        vencimentoDia={vencimentoDia}
+        setVencimentoDia={setVencimentoDia}
+        onSaveConfig={handleSaveConfig}
+        isDebtorModalOpen={isDebtorModalOpen}
+        onCloseDebtorModal={() => setIsDebtorModalOpen(false)}
+        editingDebtorId={editingDebtorId}
+        newDebtorNome={newDebtorNome}
+        setNewDebtorNome={setNewDebtorNome}
+        newDebtorTelefone={newDebtorTelefone}
+        setNewDebtorTelefone={setNewDebtorTelefone}
+        newDebtorObs={newDebtorObs}
+        setNewDebtorObs={setNewDebtorObs}
+        onCreateDebtor={handleCreateDebtor}
+        isLoanModalOpen={isLoanModalOpen}
+        onCloseLoanModal={() => setIsLoanModalOpen(false)}
+        editingLoanId={editingLoanId}
+        newLoanDebtorId={newLoanDebtorId}
+        setNewLoanDebtorId={setNewLoanDebtorId}
+        debtorOptions={debtorOptions}
+        newLoanCat={newLoanCat}
+        setNewLoanCat={setNewLoanCat}
+        newLoanDesc={newLoanDesc}
+        setNewLoanDesc={setNewLoanDesc}
+        newLoanVal={newLoanVal}
+        setNewLoanVal={setNewLoanVal}
+        newLoanDate={newLoanDate}
+        setNewLoanDate={setNewLoanDate}
+        newLoanParcelado={newLoanParcelado}
+        setNewLoanParcelado={setNewLoanParcelado}
+        newLoanTotalParc={newLoanTotalParc}
+        setNewLoanTotalParc={setNewLoanTotalParc}
+        newLoanObs={newLoanObs}
+        setNewLoanObs={setNewLoanObs}
+        onCreateLoan={handleCreateLoan}
+        isPaymentModalOpen={isPaymentModalOpen}
+        onClosePaymentModal={() => setIsPaymentModalOpen(false)}
+        payingInstallment={payingInstallment}
+        payingLoanDesc={payingLoanDesc}
+        payingValue={payingValue}
+        setPayingValue={setPayingValue}
+        payingMethod={payingMethod}
+        setPayingMethod={setPayingMethod}
+        onPayInstallment={handlePayInstallment}
+        isGlobalPayModalOpen={isGlobalPayModalOpen}
+        onCloseGlobalPayModal={() => setIsGlobalPayModalOpen(false)}
+        globalPayDebtor={globalPayDebtor}
+        globalPayValue={globalPayValue}
+        setGlobalPayValue={setGlobalPayValue}
+        globalPayMethod={globalPayMethod}
+        setGlobalPayMethod={setGlobalPayMethod}
+        onPayGlobalDebtor={handlePayGlobalDebtor}
+      />
 
-      {/* ?? Novo/Editar Devedor Modal */}
-      {isDebtorModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 w-full max-w-sm space-y-4 shadow-2xl animate-in zoom-in-95 relative">
-            <button type="button" onClick={() => setIsDebtorModalOpen(false)} className="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors"><X size={20} /></button>
-            <h3 className="text-lg font-bold text-white flex items-center gap-2">
-              <User className="text-blue-500" /> {editingDebtorId ? 'Editar Devedor' : 'Cadastrar Devedor'}
-            </h3>
-            <div className="space-y-3">
-              <div>
-                <label className="text-[10px] text-slate-500 uppercase font-bold pl-1 mb-1 block">Nome Completo</label>
-                <input
-                  type="text"
-                  placeholder="Ex: Lucas, Pedro..."
-                  className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-white outline-none focus:border-blue-500 transition-colors"
-                  value={newDebtorNome}
-                  onChange={e => setNewDebtorNome(e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="text-[10px] text-slate-500 uppercase font-bold pl-1 mb-1 block">Telefone (Opcional)</label>
-                <input
-                  type="text"
-                  placeholder="Ex: (11) 99999-9999"
-                  className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-white outline-none focus:border-blue-500 transition-colors font-mono"
-                  value={newDebtorTelefone}
-                  onChange={e => setNewDebtorTelefone(e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="text-[10px] text-slate-500 uppercase font-bold pl-1 mb-1 block">Anotações</label>
-                <textarea
-                  placeholder="Ex: Contato financeiro preferido..."
-                  rows={2}
-                  className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-slate-350 outline-none focus:border-blue-500 transition-colors text-xs resize-none"
-                  value={newDebtorObs}
-                  onChange={e => setNewDebtorObs(e.target.value)}
-                />
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={handleCreateDebtor}
-              className="w-full bg-blue-600 hover:bg-blue-500 text-white p-3 rounded-xl font-bold transition-all"
-            >
-              {editingDebtorId ? 'Atualizar Devedor' : 'Criar Devedor'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ?? Novo/Editar Empréstimo Modal */}
-      {isLoanModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 w-full max-w-md space-y-4 shadow-2xl animate-in zoom-in-95 relative">
-            <button type="button" onClick={() => setIsLoanModalOpen(false)} className="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors"><X size={20} /></button>
-            <h3 className="text-lg font-bold text-white flex items-center gap-2">
-              <Plus className="text-blue-500" /> {editingLoanId ? 'Editar Detalhes do Empréstimo' : 'Registrar Empréstimo'}
-            </h3>
-            <div className="space-y-3">
-
-              {!editingLoanId && (
-                <div className="grid grid-cols-2 gap-3 animate-in fade-in duration-200">
-                  <div>
-                    <label className="text-[10px] text-slate-500 uppercase font-bold pl-1 mb-1 block">Devedor</label>
-                    <select
-                      value={newLoanDebtorId}
-                      onChange={e => setNewLoanDebtorId(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-white outline-none focus:border-blue-500 transition-colors text-xs cursor-pointer"
-                    >
-                      <option value="">Selecione...</option>
-                      {debtorOptions.map(opt => (
-                        <option key={opt.id} value={opt.id}>{opt.nome}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-[10px] text-slate-500 uppercase font-bold pl-1 mb-1 block">Categoria</label>
-                    <select
-                      value={newLoanCat}
-                      onChange={e => setNewLoanCat(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-white outline-none focus:border-blue-500 transition-colors text-xs cursor-pointer"
-                    >
-                      <option value="Geral">Geral</option>
-                      <option value="Aluguel">Aluguel</option>
-                      <option value="Refeição">Refeição</option>
-                      <option value="Viagem">Viagem</option>
-                      <option value="Transporte">Transporte</option>
-                      <option value="Outros">Outros</option>
-                    </select>
-                  </div>
-                </div>
-              )}
-
-              {editingLoanId && (
-                <div className="animate-in fade-in duration-200">
-                  <label className="text-[10px] text-slate-500 uppercase font-bold pl-1 mb-1 block">Categoria</label>
-                  <select
-                    value={newLoanCat}
-                    onChange={e => setNewLoanCat(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-white outline-none focus:border-blue-500 transition-colors text-xs cursor-pointer"
-                  >
-                    <option value="Geral">Geral</option>
-                    <option value="Aluguel">Aluguel</option>
-                    <option value="Refeição">Refeição</option>
-                    <option value="Viagem">Viagem</option>
-                    <option value="Transporte">Transporte</option>
-                    <option value="Outros">Outros</option>
-                  </select>
-                </div>
-              )}
-
-              <div>
-                <label className="text-[10px] text-slate-500 uppercase font-bold pl-1 mb-1 block">Descrição</label>
-                <input
-                  type="text"
-                  placeholder="Ex: Jantar de aniversário"
-                  className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-white outline-none focus:border-blue-500 transition-colors text-xs"
-                  value={newLoanDesc}
-                  onChange={e => setNewLoanDesc(e.target.value)}
-                />
-              </div>
-
-              {!editingLoanId && (
-                <div className="grid grid-cols-2 gap-3 animate-in fade-in duration-200">
-                  <div>
-                    <label className="text-[10px] text-slate-500 uppercase font-bold pl-1 mb-1 block">Valor Total</label>
-                    <input
-                      type="number"
-                      placeholder="R$ 0,00"
-                      className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-white outline-none focus:border-blue-500 transition-colors font-mono font-bold"
-                      value={newLoanVal}
-                      onChange={e => setNewLoanVal(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] text-slate-500 uppercase font-bold pl-1 mb-1 block">Data de Empréstimo</label>
-                    <input
-                      type="date"
-                      className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-white outline-none focus:border-blue-500 transition-colors font-mono"
-                      value={newLoanDate}
-                      onChange={e => setNewLoanDate(e.target.value)}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {!editingLoanId && (
-                <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-850 space-y-2 animate-in fade-in duration-200">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-400">Empréstimo Parcelado?</span>
-                    <input
-                      type="checkbox"
-                      checked={newLoanParcelado}
-                      onChange={e => setNewLoanParcelado(e.target.checked)}
-                      className="cursor-pointer accent-blue-500 w-4 h-4"
-                    />
-                  </div>
-                  {newLoanParcelado && (
-                    <div className="animate-in slide-in-from-top-1 duration-200">
-                      <label className="text-[10px] text-slate-500 uppercase font-bold pl-1 mb-1 block">Quantidade de Parcelas</label>
-                      <input
-                        type="number"
-                        min="2"
-                        placeholder="Qtd parcelas"
-                        className="w-full bg-slate-950 border border-slate-800 p-2.5 rounded-lg text-white outline-none focus:border-blue-500 transition-colors font-mono"
-                        value={newLoanTotalParc}
-                        onChange={e => setNewLoanTotalParc(e.target.value)}
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <div>
-                <label className="text-[10px] text-slate-500 uppercase font-bold pl-1 mb-1 block">Observações / Anotações</label>
-                <textarea
-                  placeholder="Anotações adicionais para este empréstimo..."
-                  rows={2}
-                  className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-slate-300 outline-none focus:border-blue-500 transition-colors text-xs resize-none"
-                  value={newLoanObs}
-                  onChange={e => setNewLoanObs(e.target.value)}
-                />
-              </div>
-
-            </div>
-            <button
-              type="button"
-              onClick={handleCreateLoan}
-              className="w-full bg-blue-600 hover:bg-blue-500 text-white p-3 rounded-xl font-bold transition-all"
-            >
-              {editingLoanId ? 'Salvar Alterações' : 'Criar Empréstimo'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ?? Registrar Recebimento Modal */}
-      {isPaymentModalOpen && payingInstallment && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 w-full max-w-sm space-y-4 shadow-2xl animate-in zoom-in-95 relative">
-            <button type="button" onClick={() => setIsPaymentModalOpen(false)} className="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors"><X size={20} /></button>
-            <h3 className="text-lg font-bold text-white flex items-center gap-2"><CheckSquare className="text-emerald-500" /> Registrar Recebimento</h3>
-
-            <div className="space-y-1.5 p-3 bg-slate-950/60 rounded-xl border border-slate-800 text-xs">
-              <p className="text-slate-400">Empréstimo: <span className="text-white font-semibold">{payingLoanDesc}</span></p>
-              <p className="text-slate-400">Parcela: <span className="text-white font-mono font-semibold">#{payingInstallment.numero_parcela}</span></p>
-              <p className="text-slate-400">Valor Parcela: <span className="text-emerald-400 font-mono font-bold">{money(payingInstallment.valor_parcela)}</span></p>
-              {payingInstallment.valor_pago > 0 && (
-                <p className="text-slate-500">Já Recebido Parcialmente: <span className="text-slate-400 font-mono">{money(payingInstallment.valor_pago)}</span></p>
-              )}
-            </div>
-
-            <div className="space-y-3">
-              <div>
-                <label className="text-[10px] text-slate-500 uppercase font-bold pl-1 mb-1 block">Valor Pago (R$)</label>
-                <input
-                  type="number"
-                  placeholder="0,00"
-                  className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-white outline-none focus:border-blue-500 transition-colors font-mono font-bold text-lg"
-                  value={payingValue}
-                  onChange={e => setPayingValue(e.target.value)}
-                />
-                <span className="text-[9px] text-slate-500 block pl-1 mt-1">Valores maiores abaterão parcelas futuras sequencialmente.</span>
-              </div>
-
-              <div>
-                <label className="text-[10px] text-slate-500 uppercase font-bold pl-1 mb-1 block">Forma de Pagamento</label>
-                <select
-                  value={payingMethod}
-                  onChange={e => setPayingMethod(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-white outline-none focus:border-blue-500 transition-colors text-xs cursor-pointer"
-                >
-                  <option value="Pix">Pix</option>
-                  <option value="Dinheiro">Dinheiro</option>
-                  <option value="Crédito">Crédito / Boleto</option>
-                  <option value="Outro">Outro</option>
-                </select>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={handlePayInstallment}
-              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white p-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
-            >
-              <CheckCircle size={16} /> Confirmar Recebimento
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ?? Registrar Recebimento Global Modal (User request!) */}
-      {isGlobalPayModalOpen && globalPayDebtor && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 w-full max-w-sm space-y-4 shadow-2xl animate-in zoom-in-95 relative">
-            <button type="button" onClick={() => setIsGlobalPayModalOpen(false)} className="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors"><X size={20} /></button>
-            <h3 className="text-lg font-bold text-white flex items-center gap-2"><CheckSquare className="text-emerald-500" /> Quitação / Recebimento Global</h3>
-
-            <div className="space-y-1.5 p-3 bg-slate-950/60 rounded-xl border border-slate-800 text-xs">
-              <p className="text-slate-400">Devedor: <span className="text-white font-semibold">{globalPayDebtor.nome}</span></p>
-              <p className="text-slate-400">Saldo Devedor Total: <span className="text-yellow-400 font-mono font-bold">{money(globalPayDebtor.saldo_pendente)}</span></p>
-            </div>
-
-            <div className="space-y-3">
-              <div>
-                <label className="text-[10px] text-slate-500 uppercase font-bold pl-1 mb-1 block">Valor Recebido (R$)</label>
-                <input
-                  type="number"
-                  placeholder="0,00"
-                  className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-white outline-none focus:border-blue-500 transition-colors font-mono font-bold text-lg"
-                  value={globalPayValue}
-                  onChange={e => setGlobalPayValue(e.target.value)}
-                />
-                <span className="text-[9px] text-slate-500 block pl-1 mt-1">Este valor quitar as parcelas em aberto mais antigas sequencialmente, abatendo ou parcelando a última afetada se necessário.</span>
-              </div>
-
-              <div>
-                <label className="text-[10px] text-slate-500 uppercase font-bold pl-1 mb-1 block">Forma de Pagamento</label>
-                <select
-                  value={globalPayMethod}
-                  onChange={e => setGlobalPayMethod(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-white outline-none focus:border-blue-500 transition-colors text-xs cursor-pointer"
-                >
-                  <option value="Pix">Pix</option>
-                  <option value="Dinheiro">Dinheiro</option>
-                  <option value="Crédito">Crédito / Boleto</option>
-                  <option value="Outro">Outro</option>
-                </select>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={handlePayGlobalDebtor}
-              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white p-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
-            >
-              <CheckCircle size={16} /> Confirmar Recebimento Lote
-            </button>
-          </div>
-        </div>
-      )}
-
+      <ConfirmDialog
+        isOpen={confirmAction !== null}
+        title={
+          confirmAction?.kind === 'batch'
+            ? 'Liquidar parcelas'
+            : confirmAction?.kind === 'loan'
+            ? 'Excluir empréstimo'
+            : 'Excluir devedor'
+        }
+        message={
+          confirmAction?.kind === 'batch'
+            ? `Confirmar liquidação das ${selectedInstallments.length} parcelas selecionadas?`
+            : confirmAction?.kind === 'loan'
+            ? `Deseja excluir permanentemente o empréstimo "${confirmAction.desc}" e todas as suas parcelas?`
+            : confirmAction?.kind === 'debtor'
+            ? `Deseja excluir o perfil de "${confirmAction.nome}"? Todos os empréstimos ativos dele serão arquivados.`
+            : ''
+        }
+        confirmLabel={
+          confirmLoading
+            ? 'Processando...'
+            : confirmAction?.kind === 'batch'
+            ? 'Liquidar'
+            : 'Excluir'
+        }
+        onCancel={() => { if (!confirmLoading) setConfirmAction(null); }}
+        onConfirm={executeConfirmAction}
+      />
     </div>
   );
 };

@@ -45,6 +45,7 @@ export const SmartAllocationModal = ({ isOpen, onClose, ativos = [] }: SmartAllo
   const { isHidden } = usePrivacy() as { isHidden: boolean };
   const [amountStr, setAmountStr] = useState('');
   const [reinvestDividends, setReinvestDividends] = useState(true);
+  const [maxAssetPct, setMaxAssetPct] = useState<string>('20');
   const [monthDividends, setMonthDividends] = useState(0);
   const [serverResult, setServerResult] = useState<ServerRebalanceResult | null>(null);
   const [serverLoading, setServerLoading] = useState(false);
@@ -120,7 +121,10 @@ export const SmartAllocationModal = ({ isOpen, onClose, ativos = [] }: SmartAllo
     try {
       const data = await apiCall<ServerRebalanceResult>('/api/smart-rebalance', {
         method: 'POST',
-        body: JSON.stringify({ aporte_mensal: amount }),
+        body: JSON.stringify({
+          aporte_mensal: amount,
+          max_asset_pct: maxAssetPct ? Number(maxAssetPct) : null,
+        }),
       });
       if (data.status === 'Sucesso') setServerResult(data);
       else setServerError(data.msg || 'Erro no servidor.');
@@ -129,7 +133,7 @@ export const SmartAllocationModal = ({ isOpen, onClose, ativos = [] }: SmartAllo
     } finally {
       setServerLoading(false);
     }
-  }, [amountStr, reinvestDividends, monthDividends]);
+  }, [amountStr, reinvestDividends, monthDividends, maxAssetPct]);
 
   const estimatedPassiveDelta = useMemo(() => {
     if (!serverResult) return 0;
@@ -232,6 +236,24 @@ export const SmartAllocationModal = ({ isOpen, onClose, ativos = [] }: SmartAllo
                 <span>R$ 0</span>
                 <span>R$ 50k</span>
               </div>
+            </div>
+
+            <div className="w-full max-w-sm flex items-center justify-between gap-3 bg-surface-elevated border border-border-subtle rounded-xl px-3.5 py-2 text-xs">
+              <label htmlFor="smart-max-asset-pct" className="text-text-muted font-semibold">
+                Concentração máx. por ativo
+              </label>
+              <select
+                id="smart-max-asset-pct"
+                value={maxAssetPct}
+                onChange={(e) => setMaxAssetPct(e.target.value)}
+                className="bg-surface-input border border-border-subtle rounded-lg px-2.5 py-1 text-text-primary font-mono font-bold text-xs focus:outline-none focus:border-accent"
+              >
+                <option value="">Sem trava</option>
+                <option value="10">10%</option>
+                <option value="15">15%</option>
+                <option value="20">20%</option>
+                <option value="25">25%</option>
+              </select>
             </div>
 
             {monthDividends > 0 && (

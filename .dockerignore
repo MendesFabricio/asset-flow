@@ -30,3 +30,5 @@ server/tests/
 **/__pycache__/
 *.pyc
 update-*.json
+.env
+.env.*

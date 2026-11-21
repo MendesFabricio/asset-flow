@@ -58,7 +58,11 @@ class FacadeService:
         with Session() as s:
             return calculate_risk_metrics(s, _fetch_price_history_fn, allow_compute, dolar_rate=dolar_rate)
 
-    def calculate_smart_rebalance(self, monthly_contribution: float = 0.0) -> dict:
+    def calculate_smart_rebalance(
+        self,
+        monthly_contribution: float = 0.0,
+        max_asset_pct: float | None = None,
+    ) -> dict:
         """Façade → quant_engine.calculate_smart_rebalance"""
         dolar_rate = float(self.get_usd_rate() or 1.0)
         with Session() as session:
@@ -67,6 +71,7 @@ class FacadeService:
                 _fetch_price_history_fn,
                 monthly_contribution,
                 dolar_rate=dolar_rate,
+                max_asset_pct=max_asset_pct,
             )
 
     def calculate_income_projection(

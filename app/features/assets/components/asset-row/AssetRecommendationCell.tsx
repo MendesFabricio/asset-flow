@@ -46,18 +46,18 @@ export function AssetRecommendationCell({
 
   return (
     <td className="px-6 py-5 text-right">
-      <div className="flex flex-col items-end gap-1.5 w-[110px] ml-auto">
+      <div className="flex flex-col items-end gap-1.5 w-[132px] ml-auto">
         {ativo.falta_comprar > 1 ? (
           <PrivateValue
             value={`+${formatMoney(ativo.falta_comprar)}`}
-            className="w-full max-w-[110px] text-center text-blue-400 font-bold bg-blue-500/10 px-2 py-0.5 rounded ring-1 ring-inset ring-blue-500/20 text-[11px] whitespace-nowrap shadow-sm tabular-nums inline-block"
+            className="w-full max-w-[132px] text-center text-blue-400 font-bold bg-blue-500/10 px-2 py-0.5 rounded ring-1 ring-inset ring-blue-500/20 text-[11px] whitespace-nowrap shadow-sm tabular-nums inline-block"
           />
         ) : (
-          <span className="w-full max-w-[110px] text-center text-slate-700 text-[10px] font-medium inline-block">-</span>
+          <span className="w-full max-w-[132px] text-center text-slate-700 text-[10px] font-medium inline-block">-</span>
         )}
 
         <div
-          className={`inline-flex items-center justify-center gap-1 text-[9px] w-full max-w-[110px] px-1 py-[3px] rounded-md ring-1 ring-inset uppercase font-bold cursor-pointer transition-all whitespace-nowrap hover:brightness-125 ${colors}`}
+          className={`inline-flex items-center justify-center gap-1 text-[9px] w-full max-w-[132px] px-1.5 py-[3px] rounded-md ring-1 ring-inset uppercase font-bold cursor-pointer transition-all whitespace-nowrap hover:brightness-125 ${colors}`}
           onMouseEnter={onShowRec}
           onMouseLeave={onHide}
         >

@@ -285,7 +285,12 @@ def smart_rebalance():
     try:
         body = request.get_json(silent=True) or {}
         aporte = float(body.get("aporte_mensal", 0.0))
-        result = service.calculate_smart_rebalance(monthly_contribution=aporte)
+        raw_max_pct = body.get("max_asset_pct")
+        max_asset_pct = float(raw_max_pct) if raw_max_pct not in (None, "", 0, "0") else None
+        result = service.calculate_smart_rebalance(
+            monthly_contribution=aporte,
+            max_asset_pct=max_asset_pct,
+        )
         return jsonify(result)
     except Exception as e:
         logging.error(f"❌ Erro no smart-rebalance: {e}", exc_info=True)

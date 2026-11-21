@@ -13,6 +13,7 @@ export interface AssetRowStats {
   isOverweight: boolean;
   displayPrice: string;
   displayPM: string;
+  displayAdjustedPM: string | null;
   hasReports: boolean;
 }
 
@@ -49,6 +50,14 @@ export interface AssetRowStats {
       isOverweight: ativo.pct_na_categoria > ativo.meta,
       displayPrice: isUSD ? `$ ${ativo.preco_atual.toFixed(2)}` : formatMoney(ativo.preco_atual),
       displayPM: isUSD ? `$ ${ativo.pm.toFixed(2)}` : formatMoney(ativo.pm),
+      displayAdjustedPM:
+        (ativo.dividendos_recebidos ?? 0) > 0 &&
+        ativo.pm_ajustado_dividendos !== null &&
+        ativo.pm_ajustado_dividendos !== undefined
+          ? isUSD
+            ? `$ ${ativo.pm_ajustado_dividendos.toFixed(2)}`
+            : formatMoney(ativo.pm_ajustado_dividendos)
+          : null,
       hasReports:
         !!ativo.last_report_url ||
         (typeof ativo.last_report_type === 'string' && ativo.last_report_type.length > 5) ||

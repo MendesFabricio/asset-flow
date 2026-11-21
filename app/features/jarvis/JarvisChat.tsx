@@ -167,38 +167,40 @@ export function JarvisChat() {
 
 
   return (
-    <div className="max-w-4xl mx-auto bg-surface-card/40 border border-slate-900 rounded-2xl overflow-hidden shadow-2xl flex flex-col h-[650px] backdrop-blur-md">
+    <div className="max-w-4xl mx-auto bg-surface-card border border-border-subtle rounded-2xl overflow-hidden shadow-2xl flex flex-col h-[650px] backdrop-blur-md">
       {/* Header */}
-      <div className="px-5 py-4 border-b border-slate-900/60 bg-gradient-to-r from-slate-950 via-indigo-950/20 to-slate-950 flex items-center justify-between">
+      <div className="px-5 py-4 border-b border-border-subtle bg-surface-elevated flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-indigo-500/10 rounded-xl border border-indigo-500/20 text-indigo-400">
             <Brain size={18} className="animate-pulse" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
+            <h3 className="text-sm font-bold text-text-primary flex items-center gap-1.5">
               Assistente Jarvis
               <span className="text-[9px] uppercase font-extrabold tracking-wider bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 px-1.5 py-0.5 rounded">Jarvis Edition</span>
             </h3>
-            <p className="text-[10px] text-slate-500">Inteligência quantitativa consciente de portfólio</p>
+            <p className="text-[11px] text-text-muted">Inteligência quantitativa consciente de portfólio</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
           <select
+            aria-label="Sessão do Assistente Jarvis"
             value={sessionId}
             onChange={(e) => setSessionId(e.target.value)}
             disabled={loading}
-            className="bg-surface-card border border-slate-800 rounded-lg text-[10px] font-bold text-slate-300 px-2 py-1 uppercase tracking-wider focus:outline-none focus:border-indigo-500/70"
+            className="bg-surface-input border border-border-subtle rounded-lg text-[10px] font-bold text-text-primary px-2 py-1 uppercase tracking-wider focus:outline-none focus:border-indigo-500/70"
           >
             {sessionsList.map((s) => (
-              <option key={s.id} value={s.id} className="bg-surface-card text-slate-300">
+              <option key={s.id} value={s.id} className="bg-surface-card text-text-primary">
                 {s.label}
               </option>
             ))}
           </select>
           <button
+            type="button"
             onClick={handleClearHistory}
             title="Limpar Conversa"
-            className="text-slate-500 hover:text-slate-300 hover:bg-surface-card/50 p-1.5 rounded-lg transition-all"
+            className="text-text-muted hover:text-text-primary hover:bg-surface-card p-1.5 rounded-lg transition-all"
           >
             <RefreshCw size={14} />
           </button>
@@ -206,7 +208,7 @@ export function JarvisChat() {
       </div>
 
       {/* Message Thread */}
-      <div className="flex-1 overflow-y-auto p-5 space-y-4 scrollbar-thin scrollbar-thumb-slate-900">
+      <div className="flex-1 overflow-y-auto px-5 pt-6 pb-5 space-y-4 scrollbar-thin scrollbar-thumb-slate-700">
         {messages.map((msg) => (
           <div
             key={msg.id}
@@ -217,7 +219,7 @@ export function JarvisChat() {
             <div
               className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border ${
                 msg.sender === 'user'
-                  ? 'bg-surface-card border-slate-800 text-slate-400'
+                  ? 'bg-surface-elevated border-border-subtle text-text-muted'
                   : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400'
               }`}
             >
@@ -225,10 +227,10 @@ export function JarvisChat() {
             </div>
             
             <div
-              className={`p-3.5 rounded-2xl text-xs leading-relaxed ${
+              className={`p-3.5 rounded-2xl text-xs leading-relaxed border ${
                 msg.sender === 'user'
-                  ? 'bg-surface-card text-slate-200 rounded-tr-none border border-slate-850'
-                  : 'bg-indigo-950/20 text-slate-300 border border-indigo-500/10 shadow-[inset_0_1px_2px_rgba(99,102,241,0.03)] rounded-tl-none'
+                  ? 'bg-accent-soft text-text-primary rounded-tr-none border-accent/20'
+                  : 'bg-surface-elevated text-text-primary border-border-subtle rounded-tl-none'
               }`}
             >
               <Markdown text={msg.text} />

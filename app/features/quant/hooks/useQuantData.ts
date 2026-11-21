@@ -33,8 +33,6 @@ export interface SharpeRollingData {
 
 export type SectorExposureData = Record<string, Record<string, number>>;
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 function computeAllocMapping(assetsList: { ticker?: string; total_atual?: number | string }[]): Record<string, number> {
   if (assetsList.length === 0) return {};
   const totalVal = assetsList.reduce((acc, curr) => {
@@ -106,7 +104,7 @@ export function useQuantData(riskAversion: number, ativos?: Asset[], activeTab: 
       .finally(() => setLoading(false));
 
     if (!hasExternalAtivos) {
-      apiCall<any[]>('/api/assets')
+      apiCall<Array<{ ticker?: string; total_atual?: number | string }>>('/api/assets')
         .then((res) => {
           const assetsList = Array.isArray(res) ? res : [];
           setFetchedAlloc(computeAllocMapping(assetsList));

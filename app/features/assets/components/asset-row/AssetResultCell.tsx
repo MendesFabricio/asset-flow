@@ -11,6 +11,11 @@ interface AssetResultCellProps {
 
 export const AssetResultCell = memo(function AssetResultCell({ ativo, isHidden }: AssetResultCellProps) {
   const lucroPositivo = ativo.lucro_valor >= 0;
+  const hasDivReturn =
+    (ativo.dividendos_recebidos ?? 0) > 0 &&
+    ativo.total_return_pct !== undefined &&
+    ativo.total_return_valor !== undefined;
+  const totalReturnPos = (ativo.total_return_valor ?? 0) >= 0;
 
   return (
     <td className="px-6 py-5 text-right">
@@ -26,6 +31,20 @@ export const AssetResultCell = memo(function AssetResultCell({ ativo, isHidden }
           />
           {!isHidden && (lucroPositivo ? <TrendingUp size={10} /> : <TrendingDown size={10} />)}
         </div>
+        {hasDivReturn && (
+          <span
+            title={
+              isHidden
+                ? 'Retorno Total (Valorização + Dividendos)'
+                : `Retorno Total com dividendos: ${totalReturnPos ? '+' : ''}${formatMoney(ativo.total_return_valor ?? 0)}`
+            }
+          >
+            <PrivateValue
+              value={`c/ Div.: ${totalReturnPos ? '+' : ''}${(ativo.total_return_pct ?? 0).toFixed(2)}%`}
+              className={`text-[10px] tabular-nums ${totalReturnPos ? 'text-emerald-400/90' : 'text-rose-400/90'}`}
+            />
+          </span>
+        )}
       </div>
     </td>
   );

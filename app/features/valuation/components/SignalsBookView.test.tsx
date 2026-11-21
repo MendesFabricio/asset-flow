@@ -106,4 +106,33 @@ describe('SignalsBookView', () => {
       expect(screen.getByText(/Nenhum snapshot/i)).toBeInTheDocument();
     });
   });
+
+  it('toggles between latest per asset and full daily history without duplicating tickers in latest mode', async () => {
+    vi.mocked(apiCall).mockResolvedValue({
+      ...MOCK_RESPONSE,
+      items: [
+        ...MOCK_RESPONSE.items,
+        {
+          ...MOCK_RESPONSE.items[0],
+          date: '2026-09-30',
+          score: 79,
+        },
+      ],
+    });
+
+    render(
+      <PrivacyProvider>
+        <SignalsBookView onSelectTicker={vi.fn()} />
+      </PrivacyProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByText('2026-10-01').length).toBeGreaterThan(0);
+    });
+
+    expect(screen.queryByText('2026-09-30')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Último por ativo/i }));
+    expect(screen.getByText('2026-09-30')).toBeInTheDocument();
+  });
 });

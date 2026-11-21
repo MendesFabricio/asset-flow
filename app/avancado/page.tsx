@@ -1,9 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import Link from 'next/link';
 import {
-  ArrowLeft,
   Play,
   Pencil,
   Pause,
@@ -17,6 +15,7 @@ import {
 } from 'lucide-react';
 import { apiCall } from '../lib/api';
 import { useToast } from '../context/ToastContext';
+import { SubPageHeader } from '../components/ui/SubPageHeader';
 
 interface ScheduledJob {
   id: number;
@@ -271,18 +270,12 @@ export default function AvancadoPage() {
   }
 
   return (
-    <div className="min-h-screen bg-surface text-text-primary font-sans p-4 md:p-8">
-      <div className="max-w-6xl mx-auto space-y-6">
+    <div className="min-h-screen bg-surface text-text-primary font-sans">
+      <SubPageHeader />
+      <div className="max-w-6xl mx-auto p-4 md:p-8 space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div>
-            <Link
-              href="/"
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-text-muted hover:text-text-primary transition-colors mb-3 group"
-            >
-              <ArrowLeft size={13} className="transition-transform group-hover:-translate-x-0.5" />
-              Voltar para o Dashboard
-            </Link>
             <h1 className="text-2xl font-bold text-text-primary tracking-tight">Agendador de Tarefas</h1>
             <p className="text-text-muted text-xs mt-1">
               Controle de rotinas automáticas do worker, próximas execuções e histórico em tempo real

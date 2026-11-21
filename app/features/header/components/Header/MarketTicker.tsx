@@ -58,10 +58,11 @@ export const MarketTicker = React.memo(() => {
     { label: 'BTC', key: 'btc', data: indices.btc, format: (v: number) => 'US$ ' + v.toLocaleString('pt-BR', { maximumFractionDigits: 0 }) }
   ].filter(t => t.data) as Array<{ label: string; key: string; data: IndexData; format: (v: number) => string }>, [indices]);
 
-  // Rotação do carrossel
+  // Rotação do carrossel (pausa quando a aba está oculta)
   useEffect(() => {
     if (activeTickers.length <= 1) return;
     const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
       setTickerIndex((prev) => (prev + 1) % activeTickers.length);
     }, 4000);
     return () => clearInterval(interval);

@@ -57,8 +57,9 @@ export default function TaxMonthlyReport() {
       <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm">
         <div className="flex items-end gap-4">
           <div className="flex flex-col gap-1 w-28">
-            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Ano</label>
+            <label htmlFor="tax-monthly-year" className="text-sm font-medium text-slate-700 dark:text-slate-300">Ano</label>
             <select
+              id="tax-monthly-year"
               value={year}
               onChange={(e) => setYear(e.target.value)}
               className="px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white"
@@ -69,8 +70,9 @@ export default function TaxMonthlyReport() {
             </select>
           </div>
           <div className="flex flex-col gap-1 w-40">
-            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Mês</label>
+            <label htmlFor="tax-monthly-month" className="text-sm font-medium text-slate-700 dark:text-slate-300">Mês</label>
             <select
+              id="tax-monthly-month"
               value={month}
               onChange={(e) => setMonth(e.target.value)}
               className="px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white"

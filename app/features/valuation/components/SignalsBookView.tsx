@@ -69,16 +69,25 @@ function fmtRet(v: number | null) {
 export function SignalsBookView({ onSelectTicker }: { onSelectTicker: (ticker: string) => void }) {
   const palette = useChartPalette();
   const [tickerFilter, setTickerFilter] = useState('');
+  const [debouncedTicker, setDebouncedTicker] = useState('');
+  const [latestOnly, setLatestOnly] = useState(true);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [data, setData] = useState<SignalHistoryResponse | null>(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedTicker(tickerFilter.trim().toUpperCase());
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [tickerFilter]);
 
   const loadHistory = useCallback(async () => {
     setLoading(true);
     setErrorMsg(null);
     try {
-      const qs = tickerFilter.trim()
-        ? `?ticker=${encodeURIComponent(tickerFilter.trim().toUpperCase())}&limit=300`
+      const qs = debouncedTicker
+        ? `?ticker=${encodeURIComponent(debouncedTicker)}&limit=300`
         : '?limit=300';
       const res = await apiCall<SignalHistoryResponse>(`/api/valuation/signals/history${qs}`);
       if (res.status === 'Sucesso') {
@@ -91,11 +100,25 @@ export function SignalsBookView({ onSelectTicker }: { onSelectTicker: (ticker: s
     } finally {
       setLoading(false);
     }
-  }, [tickerFilter]);
+  }, [debouncedTicker]);
 
   useEffect(() => {
     loadHistory();
   }, [loadHistory]);
+
+  const visibleItems = useMemo(() => {
+    const raw = data?.items || [];
+    const term = tickerFilter.trim().toUpperCase();
+    const filtered = term ? raw.filter((item) => item.ticker.toUpperCase().includes(term)) : raw;
+    if (!latestOnly) return filtered;
+
+    const seen = new Set<string>();
+    return filtered.filter((item) => {
+      if (seen.has(item.ticker)) return false;
+      seen.add(item.ticker);
+      return true;
+    });
+  }, [data, tickerFilter, latestOnly]);
 
   const chartRows = useMemo(() => {
     const bt = data?.summary?.backtest || {};
@@ -117,15 +140,6 @@ export function SignalsBookView({ onSelectTicker }: { onSelectTicker: (ticker: s
 
   const hasAnyForwardReturns = chartRows.some((r) => r.hasReturns);
 
-  if (loading) {
-    return (
-      <div className="bg-surface-card border border-border-subtle rounded-2xl p-10 flex items-center justify-center gap-2 text-xs text-text-muted">
-        <Loader2 size={16} className="animate-spin text-accent" />
-        Carregando Livro de Sinais &amp; Backtest...
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-4">
       <div className="bg-surface-card border border-border-subtle rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3">
@@ -138,7 +152,19 @@ export function SignalsBookView({ onSelectTicker }: { onSelectTicker: (ticker: s
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setLatestOnly((prev) => !prev)}
+            className={`px-3 py-1.5 rounded-lg border text-xs font-bold transition-colors ${
+              latestOnly
+                ? 'bg-accent-soft border-accent/40 text-accent'
+                : 'bg-surface-elevated border-border-subtle text-text-muted hover:text-text-primary'
+            }`}
+            title="Alternar entre apenas o último sinal de cada ativo ou todo o histórico diário"
+          >
+            {latestOnly ? 'Último por ativo' : 'Histórico diário'}
+          </button>
           <input
             type="text"
             aria-label="Filtrar ticker no Livro de Sinais"
@@ -153,10 +179,17 @@ export function SignalsBookView({ onSelectTicker }: { onSelectTicker: (ticker: s
             aria-label="Recarregar Livro de Sinais"
             className="px-3 py-1.5 rounded-lg bg-surface-elevated border border-border-subtle text-xs font-bold text-text-primary hover:border-accent flex items-center gap-1"
           >
-            <RefreshCw size={12} /> Atualizar
+            {loading ? <Loader2 size={12} className="animate-spin text-accent" /> : <RefreshCw size={12} />} Atualizar
           </button>
         </div>
       </div>
+
+      {loading && !data && (
+        <div className="bg-surface-card border border-border-subtle rounded-2xl p-10 flex items-center justify-center gap-2 text-xs text-text-muted">
+          <Loader2 size={16} className="animate-spin text-accent" />
+          Carregando Livro de Sinais &amp; Backtest...
+        </div>
+      )}
 
       {errorMsg && (
         <div className="rounded-xl border border-status-error/30 bg-status-error/10 px-4 py-2 text-xs text-status-error">
@@ -182,7 +215,7 @@ export function SignalsBookView({ onSelectTicker }: { onSelectTicker: (ticker: s
               <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                 <BarChart data={chartRows} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke={palette.grid} vertical={false} />
-                  <XAxis dataKey="status" stroke={palette.axis} fontSize={10} tickLine={false} axisLine={false} />
+                  <XAxis dataKey="status" stroke={palette.axis} fontSize={10} tickLine={false} axisLine={false} tickFormatter={(v) => String(v).replaceAll('_', ' ')} />
                   <YAxis stroke={palette.axis} fontSize={10} tickLine={false} axisLine={false} />
                   <Tooltip
                     contentStyle={{
@@ -230,7 +263,7 @@ export function SignalsBookView({ onSelectTicker }: { onSelectTicker: (ticker: s
                       <span className="font-bold text-text-primary">{chg.ticker}</span>
                       <span className="text-text-muted ml-1.5 text-[10px]">{chg.date}</span>
                       <div className="text-[10px] text-text-muted">
-                        {chg.from_status} → <strong className="text-text-primary">{chg.to_status}</strong>
+                        {chg.from_status.replaceAll('_', ' ')} → <strong className="text-text-primary">{chg.to_status.replaceAll('_', ' ')}</strong>
                       </div>
                     </div>
                     <span className="font-mono font-bold text-accent">{chg.score}</span>
@@ -259,7 +292,7 @@ export function SignalsBookView({ onSelectTicker }: { onSelectTicker: (ticker: s
               </tr>
             </thead>
             <tbody className="divide-y divide-border-subtle">
-              {(data?.items || []).map((row, idx) => (
+              {visibleItems.map((row, idx) => (
                 <tr
                   key={`${row.ticker}-${row.date}-${idx}`}
                   onClick={() => onSelectTicker(row.ticker)}
@@ -268,8 +301,8 @@ export function SignalsBookView({ onSelectTicker }: { onSelectTicker: (ticker: s
                   <td className="px-4 py-2.5 font-bold text-text-primary">{row.ticker}</td>
                   <td className="px-4 py-2.5 font-mono text-text-muted">{row.date}</td>
                   <td className="px-4 py-2.5">
-                    <span className={`px-2 py-0.5 rounded border text-[10px] font-bold ${STATUS_BADGE[row.status] || STATUS_BADGE.INCONCLUSIVO}`}>
-                      {row.status}
+                    <span className={`px-2 py-0.5 rounded border text-[10px] font-bold whitespace-nowrap ${STATUS_BADGE[row.status] || STATUS_BADGE.INCONCLUSIVO}`}>
+                      {row.status.replaceAll('_', ' ')}
                     </span>
                   </td>
                   <td className="px-4 py-2.5 text-right font-mono font-bold text-text-primary">{row.score}</td>
@@ -287,7 +320,7 @@ export function SignalsBookView({ onSelectTicker }: { onSelectTicker: (ticker: s
                   </td>
                 </tr>
               ))}
-              {(data?.items || []).length === 0 && (
+              {visibleItems.length === 0 && (
                 <tr>
                   <td colSpan={8} className="px-4 py-8 text-center text-text-muted text-xs">
                     Nenhum snapshot de sinal encontrado.

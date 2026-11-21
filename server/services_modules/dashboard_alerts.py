@@ -1,5 +1,7 @@
 import logging
+from datetime import datetime, timedelta
 from decimal import Decimal
+from db.models import FixedIncome, SignalSnapshot
 
 def _prioridade_alerta(item):
     txt = item["titulo"] if isinstance(item, dict) else str(item)
@@ -58,6 +60,15 @@ def build_alerts(ativos_proc, cat_totals, cat_metas, resumo, dashboard_service_i
                     "titulo": f"🧠 FUNDAMENTO: {asset.ticker}",
                     "significado": f"O FII está sendo negociado com desconto patrimonial atrativo (P/VP: {float(pvp):.2f}).",
                     "acao": "Forte candidato para novos aportes visando ganho de capital e yields maiores."
+                })
+
+        if cat_name != "Reserva" and resumo.get("Total", Decimal('0')) > 0:
+            peso_global = (total_atual / resumo["Total"]) * Decimal('100.0')
+            if peso_global >= Decimal('20.0'):
+                alertas.append({
+                    "titulo": f"⚠️ CONCENTRAÇÃO GLOBAL: {asset.ticker}",
+                    "significado": f"{asset.ticker} representa {float(peso_global):.1f}% do patrimônio total da carteira (acima de 20%).",
+                    "acao": "Direcione novos aportes para outros ativos ou classes para diluir o risco idiossincrático."
                 })
 
         if rsi < 28:
@@ -141,6 +152,79 @@ def build_alerts(ativos_proc, cat_totals, cat_metas, resumo, dashboard_service_i
                 })
     except Exception as e:
         logging.warning(f"⚠️ Falha ao computar alertas de risco quantitativos no Dashboard: {e}")
+
+    try:
+        today = datetime.now().date()
+        limit_date = datetime.now() + timedelta(days=30)
+        rf_items = [item["obj"] for item in ativos_proc if item.get("obj") and item["obj"].asset]
+        asset_map = {pos.asset_id: pos.asset.ticker for pos in rf_items}
+        user_ids = {pos.user_id for pos in rf_items if getattr(pos, "user_id", None) is not None}
+        if asset_map:
+            rf_q = session.query(FixedIncome).filter(
+                FixedIncome.asset_id.in_(list(asset_map.keys())),
+                FixedIncome.is_deleted.is_(False),
+                FixedIncome.due_date <= limit_date,
+            )
+            if user_ids:
+                rf_q = rf_q.filter(FixedIncome.user_id.in_(list(user_ids)))
+            for fi in rf_q.all():
+                due_d = fi.due_date.date() if hasattr(fi.due_date, "date") else fi.due_date
+                days_left = (due_d - today).days
+                if 0 <= days_left <= 30:
+                    ticker = asset_map.get(fi.asset_id, "Renda Fixa")
+                    if days_left <= 7:
+                        alertas.append({
+                            "titulo": f"🚨 VENCIMENTO IMINENTE: {ticker}",
+                            "significado": f"O título de Renda Fixa {ticker} vence em {days_left} dia(s) ({due_d.strftime('%d/%m/%Y')}).",
+                            "acao": "Planeje o resgate ou reaplicação para evitar recursos parados sem rendimento."
+                        })
+                    else:
+                        alertas.append({
+                            "titulo": f"⚠️ VENCIMENTO PRÓXIMO: {ticker}",
+                            "significado": f"O título de Renda Fixa {ticker} vence em {days_left} dias ({due_d.strftime('%d/%m/%Y')}).",
+                            "acao": "Avalie novas taxas de Renda Fixa ou oportunidades da carteira antes do vencimento."
+                        })
+    except Exception as e:
+        logging.warning(f"⚠️ Falha ao checar vencimentos de Renda Fixa: {e}")
+
+    try:
+        portfolio_tickers = [
+            item["obj"].asset.ticker
+            for item in ativos_proc
+            if item.get("obj") and item["obj"].asset and item["obj"].asset.ticker
+        ]
+        if portfolio_tickers:
+            cutoff_date = datetime.now().date() - timedelta(days=3)
+            recent_signals = (
+                session.query(SignalSnapshot)
+                .filter(
+                    SignalSnapshot.ticker.in_(portfolio_tickers),
+                    SignalSnapshot.date >= cutoff_date,
+                )
+                .order_by(SignalSnapshot.ticker.asc(), SignalSnapshot.date.desc())
+                .all()
+            )
+            by_ticker = {}
+            for sig in recent_signals:
+                by_ticker.setdefault(sig.ticker, []).append(sig)
+            for ticker, rows in by_ticker.items():
+                if len(rows) >= 2 and rows[0].status != rows[1].status:
+                    curr_status = rows[0].status
+                    prev_status = rows[1].status
+                    if curr_status == "COMPRA_FORTE":
+                        alertas.append({
+                            "titulo": f"💎 UPGRADE DE SINAL: {ticker}",
+                            "significado": f"{ticker} mudou de {prev_status.replace('_', ' ')} para COMPRA FORTE no Livro de Sinais.",
+                            "acao": "Confira o valuation e considere priorizar no próximo aporte."
+                        })
+                    elif curr_status in ("REDUZIR", "EVITAR"):
+                        alertas.append({
+                            "titulo": f"🔻 REBAIXAMENTO DE SINAL: {ticker}",
+                            "significado": f"{ticker} mudou de {prev_status.replace('_', ' ')} para {curr_status.replace('_', ' ')} no Livro de Sinais.",
+                            "acao": "Revise os fundamentos e evite novos aportes até melhora dos múltiplos."
+                        })
+    except Exception as e:
+        logging.warning(f"⚠️ Falha ao checar mudanças recentes no Livro de Sinais: {e}")
 
     alertas.sort(key=_prioridade_alerta)
     return alertas

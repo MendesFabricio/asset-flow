@@ -1,9 +1,12 @@
 import { DollarSign } from 'lucide-react';
 import { formatMoney } from '@/lib/format';
+import { usePrivacy } from '@/context/PrivacyContext';
 import { TooltipState } from '@/hooks/useFloatingTooltip';
 import { FinanceTooltipData } from './types';
 
 export function FinanceTooltip({ rect, data: { valor, isPositive } }: TooltipState<FinanceTooltipData>) {
+  const { isHidden } = usePrivacy();
+  const displayValue = isHidden ? 'R$ •••••' : formatMoney(Math.abs(valor));
   return (
     <div
       className="fixed z-[110] animate-in fade-in zoom-in-95 duration-150 pointer-events-none"
@@ -17,7 +20,7 @@ export function FinanceTooltip({ rect, data: { valor, isPositive } }: TooltipSta
               <DollarSign size={10} /> Variação Hoje
             </span>
             <span className={`text-sm font-mono font-bold tracking-tight leading-none ${isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
-              {isPositive ? '+' : '-'}{formatMoney(Math.abs(valor))}
+              {isPositive ? '+' : '-'}{displayValue}
             </span>
           </div>
         </div>

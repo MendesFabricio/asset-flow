@@ -54,8 +54,8 @@ export const PortfolioDonutChart: React.FC<PortfolioDonutChartProps> = React.mem
   };
 
   return (
-    <Card className="flex flex-col h-full min-h-[525px] overflow-hidden !bg-surface-card !border-slate-800 shadow-2xl p-0 relative animate-in fade-in duration-500">
-      <div className="p-4 border-b border-slate-800 bg-transparent flex items-center justify-between shrink-0">
+    <Card className="flex flex-col h-full min-h-[420px] overflow-hidden bg-surface-card border-border-subtle shadow-2xl p-0 relative animate-in fade-in duration-500">
+      <div className="p-4 border-b border-border-subtle bg-transparent flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
           <div className="p-1.5 bg-indigo-500/10 rounded-lg border border-indigo-500/20">
             <Wallet size={16} className="text-indigo-400" />

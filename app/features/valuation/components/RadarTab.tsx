@@ -18,6 +18,7 @@ import {
 import { apiCall } from '@/lib/api';
 import { formatMoney } from '@/lib/format';
 import { ModalShell } from '@/components/ModalShell';
+import { usePrivacy } from '@/context/PrivacyContext';
 import { useToast } from '@/context/ToastContext';
 import { ValuationAssetData, WatchlistEntry } from '@/types';
 import { ValuationPanel } from './ValuationPanel';
@@ -45,6 +46,8 @@ const STRATEGIES: Array<{ id: StrategyMode; label: string; hint: string }> = [
 
 export function RadarTab() {
   const { notify } = useToast();
+  const { isHidden } = usePrivacy();
+  const money = (val: number) => (isHidden ? 'R$ •••••' : formatMoney(val));
   const [strategy, setStrategy] = useState<StrategyMode>('quality');
   const [assetType, setAssetType] = useState<string>('TODOS');
   const [sector, setSector] = useState<string>('TODOS');
@@ -216,7 +219,7 @@ export function RadarTab() {
                 value={customTicker}
                 onChange={(e) => setCustomTicker(e.target.value)}
                 placeholder="Analisar ticker B3 (ex: WEGE3)"
-                className="pl-8 pr-3 py-2 rounded-lg bg-surface-input border border-border-subtle text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent w-48"
+                className="pl-8 pr-3 py-2 rounded-lg bg-surface-input border border-border-subtle text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent w-56 sm:w-64"
               />
             </div>
             <button
@@ -359,13 +362,13 @@ export function RadarTab() {
                           <div className="text-[10px] text-text-muted">{m.name || m.sector || 'B3'}</div>
                         </td>
                         <td className="px-4 py-3 text-right font-mono font-semibold text-text-primary">
-                          {m.price ? formatMoney(m.price) : 'N/D'}
+                          {m.price ? money(m.price) : 'N/D'}
                         </td>
                         <td className="px-4 py-3 text-right font-mono text-text-muted">
                           {w.desired_bazin_dy.toFixed(1)}%
                         </td>
                         <td className="px-4 py-3 text-right font-mono font-bold text-text-primary">
-                          {w.effective_target_price ? formatMoney(w.effective_target_price) : 'N/D'}
+                          {w.effective_target_price ? money(w.effective_target_price) : 'N/D'}
                         </td>
                         <td className="px-4 py-3 text-right font-mono font-bold">
                           {discount !== null && discount !== undefined ? (
@@ -476,7 +479,7 @@ export function RadarTab() {
                         </td>
 
                         <td className="px-4 py-3 text-right font-mono font-semibold text-text-primary whitespace-nowrap">
-                          <div>{formatMoney(item.price)}</div>
+                          <div>{money(item.price)}</div>
                           {item.change_percent !== null && (
                             <div className={`text-[10px] ${item.change_percent >= 0 ? 'text-status-success' : 'text-status-error'}`}>
                               {item.change_percent > 0 ? '+' : ''}
@@ -491,7 +494,7 @@ export function RadarTab() {
 
                         <td className="px-4 py-3 text-right font-mono whitespace-nowrap">
                           <div className="font-semibold text-text-primary">
-                            {item.bazin_price ? formatMoney(item.bazin_price) : 'N/D'}
+                            {item.bazin_price ? money(item.bazin_price) : 'N/D'}
                           </div>
                           {mgBazin !== null && mgBazin !== undefined && (
                             <div className={`text-[10px] font-bold ${mgBazin >= 0 ? 'text-status-success' : 'text-status-error'}`}>
@@ -509,7 +512,7 @@ export function RadarTab() {
                           ) : (
                             <>
                               <div className="font-semibold text-text-primary">
-                                {item.graham_price ? formatMoney(item.graham_price) : 'N/D'}
+                                {item.graham_price ? money(item.graham_price) : 'N/D'}
                               </div>
                               {item.margin_graham_pct !== null && item.margin_graham_pct !== undefined && (
                                 <div className={`text-[10px] font-bold ${item.margin_graham_pct >= 0 ? 'text-status-success' : 'text-status-error'}`}>

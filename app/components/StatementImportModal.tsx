@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { formatMoney } from '../lib/format';
 import { apiCall } from '../lib/api';
+import { usePrivacy } from '../context/PrivacyContext';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
 import { useChartPalette } from '../lib/chartPalette';
 
@@ -70,6 +71,8 @@ export function StatementImportModal({
   preSelectedCardId,
   onSuccess
 }: StatementImportModalProps) {
+  const { isHidden } = usePrivacy();
+  const money = (val: number) => (isHidden ? 'R$ •••••' : formatMoney(val));
   const [selectedCardId, setSelectedCardId] = useState<number | ''>('');
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
@@ -367,19 +370,19 @@ export function StatementImportModal({
                 <div className="bg-slate-800/60 p-4 rounded-xl border border-slate-700/60">
                   <span className="text-xs text-slate-400 font-medium uppercase">Total de Entradas</span>
                   <p className="text-lg font-bold text-emerald-400 mt-1">
-                    {formatMoney(parsedData.summary.total_entradas)}
+                    {money(parsedData.summary.total_entradas)}
                   </p>
                 </div>
                 <div className="bg-slate-800/60 p-4 rounded-xl border border-slate-700/60">
                   <span className="text-xs text-slate-400 font-medium uppercase">Total de Saídas</span>
                   <p className="text-lg font-bold text-rose-400 mt-1">
-                    {formatMoney(parsedData.summary.total_saidas)}
+                    {money(parsedData.summary.total_saidas)}
                   </p>
                 </div>
                 <div className="bg-slate-800/60 p-4 rounded-xl border border-slate-700/60">
                   <span className="text-xs text-slate-400 font-medium uppercase">Saldo Final</span>
                   <p className="text-lg font-bold text-blue-400 mt-1">
-                    {formatMoney(parsedData.summary.saldo_final)}
+                    {money(parsedData.summary.saldo_final)}
                   </p>
                 </div>
               </div>
@@ -432,7 +435,7 @@ export function StatementImportModal({
                       <span>🥧 Distribuição por Categoria (Itens Selecionados)</span>
                     </h3>
                     <span className="text-xs text-slate-400 font-medium">
-                      {selectedCount} {selectedCount === 1 ? 'item' : 'itens'} ({formatMoney(selectedTotal)})
+                      {selectedCount} {selectedCount === 1 ? 'item' : 'itens'} ({money(selectedTotal)})
                     </span>
                   </div>
                   {chartData.length > 0 ? (
@@ -453,7 +456,7 @@ export function StatementImportModal({
                             ))}
                           </Pie>
                           <Tooltip
-                            formatter={(value) => [formatMoney(Number(value || 0)), '']}
+                            formatter={(value) => [money(Number(value || 0)), '']}
                             contentStyle={{ backgroundColor: palette.tooltipBg, borderColor: palette.tooltipBorder, borderRadius: '0.75rem', color: palette.tooltipLabel }}
                             itemStyle={{ color: palette.tooltipLabel }}
                           />
@@ -494,7 +497,7 @@ export function StatementImportModal({
                   </span>
                 </div>
                 <div className="text-sm font-semibold text-blue-400">
-                  Total Selecionado: {formatMoney(selectedTotal)}
+                  Total Selecionado: {money(selectedTotal)}
                 </div>
               </div>
 
@@ -564,7 +567,7 @@ export function StatementImportModal({
                             row.signed_value < 0 ? 'text-rose-400' : 'text-emerald-400'
                           }`}>
                             {row.signed_value < 0 ? '- ' : '+ '}
-                            {formatMoney(Math.abs(row.value))}
+                            {money(Math.abs(row.value))}
                           </td>
                         </tr>
                       ))}

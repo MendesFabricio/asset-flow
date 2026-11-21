@@ -19,6 +19,8 @@ export interface Asset {
   tipo: string;
   qtd: number;
   pm: number;
+  dividendos_recebidos?: number;
+  pm_ajustado_dividendos?: number | null;
   meta: number;
   preco_atual: number;
   min_6m: number;
@@ -29,6 +31,8 @@ export interface Asset {
   total_investido: number;
   lucro_valor: number;
   lucro_pct: number;
+  total_return_valor?: number;
+  total_return_pct?: number;
   pct_na_categoria: number;
   falta_comprar: number;
   
@@ -76,7 +80,10 @@ export interface DashboardData {
     RendaMensal: number;
     TotalInvestido: number;
     LucroTotal: number;
-    [key: string]: number; 
+    TotalDividendos?: number;
+    TotalReturnValor?: number;
+    TotalReturnPct?: number;
+    [key: string]: number | undefined; 
   };
   grafico: { name: string; value: number }[];
   alertas: {

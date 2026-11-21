@@ -6,6 +6,9 @@ import { apiCall } from '@/lib/api';
 import { ModalShell } from '@/components/ModalShell';
 import { formatMoney } from '@/lib/format';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { usePrivacy } from '@/context/PrivacyContext';
+import { useToast } from '@/context/ToastContext';
 
 interface EditModalProps {
   isOpen: boolean;
@@ -144,7 +147,12 @@ const InputControl = ({ label, value, field, step, precision, color = "blue", on
 };
 
 export const EditModal = ({ isOpen, onClose, onSave, ativo, allAssets = [] }: EditModalProps) => {
+  const { isHidden } = usePrivacy();
+  const { notify } = useToast();
+  const money = (val: number) => (isHidden ? 'R$ •••••' : formatMoney(val));
   const [activeTab, setActiveTab] = useState<'TRANSACTION' | 'HISTORY' | 'SETTINGS'>('TRANSACTION');
+  const [pendingDeleteTxId, setPendingDeleteTxId] = useState<number | null>(null);
+  const [deletingTx, setDeletingTx] = useState(false);
   
   // -- Transaction State --
   const [txData, setTxData] = useState({
@@ -183,7 +191,7 @@ export const EditModal = ({ isOpen, onClose, onSave, ativo, allAssets = [] }: Ed
       setTxData(prev => ({ 
         ...prev, 
         quantity: 0, 
-        unit_price: Number(ativo.preco_atual) || 0, 
+        unit_price: Number((Number(ativo.preco_atual) || 0).toFixed(2)), 
         date: new Date().toISOString().substring(0, 10) 
       }));
 
@@ -196,7 +204,7 @@ export const EditModal = ({ isOpen, onClose, onSave, ativo, allAssets = [] }: Ed
         manual_dy: Number(((ativo.manual_dy || 0) * 100).toFixed(2)),
         manual_lpa: ativo.manual_lpa || 0,
         manual_vpa: ativo.manual_vpa || 0,
-        manual_price: Number(ativo.preco_atual) || 0
+        manual_price: Number((Number(ativo.preco_atual) || 0).toFixed(2))
       });
       setShowDeleteConfirm(false);
     }
@@ -212,14 +220,24 @@ export const EditModal = ({ isOpen, onClose, onSave, ativo, allAssets = [] }: Ed
     }
   }, [isOpen, ativo, activeTab]);
 
-  const handleDeleteTransaction = async (txId: number) => {
-    if (!confirm('Deseja realmente apagar esta transação do histórico?')) return;
+  const handleDeleteTransaction = (txId: number) => {
+    setPendingDeleteTxId(txId);
+  };
+
+  const confirmDeleteTransaction = async () => {
+    if (pendingDeleteTxId === null) return;
+    setDeletingTx(true);
     try {
-      await apiCall(`/api/asset-transactions/${txId}`, { method: 'DELETE' });
-      setTransactions(prev => prev.filter(t => t.id !== txId));
+      await apiCall(`/api/asset-transactions/${pendingDeleteTxId}`, { method: 'DELETE' });
+      setTransactions(prev => prev.filter(t => t.id !== pendingDeleteTxId));
+      setPendingDeleteTxId(null);
+      notify('Transação removida do histórico.', 'success');
       onSave();
     } catch (err) {
       console.error('Erro ao excluir transação:', err);
+      notify('Erro ao excluir transação do histórico.', 'error');
+    } finally {
+      setDeletingTx(false);
     }
   };
 
@@ -307,6 +325,11 @@ export const EditModal = ({ isOpen, onClose, onSave, ativo, allAssets = [] }: Ed
 
     if (isNaN(qty) || qty <= 0 || isNaN(price) || price <= 0) {
       setTxError("Quantidade e Preço devem ser maiores que zero.");
+      return;
+    }
+
+    if (txData.type === 'SELL' && ativo && qty > Number(ativo.qtd || 0)) {
+      setTxError(`Quantidade máxima disponível para venda: ${ativo.qtd}`);
       return;
     }
 
@@ -426,17 +449,17 @@ export const EditModal = ({ isOpen, onClose, onSave, ativo, allAssets = [] }: Ed
             <div className="grid grid-cols-3 gap-2 p-3 rounded-xl bg-surface-elevated border border-border-subtle">
               <div>
                 <p className="text-[10px] uppercase font-bold text-text-muted">Saldo Atual</p>
-                <p className="text-sm font-mono font-bold text-text-primary mt-0.5">{formatMoney(reservaCurrentBalance)}</p>
+                <p className="text-sm font-mono font-bold text-text-primary mt-0.5">{money(reservaCurrentBalance)}</p>
               </div>
               <div>
                 <p className="text-[10px] uppercase font-bold text-text-muted">Investido</p>
-                <p className="text-sm font-mono font-semibold text-text-secondary mt-0.5">{formatMoney(reservaCurrentInvested)}</p>
+                <p className="text-sm font-mono font-semibold text-text-secondary mt-0.5">{money(reservaCurrentInvested)}</p>
               </div>
               <div className="text-right">
                 <p className="text-[10px] uppercase font-bold text-text-muted">Rendimento</p>
                 <p className={`text-sm font-mono font-bold mt-0.5 ${reservaCurrentBalance - reservaCurrentInvested >= 0 ? 'text-status-success' : 'text-status-error'}`}>
                   {reservaCurrentBalance - reservaCurrentInvested >= 0 ? '+' : ''}
-                  {formatMoney(reservaCurrentBalance - reservaCurrentInvested)}
+                  {money(reservaCurrentBalance - reservaCurrentInvested)}
                 </p>
               </div>
             </div>
@@ -502,17 +525,17 @@ export const EditModal = ({ isOpen, onClose, onSave, ativo, allAssets = [] }: Ed
               <div className="p-3 rounded-xl bg-surface-elevated/60 border border-border-subtle text-xs space-y-1">
                 <div className="flex justify-between">
                   <span className="text-text-muted">Novo saldo:</span>
-                  <span className="font-mono font-bold text-text-primary">{formatMoney(reservaPreview.nextBalance)}</span>
+                  <span className="font-mono font-bold text-text-primary">{money(reservaPreview.nextBalance)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-text-muted">Novo investido:</span>
-                  <span className="font-mono text-text-secondary">{formatMoney(reservaPreview.nextInvested)}</span>
+                  <span className="font-mono text-text-secondary">{money(reservaPreview.nextInvested)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-text-muted">Rendimento acumulado:</span>
                   <span className={`font-mono font-semibold ${reservaPreview.profit >= 0 ? 'text-status-success' : 'text-status-error'}`}>
                     {reservaPreview.profit >= 0 ? '+' : ''}
-                    {formatMoney(reservaPreview.profit)} ({reservaPreview.profitPct.toFixed(2)}%)
+                    {money(reservaPreview.profit)} ({reservaPreview.profitPct.toFixed(2)}%)
                   </span>
                 </div>
               </div>
@@ -549,51 +572,81 @@ export const EditModal = ({ isOpen, onClose, onSave, ativo, allAssets = [] }: Ed
             )}
             
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="text-sm text-slate-400">Tipo</label>
-                <select
-                  name="type"
-                  value={txData.type}
-                  onChange={handleTxChange}
-                  className="w-full bg-slate-800/30 border border-slate-700/50 rounded-lg p-3 text-white focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 outline-none transition-all shadow-sm hover:bg-slate-800/40"
-                >
-                  <option value="BUY">Compra</option>
-                  <option value="SELL">Venda</option>
-                </select>
+              <div className="space-y-1.5">
+                <label className="text-sm text-text-muted">Tipo</label>
+                <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-surface-elevated border border-border-subtle">
+                  {([
+                    { id: 'BUY', label: 'Compra', activeClass: 'bg-emerald-600 text-white shadow-sm' },
+                    { id: 'SELL', label: 'Venda', activeClass: 'bg-rose-600 text-white shadow-sm' },
+                  ] as const).map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => {
+                        setTxError(null);
+                        setTxData((prev) => ({ ...prev, type: opt.id }));
+                      }}
+                      className={`py-2.5 px-3 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
+                        txData.type === opt.id
+                          ? opt.activeClass
+                          : 'text-text-muted hover:text-text-primary hover:bg-surface-input/50'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="space-y-1">
-                <label className="text-sm text-slate-400">Data (Opcional)</label>
+              <div className="space-y-1.5">
+                <label className="text-sm text-text-muted">Data (Opcional)</label>
                 <input
                   type="date"
                   name="date"
                   value={txData.date}
                   onChange={handleTxChange}
-                  className="w-full bg-slate-800/30 border border-slate-700/50 rounded-lg p-3 text-white focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 outline-none transition-all text-sm shadow-sm hover:bg-slate-800/40"
+                  className="w-full bg-surface-input border border-border-subtle rounded-xl p-3 text-text-primary focus:border-accent outline-none transition-all text-sm shadow-sm"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="text-sm text-slate-400">Quantidade</label>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <label className="text-sm text-text-muted">Quantidade</label>
+                  {txData.type === 'SELL' && Number(ativo.qtd || 0) > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTxError(null);
+                        setTxData((prev) => ({ ...prev, quantity: Number(ativo.qtd) || 0 }));
+                      }}
+                      className="text-[11px] font-bold text-rose-400 hover:underline font-mono"
+                      title="Usar quantidade máxima disponível para venda"
+                    >
+                      Máx: {ativo.qtd}
+                    </button>
+                  )}
+                </div>
                 <input
                   type="number"
                   name="quantity"
                   value={txData.quantity || ''}
                   onChange={handleTxChange}
-                  className="w-full bg-slate-800/30 border border-slate-700/50 rounded-lg p-3 text-white focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 outline-none transition-all shadow-sm hover:bg-slate-800/40"
+                  max={txData.type === 'SELL' ? Number(ativo.qtd || 0) : undefined}
+                  min="0"
+                  className="w-full bg-surface-input border border-border-subtle rounded-xl p-3 text-text-primary font-mono focus:border-accent outline-none transition-all shadow-sm"
                   placeholder="Ex: 100"
                   step="0.01"
                 />
               </div>
-              <div className="space-y-1">
-                <label className="text-sm text-slate-400">Preço Un. (R$)</label>
+              <div className="space-y-1.5">
+                <label className="text-sm text-text-muted">Preço Un. (R$)</label>
                 <input
                   type="number"
                   name="unit_price"
                   value={txData.unit_price || ''}
                   onChange={handleTxChange}
-                  className="w-full bg-slate-800/30 border border-slate-700/50 rounded-lg p-3 text-white focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 outline-none transition-all shadow-sm hover:bg-slate-800/40"
+                  className="w-full bg-surface-input border border-border-subtle rounded-xl p-3 text-text-primary font-mono focus:border-accent outline-none transition-all shadow-sm"
                   placeholder="Ex: 15.50"
                   step="0.01"
                 />
@@ -657,7 +710,7 @@ export const EditModal = ({ isOpen, onClose, onSave, ativo, allAssets = [] }: Ed
                             )}
                           </td>
                           <td className="px-2 py-2 text-right text-text-primary font-mono whitespace-nowrap">
-                            {formatMoney(tx.unit_price)}
+                            {money(tx.unit_price)}
                           </td>
                           <td className="px-2 py-2 text-center">
                             <button
@@ -761,6 +814,14 @@ export const EditModal = ({ isOpen, onClose, onSave, ativo, allAssets = [] }: Ed
           </div>
         )}
       </div>
+      <ConfirmDialog
+        isOpen={pendingDeleteTxId !== null}
+        title="Apagar transação"
+        message="Deseja realmente apagar esta transação do histórico? Esta ação recalculará a posição do ativo."
+        confirmLabel={deletingTx ? 'Apagando...' : 'Apagar'}
+        onCancel={() => { if (!deletingTx) setPendingDeleteTxId(null); }}
+        onConfirm={confirmDeleteTransaction}
+      />
     </ModalShell>
   );
 };

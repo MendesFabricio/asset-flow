@@ -81,4 +81,16 @@ describe('useAssetRowStats', () => {
     );
     expect(result.current.variacaoIntraday).toBe(3.5);
   });
+
+  it('exposes displayAdjustedPM only when dividends were received', () => {
+    const withoutDivs = renderHook(() =>
+      useAssetRowStats(makeAsset({ dividendos_recebidos: 0, pm_ajustado_dividendos: null }))
+    );
+    expect(withoutDivs.result.current.displayAdjustedPM).toBeNull();
+
+    const withDivs = renderHook(() =>
+      useAssetRowStats(makeAsset({ dividendos_recebidos: 150, pm_ajustado_dividendos: 18.5 }))
+    );
+    expect(withDivs.result.current.displayAdjustedPM).toContain('18,50');
+  });
 });

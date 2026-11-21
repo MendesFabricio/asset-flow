@@ -34,10 +34,10 @@ function TabButton({
       onMouseEnter={() => onPrefetch?.(tab.id)}
       onFocus={() => onPrefetch?.(tab.id)}
       aria-pressed={active}
-      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-colors duration-150 active:scale-[0.98] border focus:outline-none shadow-none ring-0 overflow-hidden ${
+      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap shrink-0 transition-colors duration-150 active:scale-[0.98] border focus:outline-none shadow-none ring-0 ${
         active
-          ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/40 shadow-sm'
-          : 'bg-slate-200/80 dark:bg-slate-900/45 text-slate-700 dark:text-slate-400 border-slate-300 dark:border-slate-800/80 hover:bg-slate-300/60 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200'
+          ? 'bg-accent-soft text-accent border-accent/40 shadow-sm'
+          : 'bg-surface-card text-text-muted border-border-subtle hover:bg-surface-elevated hover:text-text-primary'
       }`}
     >
       {tab.icon}
@@ -54,9 +54,9 @@ export const NavigationTabs = memo(function NavigationTabs({
   onPrefetch,
 }: NavigationTabsProps) {
   return (
-    <div className="max-w-7xl mx-auto px-4 py-4 space-y-3">
-      <div className="flex flex-col md:flex-row md:items-center gap-3">
-        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest min-w-[125px]">
+    <div className="max-w-7xl mx-auto px-4 py-3 space-y-2">
+      <div className="flex flex-col md:flex-row md:items-center gap-2.5">
+        <span className="text-[11px] font-bold text-text-muted uppercase tracking-wider min-w-[125px] shrink-0">
           Minha Carteira:
         </span>
         <div className="flex gap-1.5 overflow-x-auto no-scrollbar w-full pb-1 md:pb-0">
@@ -72,8 +72,8 @@ export const NavigationTabs = memo(function NavigationTabs({
         </div>
       </div>
 
-      <div className="flex flex-col md:flex-row md:items-center gap-3 pt-2 border-t border-slate-900/50">
-        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest min-w-[125px]">
+      <div className="flex flex-col md:flex-row md:items-center gap-2.5 pt-2 border-t border-border-subtle/70">
+        <span className="text-[11px] font-bold text-text-muted uppercase tracking-wider min-w-[125px] shrink-0">
           Análises &amp; IA:
         </span>
         <div className="flex gap-1.5 overflow-x-auto no-scrollbar w-full pb-1 md:pb-0">

@@ -134,7 +134,7 @@ export function ToolsMenu({
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 bg-slate-950 border border-slate-800/80 rounded-xl shadow-[0_10px_35px_rgba(0,0,0,0.75)] p-4 z-50 animate-in fade-in slide-in-from-top-2 duration-200 ease-out">
+        <div className="absolute right-0 mt-2 w-80 max-h-[calc(100vh-5rem)] overflow-y-auto bg-slate-950 border border-slate-800/80 rounded-xl shadow-[0_10px_35px_rgba(0,0,0,0.75)] p-4 z-50 animate-in fade-in slide-in-from-top-2 duration-200 ease-out">
           <div className="space-y-4">
             
             {/* SEÇÃO GESTÃO */}
@@ -171,8 +171,8 @@ export function ToolsMenu({
                   <FileText size={14} className="text-blue-400" />
                   <div>
                     <p className="font-bold flex items-center gap-1.5">
-                      <span>Importação de Notas (B3/Corretagem)</span>
-                      <span className="px-1 py-0.2 bg-blue-500/10 border border-blue-500/20 text-[8px] text-blue-400 rounded-md font-bold uppercase">Novo</span>
+                      <span className="whitespace-nowrap">Importação de Notas (B3)</span>
+                      <span className="px-1.5 py-0.5 bg-blue-500/10 border border-blue-500/20 text-[9px] text-blue-400 rounded-md font-bold uppercase shrink-0">Novo</span>
                     </p>
                     <p className="text-[9px] text-slate-500">Leitor OCR SINACOR & Conciliação B3</p>
                   </div>

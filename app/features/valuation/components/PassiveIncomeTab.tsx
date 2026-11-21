@@ -172,8 +172,8 @@ export function PassiveIncomeTab({
                 aria-label="Dividend Yield Anual em percentual"
                 min="1"
                 max="30"
-                step="0.5"
-                value={annualDyPct}
+                step="0.1"
+                value={Number(annualDyPct.toFixed(1))}
                 onChange={(e) => setAnnualDyPct(Number(e.target.value))}
                 className="w-full px-3 py-2 rounded-lg bg-surface-input border border-border-subtle font-mono text-text-primary focus:outline-none focus:border-accent"
               />
@@ -327,6 +327,7 @@ export function PassiveIncomeTab({
                     strokeWidth={2.5}
                     fillOpacity={1}
                     fill="url(#passiveIncomeGrad)"
+                    isAnimationActive={false}
                   />
                 </AreaChart>
               </ResponsiveContainer>

@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { apiCall } from '@/lib/api';
 import { formatMoney } from '@/lib/format';
+import { usePrivacy } from '@/context/PrivacyContext';
 
 
 interface RiskMetrics {
@@ -132,6 +133,8 @@ const DrawdownTooltip = ({ active, payload, label }: { active?: boolean; payload
 };
 
 export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
+  const { isHidden } = usePrivacy();
+  const money = (val: number) => (isHidden ? 'R$ •••••' : formatMoney(val));
   const [data, setData] = useState<RiskMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -447,7 +450,7 @@ export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
                   <div key={idx} className="space-y-1">
                     <div className="flex justify-between items-center text-[10px] font-bold">
                       <span className="text-slate-300">{s.sector}</span>
-                      <span className="text-slate-400 font-mono">{s.percent}% <span className="text-[8px] text-slate-600">({formatMoney(s.value)})</span></span>
+                      <span className="text-slate-400 font-mono">{s.percent}% <span className="text-[8px] text-slate-600">({money(s.value)})</span></span>
                     </div>
                     <div className="w-full h-1.5 bg-slate-900 rounded-full relative group cursor-pointer">
                       <div 
@@ -492,7 +495,7 @@ export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
                     {data.usd_assets.map((a, i) => (
                       <div key={i} className="flex justify-between items-center text-[10px] font-mono">
                         <span className="text-slate-300">{a.ticker}</span>
-                        <span className="text-slate-400">{formatMoney(a.value)}</span>
+                        <span className="text-slate-400">{money(a.value)}</span>
                       </div>
                     ))}
                   </div>
@@ -524,7 +527,7 @@ export const RiskMetricsPanel = React.memo(function RiskMetricsPanel() {
                     {data.leveraged_assets.map((a, i) => (
                       <div key={i} className="flex justify-between items-center text-[10px] font-mono">
                         <span className="text-slate-300">{a.ticker} (x{a.leverage})</span>
-                        <span className="text-slate-400">{formatMoney(a.value)}</span>
+                        <span className="text-slate-400">{money(a.value)}</span>
                       </div>
                     ))}
                   </div>

@@ -44,6 +44,17 @@ export const SummaryDashboard = memo(function SummaryDashboard({
   onUpdate,
 }: SummaryDashboardProps) {
   const top = metrics.topCompras[0];
+  const totalDividendsPaid = ativos.reduce((acc, a) => acc + (a.dividendos_recebidos ?? 0), 0);
+  const totalReturnPct =
+    metrics.totalInvestido > 0
+      ? ((metrics.lucroTotal + totalDividendsPaid) / metrics.totalInvestido) * 100
+      : 0;
+  const profitSubtext =
+    totalDividendsPaid > 0
+      ? isHidden
+        ? 'c/ Div.: •••%'
+        : `c/ Div.: ${totalReturnPct > 0 ? '+' : ''}${totalReturnPct.toFixed(1)}%`
+      : 'Total Histórico';
 
   return (
     <div className="flex flex-col gap-4 animate-in fade-in duration-150">
@@ -65,7 +76,7 @@ export const SummaryDashboard = memo(function SummaryDashboard({
         <StatCard
           title="Lucro / Prejuízo"
           value={isHidden ? '••••••' : (metrics.lucroTotal > 0 ? '+' : '') + formatMoney(metrics.lucroTotal)}
-          subtext="Total Histórico"
+          subtext={profitSubtext}
           icon={BarChart3}
           colorClass={metrics.lucroTotal >= 0 ? 'text-green-400' : 'text-red-400'}
           dailyResult={metrics.variacaoDiariaTotal}
@@ -81,7 +92,7 @@ export const SummaryDashboard = memo(function SummaryDashboard({
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 min-h-[525px]">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:min-h-[420px]">
         <div className="h-full w-full">
           <PortfolioDonutChart ativos={ativos} onOpenRadar={onOpenRadar} />
         </div>

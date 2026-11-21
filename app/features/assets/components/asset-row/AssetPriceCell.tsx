@@ -54,6 +54,14 @@ export function AssetPriceCell({ stats, isReserva = false, onShowFin, onHide }: 
           <PrivateValue value={stats.displayPrice} className="text-slate-300 font-mono text-sm tabular-nums" />
         </div>
         <PrivateValue value={`PM: ${stats.displayPM}`} className="text-[10px] text-slate-600 tabular-nums" />
+        {stats.displayAdjustedPM && (
+          <span title="PM ilustrativo descontando dividendos já recebidos (não altera o PM fiscal)">
+            <PrivateValue
+              value={`PM c/ Div.: ${stats.displayAdjustedPM}`}
+              className="text-[10px] text-emerald-500/80 tabular-nums"
+            />
+          </span>
+        )}
       </div>
     </td>
   );

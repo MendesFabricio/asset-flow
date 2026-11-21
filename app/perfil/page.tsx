@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
+import { SubPageHeader } from '@/components/ui/SubPageHeader';
 import { apiCall } from '../lib/api';
 import { useToast } from '../context/ToastContext';
 
@@ -18,7 +17,7 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  
+
   const [username, setUsername] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -59,9 +58,9 @@ export default function ProfilePage() {
         setMessage({ type: 'success', text: data.msg });
         await loadProfile();
       }
-      } catch (err) {
-        const e = err as Error;
-        setMessage({ type: 'error', text: e.message || 'Erro ao atualizar perfil.' });
+    } catch (err) {
+      const e = err as Error;
+      setMessage({ type: 'error', text: e.message || 'Erro ao atualizar perfil.' });
     } finally {
       setSaving(false);
     }
@@ -70,17 +69,17 @@ export default function ProfilePage() {
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setMessage(null);
-    
+
     if (newPassword !== confirmPassword) {
       setMessage({ type: 'error', text: 'As senhas não coincidem.' });
       return;
     }
-    
+
     if (newPassword.length < 8) {
       setMessage({ type: 'error', text: 'A nova senha deve ter pelo menos 8 caracteres.' });
       return;
     }
-    
+
     setSaving(true);
     try {
       const data = await apiCall<{ status: string; msg: string }>('/api/auth/profile/password', {
@@ -96,9 +95,9 @@ export default function ProfilePage() {
         setNewPassword('');
         setConfirmPassword('');
       }
-      } catch (err) {
-        const e = err as Error;
-        setMessage({ type: 'error', text: e.message || 'Erro ao alterar senha.' });
+    } catch (err) {
+      const e = err as Error;
+      setMessage({ type: 'error', text: e.message || 'Erro ao alterar senha.' });
     } finally {
       setSaving(false);
     }
@@ -113,28 +112,21 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-surface text-slate-200 font-sans p-4 md:p-6">
-      <div className="max-w-2xl mx-auto">
+    <div className="min-h-screen bg-surface text-text-primary font-sans">
+      <SubPageHeader />
+      <div className="max-w-2xl mx-auto p-4 md:p-6">
         <div className="mb-6">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-slate-200 transition-colors mb-4 group"
-          >
-            <ArrowLeft size={13} className="transition-transform group-hover:-translate-x-0.5" />
-            Voltar para o Dashboard
-          </Link>
-          <h1 className="text-2xl font-bold text-white mb-2">Meu Perfil</h1>
-          <p className="text-slate-400 text-sm">
+          <h1 className="text-2xl font-bold text-text-primary mb-2">Meu Perfil</h1>
+          <p className="text-text-muted text-sm">
             Gerencie suas informações de conta e segurança.
           </p>
         </div>
 
         {message && (
-          <div className={`mb-6 p-4 rounded-xl border ${
-            message.type === 'success'
+          <div className={`mb-6 p-4 rounded-xl border ${message.type === 'success'
               ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300'
               : 'bg-red-950/40 border-red-500/40 text-red-300'
-          }`}>
+            }`}>
             <div className="flex items-center gap-2">
               {message.type === 'success' ? (
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -153,20 +145,22 @@ export default function ProfilePage() {
         <div className="space-y-6">
           <form onSubmit={handleUpdateProfile} className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6">
             <h2 className="text-lg font-semibold text-white mb-4">Informações Básicas</h2>
-            
+
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                <label htmlFor="profile-username" className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
                   Nome de usuário
                 </label>
                 <input
+                  id="profile-username"
                   type="text"
+                  autoComplete="username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:border-blue-500"
                 />
               </div>
-              
+
               {profile?.created_at && (
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
@@ -196,38 +190,44 @@ export default function ProfilePage() {
 
           <form onSubmit={handleChangePassword} className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6">
             <h2 className="text-lg font-semibold text-white mb-4">Alterar Senha</h2>
-            
+
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                <label htmlFor="current-password" className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
                   Senha atual
                 </label>
                 <input
+                  id="current-password"
                   type="password"
+                  autoComplete="current-password"
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
                   className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:border-blue-500"
                 />
               </div>
-              
+
               <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                <label htmlFor="new-password" className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
                   Nova senha
                 </label>
                 <input
+                  id="new-password"
                   type="password"
+                  autoComplete="new-password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:border-blue-500"
                 />
               </div>
-              
+
               <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                <label htmlFor="confirm-password" className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
                   Confirmar nova senha
                 </label>
                 <input
+                  id="confirm-password"
                   type="password"
+                  autoComplete="new-password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:border-blue-500"

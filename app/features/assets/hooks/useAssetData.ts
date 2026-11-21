@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import useSWR from 'swr';
+import { apiCall } from '@/lib/api';
 import { DashboardData, HistoryDataPoint } from '@/types';
 
 interface SyncStatusResponse {
@@ -13,14 +14,11 @@ interface SyncStatusResponse {
 
 const EMPTY_HISTORY: HistoryDataPoint[] = [];
 
-const fetcher = async (url: string) => {
-  const res = await fetch(url);
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(`Erro API: ${res.status} - ${errorText}`);
+const fetcher = async <T,>(url: string): Promise<T> => {
+  const data = await apiCall<T & { status?: string; msg?: string }>(url, { timeout: 30000 });
+  if (data && typeof data === 'object' && data.status === 'Erro') {
+    throw new Error(data.msg || 'Erro desconhecido');
   }
-  const data = await res.json();
-  if (data.status === 'Erro') throw new Error(data.msg || 'Erro desconhecido');
   return data;
 };
 

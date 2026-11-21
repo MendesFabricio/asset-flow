@@ -108,8 +108,8 @@ export const CategorySummary = ({ ativos, categorias = [], onUpdate }: CategoryS
 
   return (
     <>
-      <Card className="flex flex-col h-[525px] overflow-hidden !bg-surface-card !border-slate-800 shadow-2xl p-0 animate-in fade-in duration-500 relative">
-        <div className="p-4 border-b border-slate-800 bg-transparent flex items-center justify-between shrink-0">
+      <Card className="flex flex-col h-full min-h-[420px] overflow-hidden bg-surface-card border-border-subtle shadow-2xl p-0 animate-in fade-in duration-500 relative">
+        <div className="p-4 border-b border-border-subtle bg-transparent flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             <div className="p-1.5 bg-blue-500/10 rounded-lg border border-blue-500/20">
               <PieChart size={16} className="text-blue-400" />
