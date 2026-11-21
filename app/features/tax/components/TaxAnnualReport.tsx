@@ -4,8 +4,11 @@ import { useState, useEffect } from 'react';
 import { taxService, AnnualTaxReport } from '@/services/tax';
 import { AlertCircle, Copy, Check } from 'lucide-react';
 import { formatMoney as formatCurrency } from '@/lib/format';
+import { usePrivacy } from '@/context/PrivacyContext';
 
 export default function TaxAnnualReport() {
+  const { isHidden } = usePrivacy();
+  const money = (v: number) => (isHidden ? 'R$ •••••' : formatCurrency(v));
   const [year, setYear] = useState<string>((new Date().getFullYear() - 1).toString());
   const [report, setReport] = useState<AnnualTaxReport | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -93,14 +96,14 @@ export default function TaxAnnualReport() {
                         <span className="text-sm text-slate-500 dark:text-slate-400">CNPJ: {asset.cnpj}</span>
                       </div>
                       <div className="text-right">
-                        <div className="font-semibold text-slate-800 dark:text-slate-100">{formatCurrency(asset.total_cost)}</div>
-                        <div className="text-xs text-slate-500 dark:text-slate-400">Qtde: {asset.quantity} | PM: {formatCurrency(asset.average_price)}</div>
+                        <div className="font-semibold text-slate-800 dark:text-slate-100">{money(asset.total_cost)}</div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400">Qtde: {asset.quantity} | PM: {money(asset.average_price)}</div>
                       </div>
                     </div>
                     
                     <div className="relative group">
                       <div className="bg-slate-100 dark:bg-slate-800 p-3 rounded-lg pr-12 text-sm text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                        {asset.description}
+                        {isHidden ? 'Discriminação oculta no modo privacidade.' : asset.description}
                       </div>
                       <button
                         onClick={() => copyToClipboard(asset.description, asset.ticker)}
@@ -125,15 +128,15 @@ export default function TaxAnnualReport() {
               <div className="p-4 flex flex-col gap-4">
                 <div className="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-slate-800">
                   <span className="text-sm text-slate-600 dark:text-slate-400">Dividendos</span>
-                  <span className="font-medium text-slate-800 dark:text-slate-100">{formatCurrency(report.rendimentos_isentos.dividendos)}</span>
+                  <span className="font-medium text-slate-800 dark:text-slate-100">{money(report.rendimentos_isentos.dividendos)}</span>
                 </div>
                 <div className="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-slate-800">
                   <span className="text-sm text-slate-600 dark:text-slate-400">Lucro Ações (Vendas até 20k)</span>
-                  <span className="font-medium text-slate-800 dark:text-slate-100">{formatCurrency(report.rendimentos_isentos.lucro_vendas_20k)}</span>
+                  <span className="font-medium text-slate-800 dark:text-slate-100">{money(report.rendimentos_isentos.lucro_vendas_20k)}</span>
                 </div>
                 <div className="flex justify-between items-center pt-1">
                   <span className="font-bold text-slate-800 dark:text-slate-100">Total Isento</span>
-                  <span className="font-bold text-green-600 dark:text-green-400">{formatCurrency(report.rendimentos_isentos.total)}</span>
+                  <span className="font-bold text-green-600 dark:text-green-400">{money(report.rendimentos_isentos.total)}</span>
                 </div>
               </div>
             </div>
@@ -146,11 +149,11 @@ export default function TaxAnnualReport() {
               <div className="p-4 flex flex-col gap-4">
                 <div className="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-slate-800">
                   <span className="text-sm text-slate-600 dark:text-slate-400">Juros Sobre Capital Próprio (JCP)</span>
-                  <span className="font-medium text-slate-800 dark:text-slate-100">{formatCurrency(report.rendimentos_exclusivos.jcp)}</span>
+                  <span className="font-medium text-slate-800 dark:text-slate-100">{money(report.rendimentos_exclusivos.jcp)}</span>
                 </div>
                 <div className="flex justify-between items-center pt-1 mt-auto">
                   <span className="font-bold text-slate-800 dark:text-slate-100">Total Exclusivo</span>
-                  <span className="font-bold text-blue-600 dark:text-blue-400">{formatCurrency(report.rendimentos_exclusivos.total)}</span>
+                  <span className="font-bold text-blue-600 dark:text-blue-400">{money(report.rendimentos_exclusivos.total)}</span>
                 </div>
               </div>
             </div>
@@ -180,16 +183,16 @@ export default function TaxAnnualReport() {
                     <tr key={mes.month} className="hover:bg-slate-50 dark:hover:bg-slate-800/20">
                       <td className="px-4 py-3 font-medium">{mes.month}/{report.year}</td>
                       <td className={`px-4 py-3 text-right ${mes.profit_st < 0 ? 'text-red-500' : 'text-green-600 dark:text-green-400'} ${mes.is_exempt_st && mes.profit_st > 0 ? 'opacity-50' : ''}`} title={mes.is_exempt_st ? 'Isento (Vendas < 20k)' : ''}>
-                        {formatCurrency(mes.profit_st)}
+                        {money(mes.profit_st)}
                       </td>
                       <td className={`px-4 py-3 text-right ${mes.profit_dt < 0 ? 'text-red-500' : 'text-green-600 dark:text-green-400'}`}>
-                        {formatCurrency(mes.profit_dt)}
+                        {money(mes.profit_dt)}
                       </td>
                       <td className={`px-4 py-3 text-right ${mes.profit_fii < 0 ? 'text-red-500' : 'text-green-600 dark:text-green-400'}`}>
-                        {formatCurrency(mes.profit_fii)}
+                        {money(mes.profit_fii)}
                       </td>
                       <td className="px-4 py-3 text-right font-medium text-slate-800 dark:text-slate-200">
-                        {total_irrf > 0 ? formatCurrency(total_irrf) : '-'}
+                        {total_irrf > 0 ? money(total_irrf) : '-'}
                       </td>
                     </tr>
                   );

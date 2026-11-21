@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { formatMoney } from '../lib/format';
 import { Skeleton } from '../components/ui/Skeleton';
 import { apiCall } from '../lib/api';
+import { usePrivacy } from '../context/PrivacyContext';
 import { ArrowLeft, Calendar, Percent, TrendingUp, Table, History, ChevronLeft, ChevronRight, Clock, Award, CalendarCheck } from 'lucide-react';
 import {
   ResponsiveContainer, 
@@ -48,6 +49,8 @@ interface SeasonalityRow {
 
 export default function ProventosPage() {
   const palette = useChartPalette();
+  const { isHidden } = usePrivacy();
+  const money = (v: number) => (isHidden ? 'R$ •••••' : formatMoney(v));
   const [activeTab, setActiveTab] = useState<'calendar' | 'analytics' | 'yoc' | 'seasonality' | 'extrato'>('calendar');
   const [events, setEvents] = useState<Evento[]>([]);
   const [history, setHistory] = useState<Evento[]>([]);
@@ -308,7 +311,7 @@ export default function ProventosPage() {
                             {dayEvents.slice(0, 2).map((evt, i) => (
                               <div 
                                 key={i} 
-                                title={`${evt.ticker}: R$ ${evt.value_per_share.toFixed(4)}`}
+                                title={isHidden ? evt.ticker : `${evt.ticker}: R$ ${evt.value_per_share.toFixed(4)}`}
                                 className={`text-[8px] font-black uppercase tracking-wider px-1 py-0.5 rounded truncate ${
                                   evt.status === 'PAGO' 
                                     ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/15' 
@@ -355,7 +358,7 @@ export default function ProventosPage() {
                                 <span className="text-[9px] text-slate-500 font-mono">Data-COM: {evt.date.split('-').reverse().join('/')}</span>
                               </div>
                               <div className="text-right">
-                                <span className="text-xs font-mono font-bold text-emerald-400 block">{formatMoney(evt.total)}</span>
+                                <span className="text-xs font-mono font-bold text-emerald-400 block">{money(evt.total)}</span>
                                 <span className="text-[8px] font-black text-slate-500 uppercase tracking-wide block">{evt.status}</span>
                               </div>
                             </div>
@@ -443,7 +446,7 @@ export default function ProventosPage() {
                   </div>
                 ) : (
                   <div className="h-72 w-full mt-4">
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                       <BarChart data={selectedYocData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke={palette.grid} />
                         <XAxis dataKey="year" stroke={palette.axis} fontSize={11} />
@@ -497,12 +500,12 @@ export default function ProventosPage() {
                                   className="p-3 border border-slate-900 font-mono font-bold text-[10px]"
                                   style={typeof style === 'object' ? style : {}}
                                 >
-                                  {val > 0 ? formatMoney(val).replace('R$', '') : '--'}
+                                  {val > 0 ? (isHidden ? '•••' : formatMoney(val).replace('R$', '')) : '--'}
                                 </td>
                               );
                             })}
                             <td className="p-3 font-mono font-bold text-white text-right bg-slate-950/30">
-                              {formatMoney(yearlyTotal)}
+                              {money(yearlyTotal)}
                             </td>
                           </tr>
                         );
@@ -545,7 +548,7 @@ export default function ProventosPage() {
                             </div>
                             <div className="text-right">
                               <p className={`font-mono font-bold text-base ${statusFilter === 'PAGO' ? 'text-emerald-400' : 'text-slate-300'}`}>
-                                {formatMoney(div.total)}
+                                {money(div.total)}
                               </p>
                               <span className="text-[8px] text-slate-500 font-bold uppercase block">
                                 {statusFilter === 'PAGO' ? 'Confirmado' : 'Aguardando'}

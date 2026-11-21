@@ -11,6 +11,7 @@ from utils.ticker_helper import extract_option_meta
 
 _TX_ORDER = {
     "BUY": 0,
+    "DEPOSIT": 0,
     "TICKER_CHANGE_IN": 0,
     "SPIN_OFF_RECEIPT": 0,
     "BONUS": 0,
@@ -18,8 +19,10 @@ _TX_ORDER = {
     "INPLIT": 1,
     "SPIN_OFF": 1,
     "AMORTIZATION": 1,
+    "ADJUSTMENT": 1,
     "SELL": 2,
     "TICKER_CHANGE_OUT": 2,
+    "WITHDRAW": 2,
 }
 
 _UNIT_BY_CATEGORY = {
@@ -67,6 +70,15 @@ def _get_bens_e_direitos(session, user_id: int, year: int) -> list:
         if tx.type in ("BUY", "TICKER_CHANGE_IN", "SPIN_OFF_RECEIPT", "BONUS"):
             pos["quantity"] += tx.quantity
             pos["total_cost"] += tx.total_value
+        elif tx.type == "DEPOSIT":
+            if pos["quantity"] <= 0:
+                pos["quantity"] = tx.quantity or Decimal("1.0")
+            pos["total_cost"] += tx.total_value
+        elif tx.type == "WITHDRAW":
+            pos["total_cost"] = max(Decimal("0.0"), pos["total_cost"] - tx.total_value)
+        elif tx.type == "ADJUSTMENT":
+            pos["quantity"] = tx.quantity
+            pos["total_cost"] = tx.total_value
         elif tx.type in ("SPLIT", "INPLIT"):
             # SPLIT/INPLIT records store the resulting total quantity; cost basis is unchanged
             pos["quantity"] = tx.quantity
@@ -81,7 +93,7 @@ def _get_bens_e_direitos(session, user_id: int, year: int) -> list:
                     pos["quantity"] = Decimal("0.0")
                     pos["total_cost"] = Decimal("0.0")
 
-    # For current/future year, include manual positions without AssetTransactions (e.g. Reserva / Caixinhas)
+    # For current/future year, include manual positions without AssetTransactions and refresh current Reserva balances
     if year >= date.today().year:
         tx_tickers = set(portfolio.keys())
         manual_positions = (
@@ -92,7 +104,7 @@ def _get_bens_e_direitos(session, user_id: int, year: int) -> list:
             .all()
         )
         for p, asset, category in manual_positions:
-            if asset.ticker not in tx_tickers:
+            if asset.ticker not in tx_tickers or category.name == "Reserva":
                 qty = Decimal(str(p.quantity))
                 pm = Decimal(str(p.average_price or 0))
                 portfolio[asset.ticker] = {
@@ -145,10 +157,17 @@ def calculate_annual_irpf(user_id: int, year: int) -> Dict[str, Any]:
             func.date(Dividend.date_payment) <= end_of_year
         ).all()
         
-        # O banco de dados atual não possui separação entre JCP e Dividendo na tabela Dividend.
-        # Portanto, assumiremos tudo como Dividendo provisoriamente.
-        total_dividends = sum(float(d.total_value) for d in divs)
+        total_dividends = 0.0
         total_jcp = 0.0
+        for d in divs:
+            dtype = (getattr(d, "type", None) or "").lower()
+            if "amort" in dtype:
+                continue
+            val = float(d.total_value or 0)
+            if "juros" in dtype or "jcp" in dtype:
+                total_jcp += val
+            else:
+                total_dividends += val
         
         # 3. Renda Variável (Mês a Mês) and Lucros Isentos
         from domain.tax.tax_engine import get_or_create_tax_profile, _detect_day_trades

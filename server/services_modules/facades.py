@@ -51,13 +51,12 @@ class FacadeService:
         )
 
     def calculate_risk_metrics(self, session=None, allow_compute=True) -> dict:
-        """Façade → quant_engine.calculate_risk_metrics com Cache"""
+        """Façade → quant_engine.calculate_risk_metrics (cache gerenciado internamente)"""
         dolar_rate = float(self.get_usd_rate() or 1.0)
-        return self._execute_with_cache(
-            session, self._uid_key("risk_metrics"), 
-            lambda s: calculate_risk_metrics(s, _fetch_price_history_fn, allow_compute, dolar_rate=dolar_rate), 
-            allow_compute
-        )
+        if session is not None:
+            return calculate_risk_metrics(session, _fetch_price_history_fn, allow_compute, dolar_rate=dolar_rate)
+        with Session() as s:
+            return calculate_risk_metrics(s, _fetch_price_history_fn, allow_compute, dolar_rate=dolar_rate)
 
     def calculate_smart_rebalance(self, monthly_contribution: float = 0.0) -> dict:
         """Façade → quant_engine.calculate_smart_rebalance"""

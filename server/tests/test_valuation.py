@@ -727,3 +727,27 @@ def test_calendar_includes_b3_crypto_etfs_and_skips_reserva(val_client):
 
     assert resp.status_code == 200
     assert sorted(processed_tickers) == ["COIN11", "ETHY11"]
+
+
+def test_fetch_ticker_fundamentals_scales_unit_distorted_vpa_for_sapr4():
+    from types import SimpleNamespace
+    import pandas as pd
+    from infrastructure.screener_service import fetch_ticker_fundamentals
+
+    fake_yt = SimpleNamespace(
+        info={
+            "currentPrice": 6.62,
+            "previousClose": 6.55,
+            "trailingEps": 0.32,
+            "bookValue": 41.048,
+            "returnOnEquity": 0.12,
+            "sector": "Utilities",
+        },
+        dividends=pd.Series(dtype=float),
+    )
+    with patch("infrastructure.screener_service.yf.Ticker", return_value=fake_yt):
+        res = fetch_ticker_fundamentals("SAPR4", asset_type="Ação")
+
+    assert res is not None
+    assert res["vpa"] == pytest.approx(8.2096, abs=0.01)
+    assert res["pvp"] == pytest.approx(6.62 / 8.2096, abs=0.05)

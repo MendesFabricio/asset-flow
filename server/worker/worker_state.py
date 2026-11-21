@@ -129,15 +129,23 @@ def build_scheduler_jobs(scheduler):
                         misfire_grace_time=300
                     )
                 elif job.job_type == "interval" and job.interval_minutes:
-                    scheduler.add_job(
-                        func=info["func"],
-                        trigger="interval",
-                        id=job.name,
-                        name=job.name,
-                        minutes=job.interval_minutes,
-                        max_instances=1,
-                        misfire_grace_time=300
+                    overdue = (
+                        job.last_run_status == "idle"
+                        or job.last_run_at is None
+                        or (datetime.now() - job.last_run_at).total_seconds() >= (job.interval_minutes or 0) * 60
                     )
+                    add_kwargs = {
+                        "func": info["func"],
+                        "trigger": "interval",
+                        "id": job.name,
+                        "name": job.name,
+                        "minutes": job.interval_minutes,
+                        "max_instances": 1,
+                        "misfire_grace_time": 300,
+                    }
+                    if overdue:
+                        add_kwargs["next_run_time"] = datetime.now()
+                    scheduler.add_job(**add_kwargs)
                 logging.info(f"📅 Job agendado: {job.name} ({job.job_type})")
     except Exception as e:
         logging.error(f"❌ Erro ao carregar jobs do banco: {e}", exc_info=True)

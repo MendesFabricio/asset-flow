@@ -16,6 +16,7 @@ import {
 import { formatMoney } from '@/lib/format';
 import { apiCall } from '@/lib/api';
 import { useToast } from '@/context/ToastContext';
+import { usePrivacy } from '@/context/PrivacyContext';
 
 interface DebtorItem {
   id: number;
@@ -51,6 +52,8 @@ import { ReceivableInstallmentItem, ReceivablesDashboardData } from '@/types';
 
 export const ReceivablesTab = () => {
   const { notify } = useToast();
+  const { isHidden } = usePrivacy();
+  const money = (v: number) => (isHidden ? 'R$ •••••' : formatMoney(v));
   // State
   const [dashboard, setDashboard] = useState<ReceivablesDashboardData | null>(null);
   const [debtors, setDebtors] = useState<DebtorItem[]>([]);
@@ -517,7 +520,7 @@ export const ReceivablesTab = () => {
           </div>
           <div>
             <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Total Emprestado</span>
-            <p className="text-xl font-bold font-mono text-white mt-0.5">{formatMoney(headerTotalLent)}</p>
+            <p className="text-xl font-bold font-mono text-white mt-0.5">{money(headerTotalLent)}</p>
           </div>
         </div>
 
@@ -527,7 +530,7 @@ export const ReceivablesTab = () => {
           </div>
           <div>
             <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Total Recebido</span>
-            <p className="text-xl font-bold font-mono text-emerald-400 mt-0.5">{formatMoney(headerTotalReceived)}</p>
+            <p className="text-xl font-bold font-mono text-emerald-400 mt-0.5">{money(headerTotalReceived)}</p>
           </div>
         </div>
 
@@ -537,7 +540,7 @@ export const ReceivablesTab = () => {
           </div>
           <div>
             <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Saldo Pendente</span>
-            <p className="text-xl font-bold font-mono text-yellow-400 mt-0.5">{formatMoney(headerTotalPending)}</p>
+            <p className="text-xl font-bold font-mono text-yellow-400 mt-0.5">{money(headerTotalPending)}</p>
           </div>
         </div>
 
@@ -547,7 +550,7 @@ export const ReceivablesTab = () => {
           </div>
           <div>
             <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Montante Atrasado</span>
-            <p className="text-xl font-bold font-mono text-red-400 mt-0.5">{formatMoney(selectedPersonFilter === 'Todos' ? (dashboard?.total_atrasado || 0) : allInstallmentsCompiled.filter(i => i.debtorNome === selectedPersonFilter && i.installment.status === 'ATRASADA').reduce((acc, i) => acc + (i.installment.valor_parcela - i.installment.valor_pago), 0))}</p>
+            <p className="text-xl font-bold font-mono text-red-400 mt-0.5">{money(selectedPersonFilter === 'Todos' ? (dashboard?.total_atrasado || 0) : allInstallmentsCompiled.filter(i => i.debtorNome === selectedPersonFilter && i.installment.status === 'ATRASADA').reduce((acc, i) => acc + (i.installment.valor_parcela - i.installment.valor_pago), 0))}</p>
           </div>
         </div>
 
@@ -570,7 +573,7 @@ export const ReceivablesTab = () => {
               <span className="text-xs font-bold uppercase tracking-wider">Consolidado</span>
               <span className="text-[9px] bg-slate-800 px-1.5 py-0.5 rounded font-mono">TODAS</span>
             </div>
-            <p className={`text-lg font-bold font-mono ${selectedFatura === 'Todas' ? 'text-blue-400' : 'text-white'}`}>{formatMoney(headerTotalPending)}</p>
+            <p className={`text-lg font-bold font-mono ${selectedFatura === 'Todas' ? 'text-blue-400' : 'text-white'}`}>{money(headerTotalPending)}</p>
           </button>
 
           {faturasCalculated.map(fat => {
@@ -592,8 +595,8 @@ export const ReceivablesTab = () => {
                   <span className={`text-[8px] px-1 rounded border shrink-0 font-bold ${statusColor}`}>{fat.status}</span>
                 </div>
                 <div>
-                  <p className={`text-lg font-bold font-mono ${isSelected ? 'text-blue-400' : 'text-white'}`}>{formatMoney(fat.pendente)}</p>
-                  <p className="text-[9px] text-slate-500 font-medium">De {formatMoney(fat.total)} ({fat.items_count} parc)</p>
+                  <p className={`text-lg font-bold font-mono ${isSelected ? 'text-blue-400' : 'text-white'}`}>{money(fat.pendente)}</p>
+                  <p className="text-[9px] text-slate-500 font-medium">De {money(fat.total)} ({fat.items_count} parc)</p>
                 </div>
               </button>
             );
@@ -629,7 +632,7 @@ export const ReceivablesTab = () => {
                     </div>
                     <div className="flex flex-col items-end gap-1.5">
                       <span className={`text-xs font-bold font-mono ${d.saldo_pendente > 0 ? 'text-yellow-400' : 'text-slate-500'}`}>
-                        {formatMoney(d.saldo_pendente)}
+                        {money(d.saldo_pendente)}
                       </span>
 
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
@@ -668,7 +671,7 @@ export const ReceivablesTab = () => {
                   <div className="grid grid-cols-2 gap-1.5 pt-1.5 border-t border-slate-900/60 text-[9px] text-slate-400">
                     <div>
                       <span className="text-slate-600 block">Total Emprestado:</span>
-                      <span className="font-semibold font-mono text-slate-300">{formatMoney(d.valor_total_emprestado)}</span>
+                      <span className="font-semibold font-mono text-slate-300">{money(d.valor_total_emprestado)}</span>
                     </div>
                     <div>
                       <span className="text-slate-600 block">Último Pagamento:</span>
@@ -699,7 +702,7 @@ export const ReceivablesTab = () => {
               <p className="text-xs font-bold text-slate-400 mb-1 flex items-center gap-1"><PieIcon size={12} /> Concentração por Categorias</p>
               <div className="flex-1 min-h-[160px]">
                 {dashboard?.categorias && dashboard.categorias.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                     <PieChart>
                       <Pie
                         data={dashboard.categorias}
@@ -717,7 +720,7 @@ export const ReceivablesTab = () => {
                       </Pie>
                       <Tooltip
                         contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b' }}
-                        formatter={(val) => formatMoney(val as number)}
+                        formatter={(val) => money(val as number)}
                       />
                     </PieChart>
                   </ResponsiveContainer>
@@ -732,7 +735,7 @@ export const ReceivablesTab = () => {
               <p className="text-xs font-bold text-slate-400 mb-1 flex items-center gap-1"><TrendingUp size={12} /> Evolução de Faturas</p>
               <div className="flex-1 min-h-[160px]">
                 {faturasCalculated.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                     <AreaChart data={faturasCalculated}>
                       <defs>
                         <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
@@ -747,7 +750,7 @@ export const ReceivablesTab = () => {
                       <XAxis dataKey="fatura" stroke="#475569" fontSize={9} />
                       <Tooltip
                         contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b' }}
-                        formatter={(val) => formatMoney(val as number)}
+                        formatter={(val) => money(val as number)}
                       />
                       <Area type="monotone" dataKey="total" name="Total Fatura" stroke="#3b82f6" fillOpacity={1} fill="url(#colorTotal)" />
                       <Area type="monotone" dataKey="recebido" name="Recebido" stroke="#10b981" fillOpacity={1} fill="url(#colorRec)" />
@@ -918,8 +921,8 @@ export const ReceivablesTab = () => {
                       </td>
                       <td className="p-4 text-slate-400 font-mono">{item.installment.data_vencimento.split('T')[0]}</td>
                       <td className="p-4 text-slate-500 font-mono font-medium">{item.installment.fatura_mes}</td>
-                      <td className="p-4 text-right font-bold font-mono text-slate-200">{formatMoney(item.installment.valor_parcela)}</td>
-                      <td className="p-4 text-right font-semibold font-mono text-emerald-500">{formatMoney(item.installment.valor_pago)}</td>
+                      <td className="p-4 text-right font-bold font-mono text-slate-200">{money(item.installment.valor_parcela)}</td>
+                      <td className="p-4 text-right font-semibold font-mono text-emerald-500">{money(item.installment.valor_pago)}</td>
                       <td className="p-4 text-center">
                         <span className={`text-[9px] px-2 py-0.5 rounded border font-bold ${statusBadge}`}>{item.installment.status}</span>
                       </td>
@@ -1210,9 +1213,9 @@ export const ReceivablesTab = () => {
             <div className="space-y-1.5 p-3 bg-slate-950/60 rounded-xl border border-slate-800 text-xs">
               <p className="text-slate-400">Empréstimo: <span className="text-white font-semibold">{payingLoanDesc}</span></p>
               <p className="text-slate-400">Parcela: <span className="text-white font-mono font-semibold">#{payingInstallment.numero_parcela}</span></p>
-              <p className="text-slate-400">Valor Parcela: <span className="text-emerald-400 font-mono font-bold">{formatMoney(payingInstallment.valor_parcela)}</span></p>
+              <p className="text-slate-400">Valor Parcela: <span className="text-emerald-400 font-mono font-bold">{money(payingInstallment.valor_parcela)}</span></p>
               {payingInstallment.valor_pago > 0 && (
-                <p className="text-slate-500">Já Recebido Parcialmente: <span className="text-slate-400 font-mono">{formatMoney(payingInstallment.valor_pago)}</span></p>
+                <p className="text-slate-500">Já Recebido Parcialmente: <span className="text-slate-400 font-mono">{money(payingInstallment.valor_pago)}</span></p>
               )}
             </div>
 
@@ -1264,7 +1267,7 @@ export const ReceivablesTab = () => {
 
             <div className="space-y-1.5 p-3 bg-slate-950/60 rounded-xl border border-slate-800 text-xs">
               <p className="text-slate-400">Devedor: <span className="text-white font-semibold">{globalPayDebtor.nome}</span></p>
-              <p className="text-slate-400">Saldo Devedor Total: <span className="text-yellow-400 font-mono font-bold">{formatMoney(globalPayDebtor.saldo_pendente)}</span></p>
+              <p className="text-slate-400">Saldo Devedor Total: <span className="text-yellow-400 font-mono font-bold">{money(globalPayDebtor.saldo_pendente)}</span></p>
             </div>
 
             <div className="space-y-3">

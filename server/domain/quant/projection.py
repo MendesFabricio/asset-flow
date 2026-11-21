@@ -1,6 +1,7 @@
 # server/domain/quant/projection.py
+from datetime import date, datetime, timedelta
 import logging
-from db.models import Dividend, get_active_positions
+from db.models import AssetTransaction, CorporateEvent, Dividend, get_active_positions
 
 from domain.quant.helpers import _get_current_user_id
 
@@ -84,19 +85,82 @@ def calculate_dividend_forecast(session) -> dict:
         
     forecasts = []
     total_projected = 0.0
-    
+    default_cutoff = date.today() - timedelta(days=365)
+
     for pos in positions:
         if not pos.asset:
             continue
+        cat_name = getattr(getattr(pos.asset, "category", None), "name", None)
+        if isinstance(cat_name, str) and cat_name == "Reserva":
+            continue
+
         ticker = pos.asset.ticker.upper()
         qty = float(pos.quantity)
-        
+
         # Filtra dividendos do ativo pertencentes ao usuario
         if uid is not None:
             divs = session.query(Dividend).filter_by(asset_id=pos.asset_id, user_id=uid).all()
         else:
             divs = session.query(Dividend).filter_by(asset_id=pos.asset_id).all()
-        if not divs:
+
+        # Ignora histórico pré-desdobramento/agrupamento e eventos mais antigos que 12 meses
+        latest_split_date = None
+        split_q = session.query(AssetTransaction).filter(
+            AssetTransaction.ticker == ticker,
+            AssetTransaction.type.in_(("SPLIT", "INPLIT")),
+        )
+        if uid is not None:
+            split_q = split_q.filter(AssetTransaction.user_id == uid)
+        split_txs = split_q.all()
+        if isinstance(split_txs, (list, tuple)):
+            for stx in split_txs:
+                raw_dt = getattr(stx, "transaction_date", None)
+                if isinstance(raw_dt, datetime):
+                    dt_d = raw_dt.date()
+                elif isinstance(raw_dt, date):
+                    dt_d = raw_dt
+                else:
+                    continue
+                if latest_split_date is None or dt_d > latest_split_date:
+                    latest_split_date = dt_d
+
+        corp_filters = [
+            CorporateEvent.asset_id == pos.asset_id,
+            CorporateEvent.type.in_(("SPLIT", "INPLIT")),
+        ]
+        if uid is not None:
+            corp_filters.append(CorporateEvent.user_id == uid)
+        corp_evts = session.query(CorporateEvent).filter(*corp_filters).all()
+        if isinstance(corp_evts, (list, tuple)):
+            for ce in corp_evts:
+                raw_dt = getattr(ce, "date", None)
+                if isinstance(raw_dt, datetime):
+                    dt_d = raw_dt.date()
+                elif isinstance(raw_dt, date):
+                    dt_d = raw_dt
+                else:
+                    continue
+                if latest_split_date is None or dt_d > latest_split_date:
+                    latest_split_date = dt_d
+
+        cutoff_date = default_cutoff
+        if latest_split_date is not None and latest_split_date > cutoff_date:
+            cutoff_date = latest_split_date
+
+        filtered_divs = []
+        for d in divs:
+            raw_com = getattr(d, "date_com", None)
+            d_date = raw_com.date() if isinstance(raw_com, datetime) else (raw_com if isinstance(raw_com, date) else None)
+            if d_date is not None and d_date < cutoff_date:
+                continue
+            if float(d.value_per_share or 0) <= 0:
+                continue
+            dtype = d.type.lower() if isinstance(getattr(d, "type", None), str) else ""
+            if "amort" in dtype:
+                continue
+            filtered_divs.append((d, d_date))
+
+        if not filtered_divs:
             # Usa apenas manual_dy configurado pelo usuário; não inventa DY de 5% para ativos sem proventos
             manual_dy = float(getattr(pos, "manual_dy", 0) or 0)
             if manual_dy > 0:
@@ -113,10 +177,10 @@ def calculate_dividend_forecast(session) -> dict:
                         })
                         total_projected += val_monthly
             continue
-            
+
         month_vals = {}
-        for d in divs:
-            m = d.date_com.month if d.date_com else 1
+        for d, d_date in filtered_divs:
+            m = d_date.month if d_date else 1
             if m not in month_vals:
                 month_vals[m] = []
             month_vals[m].append(float(d.value_per_share))

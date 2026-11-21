@@ -4,8 +4,11 @@ import { useState, useEffect } from 'react';
 import { taxService, TaxReportDetails, TaxMonthlyReport as TaxMonthlyReportType } from '@/services/tax';
 import { AlertCircle } from 'lucide-react';
 import { formatMoney as formatCurrency } from '@/lib/format';
+import { usePrivacy } from '@/context/PrivacyContext';
 
 export default function TaxMonthlyReport() {
+  const { isHidden } = usePrivacy();
+  const money = (v: number) => (isHidden ? 'R$ •••••' : formatCurrency(v));
   const date = new Date();
   const [month, setMonth] = useState<string>((date.getMonth() + 1).toString());
   const [year, setYear] = useState<string>(date.getFullYear().toString());
@@ -88,18 +91,18 @@ export default function TaxMonthlyReport() {
             <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm flex flex-col gap-1">
               <span className="text-sm text-slate-500 dark:text-slate-400 font-medium">DARF a Pagar no Mês</span>
               <span className={`text-2xl font-bold ${report.darf.darf_to_pay > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
-                {formatCurrency(report.darf.darf_to_pay)}
+                {money(report.darf.darf_to_pay)}
               </span>
               {report.darf.darf_to_pay === 0 && report.darf.next_month_accumulated > 0 && (
                 <span className="text-xs text-slate-400 mt-1">
-                  * R$ {formatCurrency(report.darf.next_month_accumulated)} acumulados para o próximo mês (menor que R$ 10).
+                  * {money(report.darf.next_month_accumulated)} acumulados para o próximo mês (menor que R$ 10).
                 </span>
               )}
             </div>
             
             <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm flex flex-col gap-1 items-start">
               <span className="text-sm text-slate-500 dark:text-slate-400 font-medium">Total Vendas Ações (ST)</span>
-              <span className="text-2xl font-bold text-slate-800 dark:text-slate-100">{formatCurrency(report.sales_total_stocks)}</span>
+              <span className="text-2xl font-bold text-slate-800 dark:text-slate-100">{money(report.sales_total_stocks)}</span>
               <span className={`px-2 py-0.5 text-xs font-semibold rounded-full mt-1 ${report.is_exempt_stocks_st ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}>
                 {report.is_exempt_stocks_st ? 'Isento (< 20k)' : 'Tributável (> 20k)'}
               </span>
@@ -107,7 +110,7 @@ export default function TaxMonthlyReport() {
 
             <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm flex flex-col gap-1">
               <span className="text-sm text-slate-500 dark:text-slate-400 font-medium">Imposto Total Gerado</span>
-              <span className="text-2xl font-bold text-slate-800 dark:text-slate-100">{formatCurrency(report.darf.month_tax)}</span>
+              <span className="text-2xl font-bold text-slate-800 dark:text-slate-100">{money(report.darf.month_tax)}</span>
             </div>
           </div>
 
@@ -126,26 +129,26 @@ export default function TaxMonthlyReport() {
                 <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/20">
                   <td className="px-4 py-3">Ações (Swing Trade)</td>
                   <td className={`px-4 py-3 font-medium ${report.profits.stocks_st < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
-                    {formatCurrency(report.profits.stocks_st)}
+                    {money(report.profits.stocks_st)}
                   </td>
-                  <td className="px-4 py-3">{formatCurrency(report.taxable_profits.stocks_st)}</td>
-                  <td className="px-4 py-3">{formatCurrency(report.taxes.stocks_st)}</td>
+                  <td className="px-4 py-3">{money(report.taxable_profits.stocks_st)}</td>
+                  <td className="px-4 py-3">{money(report.taxes.stocks_st)}</td>
                 </tr>
                 <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/20">
                   <td className="px-4 py-3">Ações (Day Trade)</td>
                   <td className={`px-4 py-3 font-medium ${report.profits.stocks_dt < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
-                    {formatCurrency(report.profits.stocks_dt)}
+                    {money(report.profits.stocks_dt)}
                   </td>
-                  <td className="px-4 py-3">{formatCurrency(report.taxable_profits.stocks_dt)}</td>
-                  <td className="px-4 py-3">{formatCurrency(report.taxes.stocks_dt)}</td>
+                  <td className="px-4 py-3">{money(report.taxable_profits.stocks_dt)}</td>
+                  <td className="px-4 py-3">{money(report.taxes.stocks_dt)}</td>
                 </tr>
                 <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/20">
                   <td className="px-4 py-3">Fundos Imobiliários</td>
                   <td className={`px-4 py-3 font-medium ${report.profits.fiis < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
-                    {formatCurrency(report.profits.fiis)}
+                    {money(report.profits.fiis)}
                   </td>
-                  <td className="px-4 py-3">{formatCurrency(report.taxable_profits.fiis)}</td>
-                  <td className="px-4 py-3">{formatCurrency(report.taxes.fiis)}</td>
+                  <td className="px-4 py-3">{money(report.taxable_profits.fiis)}</td>
+                  <td className="px-4 py-3">{money(report.taxes.fiis)}</td>
                 </tr>
               </tbody>
             </table>
@@ -177,10 +180,10 @@ export default function TaxMonthlyReport() {
                           {tx.is_fii ? 'FII' : tx.is_day_trade ? 'Day Trade' : 'Swing Trade'}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-right">{formatCurrency(tx.sale_value)}</td>
-                      <td className="px-4 py-3 text-right">{formatCurrency(tx.cost_value)}</td>
+                      <td className="px-4 py-3 text-right">{money(tx.sale_value)}</td>
+                      <td className="px-4 py-3 text-right">{money(tx.cost_value)}</td>
                       <td className={`px-4 py-3 text-right font-medium ${tx.profit < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
-                        {formatCurrency(tx.profit)}
+                        {money(tx.profit)}
                       </td>
                     </tr>
                   ))}

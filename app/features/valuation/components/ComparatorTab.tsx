@@ -5,6 +5,7 @@ import { GitCompare, Loader2, Plus, X, Award } from 'lucide-react';
 import { apiCall } from '@/lib/api';
 import { formatMoney } from '@/lib/format';
 import { Asset, ValuationAssetData } from '@/types';
+import { usePrivacy } from '@/context/PrivacyContext';
 import { useToast } from '@/context/ToastContext';
 
 interface ComparatorTabProps {
@@ -13,14 +14,14 @@ interface ComparatorTabProps {
 
 interface CompareRowSpec {
   label: string;
-  render: (a: ValuationAssetData) => string;
+  render: (a: ValuationAssetData, money: (v: number) => string) => string;
   scoreValue?: (a: ValuationAssetData) => number | null;
   preferLower?: boolean;
 }
 
 const COMPARE_ROWS: CompareRowSpec[] = [
   { label: 'Setor', render: (a) => a.sector || 'Outros' },
-  { label: 'Cotação Atual', render: (a) => formatMoney(a.price) },
+  { label: 'Cotação Atual', render: (a, money) => money(a.price) },
   {
     label: 'Dividend Yield (12m)',
     render: (a) => (a.dy_12m !== null ? `${a.dy_12m.toFixed(2)}%` : 'N/D'),
@@ -28,7 +29,7 @@ const COMPARE_ROWS: CompareRowSpec[] = [
   },
   {
     label: 'Preço Teto Bazin',
-    render: (a) => (a.bazin_price ? formatMoney(a.bazin_price) : 'N/D'),
+    render: (a, money) => (a.bazin_price ? money(a.bazin_price) : 'N/D'),
   },
   {
     label: 'Margem Bazin (%)',
@@ -37,11 +38,11 @@ const COMPARE_ROWS: CompareRowSpec[] = [
   },
   {
     label: 'V.I. Graham',
-    render: (a) => (a.graham_price ? formatMoney(a.graham_price) : 'N/D'),
+    render: (a, money) => (a.graham_price ? money(a.graham_price) : 'N/D'),
   },
   {
     label: 'DCF / FCD (5a)',
-    render: (a) => (a.dcf_price ? formatMoney(a.dcf_price) : 'N/D'),
+    render: (a, money) => (a.dcf_price ? money(a.dcf_price) : 'N/D'),
   },
   {
     label: 'P/L',
@@ -85,6 +86,8 @@ const COMPARE_ROWS: CompareRowSpec[] = [
 
 export function ComparatorTab({ ativos = [] }: ComparatorTabProps) {
   const { notify } = useToast();
+  const { isHidden } = usePrivacy();
+  const money = (v: number) => (isHidden ? 'R$ •••••' : formatMoney(v));
   const portfolioDefaults = ativos
     .filter((a) => a.tipo === 'Ação' || a.tipo === 'FII')
     .slice(0, 3)
@@ -274,7 +277,7 @@ export function ComparatorTab({ ativos = [] }: ComparatorTabProps) {
                           >
                             <span className="inline-flex items-center gap-1 justify-end">
                               {isBest && <Award size={12} className="text-status-success" />}
-                              {row.render(it)}
+                              {row.render(it, money)}
                             </span>
                           </td>
                         );

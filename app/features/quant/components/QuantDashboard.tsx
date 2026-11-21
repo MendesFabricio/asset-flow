@@ -65,6 +65,8 @@ export const QuantDashboard = React.memo(function QuantDashboard({ ativos }: { a
     frontierData,
     rebalanceData,
     attributionData,
+    kellyData,
+    momentumData,
     markowitz,
     riskParity,
     currentAlloc,
@@ -122,7 +124,7 @@ export const QuantDashboard = React.memo(function QuantDashboard({ ativos }: { a
   const renderScatterChart = useMemo(() => {
     if (!frontierData) return null;
     return (
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height="100%" minWidth={0}>
         <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 10 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
           <XAxis
@@ -723,7 +725,7 @@ export const QuantDashboard = React.memo(function QuantDashboard({ ativos }: { a
 
                 {/* Line Chart */}
                 <div className="h-[240px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                     <LineChart data={dcaResult.history} margin={{ top: 10, right: 10, left: 10, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
                       <XAxis dataKey="date" stroke="#64748b" tick={{ fontSize: 9 }} />
@@ -992,6 +994,118 @@ export const QuantDashboard = React.memo(function QuantDashboard({ ativos }: { a
       {activeTab === 'performance' && (
         <div className="animate-in fade-in w-full flex flex-col gap-6">
           <RiskMetricsPanel />
+
+          {/* Momentum Ranking & Kelly Sizing */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Momentum Ranking */}
+            <div className="bg-surface-card border border-border-subtle rounded-xl p-5 flex flex-col gap-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-emerald-500/10 rounded-lg border border-emerald-500/20 text-emerald-400">
+                    <TrendingUp size={16} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-text-primary">Top Momentum Ranking</h3>
+                    <p className="text-[11px] text-text-secondary">Força relativa em 12M (ex-último mês)</p>
+                  </div>
+                </div>
+                {momentumData.length > 0 && (
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-surface border border-border-subtle text-text-secondary">
+                    Top {Math.min(8, momentumData.length)} / {momentumData.length}
+                  </span>
+                )}
+              </div>
+
+              {loading ? (
+                <div className="py-6 text-center text-xs text-text-secondary">Calculando ranking de momentum...</div>
+              ) : momentumData.length === 0 ? (
+                <div className="py-6 text-center text-xs text-text-secondary">Dados insuficientes de cotações em renda variável.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-border-subtle text-text-secondary text-[11px]">
+                        <th className="text-left py-1.5 font-medium w-10">#</th>
+                        <th className="text-left py-1.5 font-medium">Ativo</th>
+                        <th className="text-right py-1.5 font-medium">Score Momentum</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border-subtle/50">
+                      {momentumData.slice(0, 8).map((item) => {
+                        const pos = item.momentum_score_pct >= 0;
+                        return (
+                          <tr key={item.ticker} className="hover:bg-surface/60 transition-colors">
+                            <td className="py-2 font-mono text-text-secondary">#{item.rank}</td>
+                            <td className="py-2 font-bold text-text-primary">{item.ticker}</td>
+                            <td className="py-2 text-right font-mono font-semibold">
+                              <span
+                                className={`inline-block px-2 py-0.5 rounded ${
+                                  pos ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'
+                                }`}
+                              >
+                                {pos ? '+' : ''}{item.momentum_score_pct.toFixed(2)}%
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Critério de Kelly */}
+            <div className="bg-surface-card border border-border-subtle rounded-xl p-5 flex flex-col gap-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-amber-500/10 rounded-lg border border-amber-500/20 text-amber-400">
+                    <Target size={16} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-text-primary">Critério de Kelly — Dimensionamento</h3>
+                    <p className="text-[11px] text-text-secondary">Peso máximo sugerido (Kelly 1/4 e 1/2, teto 12%)</p>
+                  </div>
+                </div>
+                {kellyData.length > 0 && (
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-surface border border-border-subtle text-text-secondary">
+                    Top {Math.min(8, kellyData.length)} / {kellyData.length}
+                  </span>
+                )}
+              </div>
+
+              {loading ? (
+                <div className="py-6 text-center text-xs text-text-secondary">Calculando fracionamento de Kelly...</div>
+              ) : kellyData.length === 0 ? (
+                <div className="py-6 text-center text-xs text-text-secondary">Dados insuficientes para cálculo do Critério de Kelly.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-border-subtle text-text-secondary text-[11px]">
+                        <th className="text-left py-1.5 font-medium">Ativo</th>
+                        <th className="text-right py-1.5 font-medium">Win Rate</th>
+                        <th className="text-right py-1.5 font-medium">Payoff</th>
+                        <th className="text-right py-1.5 font-medium">1/4 Kelly</th>
+                        <th className="text-right py-1.5 font-medium">1/2 Kelly</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border-subtle/50">
+                      {kellyData.slice(0, 8).map((item) => (
+                        <tr key={item.ticker} className="hover:bg-surface/60 transition-colors">
+                          <td className="py-2 font-bold text-text-primary">{item.ticker}</td>
+                          <td className="py-2 text-right font-mono text-text-secondary">{item.win_rate.toFixed(1)}%</td>
+                          <td className="py-2 text-right font-mono text-text-secondary">{item.win_loss_ratio.toFixed(2)}x</td>
+                          <td className="py-2 text-right font-mono font-semibold text-amber-400">{item.kelly_quarter_limit.toFixed(2)}%</td>
+                          <td className="py-2 text-right font-mono text-text-primary">{item.kelly_half_limit.toFixed(2)}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
           
           {/* Accordion: Correlação */}
           <div className="flex flex-col gap-2">

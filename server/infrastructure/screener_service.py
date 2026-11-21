@@ -249,8 +249,22 @@ def fetch_ticker_fundamentals(
 
         lpa = _safe_float(info.get("trailingEps") or info.get("forwardEps"))
         vpa = _safe_float(info.get("bookValue"))
+        if (
+            inferred_type == "Ação"
+            and clean_ticker[-1:] in ("3", "4", "5", "6")
+            and not (ov.get("vpa") and ov["vpa"] > 0)
+            and vpa
+            and price
+            and (price / vpa) < 0.22
+        ):
+            # Yahoo ocasionalmente retorna bookValue na escala da Unit (ex.: SAPR11 = 5 ações em SAPR4)
+            vpa = round(vpa / 5.0, 4)
         pl = _safe_float(info.get("trailingPE")) or ((price / lpa) if (lpa and lpa > 0) else None)
-        pvp = _safe_float(info.get("priceToBook")) or ((price / vpa) if (vpa and vpa > 0) else None)
+        pvp = ((price / vpa) if (vpa and vpa > 0) else None) if (
+            inferred_type == "Ação"
+            and clean_ticker[-1:] in ("3", "4", "5", "6")
+            and vpa
+        ) else (_safe_float(info.get("priceToBook")) or ((price / vpa) if (vpa and vpa > 0) else None))
         roe = _safe_pct(info.get("returnOnEquity"))
         net_margin = _safe_pct(info.get("profitMargins"))
         ebitda_margin = _safe_pct(info.get("ebitdaMargins"))
@@ -425,7 +439,11 @@ def _collect_db_overrides(
                     entry["local_div_12m"] = round(div_sum, 4)
 
         positions = a.positions or []
-        pos = next((p for p in positions if user_id is None or p.user_id == user_id), None)
+        matching_pos = [p for p in positions if user_id is None or p.user_id == user_id]
+        pos = next(
+            (p for p in matching_pos if p.quantity and float(p.quantity) > 0),
+            matching_pos[0] if matching_pos else None,
+        )
         if pos:
             if pos.manual_lpa and float(pos.manual_lpa) > 0:
                 entry["lpa"] = float(pos.manual_lpa)

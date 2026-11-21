@@ -91,10 +91,15 @@ export const MonteCarloChart = React.memo(function MonteCarloChart() {
                 </div>
               </div>
             </h3>
-            <div className="flex items-center gap-1.5 mt-2 text-slate-500">
-              <Info size={10} />
-              <p className="text-[10px] font-medium uppercase tracking-tight">
-                1.000 Cenários • Movimento Browniano • Projeção 1 Ano
+            <div className="flex flex-col gap-0.5 mt-2 text-slate-500">
+              <div className="flex items-center gap-1.5">
+                <Info size={10} />
+                <p className="text-[10px] font-medium uppercase tracking-tight">
+                  1.000 Cenários • Movimento Browniano • Projeção 1 Ano
+                </p>
+              </div>
+              <p className="text-[10px] text-slate-400">
+                Base simulada: Renda Variável &amp; Cripto (exclui Reserva e Renda Fixa)
               </p>
             </div>
           </div>
@@ -112,7 +117,7 @@ export const MonteCarloChart = React.memo(function MonteCarloChart() {
 
       {/* Gráfico */}
       <div className="h-[300px] w-full">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
           <LineChart data={data} margin={{ top: 5, right: 5, left: isHidden ? 0 : -10, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} opacity={0.5} />
 

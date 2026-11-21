@@ -442,7 +442,7 @@ export function StatementImportModal({
                   </div>
                   {chartData.length > 0 ? (
                     <div className="h-56 w-full">
-                      <ResponsiveContainer width="100%" height="100%">
+                      <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                         <PieChart>
                           <Pie
                             data={chartData}

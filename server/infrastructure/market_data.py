@@ -77,12 +77,12 @@ def update_prices(session, invalidate_cache_callback, user_id=None):
 
         for asset in assets:
             ticker_raw = asset.ticker.strip().upper()
-            
-            if len(ticker_raw) > 7 or " " in ticker_raw:
-                logging.info(f"   ℹ️ {ticker_raw} ignorado por escopo (Regra: Manual/Longo)")
+            cat_name = asset.category.name if asset.category else ''
+            if cat_name == "Reserva" or len(ticker_raw) > 7 or " " in ticker_raw or ticker_raw in {"BTC", "ETH", "BITCOIN", "ETHEREUM"}:
+                logging.info(f"   ℹ️ {ticker_raw} ignorado por escopo (Regra: Manual/Reserva/Longo)")
                 continue
 
-            symbol = to_yf_ticker(ticker_raw, asset.category.name if asset.category else '')
+            symbol = to_yf_ticker(ticker_raw, cat_name)
             tickers_map[symbol] = asset
             download_list.append(symbol)
 
@@ -251,6 +251,12 @@ def update_fundamentals(dolar_rate_callback, state_dict=None, user_id=None):
         ticker_raw = asset_data["ticker"].strip().upper()
         category_name = asset_data["category_name"]
         currency = asset_data["currency"]
+
+        if category_name == "Reserva" or len(ticker_raw) > 7 or " " in ticker_raw or ticker_raw in {"BTC", "ETH", "BITCOIN", "ETHEREUM"}:
+            count += 1
+            if state_dict is not None:
+                state_dict["progress"] = count
+            continue
 
         try:
             ticker_symbol = to_yf_ticker(ticker_raw, category_name)

@@ -3,6 +3,7 @@
 import React from 'react';
 import { CreditCard, DollarSign, Clock } from 'lucide-react';
 import { formatMoney } from '../../lib/format';
+import { usePrivacy } from '../../context/PrivacyContext';
 
 interface CreditCardKpiCardsProps {
   displayLimitLabel: string;
@@ -21,13 +22,16 @@ export function CreditCardKpiCards({
   displayPendingLabel,
   displayPending,
 }: CreditCardKpiCardsProps) {
+  const { isHidden } = usePrivacy();
+  const money = (v: number) => (isHidden ? 'R$ •••••' : formatMoney(v));
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
       <div className="bg-surface-card border border-slate-800 rounded-xl p-5 relative overflow-hidden shadow-lg">
         <div className="flex justify-between items-start">
           <div>
             <p className="text-xs text-slate-400 font-semibold tracking-wider uppercase">{displayLimitLabel}</p>
-            <h3 className="text-2xl font-bold text-white mt-1">{formatMoney(displayLimit)}</h3>
+            <h3 className="text-2xl font-bold text-white mt-1">{money(displayLimit)}</h3>
           </div>
           <div className="p-2 bg-indigo-500/10 text-indigo-400 rounded-lg">
             <CreditCard size={18} />
@@ -39,7 +43,7 @@ export function CreditCardKpiCards({
         <div className="flex justify-between items-start">
           <div>
             <p className="text-xs text-slate-400 font-semibold tracking-wider uppercase">{displaySpentLabel}</p>
-            <h3 className="text-2xl font-bold text-rose-400 mt-1">{formatMoney(displaySpent)}</h3>
+            <h3 className="text-2xl font-bold text-rose-400 mt-1">{money(displaySpent)}</h3>
           </div>
           <div className="p-2 bg-rose-500/10 text-rose-400 rounded-lg">
             <DollarSign size={18} />
@@ -51,7 +55,7 @@ export function CreditCardKpiCards({
         <div className="flex justify-between items-start">
           <div>
             <p className="text-xs text-slate-400 font-semibold tracking-wider uppercase">{displayPendingLabel}</p>
-            <h3 className="text-2xl font-bold text-amber-400 mt-1">{formatMoney(displayPending)}</h3>
+            <h3 className="text-2xl font-bold text-amber-400 mt-1">{money(displayPending)}</h3>
           </div>
           <div className="p-2 bg-amber-500/10 text-amber-400 rounded-lg">
             <Clock size={18} />

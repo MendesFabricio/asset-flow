@@ -6,6 +6,8 @@ import {
   TrendingUp, ArrowUpRight, ShieldCheck
 } from 'lucide-react';
 import { formatMoney } from '../lib/format';
+import { apiCall } from '../lib/api';
+import { usePrivacy } from '../context/PrivacyContext';
 import { ConfirmDialog } from './ui/ConfirmDialog';
 
 interface FixedIncomeItem {
@@ -30,6 +32,8 @@ interface FixedIncomeItem {
 }
 
 export function FixedIncomeTab() {
+  const { isHidden } = usePrivacy();
+  const money = (v: number) => (isHidden ? 'R$ •••••' : formatMoney(v));
   const [titles, setTitles] = useState<FixedIncomeItem[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
@@ -46,16 +50,11 @@ export function FixedIncomeTab() {
 
   const loadData = async () => {
     try {
-      const res = await fetch('/api/fixed-income');
-      const data = await res.json();
-      if (res.ok) {
-        setTitles(Array.isArray(data) ? data : []);
-      } else {
-        console.error("API Error:", data);
-        setTitles([]);
-      }
+      const data = await apiCall<FixedIncomeItem[]>('/api/fixed-income');
+      setTitles(Array.isArray(data) ? data : []);
     } catch (e) {
       console.error(e);
+      setTitles([]);
     }
   };
 
@@ -66,25 +65,22 @@ export function FixedIncomeTab() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch('/api/fixed-income', {
+      await apiCall('/api/fixed-income', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form)
       });
-      if (res.ok) {
-        setForm({
-          ticker: '',
-          name: '',
-          index_type: 'CDI',
-          interest_rate: '',
-          quantity: '1',
-          average_price: '',
-          issue_date: '',
-          due_date: ''
-        });
-        setShowAddModal(false);
-        loadData();
-      }
+      setForm({
+        ticker: '',
+        name: '',
+        index_type: 'CDI',
+        interest_rate: '',
+        quantity: '1',
+        average_price: '',
+        issue_date: '',
+        due_date: ''
+      });
+      setShowAddModal(false);
+      loadData();
     } catch (e) {
       console.error(e);
     }
@@ -92,12 +88,10 @@ export function FixedIncomeTab() {
 
   const handleDelete = async (id: number) => {
     try {
-      const res = await fetch(`/api/fixed-income/${id}`, {
+      await apiCall(`/api/fixed-income/${id}`, {
         method: 'DELETE'
       });
-      if (res.ok) {
-        loadData();
-      }
+      loadData();
     } catch (e) {
       console.error(e);
     } finally {
@@ -119,7 +113,7 @@ export function FixedIncomeTab() {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs text-slate-400 font-semibold tracking-wider uppercase">Total Aplicado</p>
-              <h3 className="text-2xl font-bold text-white mt-1">{formatMoney(totalInvested)}</h3>
+              <h3 className="text-2xl font-bold text-white mt-1">{money(totalInvested)}</h3>
             </div>
             <div className="p-2 bg-indigo-500/10 text-indigo-400 rounded-lg">
               <Landmark size={18} />
@@ -131,7 +125,7 @@ export function FixedIncomeTab() {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs text-slate-400 font-semibold tracking-wider uppercase">Saldo Bruto Atual</p>
-              <h3 className="text-2xl font-bold text-slate-200 mt-1">{formatMoney(totalGross)}</h3>
+              <h3 className="text-2xl font-bold text-slate-200 mt-1">{money(totalGross)}</h3>
             </div>
             <div className="p-2 bg-slate-500/10 text-slate-400 rounded-lg">
               <TrendingUp size={18} />
@@ -143,7 +137,7 @@ export function FixedIncomeTab() {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs text-slate-400 font-semibold tracking-wider uppercase">Saldo Líquido Est.</p>
-              <h3 className="text-2xl font-bold text-emerald-400 mt-1">{formatMoney(totalNet)}</h3>
+              <h3 className="text-2xl font-bold text-emerald-400 mt-1">{money(totalNet)}</h3>
             </div>
             <div className="p-2 bg-emerald-500/10 text-emerald-400 rounded-lg">
               <ShieldCheck size={18} />
@@ -155,7 +149,7 @@ export function FixedIncomeTab() {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs text-slate-400 font-semibold tracking-wider uppercase">Rendimento Líquido</p>
-              <h3 className="text-2xl font-bold text-indigo-400 mt-1">+{formatMoney(totalProfit)}</h3>
+              <h3 className="text-2xl font-bold text-indigo-400 mt-1">{isHidden ? money(totalProfit) : `+${money(totalProfit)}`}</h3>
             </div>
             <div className="p-2 bg-indigo-500/10 text-indigo-400 rounded-lg">
               <ArrowUpRight size={18} />
@@ -222,9 +216,9 @@ export function FixedIncomeTab() {
                     <td className="py-3.5 px-4 font-semibold text-slate-300">
                       {t.tax_rate}%
                     </td>
-                    <td className="py-3.5 px-4 text-right font-bold">{formatMoney(t.total_invested)}</td>
-                    <td className="py-3.5 px-4 text-right font-bold text-slate-200">{formatMoney(t.gross_value)}</td>
-                    <td className="py-3.5 px-4 text-right font-bold text-emerald-400">{formatMoney(t.net_value)}</td>
+                    <td className="py-3.5 px-4 text-right font-bold">{money(t.total_invested)}</td>
+                    <td className="py-3.5 px-4 text-right font-bold text-slate-200">{money(t.gross_value)}</td>
+                    <td className="py-3.5 px-4 text-right font-bold text-emerald-400">{money(t.net_value)}</td>
                     <td className="py-3.5 px-4 text-center">
                       <button 
                         onClick={() => setDeleteId(t.id)}

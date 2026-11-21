@@ -404,7 +404,7 @@ export default function PerformanceAttributionChart({
               Sem histórico mensal suficiente para atribuição.
             </div>
           ) : (
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: 4, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={palette.grid} />
                 <XAxis
@@ -487,7 +487,7 @@ export default function PerformanceAttributionChart({
             Aguardando dados históricos diários...
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
             <AreaChart data={filteredHistory} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
               {view === 'total' && (
                 <defs>

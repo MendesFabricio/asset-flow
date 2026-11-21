@@ -10,6 +10,21 @@ import {
   FrontierPoint,
 } from '@/types';
 
+export interface KellyCriterionItem {
+  ticker: string;
+  win_rate: number;
+  win_loss_ratio: number;
+  kelly_full: number;
+  kelly_half_limit: number;
+  kelly_quarter_limit: number;
+}
+
+export interface MomentumRankingItem {
+  rank: number;
+  ticker: string;
+  momentum_score_pct: number;
+}
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 function computeAllocMapping(assetsList: { ticker?: string; total_atual?: number | string }[]): Record<string, number> {
@@ -36,6 +51,8 @@ export function useQuantData(riskAversion: number, ativos?: Asset[], activeTab: 
   const [frontierData, setFrontierData] = useState<EfficientFrontierData | null>(null);
   const [rebalanceData, setRebalanceData] = useState<RebalanceBandsData | null>(null);
   const [attributionData, setAttributionData] = useState<AlphaAttributionData | null>(null);
+  const [kellyData, setKellyData] = useState<KellyCriterionItem[]>([]);
+  const [momentumData, setMomentumData] = useState<MomentumRankingItem[]>([]);
   const [markowitz, setMarkowitz] = useState<Record<string, number>>({});
   const [riskParity, setRiskParity] = useState<Record<string, number>>({});
   const [fetchedAlloc, setFetchedAlloc] = useState<Record<string, number>>({});
@@ -53,16 +70,22 @@ export function useQuantData(riskAversion: number, ativos?: Asset[], activeTab: 
     Promise.all([
       apiCall<RebalanceBandsData>('/api/quant/rebalance-bands'),
       apiCall<AlphaAttributionData>('/api/quant/attribution-analysis'),
+      apiCall<{ status: string; data?: KellyCriterionItem[] }>('/api/quant/kelly-criterion').catch(() => ({ status: 'Erro', data: [] })),
+      apiCall<{ status: string; data?: MomentumRankingItem[] }>('/api/quant/momentum-ranking').catch(() => ({ status: 'Erro', data: [] })),
     ])
-      .then(([rebalance, attribution]) => {
+      .then(([rebalance, attribution, kelly, momentum]) => {
         setRebalanceData(rebalance.status === 'Sucesso' ? rebalance : null);
         setAttributionData(attribution.status === 'Sucesso' ? attribution : null);
+        setKellyData(kelly.status === 'Sucesso' && Array.isArray(kelly.data) ? kelly.data : []);
+        setMomentumData(momentum.status === 'Sucesso' && Array.isArray(momentum.data) ? momentum.data : []);
       })
       .catch((err) => {
         console.error(err);
         setError('Erro ao carregar os dados quantitativos. Verifique a conexão com o servidor.');
         setRebalanceData(null);
         setAttributionData(null);
+        setKellyData([]);
+        setMomentumData([]);
       })
       .finally(() => setLoading(false));
 
@@ -132,6 +155,8 @@ export function useQuantData(riskAversion: number, ativos?: Asset[], activeTab: 
     frontierData,
     rebalanceData,
     attributionData,
+    kellyData,
+    momentumData,
     markowitz,
     riskParity,
     currentAlloc,

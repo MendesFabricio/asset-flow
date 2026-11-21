@@ -3,6 +3,7 @@
 import React from 'react';
 import { Plus, Trash2, FileText } from 'lucide-react';
 import { formatMoney } from '../../lib/format';
+import { usePrivacy } from '../../context/PrivacyContext';
 
 interface CardItem {
   id: number;
@@ -29,6 +30,8 @@ export function CreditCardSidebar({
   onOpenAddCard,
   onOpenImport,
 }: CreditCardSidebarProps) {
+  const { isHidden } = usePrivacy();
+  const money = (v: number) => (isHidden ? 'R$ •••••' : formatMoney(v));
   const totalLimit = cards.reduce((acc, c) => acc + Number(c.limit || 0), 0);
 
   return (
@@ -66,7 +69,7 @@ export function CreditCardSidebar({
           >
             <div>
               <p className="font-semibold text-sm">{c.name}</p>
-              <p className="text-xs text-slate-400">Limite: {formatMoney(c.limit)}</p>
+              <p className="text-xs text-slate-400">Limite: {money(c.limit)}</p>
             </div>
             <button
               onClick={(e) => {
@@ -104,7 +107,7 @@ export function CreditCardSidebar({
                   Consolidado
                 </span>
               </p>
-              <p className="text-xs text-slate-400 mt-0.5">Limite: {formatMoney(totalLimit)}</p>
+              <p className="text-xs text-slate-400 mt-0.5">Limite: {money(totalLimit)}</p>
             </div>
           </div>
         )}

@@ -265,3 +265,55 @@ def test_calculate_monthly_darf_ignores_zero_value_stock_writeoff_but_keeps_opti
     assert res["profits"]["stocks_st"] == -50.0
     assert len(res["details"]) == 1
     assert res["details"][0]["ticker"] == "BHIAL700"
+
+
+@patch('domain.tax.tax_engine._detect_day_trades')
+@patch('domain.tax.tax_engine.get_or_create_tax_profile')
+@patch('domain.tax.annual_irpf.Session')
+def test_calculate_annual_irpf_separates_jcp_and_reserva_deposit(
+    mock_session_cls, mock_profile, _mock_dt
+):
+    from domain.tax.annual_irpf import calculate_annual_irpf, _get_bens_e_direitos
+
+    mock_session = MagicMock()
+    mock_session_cls.return_value = mock_session
+    mock_session.__enter__.return_value = mock_session
+    mock_profile.return_value = MagicMock(
+        accumulated_loss_stocks_st=Decimal("0.0"),
+        accumulated_loss_stocks_dt=Decimal("0.0"),
+        accumulated_loss_fiis=Decimal("0.0"),
+    )
+
+    div_ok = MagicMock(type="Dividendo", total_value=Decimal("100.0"))
+    jcp_ok = MagicMock(type="Juros Sobre Capital Próprio", total_value=Decimal("45.0"))
+    amort = MagicMock(type="AMORTIZATION", total_value=Decimal("30.0"))
+    mock_session.query.return_value.filter.return_value.all.return_value = [div_ok, jcp_ok, amort]
+    mock_session.query.return_value.join.return_value.join.return_value.filter.return_value.all.return_value = []
+
+    with patch('domain.tax.annual_irpf._get_bens_e_direitos', return_value=[]):
+        res = calculate_annual_irpf(user_id=1, year=2025)
+    assert res["rendimentos_isentos"]["dividendos"] == pytest.approx(100.0)
+    assert res["rendimentos_exclusivos"]["jcp"] == pytest.approx(45.0)
+
+    # _get_bens_e_direitos handles DEPOSIT/WITHDRAW and live Reserva balance
+    tx_buy = MagicMock(id=1, ticker="NUBANK TURBO", type="BUY", quantity=Decimal("1"), total_value=Decimal("9000"), transaction_date=datetime(2026, 1, 2))
+    tx_dep = MagicMock(id=2, ticker="NUBANK TURBO", type="DEPOSIT", quantity=Decimal("1"), total_value=Decimal("559.75"), transaction_date=datetime(2026, 5, 2))
+    a_turbo = MagicMock(cnpj="00")
+    a_turbo.name = "Nubank Turbo"
+    c_res = MagicMock()
+    c_res.name = "Reserva"
+
+    pos_sess = MagicMock()
+    pos_sess.query.return_value.join.return_value.join.return_value.filter.return_value.order_by.return_value.all.return_value = [
+        (tx_buy, a_turbo, c_res),
+        (tx_dep, a_turbo, c_res),
+    ]
+    pos_live = MagicMock(quantity=Decimal("1"), average_price=Decimal("9600.0"))
+    a_live = MagicMock(ticker="NUBANK TURBO", cnpj="00")
+    a_live.name = "Nubank Turbo"
+    pos_sess.query.return_value.join.return_value.join.return_value.filter.return_value.all.return_value = [
+        (pos_live, a_live, c_res)
+    ]
+    bens = _get_bens_e_direitos(pos_sess, user_id=1, year=date.today().year)
+    assert len(bens) == 1
+    assert bens[0]["total_cost"] == pytest.approx(9600.0)

@@ -76,3 +76,44 @@ def test_calculate_dividend_forecast_without_history(mock_uid, mock_positions, m
     assert res["status"] == "Sucesso"
     assert res["details"] == []
     assert res["total_projected"] == 0.0
+
+
+@patch('domain.quant.projection.get_active_positions')
+@patch('domain.quant.projection._get_current_user_id', return_value=1)
+def test_calculate_dividend_forecast_excludes_presplit_and_old_dividends(mock_uid, mock_positions, mock_session):
+    from datetime import date, timedelta
+    from db.models import AssetTransaction, CorporateEvent, Dividend
+
+    pos = MagicMock()
+    pos.asset_id = 1
+    pos.asset.ticker = "HGBS11"
+    pos.asset.category.name = "FII"
+    pos.quantity = 50
+    pos.manual_dy = 0
+    mock_positions.return_value.all.return_value = [pos]
+
+    today = date.today()
+    split_date = today - timedelta(days=90)
+    pre_split_div = MagicMock(date_com=split_date - timedelta(days=10), value_per_share=1.70, type="Rendimento")
+    old_div = MagicMock(date_com=today - timedelta(days=500), value_per_share=1.70, type="Rendimento")
+    post_split_div = MagicMock(date_com=today - timedelta(days=15), value_per_share=0.17, type="Rendimento")
+
+    split_tx = MagicMock(transaction_date=datetime.combine(split_date, datetime.min.time()))
+
+    def _query_side_effect(model):
+        q = MagicMock()
+        if model is Dividend:
+            q.filter_by.return_value.all.return_value = [pre_split_div, old_div, post_split_div]
+        elif model is AssetTransaction:
+            q.filter.return_value.filter.return_value.all.return_value = [split_tx]
+        elif model is CorporateEvent:
+            q.filter.return_value.all.return_value = []
+        return q
+
+    mock_session.query.side_effect = _query_side_effect
+
+    res = calculate_dividend_forecast(mock_session)
+
+    assert res["status"] == "Sucesso"
+    assert res["total_projected"] == pytest.approx(0.17 * 50, abs=0.01)
+    assert len(res["details"]) == 1

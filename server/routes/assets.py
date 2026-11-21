@@ -4,11 +4,9 @@ from typing import Optional
 import sys
 import os
 import logging
-from concurrent.futures import ThreadPoolExecutor  # ⚡ Injetado o motor de paralelismo
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from services import PortfolioService
-from utils.cvm_processor import CVMProcessor
 
 assets_bp = Blueprint('assets', __name__)
 service = PortfolioService()
@@ -33,33 +31,6 @@ class UpdateInput(BaseModel):
     current_price: Optional[float] = Field(default=None)
     tx_type: Optional[str] = Field(default=None)
     tx_amount: Optional[float] = Field(default=None)
-
-# --- Funções Auxiliares de Threading ---
-
-def _worker_process_fundamentalist_data(asset):
-    """🛠️ TRABALHADOR PARALELO: Processa a carga pesada de dados CVM fora da thread principal do Flask"""
-    try:
-        # Tenta converter o objeto SQLAlchemy para dicionário de forma segura
-        asset_dict = asset.to_dict() if hasattr(asset, 'to_dict') else dict(asset)
-        
-        tipo = getattr(asset, 'tipo', asset_dict.get('tipo', ''))
-        cvm_code = getattr(asset, 'cvm_code', asset_dict.get('cvm_code', None))
-        ticker = getattr(asset, 'ticker', asset_dict.get('ticker', 'UNKNOWN'))
-
-        if tipo == 'Ação' and cvm_code:
-            try:
-                # Executa a leitura física/requisição do JSON da CVM em paralelo
-                asset_dict['fundamentalist_data'] = CVMProcessor.get_dashboard_data(cvm_code)
-            except Exception as e:
-                logging.warning(f"⚠️ Falha controlada ao obter dados CVM do papel {ticker}: {e}")
-                asset_dict['fundamentalist_data'] = None
-        else:
-            asset_dict['fundamentalist_data'] = None
-            
-        return asset_dict
-    except Exception as e:
-        logging.error(f"❌ Erro estrutural ao processar mapeamento de ativo nas threads: {e}")
-        return None
 
 # --- Rotas ---
 
@@ -129,8 +100,11 @@ def update_asset():
             tx_amount=body.tx_amount,
         )
         
+        uid = getattr(g, 'user_id', None)
+
         def _background_update():
             try:
+                service.current_user_id = uid
                 service.take_daily_snapshot() 
             except Exception as e:
                 logging.warning(f"⚠️ Falha ao computar snapshot pós-atualização em background: {e}")
@@ -251,29 +225,10 @@ def get_all_asset_transactions():
 
 @assets_bp.route('/api/assets')
 def get_assets():
-    """🚀 ROTA OTIMIZADA: Carrega e monta os dados fundamentalistas de toda a carteira em paralelo"""
+    """Carrega e monta os dados consolidados dos ativos da carteira."""
     try:
-        # Se get_all_assets não existir ou for dinâmico, o PortfolioService gerencia
-        if hasattr(service, 'get_all_assets'):
-            assets = service.get_all_assets()
-        else:
-            # Fallback seguro caso o método real seja via posições do dashboard
-            dash_data = service.get_dashboard_data()
-            return jsonify(dash_data.get("ativos", []))
-            
-        results = []
-        
-        # Removemos o ThreadPoolExecutor para evitar 'database is locked' com SQLite.
-        # Em SQLite, o paralelismo pesado dentro de uma rota trava o Gunicorn.
-        for asset in assets:
-            res = _worker_process_fundamentalist_data(asset)
-            if res is not None:
-                results.append(res)
-        
-        # Mantém a ordenação alfabética por Ticker estável para o front-end
-        results.sort(key=lambda x: x.get('ticker', ''))
-        return jsonify(results)
-        
+        dash_data = service.get_dashboard_data()
+        return jsonify(dash_data.get("ativos", []))
     except Exception as e:
         logging.error(f"❌ Erro grave ao montar listagem de ativos: {e}")
         return jsonify({"status": "Erro", "msg": str(e)}), 500

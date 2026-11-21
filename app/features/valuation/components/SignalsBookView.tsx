@@ -179,7 +179,7 @@ export function SignalsBookView({ onSelectTicker }: { onSelectTicker: (ticker: s
               </span>
             </div>
             <div className="h-56 w-full">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                 <BarChart data={chartRows} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke={palette.grid} vertical={false} />
                   <XAxis dataKey="status" stroke={palette.axis} fontSize={10} tickLine={false} axisLine={false} />

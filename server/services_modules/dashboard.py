@@ -170,7 +170,7 @@ class DashboardService:
                         ),
                         "gordon_price": float(item["metrics"].get("gordon_price", 0)),
                         "dcf_price": screener_by_ticker[asset.ticker].dcf_price if asset.ticker in screener_by_ticker and screener_by_ticker[asset.ticker].dcf_price else 0.0,
-                        "quality_score": screener_by_ticker[asset.ticker].quality_score if asset.ticker in screener_by_ticker else 0,
+                        "quality_score": screener_by_ticker[asset.ticker].quality_score if asset.ticker in screener_by_ticker else None,
                         "p_vp": float(item["metrics"].get("p_vp", 0)),
                         "magic_number": int(item["metrics"].get("magic_number", 0)),
                         "renda_mensal_est": float(item["metrics"].get("renda_mensal_est", 0)),

@@ -202,7 +202,7 @@ export default function MonthlyPnLChart() {
         ) : data.length === 0 ? (
           <div className="h-full flex items-center justify-center text-slate-500">Sem dados de lucro/prejuízo no período.</div>
         ) : (
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
             <BarChart
               data={selectedYear === 'all' ? data : data.filter(d => d.period.endsWith(selectedYear))}
               margin={{ top: 10, right: 10, left: 10, bottom: 0 }}

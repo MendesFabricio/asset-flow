@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { apiCall } from '@/lib/api';
 import { formatMoney } from '@/lib/format';
+import { usePrivacy } from '@/context/PrivacyContext';
 import { useToast } from '@/context/ToastContext';
 import { ValuationAssetData } from '@/types';
 
@@ -51,6 +52,8 @@ function ChecklistStatusIcon({ status }: { status: 'pass' | 'warn' | 'fail' | 'u
 
 export function ValuationPanel({ ticker, assetType, compact = false }: ValuationPanelProps) {
   const { notify } = useToast();
+  const { isHidden } = usePrivacy();
+  const money = (v: number) => (isHidden ? 'R$ •••••' : formatMoney(v));
   const defaultBazin = assetType === 'FII' ? 8.0 : 6.0;
   const [bazinDy, setBazinDy] = useState<number>(defaultBazin);
   const [discountRate, setDiscountRate] = useState<number>(12.5);
@@ -300,11 +303,11 @@ export function ValuationPanel({ ticker, assetType, compact = false }: Valuation
             <MarginBadge pct={data.margin_bazin_pct} />
           </div>
           <p className="text-sm font-mono font-bold text-text-primary">
-            {data.bazin_price ? formatMoney(data.bazin_price) : 'N/D'}
+            {data.bazin_price ? money(data.bazin_price) : 'N/D'}
           </p>
           <div className="flex items-center justify-between gap-1">
             <p className="text-[10px] text-text-muted">
-              Div./cota: {data.dividend_per_share ? formatMoney(data.dividend_per_share) : 'N/D'}
+              Div./cota: {data.dividend_per_share ? money(data.dividend_per_share) : 'N/D'}
             </p>
             {data.bazin_price && (
               <button
@@ -330,10 +333,10 @@ export function ValuationPanel({ ticker, assetType, compact = false }: Valuation
           <p className="text-sm font-mono font-bold text-text-primary">
             {data.asset_type === 'FII'
               ? data.vpa
-                ? formatMoney(data.vpa)
+                ? money(data.vpa)
                 : 'N/D'
               : data.graham_price
-              ? formatMoney(data.graham_price)
+              ? money(data.graham_price)
               : 'N/D'}
           </p>
           <p className="text-[10px] text-text-muted">
@@ -346,7 +349,7 @@ export function ValuationPanel({ ticker, assetType, compact = false }: Valuation
             Modelo Gordon
           </span>
           <p className="text-sm font-mono font-bold text-text-primary">
-            {data.gordon_price ? formatMoney(data.gordon_price) : 'N/D'}
+            {data.gordon_price ? money(data.gordon_price) : 'N/D'}
           </p>
           <p className="text-[10px] text-text-muted">DY 12m: {data.dy_12m ? `${data.dy_12m.toFixed(2)}%` : 'N/D'}</p>
         </div>
@@ -359,7 +362,7 @@ export function ValuationPanel({ ticker, assetType, compact = false }: Valuation
             <MarginBadge pct={data.margin_dcf_pct} />
           </div>
           <p className="text-sm font-mono font-bold text-text-primary">
-            {data.dcf_price ? formatMoney(data.dcf_price) : 'N/D'}
+            {data.dcf_price ? money(data.dcf_price) : 'N/D'}
           </p>
           <p className="text-[10px] text-text-muted">
             {data.magic_score !== null && data.magic_score !== undefined
@@ -381,7 +384,7 @@ export function ValuationPanel({ ticker, assetType, compact = false }: Valuation
               return (
                 <div key={d.year} className="flex flex-col items-center justify-end h-full gap-1">
                   <span className="text-[9px] font-mono text-text-primary font-semibold">
-                    {formatMoney(d.total)}
+                    {money(d.total)}
                   </span>
                   <div className="w-full max-w-[28px] bg-surface-input rounded-t overflow-hidden flex items-end h-10">
                     <div

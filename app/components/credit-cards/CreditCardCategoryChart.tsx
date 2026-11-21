@@ -3,6 +3,7 @@
 import React from 'react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
 import { formatMoney } from '../../lib/format';
+import { usePrivacy } from '../../context/PrivacyContext';
 
 interface ChartDataItem {
   name: string;
@@ -16,13 +17,14 @@ interface CreditCardCategoryChartProps {
 }
 
 export function CreditCardCategoryChart({ chartData, colors }: CreditCardCategoryChartProps) {
+  const { isHidden } = usePrivacy();
   if (!chartData || chartData.length === 0) return null;
 
   return (
     <div className="bg-surface-card border border-slate-800 rounded-xl p-4 shadow-lg space-y-3">
       <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Gastos por Categoria</h4>
       <div className="h-52 w-full">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
           <PieChart>
             <Pie
               data={chartData}
@@ -39,7 +41,7 @@ export function CreditCardCategoryChart({ chartData, colors }: CreditCardCategor
             </Pie>
             <Tooltip
               formatter={(val: number | string | undefined) => [
-                formatMoney(typeof val === 'number' ? val : Number(val || 0)),
+                isHidden ? 'R$ •••••' : formatMoney(typeof val === 'number' ? val : Number(val || 0)),
                 'Gasto',
               ]}
               contentStyle={{

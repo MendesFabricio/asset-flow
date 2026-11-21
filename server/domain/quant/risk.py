@@ -122,8 +122,8 @@ def calculate_risk_metrics(session, fetch_prices, allow_compute=True, dolar_rate
     alpha_ewma = 1.0 - decay_factor
 
     ewma_mean = aligned.ewm(alpha=alpha_ewma).mean().iloc[-1]
-    ann_p = float(ewma_mean["portfolio"] * 252)
-    ann_b = float(ewma_mean["benchmark"] * 252)
+    ann_p = float(p.mean() * 252)
+    ann_b = float(b.mean() * 252)
 
     ewma_cov = _calculate_ewma_covariance(aligned, decay=decay_factor)
     cov_portfolio_bench = float(ewma_cov.loc["portfolio", "benchmark"])

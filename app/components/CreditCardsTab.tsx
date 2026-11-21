@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { formatMoney } from '../lib/format';
 import { CreditCardInstallmentItem, CreditCardsDashboardData } from '../types';
+import { usePrivacy } from '../context/PrivacyContext';
 import { apiCall } from '../lib/api';
 import { StatementImportModal } from './StatementImportModal';
 import { ErrorBoundary } from './ui/ErrorBoundary';
@@ -83,6 +84,8 @@ const getCategoryFromDescription = (desc: string): string => {
 };
 
 export function CreditCardsTab() {
+  const { isHidden } = usePrivacy();
+  const money = (v: number) => (isHidden ? 'R$ •••••' : formatMoney(v));
   const [cards, setCards] = useState<CardItem[]>([]);
   const [selectedCard, setSelectedCard] = useState<CardItem | null>(null);
   const [expenses, setExpenses] = useState<ExpenseItem[]>([]);
@@ -316,7 +319,7 @@ export function CreditCardsTab() {
                         <p className={`text-xs font-bold ${isSelected ? 'text-blue-300' : 'text-slate-200'}`}>
                           {formatInvoiceMonthLabel(f.invoice_month)}
                         </p>
-                        <p className="text-[11px] text-slate-400 mt-0.5">Total: {formatMoney(f.total)}</p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">Total: {money(f.total)}</p>
                       </div>
                       <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${
                         f.status === 'PAID' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
@@ -334,7 +337,7 @@ export function CreditCardsTab() {
                   <div key={f.invoice_month} className="p-2 rounded bg-slate-900/60 border border-slate-800 flex justify-between items-center">
                     <div>
                       <p className="text-xs font-semibold text-slate-300">{formatInvoiceMonthLabel(f.invoice_month)}</p>
-                      <p className="text-xs text-slate-400">Total: {formatMoney(f.total)}</p>
+                      <p className="text-xs text-slate-400">Total: {money(f.total)}</p>
                     </div>
                     <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${
                       f.status === 'PAID' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
@@ -377,7 +380,7 @@ export function CreditCardsTab() {
                       const invSummary = cardInvoices.find(i => i.invoice_month === selectedInvoiceMonth);
                       return invSummary ? (
                         <span className="ml-2 pl-2 border-l border-slate-700 text-slate-300">
-                          Total da Fatura: <strong className={invSummary.total === 0 ? 'text-slate-400' : 'text-rose-400 font-bold'}>{formatMoney(invSummary.total)}</strong>
+                          Total da Fatura: <strong className={invSummary.total === 0 ? 'text-slate-400' : 'text-rose-400 font-bold'}>{money(invSummary.total)}</strong>
                         </span>
                       ) : null;
                     })()}
@@ -439,13 +442,13 @@ export function CreditCardsTab() {
                               )}
                             </div>
                             <p className="text-xs text-slate-400 flex items-center gap-1 mt-1">
-                              <Calendar size={12} /> Compra em {new Date(e.date).toLocaleDateString()} | {e.installments_count}x de {formatMoney((e.total_value || 0) / e.installments_count)}
+                              <Calendar size={12} /> Compra em {new Date(e.date).toLocaleDateString()} | {e.installments_count}x de {money((e.total_value || 0) / e.installments_count)}
                             </p>
                           </div>
                           <div className="text-right">
-                            <p className="font-bold text-slate-200 text-sm">{formatMoney(itemValue)}</p>
+                            <p className="font-bold text-slate-200 text-sm">{money(itemValue)}</p>
                             {e.installments_count > 1 && (
-                              <p className="text-[10px] text-slate-400">Total da compra: {formatMoney(e.total_value)}</p>
+                              <p className="text-[10px] text-slate-400">Total da compra: {money(e.total_value)}</p>
                             )}
                           </div>
                         </div>
@@ -467,7 +470,7 @@ export function CreditCardsTab() {
                                 <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
                                   Parcela {inst.installment_number}/{e.installments_count}
                                 </p>
-                                <p className="text-xs font-bold mt-0.5">{formatMoney(inst.value)}</p>
+                                <p className="text-xs font-bold mt-0.5">{money(inst.value)}</p>
                                 <p className="text-[9px] text-slate-400 mt-0.5">{inst.invoice_month}</p>
                               </div>
                               {inst.status === 'PAID' ? (
