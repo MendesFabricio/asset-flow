@@ -1,4 +1,5 @@
 # server/routes/news.py
+from concurrent.futures import ThreadPoolExecutor
 from flask import Blueprint, jsonify, request
 import feedparser
 import requests
@@ -172,18 +173,25 @@ def get_daily_sector_summary():
             }
             
             from infrastructure.gemini_service import generate_ai_text
-            
-            for sector, url in sectors.items():
-                titles = []
+
+            def _fetch_sector_titles(item):
+                sec, url = item
+                titles_found = []
                 try:
                     response = requests.get(url, headers=headers, timeout=5)
                     if response.status_code == 200:
                         feed = feedparser.parse(response.content)
-                        for entry in feed.entries[:6]:
-                            titles.append(entry.title)
+                        titles_found = [entry.title for entry in feed.entries[:6]]
                 except Exception as feed_err:
-                    logging.warning(f"Erro ao buscar RSS para setor {sector}: {feed_err}")
-                    
+                    logging.warning(f"Erro ao buscar RSS para setor {sec}: {feed_err}")
+                return sec, titles_found
+
+            with ThreadPoolExecutor(max_workers=3) as pool:
+                titles_by_sector = dict(pool.map(_fetch_sector_titles, sectors.items()))
+
+            for sector in sectors:
+                titles = titles_by_sector.get(sector) or []
+
                 if not titles:
                     summaries[sector] = "Sem notícias relevantes encontradas nas últimas horas."
                     continue

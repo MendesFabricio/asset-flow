@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from flask import Blueprint, jsonify, g
 from sqlalchemy.orm import joinedload
 from db.models import Asset, Position, Session, Dividend
@@ -97,9 +98,16 @@ def get_calendar():
             )
             for pos in positions:
                 ticker_raw = pos.asset.ticker.strip().upper()
-                if any(x in ticker_raw for x in ["CAIXINHA", "BTC", "ETH"]):
+                cat_name = pos.asset.category.name if pos.asset.category else ''
+                if (
+                    cat_name == "Reserva"
+                    or len(ticker_raw) > 7
+                    or " " in ticker_raw
+                    or ticker_raw.endswith("-USD")
+                    or ticker_raw in {"BTC", "ETH", "BITCOIN", "ETHEREUM"}
+                ):
                     continue
-                items_to_process.append((ticker_raw, pos.quantity, today, tz, pos.asset.category.name if pos.asset.category else ''))
+                items_to_process.append((ticker_raw, pos.quantity, today, tz, cat_name))
         except Exception as e:
             logging.error(f"💥 Erro ao ler posições para o calendário: {e}")
             return jsonify({"error": "Erro de banco de dados"}), 500
@@ -121,12 +129,13 @@ def get_calendar():
                     pass
 
                 bg_events = []
-                for item in items_to_process:
-                    try:
-                        res = fetch_single_asset_proventos(item, secure_session)
-                        bg_events.extend(res)
-                    except Exception as thread_err:
-                        logging.warning(f"Erro na busca de provento: {thread_err}")
+                with ThreadPoolExecutor(max_workers=4) as pool:
+                    futures = [pool.submit(fetch_single_asset_proventos, item, secure_session) for item in items_to_process]
+                    for fut in as_completed(futures):
+                        try:
+                            bg_events.extend(fut.result())
+                        except Exception as thread_err:
+                            logging.warning(f"Erro na busca de provento: {thread_err}")
 
                 bg_events.sort(key=lambda x: x['date'])
                 CALENDAR_CACHE[user_id] = {

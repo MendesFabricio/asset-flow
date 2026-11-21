@@ -669,3 +669,61 @@ def test_collect_db_overrides_ticker_filter_and_fresh_cache_skips_overrides():
         out = get_or_fetch_asset_valuation(fresh_sess, "ITUB3", user_id=1)
     assert out is not None
     mock_ovr.assert_not_called()
+
+
+def test_calendar_includes_b3_crypto_etfs_and_skips_reserva(val_client):
+    from types import SimpleNamespace
+    from unittest.mock import MagicMock
+    import routes.calendar as cal_routes
+
+    def _mk_pos(aid, ticker, cat_name, qty=10.0):
+        return SimpleNamespace(
+            asset_id=aid,
+            quantity=qty,
+            asset=SimpleNamespace(ticker=ticker, category=SimpleNamespace(name=cat_name)),
+        )
+
+    mock_positions = [
+        _mk_pos(1, "COIN11", "Cripto", 20.0),
+        _mk_pos(2, "ETHY11", "Cripto", 5.0),
+        _mk_pos(3, "NUBANK TURBO", "Reserva", 1.0),
+        _mk_pos(4, "BITCOIN", "Cripto", 1.0),
+        _mk_pos(5, "BTC", "Cripto", 0.5),
+        _mk_pos(6, "BTC-USD", "Cripto", 0.1),
+    ]
+    fake_sess = MagicMock()
+    fake_sess.__enter__.return_value = fake_sess
+    fake_sess.__exit__.return_value = False
+    fake_sess.query.return_value.filter_by.return_value.join.return_value.options.return_value.filter.return_value.all.return_value = mock_positions
+    fake_sess.query.return_value.options.return_value.filter.return_value.all.return_value = []
+
+    processed_tickers = []
+    captured_targets = []
+
+    class CaptureThread:
+        def __init__(self, target=None, daemon=None):
+            self._target = target
+
+        def start(self):
+            if self._target:
+                captured_targets.append(self._target)
+
+    prev_cache = dict(cal_routes.CALENDAR_CACHE)
+    prev_flag = cal_routes.IS_UPDATING_CALENDAR
+    cal_routes.CALENDAR_CACHE.clear()
+    cal_routes.IS_UPDATING_CALENDAR = False
+    try:
+        with patch("routes.calendar.Session", return_value=fake_sess), \
+             patch("routes.calendar.get_secure_session", return_value=MagicMock()), \
+             patch("routes.calendar.fetch_single_asset_proventos", side_effect=lambda item, _s: processed_tickers.append(item[0]) or []):
+            with patch("routes.calendar.threading.Thread", CaptureThread):
+                resp = val_client.get("/api/calendar")
+            assert len(captured_targets) == 1
+            captured_targets[0]()
+    finally:
+        cal_routes.CALENDAR_CACHE.clear()
+        cal_routes.CALENDAR_CACHE.update(prev_cache)
+        cal_routes.IS_UPDATING_CALENDAR = prev_flag
+
+    assert resp.status_code == 200
+    assert sorted(processed_tickers) == ["COIN11", "ETHY11"]
