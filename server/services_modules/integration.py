@@ -3,7 +3,7 @@ import logging
 import yfinance as yf
 from datetime import date, datetime, timedelta
 from sqlalchemy import func
-from db.models import AssetTransaction, Dividend, Position, safe_commit
+from db.models import AssetTransaction, Dividend, Position, TriggeredAlert, safe_commit
 from db.session import Session
 from utils.ticker_helper import to_yf_ticker
 import infrastructure.market_data as _market
@@ -377,6 +377,7 @@ class IntegrationService:
                         ):
                             continue
 
+                        new_status = "PAGO" if d_pay <= today else "A RECEBER"
                         new_div = Dividend(
                             asset_id=asset_id,
                             user_id=pos_uid,
@@ -386,11 +387,48 @@ class IntegrationService:
                             value_per_share=val,
                             quantity_at_date=qty_at,
                             total_value=net_total,
-                            status="PAGO" if d_pay <= today else "A RECEBER",
+                            status=new_status,
                         )
                         session.add(new_div)
                         existing_rows.append(new_div)
                         dirty = True
+                        if new_status == "A RECEBER":
+                            note_txt = (
+                                f"Novo provento ({ev_type}): R$ {net_total:.2f} líquido | "
+                                f"Com {d_com.strftime('%d/%m/%Y')} · Pgto {d_pay.strftime('%d/%m/%Y')}"
+                            )
+                            dup_ta = (
+                                session.query(TriggeredAlert)
+                                .filter_by(
+                                    user_id=pos_uid,
+                                    ticker=ticker_raw,
+                                    condition="DIVIDEND_ANNOUNCED",
+                                    note=note_txt,
+                                )
+                                .first()
+                            )
+                            if not dup_ta:
+                                session.add(
+                                    TriggeredAlert(
+                                        user_id=pos_uid,
+                                        asset_id=asset_id,
+                                        event_type="DIVIDEND_ANNOUNCED",
+                                        ticker=ticker_raw,
+                                        condition="DIVIDEND_ANNOUNCED",
+                                        target_price=val,
+                                        current_price=net_total,
+                                        note=note_txt,
+                                        triggered_at=datetime.now(),
+                                        is_notified=False,
+                                    )
+                                )
+                                from utils.notifier import format_alert_telegram, send_telegram_message
+                                send_telegram_message(
+                                    format_alert_telegram(
+                                        "💰 Novo Provento Anunciado — AssetFlow",
+                                        [f"• {ticker_raw}: {note_txt}"],
+                                    )
+                                )
                         logging.info(
                             f"🆕 Novo provento registrado para {ticker_raw}: "
                             f"R$ {net_total:.2f} líquido (Data-Com {d_com}, Pgto {d_pay})"

@@ -53,6 +53,41 @@ def _do_dividends_check():
     logging.info("📅 JOB DIÁRIO: Verificando Dividendos...")
     if hasattr(service, 'record_confirmed_dividends'):
         service.record_confirmed_dividends()
+    try:
+        from datetime import date, datetime, timedelta
+        from db.models import Dividend, SystemCache, safe_commit
+        from db.session import Session as DBSession
+        from utils.notifier import format_alert_telegram, is_telegram_configured, send_telegram_message
+
+        if not is_telegram_configured():
+            return
+        today = date.today()
+        digest_key = f"telegram_datacom_digest_{today.isoformat()}"
+        with DBSession() as session:
+            if session.query(SystemCache).filter_by(key=digest_key).first():
+                return
+            upcoming = (
+                session.query(Dividend)
+                .filter(
+                    Dividend.date_com >= today,
+                    Dividend.date_com <= today + timedelta(days=1),
+                )
+                .all()
+            )
+            if upcoming:
+                lines = [
+                    f"• {d.asset.ticker}: Data-Com {'HOJE' if d.date_com == today else 'AMANHÃ'} "
+                    f"({d.type or 'Provento'} · R$ {float(d.total_value or 0):.2f} líquido)"
+                    for d in upcoming if d.asset
+                ]
+                if lines:
+                    send_telegram_message(
+                        format_alert_telegram("⏰ Data-Com Próxima — AssetFlow", lines)
+                    )
+            session.add(SystemCache(key=digest_key, value="sent", updated_at=datetime.now()))
+            safe_commit(session)
+    except Exception as exc:
+        logging.warning(f"⚠️ Falha no digest diário de Data-Com (Telegram): {exc}")
 
 def scheduled_quant_warm():
     _run_with_tracking("scheduled_quant_warm", _do_quant_warm)

@@ -103,6 +103,9 @@ class TriggeredAlert(Base):
     __tablename__ = "triggered_alerts"
 
     id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"), nullable=True, index=True, default=1)
+    asset_id = Column(Integer, nullable=True)
+    event_type = Column(String(32), nullable=True, default="PRICE_ALERT")
     ticker = Column(String, nullable=False)
     condition = Column(String, nullable=False)
     target_price = Column(Numeric(18, 4), nullable=False)

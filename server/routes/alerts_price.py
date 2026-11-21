@@ -15,8 +15,10 @@ from flask import Blueprint, jsonify, request
 from datetime import datetime
 from db.session import Session
 from db.models import PriceAlert, MarketData, Asset, TriggeredAlert, safe_commit
+from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
 from utils.db_utils import with_safe_commit
+from utils.notifier import format_alert_telegram, send_telegram_message
 
 price_alerts_bp = Blueprint('price_alerts', __name__)
 
@@ -129,7 +131,7 @@ def delete_price_alert(alert_id: int):
 
 @price_alerts_bp.route('/api/price-alerts/history', methods=['GET'])
 def price_alerts_history():
-    """Retorna os últimos 50 alertas disparados (is_active=False)."""
+    """Retorna os últimos 50 alertas disparados (PriceAlert + TriggeredAlert)."""
     from flask import g
     with Session() as session:
         try:
@@ -141,73 +143,100 @@ def price_alerts_history():
                 .limit(50)
                 .all()
             )
+            triggered_rows = (
+                session.query(TriggeredAlert)
+                .filter(or_(TriggeredAlert.user_id == g.user_id, TriggeredAlert.user_id.is_(None)))
+                .order_by(TriggeredAlert.triggered_at.desc(), TriggeredAlert.id.desc())
+                .limit(50)
+                .all()
+            )
             return jsonify({
                 "status": "Sucesso",
                 "history": [
                     {
                         "id": a.id,
                         "ticker": a.asset.ticker if a.asset else "DESCONHECIDO",
-                        "target_price": a.target_price,
+                        "target_price": float(a.target_price or 0),
                         "condition": a.condition,
                         "note": a.note or "",
                         "triggered_at": a.triggered_at.isoformat() if a.triggered_at else None,
                     }
                     for a in alerts
-                ]
+                ],
+                "events": [_serialize_triggered_alert(row) for row in triggered_rows],
             })
         except Exception as e:
             return jsonify({"status": "Erro", "msg": str(e)}), 500
+
+
+def _infer_event_type(row: TriggeredAlert) -> str:
+    if row.event_type:
+        return row.event_type
+    if row.condition == "SIGNAL_CHANGE":
+        return "SIGNAL_CHANGE"
+    if row.condition == "DIVIDEND_ANNOUNCED":
+        return "DIVIDEND_ANNOUNCED"
+    return "PRICE_ALERT"
+
+
+def _serialize_triggered_alert(row: TriggeredAlert) -> dict:
+    return {
+        "id": row.id,
+        "asset_id": row.asset_id,
+        "event_type": _infer_event_type(row),
+        "ticker": row.ticker,
+        "condition": row.condition,
+        "target_price": float(row.target_price or 0),
+        "current_price": float(row.current_price or 0),
+        "note": row.note or "",
+        "is_notified": bool(row.is_notified),
+        "triggered_at": row.triggered_at.isoformat() if row.triggered_at else None,
+    }
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # JOB DE VERIFICAÇÃO (chamado pelo APScheduler)
 # ─────────────────────────────────────────────────────────────────────────────
 
-# Alertas de preço persistidos em banco via tabela TriggeredAlert
-
 def check_price_alerts() -> list[dict]:
     """
     Job de verificação de alertas de preço.
-    Roda a cada 5 minutos junto com o job de índices de mercado.
-
-    Compara o preço atual de cada ticker monitorado (via MarketData)
-    com o target_price de todos os alertas ativos e dispara os que foram atingidos.
-
-    Returns: lista de alertas disparados nesta execução (para logging/notificação).
+    Compara o preço mais recente de MarketData com todos os PriceAlerts ativos.
     """
     with Session() as session:
         triggered = []
         try:
-            # Carrega apenas alertas ativos realizando join com Asset
             active_alerts = session.query(PriceAlert).join(Asset).filter(PriceAlert.is_active == True).all()
             if not active_alerts:
                 return []
 
-            # Pre-fetcha preços atuais de MarketData (evita N+1)
-            # Mapa: ticker.upper() → preço atual
+            # Pre-fetch ordenado do mais recente para garantir que não pega MarketData antigo
             price_map: dict[str, float] = {}
             market_rows = (
                 session.query(Asset.ticker, MarketData.price)
                 .join(MarketData, MarketData.asset_id == Asset.id)
+                .order_by(MarketData.date.desc(), MarketData.id.desc())
                 .all()
             )
             for ticker, price in market_rows:
-                if price:
-                    price_map[ticker.strip().upper().replace(".SA", "")] = float(price)
+                norm = ticker.strip().upper().replace(".SA", "")
+                if price and norm not in price_map:
+                    price_map[norm] = float(price)
 
+            telegram_lines: list[str] = []
             for alert in active_alerts:
                 ticker_name = alert.asset.ticker if alert.asset else None
                 if not ticker_name:
                     continue
                 current_price = price_map.get(ticker_name.upper().replace(".SA", ""))
                 if current_price is None:
-                    continue  # Ativo não rastreado ainda — aguarda próximo update
+                    continue
 
-                triggered_now = False
-                if alert.condition == "ABOVE" and current_price >= alert.target_price:
-                    triggered_now = True
-                elif alert.condition == "BELOW" and current_price <= alert.target_price:
-                    triggered_now = True
+                target_val = float(alert.target_price or 0)
+                triggered_now = (
+                    (alert.condition == "ABOVE" and current_price >= target_val)
+                    or (alert.condition == "BELOW" and current_price <= target_val)
+                )
 
                 if triggered_now:
                     alert.is_active = False
@@ -215,33 +244,43 @@ def check_price_alerts() -> list[dict]:
                     triggered_info = {
                         "ticker": ticker_name,
                         "condition": alert.condition,
-                        "target_price": alert.target_price,
+                        "target_price": target_val,
                         "current_price": current_price,
                         "note": alert.note or "",
                         "triggered_at": alert.triggered_at.isoformat(),
                     }
                     triggered.append(triggered_info)
-                    
-                    # 💾 Persiste o disparo do alerta na tabela do banco
+
                     db_alert = TriggeredAlert(
+                        user_id=alert.user_id,
+                        asset_id=alert.asset_id,
+                        event_type="PRICE_ALERT",
                         ticker=ticker_name,
                         condition=alert.condition,
                         target_price=alert.target_price,
                         current_price=current_price,
                         note=alert.note or "",
                         triggered_at=alert.triggered_at,
-                        is_notified=False
+                        is_notified=False,
                     )
                     session.add(db_alert)
-                    
+
+                    cond_txt = "subiu acima de" if alert.condition == "ABOVE" else "caiu abaixo de"
+                    note_suffix = f" ({alert.note})" if alert.note else ""
+                    telegram_lines.append(
+                        f"• {ticker_name} {cond_txt} R$ {target_val:.2f} → atual R$ {current_price:.2f}{note_suffix}"
+                    )
                     logging.info(
                         f"🔔 ALERTA DISPARADO: {ticker_name} {alert.condition} "
-                        f"R$ {alert.target_price:.2f} (atual: R$ {current_price:.2f}) — {alert.note}"
+                        f"R$ {target_val:.2f} (atual: R$ {current_price:.2f}) — {alert.note}"
                     )
 
             if triggered:
                 safe_commit(session)
                 logging.info(f"✅ {len(triggered)} alerta(s) de preço disparado(s).")
+                send_telegram_message(
+                    format_alert_telegram("🔔 Alerta de Preço — AssetFlow", telegram_lines)
+                )
 
             return triggered
 
@@ -254,25 +293,53 @@ def check_price_alerts() -> list[dict]:
 @price_alerts_bp.route('/api/price-alerts/notifications', methods=['GET'])
 def get_alert_notifications():
     """
-    Consome e limpa os alertas disparados recentemente no banco de dados (para polling do frontend).
+    Lista alertas disparados ainda não lidos pelo usuário (leitura não destrutiva).
+    Use POST /api/price-alerts/notifications/read ou POST /api/alerts/dismiss para marcar como lido.
     """
+    from flask import g
     with Session() as session:
         try:
-            db_alerts = session.query(TriggeredAlert).filter_by(is_notified=False).all()
-            notifications = []
-            for a in db_alerts:
-                notifications.append({
-                    "ticker": a.ticker,
-                    "condition": a.condition,
-                    "target_price": float(a.target_price),
-                    "current_price": float(a.current_price),
-                    "note": a.note,
-                    "triggered_at": a.triggered_at.isoformat()
-                })
-                a.is_notified = True
+            db_alerts = (
+                session.query(TriggeredAlert)
+                .filter(
+                    TriggeredAlert.is_notified == False,
+                    or_(TriggeredAlert.user_id == g.user_id, TriggeredAlert.user_id.is_(None)),
+                )
+                .order_by(TriggeredAlert.triggered_at.desc(), TriggeredAlert.id.desc())
+                .all()
+            )
+            return jsonify({
+                "status": "Sucesso",
+                "notifications": [_serialize_triggered_alert(a) for a in db_alerts],
+            })
+        except Exception as e:
+            logging.error(f"❌ Erro ao buscar notificações de alertas: {e}", exc_info=True)
+            return jsonify({"status": "Erro", "msg": str(e)}), 500
+
+
+@price_alerts_bp.route('/api/price-alerts/notifications/read', methods=['POST'])
+def mark_alert_notifications_read():
+    """Marca um, vários ou todos os TriggeredAlerts do usuário como lidos."""
+    from flask import g
+    body = request.get_json(silent=True) or {}
+    mark_all = bool(body.get("all"))
+    alert_id = body.get("id")
+    alert_ids = body.get("ids") or ([alert_id] if alert_id is not None else [])
+
+    with Session() as session:
+        try:
+            query = session.query(TriggeredAlert).filter(
+                TriggeredAlert.is_notified == False,
+                or_(TriggeredAlert.user_id == g.user_id, TriggeredAlert.user_id.is_(None)),
+            )
+            if not mark_all:
+                if not alert_ids:
+                    return jsonify({"status": "Erro", "msg": "Informe id, ids ou all=true."}), 400
+                query = query.filter(TriggeredAlert.id.in_([int(x) for x in alert_ids]))
+            updated = query.update({"is_notified": True}, synchronize_session=False)
             safe_commit(session)
-            return jsonify({"status": "Sucesso", "notifications": notifications})
+            return jsonify({"status": "Sucesso", "updated": int(updated or 0)})
         except Exception as e:
             session.rollback()
-            logging.error(f"❌ Erro ao buscar notificações de alertas: {e}", exc_info=True)
+            logging.error(f"❌ Erro ao marcar notificações como lidas: {e}", exc_info=True)
             return jsonify({"status": "Erro", "msg": str(e)}), 500

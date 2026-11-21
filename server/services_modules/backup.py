@@ -43,6 +43,7 @@ class BackupService:
             .all()
         }
 
+        signal_changes_tg: list[str] = []
         for item in ativos or []:
             asset_id = item.get("id")
             if not asset_id:
@@ -70,18 +71,29 @@ class BackupService:
 
             prev_status = prev_status_by_asset.get(asset_id)
             if prev_status and prev_status != new_status and ticker and ticker not in notified_today:
+                note_msg = f"Mudança de sinal: {prev_status} → {new_status} ({new_rec}, score {new_score})"
                 session.add(
                     TriggeredAlert(
+                        user_id=user_id,
+                        asset_id=asset_id,
+                        event_type="SIGNAL_CHANGE",
                         ticker=ticker,
                         condition="SIGNAL_CHANGE",
                         target_price=new_price,
                         current_price=new_price,
-                        note=f"Mudança de sinal: {prev_status} → {new_status} ({new_rec}, score {new_score})",
+                        note=note_msg,
                         triggered_at=datetime.now(),
                         is_notified=False,
                     )
                 )
                 notified_today.add(ticker)
+                signal_changes_tg.append(f"• {ticker}: {prev_status} → {new_status} (R$ {float(new_price):.2f}, score {new_score})")
+
+        if signal_changes_tg:
+            from utils.notifier import format_alert_telegram, send_telegram_message
+            send_telegram_message(
+                format_alert_telegram("⚡ Mudança de Sinal (Valuation) — AssetFlow", signal_changes_tg)
+            )
 
     def _backup_database(self):
         try:
