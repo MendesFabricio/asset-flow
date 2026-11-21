@@ -21,6 +21,7 @@ import {
   Legend
 } from 'recharts';
 import { useChartPalette } from '../lib/chartPalette';
+import { SEMANTIC_CHART_HEX } from '../lib/colors';
 
 interface Evento {
   ticker: string;
@@ -77,7 +78,7 @@ function getYocQuality(yoc: number, dy: number): YocQuality {
 
   if (yoc >= 6 && beatMarket) {
     return {
-      barColor: '#10b981',
+      barColor: SEMANTIC_CHART_HEX.emerald,
       label: 'Ótimo',
       badgeClass: 'bg-emerald-500/15 text-status-success border-emerald-500/30',
       spread,
@@ -87,7 +88,7 @@ function getYocQuality(yoc: number, dy: number): YocQuality {
   }
   if (yoc >= 6) {
     return {
-      barColor: '#14b8a6',
+      barColor: SEMANTIC_CHART_HEX.teal,
       label: 'Bom',
       badgeClass: 'bg-teal-500/15 text-teal-400 border-teal-500/30',
       spread,
@@ -97,7 +98,7 @@ function getYocQuality(yoc: number, dy: number): YocQuality {
   }
   if (yoc >= 4) {
     return {
-      barColor: '#f59e0b',
+      barColor: SEMANTIC_CHART_HEX.amber,
       label: 'Moderado',
       badgeClass: 'bg-amber-500/15 text-status-warning border-amber-500/30',
       spread,
@@ -106,7 +107,7 @@ function getYocQuality(yoc: number, dy: number): YocQuality {
     };
   }
   return {
-    barColor: '#ef4444',
+    barColor: SEMANTIC_CHART_HEX.rose,
     label: 'Fraco',
     badgeClass: 'bg-red-500/15 text-status-error border-red-500/30',
     spread,
@@ -269,11 +270,11 @@ export default function ProventosPage() {
   }, [seasonality]);
 
   const getHeatmapColor = (val: number) => {
-    if (!val || val === 0) return 'bg-slate-950/40 text-slate-600 border-slate-900/40';
+    if (!val || val === 0) return 'bg-surface-input/40 text-text-muted border-border-subtle';
     const intensity = Math.min(0.85, 0.15 + (val / maxSeasonalityVal) * 0.7);
     return {
       backgroundColor: `rgba(16, 185, 129, ${intensity})`,
-      color: intensity > 0.5 ? '#022c22' : '#a7f3d0'
+      color: intensity > 0.5 ? SEMANTIC_CHART_HEX.emeraldDeep : SEMANTIC_CHART_HEX.emeraldLight
     };
   };
 
@@ -304,17 +305,17 @@ export default function ProventosPage() {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-text-primary tracking-tight">Proventos &amp; Renda Passiva</h1>
+            <h1 className="text-2xl font-semibold text-text-primary tracking-tight">Proventos &amp; Renda Passiva</h1>
             <p className="text-xs text-text-muted">Mapeamento de data-com, histórico de yield e sazonalidade</p>
           </div>
         </div>
 
         {/* Tab Controls */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 bg-slate-900/60 p-1 rounded-2xl border border-slate-800/80 mb-8 max-w-4xl">
+        <div className="grid grid-cols-2 sm:grid-cols-5 bg-surface-card p-1 rounded-xl border border-border-subtle mb-8 max-w-4xl">
           <button
             onClick={() => setActiveTab('calendar')}
-            className={`flex items-center justify-center gap-1.5 py-2.5 px-1 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all ${
-              activeTab === 'calendar' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
+            className={`flex items-center justify-center gap-1.5 py-2.5 px-1 text-2xs font-semibold uppercase tracking-wider rounded-lg transition-colors ${
+              activeTab === 'calendar' ? 'bg-accent text-white shadow-sm' : 'text-text-muted hover:text-text-primary'
             }`}
           >
             <Calendar size={13} /> Calendário
@@ -322,8 +323,8 @@ export default function ProventosPage() {
           
           <button
             onClick={() => setActiveTab('analytics')}
-            className={`flex items-center justify-center gap-1.5 py-2.5 px-1 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all ${
-              activeTab === 'analytics' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
+            className={`flex items-center justify-center gap-1.5 py-2.5 px-1 text-2xs font-semibold uppercase tracking-wider rounded-lg transition-colors ${
+              activeTab === 'analytics' ? 'bg-accent text-white shadow-sm' : 'text-text-muted hover:text-text-primary'
             }`}
           >
             <Percent size={13} /> Yield & Consistência
@@ -331,8 +332,8 @@ export default function ProventosPage() {
 
           <button
             onClick={() => setActiveTab('yoc')}
-            className={`flex items-center justify-center gap-1.5 py-2.5 px-1 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all ${
-              activeTab === 'yoc' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
+            className={`flex items-center justify-center gap-1.5 py-2.5 px-1 text-2xs font-semibold uppercase tracking-wider rounded-lg transition-colors ${
+              activeTab === 'yoc' ? 'bg-status-success text-white shadow-sm' : 'text-text-muted hover:text-text-primary'
             }`}
           >
             <TrendingUp size={13} /> Evolução YOC
@@ -340,8 +341,8 @@ export default function ProventosPage() {
 
           <button
             onClick={() => setActiveTab('seasonality')}
-            className={`flex items-center justify-center gap-1.5 py-2.5 px-1 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all ${
-              activeTab === 'seasonality' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
+            className={`flex items-center justify-center gap-1.5 py-2.5 px-1 text-2xs font-semibold uppercase tracking-wider rounded-lg transition-colors ${
+              activeTab === 'seasonality' ? 'bg-accent text-white shadow-sm' : 'text-text-muted hover:text-text-primary'
             }`}
           >
             <Table size={13} /> Sazonalidade
@@ -349,8 +350,8 @@ export default function ProventosPage() {
 
           <button
             onClick={() => setActiveTab('extrato')}
-            className={`flex items-center justify-center gap-1.5 py-2.5 px-1 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all col-span-2 sm:col-span-1 ${
-              activeTab === 'extrato' ? 'bg-cyan-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
+            className={`flex items-center justify-center gap-1.5 py-2.5 px-1 text-2xs font-semibold uppercase tracking-wider rounded-lg transition-colors col-span-2 sm:col-span-1 ${
+              activeTab === 'extrato' ? 'bg-accent text-white shadow-sm' : 'text-text-muted hover:text-text-primary'
             }`}
           >
             <History size={13} /> Extrato Real
@@ -359,32 +360,32 @@ export default function ProventosPage() {
 
         {loading ? (
           <div className="space-y-6">
-            <Skeleton className="h-64 w-full bg-slate-900/60 rounded-xl" />
-            <Skeleton className="h-20 w-full bg-slate-900/60 rounded-xl" />
+            <Skeleton className="h-64 w-full rounded-xl" />
+            <Skeleton className="h-20 w-full rounded-xl" />
           </div>
         ) : (
-          <div className="animate-in fade-in duration-500">
+          <div>
             
             {/* 1. CALENDÁRIO VISUAL */}
             {activeTab === 'calendar' && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 
                 {/* Calendário de Grade */}
-                <div className="lg:col-span-2 bg-slate-950/40 border border-slate-900 rounded-2xl p-5 backdrop-blur-md">
+                <div className="lg:col-span-2 bg-surface-card border border-border-subtle rounded-xl p-5">
                   <div className="flex justify-between items-center mb-5">
-                    <h2 className="text-base font-bold text-white capitalize">{monthName}</h2>
+                    <h2 className="text-base font-semibold text-text-primary capitalize">{monthName}</h2>
                     <div className="flex gap-1">
-                      <button onClick={handlePrevMonth} className="p-1.5 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg border border-slate-800">
+                      <button onClick={handlePrevMonth} className="p-1.5 bg-surface-input hover:bg-surface-elevated text-text-muted hover:text-text-primary rounded-lg border border-border-subtle transition-colors">
                         <ChevronLeft size={16} />
                       </button>
-                      <button onClick={handleNextMonth} className="p-1.5 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg border border-slate-800">
+                      <button onClick={handleNextMonth} className="p-1.5 bg-surface-input hover:bg-surface-elevated text-text-muted hover:text-text-primary rounded-lg border border-border-subtle transition-colors">
                         <ChevronRight size={16} />
                       </button>
                     </div>
                   </div>
 
                   {/* Grid Header (Days of week) */}
-                  <div className="grid grid-cols-7 text-center text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">
+                  <div className="grid grid-cols-7 text-center text-2xs font-semibold text-text-muted uppercase tracking-wider mb-2">
                     <span>Dom</span>
                     <span>Seg</span>
                     <span>Ter</span>
@@ -398,7 +399,7 @@ export default function ProventosPage() {
                   <div className="grid grid-cols-7 gap-1.5">
                     {calendarCells.map((day, idx) => {
                       if (day === null) {
-                        return <div key={`empty-${idx}`} className="h-20 bg-slate-950/10 rounded-lg border border-transparent" />;
+                        return <div key={`empty-${idx}`} className="h-20 bg-surface-input/20 rounded-lg border border-transparent" />;
                       }
 
                       const dayEvents = getEventsForDay(day);
@@ -407,28 +408,28 @@ export default function ProventosPage() {
                       return (
                         <div 
                           key={`day-${day}`} 
-                          className={`h-20 p-1.5 bg-slate-900/30 border rounded-xl flex flex-col justify-between transition-colors hover:bg-slate-900/50 ${
-                            hasEvents ? 'border-slate-800/80 shadow-[inset_0_1px_2px_rgba(255,255,255,0.02)]' : 'border-slate-950'
+                          className={`h-20 p-1.5 bg-surface-input/40 border rounded-xl flex flex-col justify-between transition-colors hover:bg-surface-elevated/60 ${
+                            hasEvents ? 'border-border-subtle' : 'border-border-subtle/40'
                           }`}
                         >
-                          <span className="text-xs font-mono font-bold text-slate-500">{day}</span>
+                          <span className="text-xs font-mono font-semibold tabular-nums text-text-muted">{day}</span>
                           
                           <div className="flex flex-col gap-0.5 overflow-hidden">
                             {dayEvents.slice(0, 2).map((evt, i) => (
                               <div 
                                 key={i} 
                                 title={isHidden ? evt.ticker : `${evt.ticker}: R$ ${evt.value_per_share.toFixed(4)}`}
-                                className={`text-[8px] font-black uppercase tracking-wider px-1 py-0.5 rounded truncate ${
+                                className={`text-2xs font-semibold uppercase tracking-wider px-1 py-0.5 rounded-md truncate ${
                                   evt.status === 'PAGO' 
-                                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/15' 
-                                    : 'bg-blue-500/10 text-blue-400 border border-blue-500/15'
+                                    ? 'bg-status-success/10 text-status-success border border-status-success/20' 
+                                    : 'bg-accent-soft text-accent border border-accent/20'
                                 }`}
                               >
                                 {evt.ticker}
                               </div>
                             ))}
                             {dayEvents.length > 2 && (
-                              <span className="text-[7px] font-bold text-slate-500 text-right">+{dayEvents.length - 2} mais</span>
+                              <span className="text-2xs font-semibold text-text-muted text-right tabular-nums">+{dayEvents.length - 2} mais</span>
                             )}
                           </div>
                         </div>
@@ -439,9 +440,9 @@ export default function ProventosPage() {
 
                 {/* Eventos Destacados do Mês */}
                 <div className="flex flex-col gap-4">
-                  <div className="bg-slate-950/40 border border-slate-900 rounded-2xl p-5 backdrop-blur-md">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-4 flex items-center gap-1.5">
-                      <Clock size={12} className="text-blue-400" />
+                  <div className="bg-surface-card border border-border-subtle rounded-xl p-5">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-text-muted mb-4 flex items-center gap-1.5">
+                      <Clock size={12} className="text-accent" />
                       Proventos de {monthName}
                     </h3>
 
@@ -450,7 +451,7 @@ export default function ProventosPage() {
                         const [y, m] = e.date.split('-');
                         return parseInt(y) === currentYear && parseInt(m) === (currentMonth + 1);
                       }).length === 0 ? (
-                        <p className="text-xs text-slate-500 text-center py-8">Nenhum provento provisionado para este mês.</p>
+                        <p className="text-xs text-text-muted text-center py-8">Nenhum provento provisionado para este mês.</p>
                       ) : (
                         events
                           .filter(e => {
@@ -463,30 +464,30 @@ export default function ProventosPage() {
                             const comFmt = (evt.date_com || evt.date).split('-').reverse().join('/');
                             const isPaid = evt.status === 'PAGO';
                             return (
-                              <div key={idx} className="p-3 bg-slate-900/60 border border-slate-800 rounded-xl flex items-center justify-between gap-3">
+                              <div key={idx} className="p-3 bg-surface border border-border-subtle rounded-xl flex items-center justify-between gap-3">
                                 <div className="min-w-0">
                                   <div className="flex items-center gap-2">
-                                    <span className="text-xs font-bold text-white">{evt.ticker}</span>
+                                    <span className="text-xs font-semibold text-text-primary">{evt.ticker}</span>
                                     {evt.type && (
-                                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-surface border border-border-subtle text-slate-300">
+                                      <span className="text-2xs font-semibold px-1.5 py-0.5 rounded-md bg-surface-input border border-border-subtle text-text-muted">
                                         {evt.type}
                                       </span>
                                     )}
                                   </div>
-                                  <span className="text-[9px] text-slate-400 font-mono block mt-0.5">
+                                  <span className="text-2xs text-text-muted font-mono tabular-nums block mt-0.5">
                                     Pgto: {payFmt} · Com: {comFmt}
                                   </span>
                                   {evt.quantity ? (
-                                    <span className="text-[9px] text-slate-500 font-mono block">
+                                    <span className="text-2xs text-text-muted font-mono tabular-nums block">
                                       {evt.quantity} un. × R$ {Number(evt.value_per_share || 0).toFixed(4)}
                                     </span>
                                   ) : null}
                                 </div>
                                 <div className="text-right shrink-0">
-                                  <span className={`text-xs font-mono font-bold block ${isPaid ? 'text-emerald-400' : 'text-amber-400'}`}>
+                                  <span className={`text-xs font-mono font-semibold tabular-nums block ${isPaid ? 'text-status-success' : 'text-status-warning'}`}>
                                     {money(evt.total)}
                                   </span>
-                                  <span className={`text-[8px] font-black uppercase tracking-wide block ${isPaid ? 'text-emerald-500/80' : 'text-amber-400'}`}>
+                                  <span className={`text-2xs font-semibold uppercase tracking-wide block ${isPaid ? 'text-status-success' : 'text-status-warning'}`}>
                                     {evt.status}
                                   </span>
                                 </div>
@@ -502,15 +503,15 @@ export default function ProventosPage() {
 
             {/* 2. YIELDS & CONSISTÊNCIA */}
             {activeTab === 'analytics' && (
-              <div className="bg-slate-950/40 border border-slate-900 rounded-2xl p-6 backdrop-blur-md overflow-hidden">
+              <div className="bg-surface-card border border-border-subtle rounded-xl p-6 overflow-hidden">
                 <div className="flex items-center gap-2 mb-6">
-                  <Award className="text-indigo-400" size={16} />
-                  <h2 className="text-base font-bold text-white">Análise de Rendimento & Consistência</h2>
+                  <Award className="text-accent" size={16} />
+                  <h2 className="text-base font-semibold text-text-primary">Análise de Rendimento & Consistência</h2>
                 </div>
 
-                <div className="overflow-x-auto w-full border border-slate-900 rounded-xl">
-                  <table className="w-full text-xs text-left border-collapse bg-slate-950/20">
-                    <thead className="bg-slate-900/60 text-slate-400 font-bold border-b border-slate-900">
+                <div className="overflow-x-auto w-full border border-border-subtle rounded-xl">
+                  <table className="w-full text-xs text-left border-collapse bg-surface">
+                    <thead className="bg-surface-elevated text-text-muted font-semibold border-b border-border-subtle">
                       <tr>
                         <th className="p-3">Ativo</th>
                         <th className="p-3 text-right">DY Forward Est.</th>
@@ -519,23 +520,23 @@ export default function ProventosPage() {
                         <th className="p-3 text-right">Score de Consistência</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-900 text-slate-300">
+                    <tbody className="divide-y divide-border-subtle text-text-primary">
                       {analytics.map((row) => (
-                        <tr key={row.ticker} className="hover:bg-slate-900/20">
-                          <td className="p-3 font-bold text-white">{row.ticker}</td>
-                          <td className="p-3 text-right text-emerald-400 font-mono font-bold">{row.dy_forward.toFixed(2)}%</td>
-                          <td className="p-3 text-right font-mono">
+                        <tr key={row.ticker} className="hover:bg-surface-elevated/50">
+                          <td className="p-3 font-semibold text-text-primary">{row.ticker}</td>
+                          <td className="p-3 text-right text-status-success font-mono font-semibold tabular-nums">{row.dy_forward.toFixed(2)}%</td>
+                          <td className="p-3 text-right font-mono tabular-nums">
                             {row.payout_historico !== null ? `${row.payout_historico.toFixed(1)}%` : '--'}
                           </td>
-                          <td className="p-3 text-right text-slate-400 font-mono">{row.num_quarters}T</td>
+                          <td className="p-3 text-right text-text-muted font-mono tabular-nums">{row.num_quarters}T</td>
                           <td className="p-3 text-right">
                             <div className="flex items-center justify-end gap-2">
-                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                              <span className={`text-2xs font-semibold tabular-nums px-2 py-0.5 rounded-md ${
                                 row.regularidade_score >= 80 
-                                  ? 'bg-emerald-500/10 text-emerald-400' 
+                                  ? 'bg-status-success/10 text-status-success' 
                                   : row.regularidade_score >= 40 
-                                    ? 'bg-amber-500/10 text-amber-400' 
-                                    : 'bg-red-500/10 text-red-400'
+                                    ? 'bg-status-warning/10 text-status-warning' 
+                                    : 'bg-status-error/10 text-status-error'
                               }`}>
                                 {row.regularidade_score} / 100
                               </span>
@@ -563,12 +564,12 @@ export default function ProventosPage() {
 
               return (
                 <div className="space-y-6">
-                  <div className="bg-surface-card border border-border-subtle rounded-2xl p-6 backdrop-blur-md">
+                  <div className="bg-surface-card border border-border-subtle rounded-xl p-6">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
                       <div>
                         <div className="flex items-center gap-2">
                           <TrendingUp className="text-status-success" size={16} />
-                          <h2 className="text-base font-bold text-text-primary">
+                          <h2 className="text-base font-semibold text-text-primary">
                             {isPortfolioYoc
                               ? 'Evolução: YoC da Carteira Toda vs DY de Mercado'
                               : 'Evolução: YoC (PM do Momento) vs DY do Ativo'}
@@ -589,11 +590,11 @@ export default function ProventosPage() {
                           setSelectedYocTicker(e.target.value);
                           setSelectedYocYear('all');
                         }}
-                        className="bg-surface-input border border-border-subtle rounded-xl text-xs font-semibold text-text-primary px-3 py-2 focus:outline-none focus:border-status-success"
+                        className="bg-surface-input border border-border-subtle rounded-lg text-xs font-semibold text-text-primary px-3 py-2 focus:outline-none focus:border-status-success"
                       >
                         {yocTickersSorted.map((tk) => (
                           <option key={tk} value={tk}>
-                            {tk === 'CARTEIRA' ? '📊 Carteira Toda (Consolidado)' : tk}
+                            {tk === 'CARTEIRA' ? 'Carteira Toda (Consolidado)' : tk}
                           </option>
                         ))}
                       </select>
@@ -609,75 +610,75 @@ export default function ProventosPage() {
                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
                           <div className="p-3.5 rounded-xl bg-surface border border-border-subtle">
                             <div className="flex items-center justify-between gap-2">
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
+                              <span className="text-2xs font-semibold uppercase tracking-wider text-text-muted">
                                 YoC ({yocSummary.latest.year} · PM Momento)
                               </span>
-                              <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded border ${latestQual.badgeClass}`}>
+                              <span className={`text-2xs font-semibold uppercase px-1.5 py-0.5 rounded-md border ${latestQual.badgeClass}`}>
                                 {latestQual.label}
                               </span>
                             </div>
-                            <span className="text-lg font-mono font-bold mt-1 block" style={{ color: latestQual.barColor }}>
+                            <span className="text-lg font-mono font-semibold tabular-nums mt-1 block" style={{ color: latestQual.barColor }}>
                               {yocSummary.latest.yoc.toFixed(2)}%
                             </span>
-                            <span className={`text-[10px] font-mono block ${latestQual.spreadClass}`}>
+                            <span className={`text-2xs font-mono tabular-nums block ${latestQual.spreadClass}`}>
                               {latestQual.spreadLabel}
                             </span>
                           </div>
 
                           <div className="p-3.5 rounded-xl bg-surface border border-border-subtle">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted block">
+                            <span className="text-2xs font-semibold uppercase tracking-wider text-text-muted block">
                               {isPortfolioYoc ? `DY de Mercado (${yocSummary.latest.year})` : `DY do Ativo (${yocSummary.latest.year})`}
                             </span>
-                            <span className="text-lg font-mono font-bold text-accent mt-1 block">
+                            <span className="text-lg font-mono font-semibold tabular-nums text-accent mt-1 block">
                               {(yocSummary.latest.dy_market ?? 0).toFixed(2)}%
                             </span>
-                            <span className="text-[10px] font-mono text-text-muted">
+                            <span className="text-2xs font-mono tabular-nums text-text-muted">
                               {isPortfolioYoc ? 'Patrimônio médio: ' : 'Cotação média: '}
                               {money(yocSummary.latest.market_price ?? 0)}
                             </span>
                           </div>
 
                           <div className="p-3.5 rounded-xl bg-surface border border-border-subtle">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted block">
+                            <span className="text-2xs font-semibold uppercase tracking-wider text-text-muted block">
                               {isPortfolioYoc ? `Custo Investido (${yocSummary.latest.year})` : `Meu PM no Momento (${yocSummary.latest.year})`}
                             </span>
-                            <span className="text-lg font-mono font-bold text-status-warning mt-1 block">
+                            <span className="text-lg font-mono font-semibold tabular-nums text-status-warning mt-1 block">
                               {money(yocSummary.latest.pm_at_moment ?? 0)}
                             </span>
-                            <span className="text-[10px] font-mono text-text-muted">
+                            <span className="text-2xs font-mono tabular-nums text-text-muted">
                               Inicial ({yocSummary.first.year}): {money(yocSummary.first.pm_at_moment ?? 0)}
                             </span>
                           </div>
 
                           <div className="p-3.5 rounded-xl bg-surface border border-border-subtle">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted block">
+                            <span className="text-2xs font-semibold uppercase tracking-wider text-text-muted block">
                               {isPortfolioYoc ? 'Total Recebido (Carteira)' : `Recebido Histórico (${selectedYocTicker})`}
                             </span>
-                            <span className="text-lg font-mono font-bold text-text-primary mt-1 block">
+                            <span className="text-lg font-mono font-semibold tabular-nums text-text-primary mt-1 block">
                               {money(yocSummary.totalReceived)}
                             </span>
-                            <span className="text-[10px] font-mono text-text-muted">
+                            <span className="text-2xs font-mono tabular-nums text-text-muted">
                               {yocSummary.totalPayments} pagamento(s) liquidado(s)
                             </span>
                           </div>
                         </div>
 
                         {/* Semáforo de Qualidade */}
-                        <div className="flex flex-wrap items-center gap-3 text-[11px] text-text-muted mb-3 px-3 py-2 rounded-xl bg-surface border border-border-subtle">
-                          <span className="font-bold text-text-primary uppercase text-[10px] tracking-wider">Avaliação YoC:</span>
+                        <div className="flex flex-wrap items-center gap-3 text-2xs text-text-muted mb-3 px-3 py-2 rounded-xl bg-surface border border-border-subtle">
+                          <span className="font-semibold text-text-primary uppercase text-2xs tracking-wider">Avaliação YoC:</span>
                           <span className="inline-flex items-center gap-1.5">
-                            <span className="w-2.5 h-2.5 rounded-sm bg-[#10b981]" /> Ótimo (≥ 6% e ≥ DY)
+                            <span className="w-2.5 h-2.5 rounded-md bg-emerald-500" /> Ótimo (≥ 6% e ≥ DY)
                           </span>
                           <span className="inline-flex items-center gap-1.5">
-                            <span className="w-2.5 h-2.5 rounded-sm bg-[#14b8a6]" /> Bom (≥ 6%, PM &gt; Cot.)
+                            <span className="w-2.5 h-2.5 rounded-md bg-teal-500" /> Bom (≥ 6%, PM &gt; Cot.)
                           </span>
                           <span className="inline-flex items-center gap-1.5">
-                            <span className="w-2.5 h-2.5 rounded-sm bg-[#f59e0b]" /> Moderado (4%–6%)
+                            <span className="w-2.5 h-2.5 rounded-md bg-amber-500" /> Moderado (4%–6%)
                           </span>
                           <span className="inline-flex items-center gap-1.5">
-                            <span className="w-2.5 h-2.5 rounded-sm bg-[#ef4444]" /> Fraco (&lt; 4%)
+                            <span className="w-2.5 h-2.5 rounded-md bg-red-500" /> Fraco (&lt; 4%)
                           </span>
-                          <span className="inline-flex items-center gap-1.5 ml-auto font-mono text-[10px] text-status-success">
+                          <span className="inline-flex items-center gap-1.5 ml-auto font-mono text-2xs text-status-success">
                             --- Meta Bazin 6%
                           </span>
                         </div>
@@ -701,7 +702,7 @@ export default function ProventosPage() {
                                     : `R$ ${Number(val).toFixed(0)}`;
                                 }}
                               />
-                              <ReferenceLine yAxisId="yield" y={6} stroke="#10b981" strokeDasharray="3 3" />
+                              <ReferenceLine yAxisId="yield" y={6} stroke={SEMANTIC_CHART_HEX.emerald} strokeDasharray="3 3" />
                               <ChartTooltip
                                 content={({ active, payload, label }) => {
                                   if (!active || !payload || payload.length === 0) return null;
@@ -714,53 +715,53 @@ export default function ProventosPage() {
                                     Math.abs(row.pm_avg_year - row.pm_at_moment) >= 0.02;
                                   return (
                                     <div
-                                      className="rounded-xl p-3 shadow-xl text-xs space-y-1.5 min-w-[240px]"
+                                      className="rounded-xl p-3 shadow-lg text-xs space-y-1.5 min-w-[240px]"
                                       style={{
                                         backgroundColor: palette.tooltipBg,
                                         border: `1px solid ${palette.tooltipBorder}`,
                                       }}
                                     >
-                                      <div className="flex items-center justify-between gap-2 font-bold text-text-primary border-b border-border-subtle pb-1">
+                                      <div className="flex items-center justify-between gap-2 font-semibold text-text-primary border-b border-border-subtle pb-1">
                                         <span>{isPortfolioYoc ? 'Carteira Toda' : selectedYocTicker} · {label}</span>
-                                        <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded border ${q.badgeClass}`}>
+                                        <span className={`text-2xs font-semibold uppercase px-1.5 py-0.5 rounded-md border ${q.badgeClass}`}>
                                           {q.label}
                                         </span>
                                       </div>
                                       <div className="flex justify-between gap-4">
                                         <span className="font-medium" style={{ color: q.barColor }}>YoC (PM do Momento):</span>
-                                        <span className="font-mono font-bold" style={{ color: q.barColor }}>{row.yoc.toFixed(2)}%</span>
+                                        <span className="font-mono font-semibold tabular-nums" style={{ color: q.barColor }}>{row.yoc.toFixed(2)}%</span>
                                       </div>
                                       <div className="flex justify-between gap-4">
                                         <span className="text-accent font-medium">
                                           {isPortfolioYoc ? 'DY de Mercado:' : 'DY do Ativo (Mercado):'}
                                         </span>
-                                        <span className="font-mono font-bold text-accent">{(row.dy_market ?? 0).toFixed(2)}%</span>
+                                        <span className="font-mono font-semibold tabular-nums text-accent">{(row.dy_market ?? 0).toFixed(2)}%</span>
                                       </div>
-                                      <div className="flex justify-between gap-4 text-[11px]">
+                                      <div className="flex justify-between gap-4 text-2xs">
                                         <span className="text-text-muted">Diferença (YoC - DY):</span>
-                                        <span className={`font-mono font-bold ${q.spreadClass}`}>{q.spreadLabel}</span>
+                                        <span className={`font-mono font-semibold tabular-nums ${q.spreadClass}`}>{q.spreadLabel}</span>
                                       </div>
                                       <div className="flex justify-between gap-4">
                                         <span className="text-status-warning font-medium">
                                           {isPortfolioYoc ? 'Custo Investido (Momento):' : 'Meu PM no Momento:'}
                                         </span>
-                                        <span className="font-mono font-bold text-status-warning">
+                                        <span className="font-mono font-semibold tabular-nums text-status-warning">
                                           {money(row.pm_at_moment ?? 0)}
                                         </span>
                                       </div>
                                       {pmChangedInYear && (
-                                        <div className="flex justify-between gap-4 text-[11px] text-text-muted">
+                                        <div className="flex justify-between gap-4 text-2xs text-text-muted">
                                           <span>{isPortfolioYoc ? 'Custo médio no ano:' : 'PM médio no ano:'}</span>
-                                          <span className="font-mono">{money(row.pm_avg_year ?? 0)}</span>
+                                          <span className="font-mono tabular-nums">{money(row.pm_avg_year ?? 0)}</span>
                                         </div>
                                       )}
                                       <div className="flex justify-between gap-4 text-text-muted">
                                         <span>{isPortfolioYoc ? 'Patrimônio médio:' : 'Cotação média no ano:'}</span>
-                                        <span className="font-mono text-text-primary">{money(row.market_price ?? 0)}</span>
+                                        <span className="font-mono tabular-nums text-text-primary">{money(row.market_price ?? 0)}</span>
                                       </div>
-                                      <div className="flex justify-between gap-4 pt-1 border-t border-border-subtle text-[11px] text-text-muted">
+                                      <div className="flex justify-between gap-4 pt-1 border-t border-border-subtle text-2xs text-text-muted">
                                         <span>{isPortfolioYoc ? `Recebido (${row.payments_count ?? 0}x):` : `DPA (${row.payments_count ?? 0}x):`}</span>
-                                        <span className="font-mono text-text-primary">
+                                        <span className="font-mono tabular-nums text-text-primary">
                                           {isPortfolioYoc ? money(row.total_received ?? 0) : `${money(row.dpa)} · Tot: ${money(row.total_received ?? 0)}`}
                                         </span>
                                       </div>
@@ -769,7 +770,7 @@ export default function ProventosPage() {
                                 }}
                               />
                               <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
-                              <Bar yAxisId="yield" dataKey="yoc" name="YoC (PM do Momento)" fill="#10b981" radius={[4, 4, 0, 0]} barSize={26}>
+                              <Bar yAxisId="yield" dataKey="yoc" name="YoC (PM do Momento)" fill={SEMANTIC_CHART_HEX.emerald} radius={[4, 4, 0, 0]} barSize={26}>
                                 {selectedYocData.map((entry, idx) => (
                                   <Cell
                                     key={`yoc-cell-${entry.year}-${idx}`}
@@ -777,15 +778,15 @@ export default function ProventosPage() {
                                   />
                                 ))}
                               </Bar>
-                              <Bar yAxisId="yield" dataKey="dy_market" name={isPortfolioYoc ? 'DY de Mercado (%)' : 'DY do Ativo (Mercado)'} fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={26} />
+                              <Bar yAxisId="yield" dataKey="dy_market" name={isPortfolioYoc ? 'DY de Mercado (%)' : 'DY do Ativo (Mercado)'} fill={SEMANTIC_CHART_HEX.blue} radius={[4, 4, 0, 0]} barSize={26} />
                               <Line
                                 yAxisId="price"
                                 type="monotone"
                                 dataKey="pm_at_moment"
                                 name={isPortfolioYoc ? 'Custo Investido (R$)' : 'Meu PM no Momento (R$)'}
-                                stroke="#f59e0b"
+                                stroke={SEMANTIC_CHART_HEX.amber}
                                 strokeWidth={2.5}
-                                dot={{ r: 4, fill: '#f59e0b' }}
+                                dot={{ r: 4, fill: SEMANTIC_CHART_HEX.amber }}
                                 activeDot={{ r: 6 }}
                               />
                               <Line
@@ -793,10 +794,10 @@ export default function ProventosPage() {
                                 type="monotone"
                                 dataKey="market_price"
                                 name={isPortfolioYoc ? 'Patrimônio Médio (R$)' : 'Cotação Média do Ativo (R$)'}
-                                stroke="#94a3b8"
+                                stroke={SEMANTIC_CHART_HEX.slate}
                                 strokeWidth={2}
                                 strokeDasharray="4 4"
-                                dot={{ r: 3, fill: '#94a3b8' }}
+                                dot={{ r: 3, fill: SEMANTIC_CHART_HEX.slate }}
                               />
                             </ComposedChart>
                           </ResponsiveContainer>
@@ -805,7 +806,7 @@ export default function ProventosPage() {
                         {/* Resumo Anual */}
                         <div className="mt-6 overflow-x-auto border border-border-subtle rounded-xl">
                           <table className="w-full text-xs text-left border-collapse bg-surface">
-                            <thead className="bg-surface-elevated text-text-muted font-bold border-b border-border-subtle">
+                            <thead className="bg-surface-elevated text-text-muted font-semibold border-b border-border-subtle">
                               <tr>
                                 <th className="p-3">Ano</th>
                                 <th className="p-3 text-right">Pgtos</th>
@@ -830,32 +831,32 @@ export default function ProventosPage() {
                                       isSelectedYr ? 'bg-accent-soft' : 'hover:bg-surface-elevated/60'
                                     }`}
                                   >
-                                    <td className="p-3 font-bold font-mono">{row.year}</td>
-                                    <td className="p-3 text-right font-mono text-text-muted">{row.payments_count ?? 0}</td>
-                                    {!isPortfolioYoc && <td className="p-3 text-right font-mono">{money(row.dpa)}</td>}
-                                    <td className="p-3 text-right font-mono font-bold text-status-warning">
+                                    <td className="p-3 font-semibold font-mono tabular-nums">{row.year}</td>
+                                    <td className="p-3 text-right font-mono tabular-nums text-text-muted">{row.payments_count ?? 0}</td>
+                                    {!isPortfolioYoc && <td className="p-3 text-right font-mono tabular-nums">{money(row.dpa)}</td>}
+                                    <td className="p-3 text-right font-mono font-semibold tabular-nums text-status-warning">
                                       {money(row.pm_at_moment ?? 0)}
                                     </td>
-                                    <td className="p-3 text-right font-mono text-text-muted">
+                                    <td className="p-3 text-right font-mono tabular-nums text-text-muted">
                                       {money(row.market_price ?? 0)}
                                     </td>
-                                    <td className="p-3 text-right font-mono font-bold" style={{ color: q.barColor }}>
+                                    <td className="p-3 text-right font-mono font-semibold tabular-nums" style={{ color: q.barColor }}>
                                       {row.yoc.toFixed(2)}%
                                     </td>
-                                    <td className="p-3 text-right font-mono font-bold text-accent">
+                                    <td className="p-3 text-right font-mono font-semibold tabular-nums text-accent">
                                       {(row.dy_market ?? 0).toFixed(2)}%
                                     </td>
                                     <td className="p-3 text-center">
                                       <div className="inline-flex flex-col items-center gap-0.5">
-                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${q.badgeClass}`}>
+                                        <span className={`text-2xs font-semibold px-2 py-0.5 rounded-md border ${q.badgeClass}`}>
                                           {q.label}
                                         </span>
-                                        <span className={`text-[9px] font-mono ${q.spreadClass}`}>
+                                        <span className={`text-2xs font-mono tabular-nums ${q.spreadClass}`}>
                                           {q.spreadLabel}
                                         </span>
                                       </div>
                                     </td>
-                                    <td className="p-3 text-right font-mono font-bold">
+                                    <td className="p-3 text-right font-mono font-semibold tabular-nums">
                                       {money(row.total_received ?? 0)}
                                     </td>
                                   </tr>
@@ -869,14 +870,14 @@ export default function ProventosPage() {
                         {yocSummary.allEvents.length > 0 && (
                           <div className="mt-6">
                             <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-                              <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted">
-                                Por Recebimento ({yocSummary.allEvents.length}) — YoC vs DY &amp; PM da Data
+                              <h3 className="text-xs font-semibold uppercase tracking-wider text-text-muted tabular-nums">
+                                Por Recebimento ({yocSummary.allEvents.length}) · YoC vs DY &amp; PM da Data
                               </h3>
                               <div className="flex flex-wrap gap-1.5">
                                 <button
                                   type="button"
                                   onClick={() => setSelectedYocYear('all')}
-                                  className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-colors ${
+                                  className={`px-2.5 py-1 rounded-lg text-2xs font-semibold border transition-colors ${
                                     selectedYocYear === 'all'
                                       ? 'bg-status-success text-white border-status-success'
                                       : 'bg-surface border-border-subtle text-text-muted hover:text-text-primary'
@@ -889,7 +890,7 @@ export default function ProventosPage() {
                                     key={row.year}
                                     type="button"
                                     onClick={() => setSelectedYocYear(row.year)}
-                                    className={`px-2.5 py-1 rounded-lg text-[10px] font-bold font-mono border transition-colors ${
+                                    className={`px-2.5 py-1 rounded-lg text-2xs font-semibold font-mono tabular-nums border transition-colors ${
                                       selectedYocYear === row.year
                                         ? 'bg-status-success text-white border-status-success'
                                         : 'bg-surface border-border-subtle text-text-muted hover:text-text-primary'
@@ -902,14 +903,14 @@ export default function ProventosPage() {
                             </div>
 
                             {yocSummary.allEvents.length > 250 && (
-                              <p className="text-[11px] text-text-muted mb-2">
+                              <p className="text-2xs text-text-muted mb-2">
                                 Exibindo os 250 recebimentos mais recentes; selecione um ano acima para visualizar o ano completo.
                               </p>
                             )}
 
                             <div className="overflow-x-auto max-h-[380px] overflow-y-auto border border-border-subtle rounded-xl">
                               <table className="w-full text-xs text-left border-collapse bg-surface">
-                                <thead className="sticky top-0 bg-surface-elevated text-text-muted font-bold border-b border-border-subtle">
+                                <thead className="sticky top-0 bg-surface-elevated text-text-muted font-semibold border-b border-border-subtle">
                                   <tr>
                                     <th className="p-2.5">Pgto (Data-Com)</th>
                                     {isPortfolioYoc && <th className="p-2.5">Ativo</th>}
@@ -930,10 +931,10 @@ export default function ProventosPage() {
                                     const beatQuote = ev.yoc_at_moment >= ev.dy_at_moment - 0.01;
                                     const pmMuchHigher = ev.market_price > 0 && ev.pm_at_moment > ev.market_price * 1.15;
                                     const pmStatusClass = beatQuote
-                                      ? 'bg-emerald-500/15 text-status-success border-emerald-500/30'
+                                      ? 'bg-status-success/15 text-status-success border-status-success/30'
                                       : pmMuchHigher
-                                        ? 'bg-red-500/15 text-status-error border-red-500/30'
-                                        : 'bg-amber-500/15 text-status-warning border-amber-500/30';
+                                        ? 'bg-status-error/15 text-status-error border-status-error/30'
+                                        : 'bg-status-warning/15 text-status-warning border-status-warning/30';
                                     const pmStatusLabel = beatQuote
                                       ? '▲ PM ≤ Cotação'
                                       : pmMuchHigher
@@ -941,37 +942,37 @@ export default function ProventosPage() {
                                         : '▼ PM > Cotação';
                                     return (
                                       <tr key={`${ev.ticker || ''}-${ev.date}-${ev.date_com}-${idx}`} className="hover:bg-surface-elevated/60">
-                                        <td className="p-2.5 font-mono">
+                                        <td className="p-2.5 font-mono tabular-nums">
                                           <span className="font-semibold block">{payBr}</span>
-                                          <span className="text-[10px] text-text-muted">Com: {comBr} · {ev.quantity} un.</span>
+                                          <span className="text-2xs text-text-muted">Com: {comBr} · {ev.quantity} un.</span>
                                         </td>
                                         {isPortfolioYoc && (
-                                          <td className="p-2.5 font-bold font-mono text-text-primary">
+                                          <td className="p-2.5 font-semibold font-mono text-text-primary">
                                             {ev.ticker || '--'}
                                           </td>
                                         )}
                                         <td className="p-2.5 text-text-muted">{ev.type || 'Dividendo'}</td>
-                                        <td className="p-2.5 text-right font-mono">
+                                        <td className="p-2.5 text-right font-mono tabular-nums">
                                           {isHidden ? 'R$ •••' : `R$ ${ev.dpa.toFixed(4)}`}
                                         </td>
-                                        <td className="p-2.5 text-right font-mono font-bold text-status-warning">
+                                        <td className="p-2.5 text-right font-mono font-semibold tabular-nums text-status-warning">
                                           {money(ev.pm_at_moment)}
                                         </td>
-                                        <td className="p-2.5 text-right font-mono text-text-muted">
+                                        <td className="p-2.5 text-right font-mono tabular-nums text-text-muted">
                                           {money(ev.market_price)}
                                         </td>
-                                        <td className={`p-2.5 text-right font-mono font-bold ${beatQuote ? 'text-status-success' : 'text-status-warning'}`}>
+                                        <td className={`p-2.5 text-right font-mono font-semibold tabular-nums ${beatQuote ? 'text-status-success' : 'text-status-warning'}`}>
                                           {ev.yoc_at_moment.toFixed(2)}%
                                         </td>
-                                        <td className="p-2.5 text-right font-mono font-bold text-accent">
+                                        <td className="p-2.5 text-right font-mono font-semibold tabular-nums text-accent">
                                           {ev.dy_at_moment.toFixed(2)}%
                                         </td>
                                         <td className="p-2.5 text-center">
-                                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded border whitespace-nowrap ${pmStatusClass}`}>
+                                          <span className={`text-2xs font-semibold px-2 py-0.5 rounded-md border whitespace-nowrap ${pmStatusClass}`}>
                                             {pmStatusLabel}
                                           </span>
                                         </td>
-                                        <td className="p-2.5 text-right font-mono font-bold">
+                                        <td className="p-2.5 text-right font-mono font-semibold tabular-nums">
                                           {money(ev.total)}
                                         </td>
                                       </tr>
@@ -991,44 +992,44 @@ export default function ProventosPage() {
 
             {/* 4. HEATMAP DE SAZONALIDADE */}
             {activeTab === 'seasonality' && (
-              <div className="bg-slate-950/40 border border-slate-900 rounded-2xl p-6 backdrop-blur-md overflow-hidden">
+              <div className="bg-surface-card border border-border-subtle rounded-xl p-6 overflow-hidden">
                 <div className="flex items-center gap-2 mb-6">
-                  <Table className="text-purple-400" size={16} />
-                  <h2 className="text-base font-bold text-white">Heatmap Sazonal de Rendimentos</h2>
+                  <Table className="text-accent" size={16} />
+                  <h2 className="text-base font-semibold text-text-primary">Heatmap Sazonal de Rendimentos</h2>
                 </div>
 
-                <div className="overflow-x-auto w-full border border-slate-900 rounded-xl">
-                  <table className="w-full text-xs text-center border-collapse bg-slate-950/20">
-                    <thead className="bg-slate-900/60 text-slate-400 font-bold border-b border-slate-900">
+                <div className="overflow-x-auto w-full border border-border-subtle rounded-xl">
+                  <table className="w-full text-xs text-center border-collapse bg-surface">
+                    <thead className="bg-surface-elevated text-text-muted font-semibold border-b border-border-subtle">
                       <tr>
                         <th className="p-3 text-left">Ano</th>
                         {['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'].map(m => (
                           <th key={m} className="p-3">{m}</th>
                         ))}
-                        <th className="p-3 font-bold text-white text-right">Total</th>
+                        <th className="p-3 font-semibold text-text-primary text-right">Total</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-900">
+                    <tbody className="divide-y divide-border-subtle">
                       {seasonality.map((row) => {
                         const yearlyTotal = Array.from({ length: 12 }, (_, i) => row[`m${i + 1}`] || 0).reduce((a, b) => a + b, 0);
 
                         return (
-                          <tr key={row.year} className="hover:bg-slate-900/10">
-                            <td className="p-3 font-bold text-white text-left bg-slate-950/30">{row.year}</td>
+                          <tr key={row.year} className="hover:bg-surface-elevated/30">
+                            <td className="p-3 font-semibold text-text-primary text-left bg-surface-input/40 tabular-nums">{row.year}</td>
                             {Array.from({ length: 12 }, (_, i) => {
                               const val = row[`m${i + 1}`] || 0;
                               const style = getHeatmapColor(val);
                               return (
                                 <td 
                                   key={i} 
-                                  className="p-3 border border-slate-900 font-mono font-bold text-[10px]"
+                                  className="p-3 border border-border-subtle/50 font-mono font-semibold text-2xs tabular-nums"
                                   style={typeof style === 'object' ? style : {}}
                                 >
                                   {val > 0 ? (isHidden ? '•••' : formatMoney(val).replace('R$', '')) : '--'}
                                 </td>
                               );
                             })}
-                            <td className="p-3 font-mono font-bold text-white text-right bg-slate-950/30">
+                            <td className="p-3 font-mono font-semibold tabular-nums text-text-primary text-right bg-surface-input/40">
                               {money(yearlyTotal)}
                             </td>
                           </tr>
@@ -1054,12 +1055,12 @@ export default function ProventosPage() {
                   if (items.length === 0) return null;
 
                   return (
-                    <div key={statusFilter} className="bg-slate-950/40 border border-slate-900 rounded-2xl p-5 backdrop-blur-md">
-                      <h3 className={`text-[10px] font-bold uppercase tracking-widest mb-4 flex items-center gap-2 ${
-                        statusFilter === 'PAGO' ? 'text-emerald-500' : 'text-amber-500'
+                    <div key={statusFilter} className="bg-surface-card border border-border-subtle rounded-xl p-5">
+                      <h3 className={`text-2xs font-semibold uppercase tracking-wider mb-4 flex items-center gap-2 tabular-nums ${
+                        statusFilter === 'PAGO' ? 'text-status-success' : 'text-status-warning'
                       }`}>
-                        <div className={`w-1.5 h-1.5 rounded-full ${statusFilter === 'PAGO' ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`} />
-                        {statusFilter === 'PAGO' ? `Liquidados (Em Conta) — ${items.length}` : `Provisionados / Anunciados (Aguardando) — ${items.length}`}
+                        <div className={`w-1.5 h-1.5 rounded-full ${statusFilter === 'PAGO' ? 'bg-status-success' : 'bg-status-warning animate-pulse'}`} />
+                        {statusFilter === 'PAGO' ? `Liquidados (Em Conta): ${items.length}` : `Provisionados / Anunciados (Aguardando): ${items.length}`}
                       </h3>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -1067,39 +1068,39 @@ export default function ProventosPage() {
                           const payFmt = (div.date_payment || div.date || '').split('-').reverse().join('/');
                           const comFmt = (div.date_com || div.date || '').split('-').reverse().join('/');
                           return (
-                            <div key={i} className="flex items-center justify-between p-4 bg-slate-900/60 border border-slate-800 rounded-xl gap-3">
+                            <div key={i} className="flex items-center justify-between p-4 bg-surface border border-border-subtle rounded-xl gap-3">
                               <div className="flex items-center gap-3 min-w-0">
-                                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
+                                <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 border ${
                                   statusFilter === 'PAGO'
-                                    ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
-                                    : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                                    ? 'bg-status-success/10 text-status-success border-status-success/20'
+                                    : 'bg-status-warning/10 text-status-warning border-status-warning/20'
                                 }`}>
                                   <CalendarCheck size={16} />
                                 </div>
                                 <div className="min-w-0">
                                   <div className="flex items-center gap-2">
-                                    <span className="font-bold text-white text-base">{div.ticker}</span>
+                                    <span className="font-semibold text-text-primary text-base">{div.ticker}</span>
                                     {div.type && (
-                                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-surface border border-border-subtle text-slate-300">
+                                      <span className="text-2xs font-semibold px-1.5 py-0.5 rounded-md bg-surface-input border border-border-subtle text-text-muted">
                                         {div.type}
                                       </span>
                                     )}
                                   </div>
-                                  <p className="text-[10px] text-slate-400 font-mono uppercase">
+                                  <p className="text-2xs text-text-muted font-mono tabular-nums uppercase">
                                     Pgto: {payFmt} · Data-Com: {comFmt}
                                   </p>
                                   {div.quantity ? (
-                                    <p className="text-[9px] text-slate-500 font-mono">
+                                    <p className="text-2xs text-text-muted font-mono tabular-nums">
                                       {div.quantity} un. · R$ {Number(div.value_per_share || 0).toFixed(4)}/cota
                                     </p>
                                   ) : null}
                                 </div>
                               </div>
                               <div className="text-right shrink-0">
-                                <p className={`font-mono font-bold text-base ${statusFilter === 'PAGO' ? 'text-emerald-400' : 'text-amber-300'}`}>
+                                <p className={`font-mono font-semibold text-base tabular-nums ${statusFilter === 'PAGO' ? 'text-status-success' : 'text-status-warning'}`}>
                                   {money(div.total)}
                                 </p>
-                                <span className="text-[8px] text-slate-500 font-bold uppercase block">
+                                <span className="text-2xs text-text-muted font-semibold uppercase block">
                                   {statusFilter === 'PAGO' ? 'Confirmado' : 'A Receber'}
                                 </span>
                               </div>

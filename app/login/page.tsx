@@ -59,36 +59,31 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#07090e] text-slate-100 flex items-center justify-center p-4 selection:bg-indigo-500/30 selection:text-indigo-200">
-      {/* Background ambient glow */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[350px] bg-indigo-500/10 blur-[120px] rounded-full" />
-      </div>
-
-      <div className="relative w-full max-w-[390px] bg-slate-900/60 border border-white/[0.08] rounded-2xl p-8 shadow-2xl backdrop-blur-xl transition-all">
+    <div className="min-h-screen bg-surface text-text-primary flex items-center justify-center p-4 selection:bg-accent/30">
+      <div className="relative w-full max-w-[390px] bg-surface-card border border-border-subtle rounded-xl p-8 shadow-md transition-colors">
         
         {/* Header */}
         <div className="text-center mb-7">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-indigo-500/10 text-indigo-400 mb-3.5 border border-indigo-500/20 shadow-inner">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-accent-soft text-accent mb-3.5 border border-accent/20">
             <Wallet size={22} className="stroke-[2.2]" />
           </div>
-          <h1 className="text-xl font-semibold tracking-tight text-white">
-            AssetFlow <span className="text-indigo-400 font-medium">Pro</span>
+          <h1 className="text-xl font-semibold tracking-tight text-text-primary">
+            AssetFlow <span className="text-accent font-medium">Pro</span>
           </h1>
-          <p className="text-slate-400 text-xs mt-1.5 font-normal">
+          <p className="text-text-muted text-xs mt-1.5 font-normal">
             {isRegistering ? 'Crie sua conta para gerenciar seus ativos' : 'Acesse seu painel financeiro'}
           </p>
         </div>
 
         {/* Feedback Messages */}
         {success && (
-          <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs rounded-lg p-3 mb-4 text-center font-medium">
+          <div className="bg-status-success/10 border border-status-success/20 text-status-success text-xs rounded-lg p-3 mb-4 text-center font-medium">
             {success}
           </div>
         )}
 
         {error && (
-          <div className="bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs rounded-lg p-3 mb-4 text-center font-medium">
+          <div className="bg-status-error/10 border border-status-error/20 text-status-error text-xs rounded-lg p-3 mb-4 text-center font-medium">
             {error}
           </div>
         )}
@@ -97,7 +92,7 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit} className="space-y-3.5">
           <div>
             <div className="relative">
-              <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+              <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted" size={16} />
               <label htmlFor="username" className="sr-only">Usuário</label>
               <input 
                 id="username"
@@ -105,7 +100,7 @@ export default function LoginPage() {
                 type="text" 
                 autoComplete="username"
                 placeholder="Usuário"
-                className="w-full bg-slate-950/60 border border-white/[0.08] rounded-xl py-2.5 pl-10 pr-4 text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/40 transition-all"
+                className="w-full bg-surface-input border border-border-subtle rounded-lg py-2.5 pl-10 pr-4 text-text-primary text-xs placeholder:text-text-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/40 transition-colors"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 autoFocus
@@ -116,7 +111,7 @@ export default function LoginPage() {
 
           <div>
             <div className="relative">
-              <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+              <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted" size={16} />
               <label htmlFor="password" className="sr-only">Senha</label>
               <input 
                 id="password"
@@ -124,7 +119,7 @@ export default function LoginPage() {
                 type="password" 
                 autoComplete={isRegistering ? 'new-password' : 'current-password'}
                 placeholder="Senha"
-                className="w-full bg-slate-950/60 border border-white/[0.08] rounded-xl py-2.5 pl-10 pr-4 text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/40 transition-all"
+                className="w-full bg-surface-input border border-border-subtle rounded-lg py-2.5 pl-10 pr-4 text-text-primary text-xs placeholder:text-text-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/40 transition-colors"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -135,7 +130,7 @@ export default function LoginPage() {
           <button 
             type="submit" 
             disabled={loading || !username || !password}
-            className="w-full mt-2 bg-indigo-600 hover:bg-indigo-500 active:scale-[0.99] text-white font-medium py-2.5 rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed text-xs shadow-lg shadow-indigo-600/20"
+            className="w-full mt-2 bg-accent hover:bg-accent/90 text-white font-medium py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed text-xs"
           >
             {loading ? (
               'Autenticando...'
@@ -148,7 +143,7 @@ export default function LoginPage() {
         </form>
 
         {/* Switch Register/Login */}
-        <div className="mt-6 pt-5 border-t border-white/[0.06] text-center">
+        <div className="mt-6 pt-5 border-t border-border-subtle text-center">
           <button
             type="button"
             onClick={() => {
@@ -156,12 +151,12 @@ export default function LoginPage() {
               setError('');
               setSuccess('');
             }}
-            className="text-xs text-slate-400 hover:text-white transition-colors inline-flex items-center gap-1.5"
+            className="text-xs text-text-muted hover:text-text-primary transition-colors inline-flex items-center gap-1.5"
           >
             {isRegistering ? (
-              <>Já tem conta? <span className="text-indigo-400 hover:underline">Fazer login</span></>
+              <>Já tem conta? <span className="text-accent hover:underline">Fazer login</span></>
             ) : (
-              <>Não tem conta? <span className="text-indigo-400 hover:underline">Registrar-se</span></>
+              <>Não tem conta? <span className="text-accent hover:underline">Registrar-se</span></>
             )}
           </button>
         </div>

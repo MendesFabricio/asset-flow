@@ -276,7 +276,7 @@ export default function AvancadoPage() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-text-primary tracking-tight">Agendador de Tarefas</h1>
+            <h1 className="text-2xl font-semibold text-text-primary tracking-tight">Agendador de Tarefas</h1>
             <p className="text-text-muted text-xs mt-1">
               Controle de rotinas automáticas do worker, próximas execuções e histórico em tempo real
             </p>
@@ -286,7 +286,7 @@ export default function AvancadoPage() {
             type="button"
             onClick={() => loadJobs(true)}
             disabled={refreshing}
-            className="self-start sm:self-auto inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-surface-card border border-border-subtle text-xs font-semibold text-text-primary hover:bg-surface-elevated transition-colors"
+            className="self-start sm:self-auto inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-surface-card border border-border-subtle text-xs font-semibold text-text-primary hover:bg-surface-elevated transition-colors"
           >
             <RefreshCw size={13} className={refreshing || hasRunningJob ? 'animate-spin text-accent' : 'text-text-muted'} />
             {hasRunningJob ? 'Atualizando...' : 'Atualizar'}
@@ -296,17 +296,17 @@ export default function AvancadoPage() {
         {/* Summary KPI Strip */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <div className="p-3.5 rounded-xl bg-surface-card border border-border-subtle">
-            <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-text-muted">
+            <div className="flex items-center justify-between text-2xs font-semibold uppercase tracking-wider text-text-muted">
               <span>Status do Worker</span>
               <Server size={13} className={worker?.online ? 'text-status-success' : 'text-status-error'} />
             </div>
             <div className="mt-1 flex items-center gap-2">
               <span className={`w-2 h-2 rounded-full ${worker?.online ? 'bg-status-success animate-pulse' : 'bg-status-error'}`} />
-              <span className={`text-base font-bold ${worker?.online ? 'text-status-success' : 'text-status-error'}`}>
+              <span className={`text-base font-semibold ${worker?.online ? 'text-status-success' : 'text-status-error'}`}>
                 {worker?.online ? 'Online' : 'Offline'}
               </span>
             </div>
-            <span className="text-[10px] font-mono text-text-muted">
+            <span className="text-2xs font-mono tabular-nums text-text-muted">
               {worker?.age_seconds !== null && worker?.age_seconds !== undefined
                 ? `Sinal há ${worker.age_seconds}s`
                 : 'Sem heartbeat'}
@@ -314,32 +314,32 @@ export default function AvancadoPage() {
           </div>
 
           <div className="p-3.5 rounded-xl bg-surface-card border border-border-subtle">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted block">Jobs Ativos</span>
-            <span className="text-lg font-mono font-bold text-text-primary mt-1 block">
+            <span className="text-2xs font-semibold uppercase tracking-wider text-text-muted block">Jobs Ativos</span>
+            <span className="text-lg font-mono font-semibold tabular-nums text-text-primary mt-1 block">
               {summary.activeCount} <span className="text-xs text-text-muted font-normal">/ {summary.total}</span>
             </span>
-            <span className="text-[10px] text-text-muted">Agendados no APScheduler</span>
+            <span className="text-2xs text-text-muted">Agendados no APScheduler</span>
           </div>
 
           <div className="p-3.5 rounded-xl bg-surface-card border border-border-subtle">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted block">Execuções OK</span>
-            <span className="text-lg font-mono font-bold text-status-success mt-1 block">
+            <span className="text-2xs font-semibold uppercase tracking-wider text-text-muted block">Execuções OK</span>
+            <span className="text-lg font-mono font-semibold tabular-nums text-status-success mt-1 block">
               {summary.okCount}
             </span>
-            <span className="text-[10px] text-text-muted">Concluídos sem falhas</span>
+            <span className="text-2xs text-text-muted">Concluídos sem falhas</span>
           </div>
 
           <div className="p-3.5 rounded-xl bg-surface-card border border-border-subtle">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted block">
+            <span className="text-2xs font-semibold uppercase tracking-wider text-text-muted block">
               Em Execução / Erros
             </span>
             <div className="flex items-baseline gap-3 mt-1">
-              <span className="text-lg font-mono font-bold text-status-warning">{summary.runningCount} exec.</span>
-              <span className={`text-lg font-mono font-bold ${summary.errorCount > 0 ? 'text-status-error' : 'text-text-muted'}`}>
+              <span className="text-lg font-mono font-semibold tabular-nums text-status-warning">{summary.runningCount} exec.</span>
+              <span className={`text-lg font-mono font-semibold tabular-nums ${summary.errorCount > 0 ? 'text-status-error' : 'text-text-muted'}`}>
                 {summary.errorCount} erro(s)
               </span>
             </div>
-            <span className="text-[10px] text-text-muted">Monitoramento contínuo</span>
+            <span className="text-2xs text-text-muted">Monitoramento contínuo</span>
           </div>
         </div>
 
@@ -351,7 +351,7 @@ export default function AvancadoPage() {
                 key={cat.id}
                 type="button"
                 onClick={() => setCategoryFilter(cat.id)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-colors ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
                   categoryFilter === cat.id
                     ? 'bg-accent text-white border-accent'
                     : 'bg-surface-card border-border-subtle text-text-muted hover:text-text-primary'
@@ -369,7 +369,7 @@ export default function AvancadoPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Filtrar tarefa..."
-              className="w-full bg-surface-card border border-border-subtle rounded-xl pl-8 pr-3 py-1.5 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent"
+              className="w-full bg-surface-card border border-border-subtle rounded-lg pl-8 pr-3 py-1.5 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent"
             />
           </div>
         </div>
@@ -384,21 +384,21 @@ export default function AvancadoPage() {
             const isSuccess = status === 'success';
 
             const accentBorder = !job.is_active
-              ? 'border-l-slate-600'
+              ? 'border-l-border-subtle'
               : isError
-                ? 'border-l-red-500'
+                ? 'border-l-status-error'
                 : isRunning
-                  ? 'border-l-amber-400'
+                  ? 'border-l-status-warning'
                   : isSuccess
-                    ? 'border-l-emerald-500'
-                    : 'border-l-blue-500';
+                    ? 'border-l-status-success'
+                    : 'border-l-accent';
 
             const statusBadge = isError
-              ? 'bg-red-500/15 text-status-error border-red-500/30'
+              ? 'bg-status-error/15 text-status-error border-status-error/30'
               : isRunning
-                ? 'bg-amber-500/15 text-status-warning border-amber-500/30'
+                ? 'bg-status-warning/15 text-status-warning border-status-warning/30'
                 : isSuccess
-                  ? 'bg-emerald-500/15 text-status-success border-emerald-500/30'
+                  ? 'bg-status-success/15 text-status-success border-status-success/30'
                   : 'bg-surface-elevated text-text-muted border-border-subtle';
 
             const statusLabel = isError ? 'Erro' : isRunning ? 'Executando' : isSuccess ? 'Sucesso' : 'Idle';
@@ -406,31 +406,31 @@ export default function AvancadoPage() {
             return (
               <div
                 key={job.id}
-                className={`rounded-2xl border border-border-subtle border-l-4 ${accentBorder} p-4 md:p-5 bg-surface-card transition-all ${
+                className={`rounded-xl border border-border-subtle border-l-4 ${accentBorder} p-4 md:p-5 bg-surface-card transition-colors ${
                   job.is_active ? '' : 'opacity-70'
                 }`}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-sm font-bold text-text-primary">
+                      <h3 className="text-sm font-semibold text-text-primary">
                         {meta?.title || job.name}
                       </h3>
                       {meta?.catLabel && (
-                        <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-surface border border-border-subtle text-text-muted">
+                        <span className="text-2xs font-semibold uppercase px-1.5 py-0.5 rounded-md bg-surface border border-border-subtle text-text-muted">
                           {meta.catLabel}
                         </span>
                       )}
                       <span
-                        className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded border ${
+                        className={`text-2xs font-semibold uppercase px-1.5 py-0.5 rounded-md border ${
                           job.is_active
-                            ? 'bg-emerald-500/10 text-status-success border-emerald-500/20'
+                            ? 'bg-status-success/10 text-status-success border-status-success/20'
                             : 'bg-surface-elevated text-text-muted border-border-subtle'
                         }`}
                       >
                         {job.is_active ? 'Ativo' : 'Pausado'}
                       </span>
-                      <span className={`inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded border ${statusBadge}`}>
+                      <span className={`inline-flex items-center gap-1 text-2xs font-semibold px-2 py-0.5 rounded-md border ${statusBadge}`}>
                         {isSuccess && <CheckCircle2 size={10} />}
                         {isError && <AlertCircle size={10} />}
                         {isRunning && <RefreshCw size={10} className="animate-spin" />}
@@ -438,37 +438,37 @@ export default function AvancadoPage() {
                       </span>
                     </div>
 
-                    <p className="text-[10px] font-mono text-text-muted mt-0.5">{job.name}</p>
+                    <p className="text-2xs font-mono text-text-muted mt-0.5">{job.name}</p>
                     <p className="text-xs text-text-muted mt-2 leading-relaxed">{job.description}</p>
                   </div>
                 </div>
 
                 {/* Timings */}
-                <div className="grid grid-cols-3 gap-2 mt-4 p-2.5 rounded-xl bg-surface border border-border-subtle text-[11px]">
+                <div className="grid grid-cols-3 gap-2 mt-4 p-2.5 rounded-xl bg-surface border border-border-subtle text-2xs">
                   <div>
-                    <span className="text-[9px] uppercase font-bold text-text-muted flex items-center gap-1">
+                    <span className="text-2xs uppercase font-semibold text-text-muted flex items-center gap-1">
                       <Clock size={10} /> Frequência
                     </span>
-                    <span className="font-mono font-semibold text-text-primary block mt-0.5 truncate" title={job.cron_expression || ''}>
+                    <span className="font-mono font-semibold tabular-nums text-text-primary block mt-0.5 truncate" title={job.cron_expression || ''}>
                       {formatScheduleLabel(job)}
                     </span>
                   </div>
                   <div>
-                    <span className="text-[9px] uppercase font-bold text-text-muted block">Última Execução</span>
-                    <span className="font-mono text-text-primary block mt-0.5">{formatDate(job.last_run_at)}</span>
+                    <span className="text-2xs uppercase font-semibold text-text-muted block">Última Execução</span>
+                    <span className="font-mono tabular-nums text-text-primary block mt-0.5">{formatDate(job.last_run_at)}</span>
                     {job.last_run_at && (
-                      <span className="text-[9px] text-text-muted block">{formatRelativeTime(job.last_run_at)}</span>
+                      <span className="text-2xs text-text-muted block tabular-nums">{formatRelativeTime(job.last_run_at)}</span>
                     )}
                   </div>
                   <div>
-                    <span className="text-[9px] uppercase font-bold text-text-muted flex items-center gap-1">
+                    <span className="text-2xs uppercase font-semibold text-text-muted flex items-center gap-1">
                       <CalendarClock size={10} /> Próxima
                     </span>
-                    <span className="font-mono text-text-primary block mt-0.5">
+                    <span className="font-mono tabular-nums text-text-primary block mt-0.5">
                       {job.is_active ? formatDate(job.next_run_at) : 'Pausado'}
                     </span>
                     {job.is_active && job.next_run_at && (
-                      <span className="text-[9px] text-accent block">{formatRelativeTime(job.next_run_at, true)}</span>
+                      <span className="text-2xs text-accent block tabular-nums">{formatRelativeTime(job.next_run_at, true)}</span>
                     )}
                   </div>
                 </div>
@@ -476,7 +476,7 @@ export default function AvancadoPage() {
                 {/* Footer: Message + Actions */}
                 <div className="flex flex-wrap items-center justify-between gap-2 mt-3 pt-3 border-t border-border-subtle">
                   <span
-                    className={`text-[11px] truncate max-w-[260px] ${
+                    className={`text-2xs truncate max-w-[260px] ${
                       isError ? 'text-status-error font-medium' : 'text-text-muted'
                     }`}
                     title={job.last_run_message || ''}
@@ -489,24 +489,24 @@ export default function AvancadoPage() {
                       type="button"
                       onClick={() => handleRunNow(job)}
                       disabled={!job.is_active || isRunning}
-                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-accent-soft text-accent border border-accent/25 text-[11px] font-bold hover:bg-accent/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-accent-soft text-accent border border-accent/25 text-2xs font-semibold hover:bg-accent/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                     >
                       <Play size={11} /> Executar
                     </button>
                     <button
                       type="button"
                       onClick={() => handleEdit(job)}
-                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-surface-elevated border border-border-subtle text-text-primary text-[11px] font-bold hover:border-accent/50 transition-colors"
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-surface-elevated border border-border-subtle text-text-primary text-2xs font-semibold hover:border-accent/50 transition-colors"
                     >
                       <Pencil size={11} /> Editar
                     </button>
                     <button
                       type="button"
                       onClick={() => handleToggle(job)}
-                      className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold border transition-colors ${
+                      className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-2xs font-semibold border transition-colors ${
                         job.is_active
-                          ? 'bg-red-500/10 text-status-error border-red-500/20 hover:bg-red-500/20'
-                          : 'bg-emerald-500/10 text-status-success border-emerald-500/20 hover:bg-emerald-500/20'
+                          ? 'bg-status-error/10 text-status-error border-status-error/20 hover:bg-status-error/20'
+                          : 'bg-status-success/10 text-status-success border-status-success/20 hover:bg-status-success/20'
                       }`}
                     >
                       {job.is_active ? <Pause size={11} /> : <Play size={11} />}
@@ -520,7 +520,7 @@ export default function AvancadoPage() {
         </div>
 
         {filteredJobs.length === 0 && (
-          <div className="text-center text-text-muted py-12 bg-surface-card rounded-2xl border border-border-subtle">
+          <div className="text-center text-text-muted py-12 bg-surface-card rounded-xl border border-border-subtle">
             Nenhum job encontrado para esse filtro.
           </div>
         )}
@@ -529,20 +529,20 @@ export default function AvancadoPage() {
       {/* Edit Modal */}
       {editingJob && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-surface-card border border-border-subtle rounded-2xl p-6 max-w-md w-full space-y-4 shadow-2xl">
+          <div className="bg-surface-card border border-border-subtle rounded-xl p-6 max-w-md w-full space-y-4 shadow-xl animate-in fade-in zoom-in-95 duration-[120ms]">
             <div>
-              <h2 className="text-lg font-bold text-text-primary">Editar Agendamento</h2>
+              <h2 className="text-lg font-semibold text-text-primary">Editar Agendamento</h2>
               <p className="text-xs font-semibold text-accent mt-0.5">
                 {JOB_META[editingJob.name]?.title || editingJob.name}
               </p>
-              <p className="text-[11px] font-mono text-text-muted">{editingJob.name}</p>
+              <p className="text-2xs font-mono text-text-muted">{editingJob.name}</p>
             </div>
 
             <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-surface border border-border-subtle">
               <button
                 type="button"
                 onClick={() => { setEditJobType('interval'); setEditError(''); }}
-                className={`py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                className={`py-1.5 rounded-lg text-xs font-semibold transition-colors ${
                   editJobType === 'interval' ? 'bg-accent text-white' : 'text-text-muted hover:text-text-primary'
                 }`}
               >
@@ -551,7 +551,7 @@ export default function AvancadoPage() {
               <button
                 type="button"
                 onClick={() => { setEditJobType('cron'); setEditError(''); }}
-                className={`py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                className={`py-1.5 rounded-lg text-xs font-semibold transition-colors ${
                   editJobType === 'cron' ? 'bg-accent text-white' : 'text-text-muted hover:text-text-primary'
                 }`}
               >
@@ -561,7 +561,7 @@ export default function AvancadoPage() {
 
             {editJobType === 'cron' ? (
               <div className="space-y-2">
-                <label className="block text-[11px] font-bold text-text-muted uppercase tracking-wider">
+                <label className="block text-2xs font-semibold text-text-muted uppercase tracking-wider">
                   Expressão Cron (5 campos)
                 </label>
                 <input
@@ -569,7 +569,7 @@ export default function AvancadoPage() {
                   value={cronExpression}
                   onChange={(e) => setCronExpression(e.target.value)}
                   placeholder="0 8 * * *"
-                  className="w-full px-3 py-2 rounded-xl bg-surface-input border border-border-subtle text-text-primary font-mono text-sm focus:outline-none focus:border-accent"
+                  className="w-full px-3 py-2 rounded-lg bg-surface-input border border-border-subtle text-text-primary font-mono text-sm focus:outline-none focus:border-accent"
                 />
                 <div className="flex flex-wrap gap-1.5 pt-1">
                   {CRON_PRESETS.map((p) => (
@@ -577,7 +577,7 @@ export default function AvancadoPage() {
                       key={p.value}
                       type="button"
                       onClick={() => setCronExpression(p.value)}
-                      className="px-2 py-1 rounded-lg text-[10px] font-bold bg-surface border border-border-subtle text-text-muted hover:text-text-primary hover:border-accent/50"
+                      className="px-2 py-1 rounded-lg text-2xs font-semibold bg-surface border border-border-subtle text-text-muted hover:text-text-primary hover:border-accent/50"
                     >
                       {p.label}
                     </button>
@@ -586,7 +586,7 @@ export default function AvancadoPage() {
               </div>
             ) : (
               <div className="space-y-2">
-                <label className="block text-[11px] font-bold text-text-muted uppercase tracking-wider">
+                <label className="block text-2xs font-semibold text-text-muted uppercase tracking-wider">
                   Intervalo (minutos)
                 </label>
                 <input
@@ -594,7 +594,7 @@ export default function AvancadoPage() {
                   value={intervalMinutes}
                   onChange={(e) => setIntervalMinutes(e.target.value)}
                   min="1"
-                  className="w-full px-3 py-2 rounded-xl bg-surface-input border border-border-subtle text-text-primary font-mono text-sm focus:outline-none focus:border-accent"
+                  className="w-full px-3 py-2 rounded-lg bg-surface-input border border-border-subtle text-text-primary font-mono tabular-nums text-sm focus:outline-none focus:border-accent"
                 />
                 <div className="flex flex-wrap gap-1.5 pt-1">
                   {INTERVAL_PRESETS.map((p) => (
@@ -602,7 +602,7 @@ export default function AvancadoPage() {
                       key={p.value}
                       type="button"
                       onClick={() => setIntervalMinutes(String(p.value))}
-                      className="px-2 py-1 rounded-lg text-[10px] font-bold bg-surface border border-border-subtle text-text-muted hover:text-text-primary hover:border-accent/50"
+                      className="px-2 py-1 rounded-lg text-2xs font-semibold bg-surface border border-border-subtle text-text-muted hover:text-text-primary hover:border-accent/50"
                     >
                       {p.label}
                     </button>
@@ -622,7 +622,7 @@ export default function AvancadoPage() {
             </label>
 
             {editError && (
-              <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/30 text-xs text-status-error">
+              <div className="p-2.5 rounded-xl bg-status-error/10 border border-status-error/30 text-xs text-status-error">
                 {editError}
               </div>
             )}
@@ -632,14 +632,14 @@ export default function AvancadoPage() {
                 type="button"
                 onClick={handleSave}
                 disabled={saving}
-                className="flex-1 px-4 py-2 rounded-xl bg-accent text-white text-xs font-bold hover:opacity-90 disabled:opacity-50 transition-opacity"
+                className="flex-1 px-4 py-2 rounded-lg bg-accent text-white text-xs font-semibold hover:opacity-90 disabled:opacity-50 transition-opacity"
               >
                 {saving ? 'Salvando...' : 'Salvar'}
               </button>
               <button
                 type="button"
                 onClick={() => setEditingJob(null)}
-                className="px-4 py-2 rounded-xl bg-surface-elevated border border-border-subtle text-text-primary text-xs font-bold hover:bg-surface transition-colors"
+                className="px-4 py-2 rounded-lg bg-surface-elevated border border-border-subtle text-text-primary text-xs font-semibold hover:bg-surface transition-colors"
               >
                 Cancelar
               </button>

@@ -6,6 +6,7 @@ import "./globals.css";
 import { PrivacyProvider } from "./context/PrivacyContext";
 import { ThemeProvider } from "./context/ThemeContext";
 import { ToastProvider } from "./context/ToastContext";
+import { VIEWPORT_THEME_COLORS } from "./lib/colors";
 
 export const metadata: Metadata = {
   title: 'AssetFlow Pro | Gestão Inteligente de Investimentos & Carteira',
@@ -35,8 +36,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 5,
   themeColor: [
-    { media: '(prefers-color-scheme: dark)', color: '#0b0f19' },
-    { media: '(prefers-color-scheme: light)', color: '#f8fafc' },
+    { media: '(prefers-color-scheme: dark)', color: VIEWPORT_THEME_COLORS.dark },
+    { media: '(prefers-color-scheme: light)', color: VIEWPORT_THEME_COLORS.light },
   ],
 };
 
@@ -75,7 +76,7 @@ export default function RootLayout({
       <body className={`${GeistSans.variable} ${GeistMono.variable} font-sans antialiased bg-surface text-text-primary transition-colors duration-300`}>
         <a
           href="#main-content"
-          className="sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:z-[200] focus:px-4 focus:py-2 focus:rounded-lg focus:bg-blue-600 focus:text-white focus:font-semibold focus:shadow-lg"
+          className="sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:z-[200] focus:px-4 focus:py-2 focus:rounded-lg focus:bg-accent focus:text-white focus:font-semibold focus:shadow-lg"
         >
           Pular para o conteúdo
         </a>

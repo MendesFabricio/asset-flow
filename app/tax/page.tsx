@@ -17,8 +17,8 @@ export default function TaxPage() {
         <div>
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div>
-              <h2 className="text-2xl font-bold text-text-primary flex items-center gap-2">
-                <Receipt className="w-8 h-8 text-blue-500" />
+              <h2 className="text-2xl font-semibold text-text-primary flex items-center gap-2">
+                <Receipt className="w-8 h-8 text-accent" />
                 Imposto de Renda
               </h2>
               <p className="text-text-muted text-sm mt-1">
