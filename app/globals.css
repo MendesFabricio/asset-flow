@@ -42,6 +42,7 @@
   --color-status-success: var(--status-success);
   --color-status-warning: var(--status-warning);
   --color-status-error: var(--status-error);
+  --text-2xs: 0.6875rem;   /* 11px — piso de leitura */
 }
 
 @media (prefers-color-scheme: dark) {

@@ -43,7 +43,7 @@ export function SubPageHeader() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold border transition-colors ${
                   active
                     ? 'bg-accent-soft text-accent border-accent/40'
                     : 'bg-surface-card text-text-muted border-border-subtle hover:bg-surface-elevated hover:text-text-primary'

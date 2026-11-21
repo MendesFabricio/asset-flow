@@ -7,11 +7,11 @@ interface CardProps {
 }
 
 export function Card({ children, className = '', variant = 'default' }: CardProps) {
-  const baseStyles = "p-4 rounded-xl border transition-all duration-300";
+  const baseStyles = "p-4 rounded-xl border transition-colors duration-150";
   
   const variants = {
-    default: "bg-slate-900 border-slate-800 hover:border-slate-700 shadow-lg shadow-black/20",
-    emerald: "bg-slate-900 border-emerald-900/30 shadow-lg shadow-emerald-950/10 hover:border-emerald-800/50"
+    default: "bg-surface-card border-border-subtle hover:border-accent/30 shadow-sm",
+    emerald: "bg-surface-card border-status-success/30 hover:border-status-success/50 shadow-sm"
   };
 
   return (

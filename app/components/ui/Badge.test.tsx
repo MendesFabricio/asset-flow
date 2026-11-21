@@ -13,7 +13,7 @@ describe('Badge', () => {
 
   it('applies the emerald variant', () => {
     render(<Badge label="Ok" variant="emerald" />);
-    expect(screen.getByText('Ok').className).toContain('text-emerald-400');
+    expect(screen.getByText('Ok').className).toContain('text-status-success');
   });
 });
 
@@ -34,6 +34,6 @@ describe('Card', () => {
 
   it('applies the emerald variant border', () => {
     const { container } = render(<Card variant="emerald">x</Card>);
-    expect((container.firstChild as HTMLElement).className).toContain('border-emerald-900/30');
+    expect((container.firstChild as HTMLElement).className).toContain('border-status-success/30');
   });
 });
