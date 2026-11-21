@@ -2,13 +2,10 @@ import os
 import atexit
 import logging
 import decimal
-import sentry_sdk
 
 from flask import Flask, jsonify, request, g
 from flask_cors import CORS
 from flask.json.provider import DefaultJSONProvider
-from sentry_sdk.integrations.logging import LoggingIntegration
-from sentry_sdk.integrations.flask import FlaskIntegration
 
 # Importações de Infraestrutura e Persistência
 from db.models import init_db, DatabaseStateProxy, get_sync_state_db, update_sync_state_db
@@ -72,19 +69,8 @@ def _reset_orphaned_sync_states():
 
 def create_app(config_object=None) -> Flask:
     """Fábrica de Aplicação Flask (Application Factory Pattern)."""
-    
-    # 1. Sentry Integration
-    _sentry_dsn = os.environ.get("SENTRY_DSN")
-    if _sentry_dsn:
-        sentry_logging = LoggingIntegration(level=logging.INFO, event_level=logging.ERROR)
-        sentry_sdk.init(
-            dsn=_sentry_dsn,
-            traces_sample_rate=0.01,
-            auto_session_tracking=False,
-            integrations=[sentry_logging, FlaskIntegration()],
-        )
 
-    # 2. Inicialização do Banco de Dados
+    # 1. Inicialização do Banco de Dados
     try:
         init_db()
         logging.info("✅ Banco de dados inicializado com sucesso.")
@@ -175,10 +161,6 @@ def create_app(config_object=None) -> Flask:
         if isinstance(e, HTTPException):
             return e
         logging.error(f"💥 Erro crítico global em {request.method} {request.url}: {str(e)}", exc_info=True)
-        try:
-            sentry_sdk.capture_exception(e)
-        except Exception:
-            pass
         return jsonify({"status": "Erro", "msg": "Ocorreu um erro interno no servidor de dados do AssetFlow."}), 500
 
     # 5. Registro de Blueprints

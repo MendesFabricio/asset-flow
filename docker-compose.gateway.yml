@@ -22,7 +22,6 @@ name: asset-flow
 
 x-shared-env: &shared-env
   SECRET_KEY: ${SECRET_KEY:-asset_flow_dev_secret_key_default_value_change_in_prod}
-  SENTRY_DSN: ""
   ENVIRONMENT: production
 
 services:

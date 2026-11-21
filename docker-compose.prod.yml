@@ -3,7 +3,6 @@
 # CPU total (burst): ≤ 4.0 | RAM total: ≤ 6.75 GB (sobram ~5 GB p/ SO/cache)
 
 x-shared-env: &shared-env
-  SENTRY_DSN: ""
   ENVIRONMENT: production
   APP_RELEASE: ${APP_RELEASE:-latest}
 
@@ -132,7 +131,6 @@ services:
       - NODE_OPTIONS=--max-old-space-size=2048
       - SECRET_KEY=${SECRET_KEY:-}
       - NEXT_PUBLIC_API_URL=
-      - SENTRY_DSN=
       - ENVIRONMENT=production
     healthcheck:
       test: [ "CMD-SHELL", "wget -qO- http://localhost:3000 || exit 1" ]
