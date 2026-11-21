@@ -176,18 +176,27 @@ export function QuantSkeleton() {
 }
 
 
+export function StatCardsSkeleton() {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-pulse">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div key={i} className="bg-surface-card border border-border-subtle rounded-xl p-5 flex flex-col justify-between gap-4">
+          <div className="space-y-2">
+            <div className="h-3 bg-surface-input rounded w-1/2" />
+            <div className="h-6 bg-surface-input rounded w-3/4" />
+          </div>
+          <div className="h-3 bg-surface-input rounded w-2/5" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function SkeletonLoading() {
   return (
     <div className="max-w-7xl mx-auto p-4 md:p-6 space-y-4">
       {/* StatCards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 animate-pulse">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="bg-surface-card border border-border-subtle rounded-xl p-5 h-[115px] flex flex-col justify-between">
-            <div className="h-3 bg-surface-input rounded w-1/2" />
-            <div className="h-6 bg-surface-input rounded w-3/4" />
-          </div>
-        ))}
-      </div>
+      <StatCardsSkeleton />
 
       {/* Main Charts Grid - Matches RiskRadar & CategorySummary */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-[525px] animate-pulse">

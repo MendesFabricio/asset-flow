@@ -12,7 +12,6 @@ import { NewAssetButton } from './NewAssetButton';
 import { Notifications } from './Notifications';
 import { SystemStatus } from './SystemStatus';
 import { UserMenu } from './UserMenu';
-import { ThemeToggle } from '@/components/ThemeToggle';
 import { Asset } from '@/types';
 
 interface HeaderProps {
@@ -64,13 +63,12 @@ export const Header = memo(({
     <header className="sticky top-0 z-30 w-full bg-surface/85 backdrop-blur-md border-b border-border-subtle select-none">
       <div className="max-w-7xl mx-auto px-4 lg:px-6 py-3 flex justify-between items-center h-16">
         
-        {/* ESQUERDA: LOGO + THEME TOGGLE + USER INFO + STATUS */}
+        {/* ESQUERDA: LOGO + USER INFO + STATUS */}
         <div className="flex items-center gap-2.5 sm:gap-3.5 shrink-0">
           <Logo />
-          <ThemeToggle />
           <div className="hidden sm:block h-6 w-px bg-border-subtle" />
           <div className="hidden sm:flex flex-col justify-center leading-none">
-            <span className="text-2xs font-semibold text-text-primary tracking-wide uppercase">
+            <span className="text-xs font-medium text-text-primary">
               {username || 'Investidor'}
             </span>
             <div className="mt-1">
@@ -113,7 +111,7 @@ export const Header = memo(({
             
             <div className="hidden lg:block h-6 w-px bg-border-subtle mx-1" />
             <div className="hidden lg:block">
-              <PortfolioSummary total={total} ativos={ativos} money={money} />
+              <PortfolioSummary total={total} ativos={ativos} money={money} loading={loading} />
             </div>
           </div>
 
@@ -139,7 +137,7 @@ export const Header = memo(({
           
           {/* Status do Pregão */}
           <div className="flex justify-between items-center">
-            <span className="text-2xs uppercase font-semibold text-text-muted">Status Mercado</span>
+            <span className="text-2xs uppercase font-medium text-text-muted">Status Mercado</span>
             <MarketStatus />
           </div>
 
@@ -147,7 +145,7 @@ export const Header = memo(({
 
           {/* Ferramentas e Configurações */}
           <div className="flex flex-col gap-2">
-            <span className="text-2xs uppercase font-semibold text-text-muted mb-1">Ações da Carteira</span>
+            <span className="text-2xs uppercase font-medium text-text-muted mb-1">Ações da Carteira</span>
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
@@ -166,7 +164,7 @@ export const Header = memo(({
                   setMobileMenuOpen(false);
                 }}
                 disabled={loading || isRefetching || showRefreshSuccess}
-                className="bg-surface-card border border-border-subtle text-text-primary text-xs font-semibold py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 disabled:opacity-50"
+                className="bg-surface-card border border-border-subtle text-text-primary text-xs font-medium py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 disabled:opacity-50"
               >
                 Recarregar Cotações
               </button>
@@ -177,12 +175,12 @@ export const Header = memo(({
 
           {/* Links adicionais */}
           <div className="flex flex-col gap-2">
-            <span className="text-2xs uppercase font-semibold text-text-muted mb-1">Análises & Sincronias</span>
+            <span className="text-2xs uppercase font-medium text-text-muted mb-1">Análises & Sincronias</span>
             <div className="flex flex-col gap-1">
               <Link
                 href="/tax"
                 onClick={() => setMobileMenuOpen(false)}
-                className="w-full text-left px-2 py-2 text-xs font-semibold rounded-lg hover:bg-surface-elevated text-text-muted hover:text-text-primary"
+                className="w-full text-left px-2 py-2 text-xs font-medium rounded-lg hover:bg-surface-elevated text-text-muted hover:text-text-primary"
               >
                 Imposto de Renda (DARF)
               </Link>
@@ -192,7 +190,7 @@ export const Header = memo(({
                   onOpenSmartModal();
                   setMobileMenuOpen(false);
                 }}
-                className="w-full text-left px-2 py-2 text-xs font-semibold rounded-lg hover:bg-surface-elevated text-text-muted hover:text-text-primary"
+                className="w-full text-left px-2 py-2 text-xs font-medium rounded-lg hover:bg-surface-elevated text-text-muted hover:text-text-primary"
               >
                 Otimização de Aportes
               </button>
@@ -202,7 +200,7 @@ export const Header = memo(({
                   onSyncReports();
                   setMobileMenuOpen(false);
                 }}
-                className="w-full text-left px-2 py-2 text-xs font-semibold rounded-lg hover:bg-surface-elevated text-text-muted hover:text-text-primary"
+                className="w-full text-left px-2 py-2 text-xs font-medium rounded-lg hover:bg-surface-elevated text-text-muted hover:text-text-primary"
               >
                 Sincronizar CVM (FNET)
               </button>
@@ -212,7 +210,7 @@ export const Header = memo(({
                   onUpdateFundamentals();
                   setMobileMenuOpen(false);
                 }}
-                className="w-full text-left px-2 py-2 text-xs font-semibold rounded-lg hover:bg-surface-elevated text-text-muted hover:text-text-primary"
+                className="w-full text-left px-2 py-2 text-xs font-medium rounded-lg hover:bg-surface-elevated text-text-muted hover:text-text-primary"
               >
                 Atualizar Yahoo Finance
               </button>

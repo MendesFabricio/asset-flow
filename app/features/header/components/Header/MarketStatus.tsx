@@ -41,7 +41,7 @@ export function MarketStatus({ minimal = false }: MarketStatusProps) {
             ? 'bg-status-success' 
             : 'bg-text-muted/50'
         }`} />
-        <span className="text-2xs font-semibold text-text-muted tracking-wider uppercase leading-none">
+        <span className="text-2xs font-medium text-text-muted tracking-wider uppercase leading-none">
           B3 · {isOpen ? 'Aberto' : 'Fechado'}
         </span>
       </div>
@@ -55,7 +55,7 @@ export function MarketStatus({ minimal = false }: MarketStatusProps) {
           ? 'bg-status-success' 
           : 'bg-text-muted/50'
       }`} />
-      <span className="text-2xs font-semibold text-text-muted tracking-wide uppercase leading-none">
+      <span className="text-2xs font-medium text-text-muted tracking-wide uppercase leading-none">
         B3 · {isOpen ? 'Pregão Aberto' : 'Fechado'}
       </span>
     </div>

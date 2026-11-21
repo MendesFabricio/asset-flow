@@ -120,7 +120,7 @@ export function ToolsMenu({
         aria-label="Menu de ferramentas"
         aria-haspopup="menu"
         aria-expanded={isOpen}
-        className={`bg-surface-card hover:bg-surface-elevated text-text-primary px-3 py-2 rounded-lg transition-colors flex items-center gap-2 text-xs font-semibold border border-border-subtle ${
+        className={`bg-surface-card hover:bg-surface-elevated text-text-primary px-3 py-2 rounded-lg transition-colors flex items-center gap-2 text-xs font-medium border border-border-subtle ${
           isSyncActive ? 'border-accent/50' : ''
         }`}
       >
@@ -141,7 +141,7 @@ export function ToolsMenu({
             <div>
               <div className="flex items-center gap-1.5 px-1.5 mb-1.5">
                 <Briefcase size={10} className="text-text-muted" />
-                <span className="text-2xs font-semibold text-text-muted uppercase tracking-wider">Gestão de Carteira</span>
+                <span className="text-2xs font-medium text-text-muted uppercase tracking-wider">Gestão de Carteira</span>
               </div>
               <div className="space-y-1">
                 <button
@@ -155,7 +155,7 @@ export function ToolsMenu({
                 >
                   <RefreshCw size={14} className={`${(loading || isRefetching) ? 'animate-spin text-accent' : 'text-accent'} ${showRefreshSuccess ? 'text-status-success' : ''}`} />
                   <div>
-                    <p className="font-semibold">Recarregar Carteira</p>
+                    <p className="font-medium">Recarregar Carteira</p>
                     <p className="text-2xs text-text-muted">Recalcular preços e cotações ativas</p>
                   </div>
                 </button>
@@ -170,10 +170,7 @@ export function ToolsMenu({
                 >
                   <FileText size={14} className="text-accent" />
                   <div>
-                    <p className="font-semibold flex items-center gap-1.5">
-                      <span className="whitespace-nowrap">Importação de Notas (B3)</span>
-                      <span className="px-1.5 py-0.5 bg-accent/15 border border-accent/30 text-2xs text-accent rounded-md font-semibold uppercase shrink-0">Novo</span>
-                    </p>
+                    <p className="font-medium">Importação de Notas (B3)</p>
                     <p className="text-2xs text-text-muted">Leitor OCR SINACOR & Conciliação B3</p>
                   </div>
                 </button>
@@ -193,7 +190,7 @@ export function ToolsMenu({
                 >
                   <Download size={14} className="text-status-success" />
                   <div>
-                    <p className="font-semibold">Exportar Posições (CSV)</p>
+                    <p className="font-medium">Exportar Posições (CSV)</p>
                     <p className="text-2xs text-text-muted">Valor investido, atual, qtd e % da carteira</p>
                   </div>
                 </button>
@@ -208,7 +205,7 @@ export function ToolsMenu({
                 >
                   <Database size={14} className="text-accent" />
                   <div>
-                    <p className="font-semibold">Exportar Histórico Tratado (JSON)</p>
+                    <p className="font-medium">Exportar Histórico Tratado (JSON)</p>
                     <p className="text-2xs text-text-muted">Transações, eventos corporativos e proventos</p>
                   </div>
                 </button>
@@ -224,10 +221,7 @@ export function ToolsMenu({
                   >
                     <Layers size={14} className="text-accent" />
                     <div>
-                      <p className="font-semibold flex items-center gap-1.5">
-                        <span>Eventos Corporativos</span>
-                        <span className="px-1.5 py-0.5 bg-purple-500/10 border border-purple-500/20 text-2xs text-accent rounded-md font-semibold uppercase">Novo</span>
-                      </p>
+                      <p className="font-medium">Eventos Corporativos</p>
                       <p className="text-2xs text-text-muted">Splits, Inplits, Bonificações e Incorporações</p>
                     </div>
                   </button>
@@ -241,7 +235,7 @@ export function ToolsMenu({
             <div>
               <div className="flex items-center gap-1.5 px-1.5 mb-1.5">
                 <TrendingUp size={10} className="text-text-muted" />
-                <span className="text-2xs font-semibold text-text-muted uppercase tracking-wider">Inteligência Financeira</span>
+                <span className="text-2xs font-medium text-text-muted uppercase tracking-wider">Inteligência Financeira</span>
               </div>
               <div className="space-y-1">
                 <Link
@@ -251,7 +245,7 @@ export function ToolsMenu({
                 >
                   <Calendar size={14} className="text-accent" />
                   <div>
-                    <p className="font-semibold">Proventos & Renda Passiva</p>
+                    <p className="font-medium">Proventos & Renda Passiva</p>
                     <p className="text-2xs text-text-muted">Histórico de dividendos e yield futuro</p>
                   </div>
                 </Link>
@@ -263,7 +257,7 @@ export function ToolsMenu({
                 >
                   <FileText size={14} className="text-status-error" />
                   <div>
-                    <p className="font-semibold">Imposto de Renda (DARF)</p>
+                    <p className="font-medium">Imposto de Renda (DARF)</p>
                     <p className="text-2xs text-text-muted">Gestão de DARF e IRPF Anual</p>
                   </div>
                 </Link>
@@ -279,7 +273,7 @@ export function ToolsMenu({
                 >
                   <TrendingUp size={14} className="text-status-warning" />
                   <div>
-                    <p className="font-semibold">Otimização de Aportes</p>
+                    <p className="font-medium">Otimização de Aportes</p>
                     <p className="text-2xs text-text-muted">Alocação inteligente baseada em Markowitz</p>
                   </div>
                 </button>
@@ -292,7 +286,7 @@ export function ToolsMenu({
             <div>
               <div className="flex items-center gap-1.5 px-1.5 mb-1.5">
                 <Settings size={10} className="text-text-muted" />
-                <span className="text-2xs font-semibold text-text-muted uppercase tracking-wider">Sincronizadores</span>
+                <span className="text-2xs font-medium text-text-muted uppercase tracking-wider">Sincronizadores</span>
               </div>
               <div className="space-y-1">
                 <button
@@ -306,7 +300,7 @@ export function ToolsMenu({
                 >
                   <Layers size={14} className={syncingReports ? 'animate-spin text-accent' : 'text-accent'} />
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold flex items-center justify-between">
+                    <p className="font-medium flex items-center justify-between">
                       <span>CVM (FNET Sync)</span>
                       {syncingReports && <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />}
                     </p>

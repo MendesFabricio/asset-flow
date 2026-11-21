@@ -7,9 +7,10 @@ interface PortfolioSummaryProps {
   total: number;
   ativos: Asset[];
   money: (val: number) => string;
+  loading?: boolean;
 }
 
-export function PortfolioSummary({ total, ativos, money }: PortfolioSummaryProps) {
+export function PortfolioSummary({ total, ativos, money, loading = false }: PortfolioSummaryProps) {
   const { isHidden } = usePrivacy() as { isHidden: boolean };
 
   const hasAssets = ativos && ativos.length > 0;
@@ -25,18 +26,23 @@ export function PortfolioSummary({ total, ativos, money }: PortfolioSummaryProps
   return (
     <div className="hidden md:flex items-center border-l border-border-subtle pl-4 ml-2 select-none">
       <div className="text-right min-w-[140px]">
-        <p className="text-2xs text-text-muted uppercase font-semibold tracking-wider leading-none">Patrimônio Líquido</p>
+        <p className="text-2xs text-text-muted uppercase font-medium tracking-wider leading-none">Patrimônio Líquido</p>
         
-        {total === 0 ? (
-          <p className="text-xs text-text-muted font-medium leading-tight mt-1.5">Sem ativos cadastrados</p>
+        {loading ? (
+          <div className="mt-1.5 space-y-1 animate-pulse">
+            <div className="h-5 w-28 bg-surface-input rounded ml-auto" />
+            <div className="h-2.5 w-20 bg-surface-input rounded ml-auto" />
+          </div>
+        ) : total === 0 && !hasAssets ? (
+          <p className="text-xs text-text-muted font-normal leading-tight mt-1.5">Sem ativos cadastrados</p>
         ) : (
           <>
-            <p className="text-base font-semibold text-text-primary leading-tight mt-1 font-mono tabular-nums">
+            <p className="text-2xl font-semibold text-text-primary leading-tight mt-0.5 tabular-nums">
               {isHidden ? '••••••' : money(total)}
             </p>
             
             {hasAssets && !isHidden && (
-              <div className={`text-2xs font-semibold mt-1 flex items-center justify-end gap-1 leading-none font-mono tabular-nums ${
+              <div className={`text-2xs font-medium mt-0.5 flex items-center justify-end gap-1 leading-none tabular-nums ${
                 isPositive ? 'text-status-success' : 'text-status-error'
               }`}>
                 <span>{isPositive ? '▲' : '▼'}</span>

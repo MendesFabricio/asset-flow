@@ -6,6 +6,7 @@ import {
   ChevronDown, User, Settings, LogOut, Eye, EyeOff
 } from 'lucide-react';
 import { usePrivacy } from '@/context/PrivacyContext';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 interface UserMenuProps {
   showName?: boolean;
@@ -66,9 +67,9 @@ export function UserMenu({ showName = false }: UserMenuProps) {
         aria-label="Menu do usuário"
         aria-haspopup="menu"
         aria-expanded={isOpen}
-        className="flex items-center gap-1.5 bg-surface-card hover:bg-surface-elevated border border-border-subtle p-1.5 rounded-lg transition-colors text-xs font-semibold text-text-primary"
+        className="flex items-center gap-1.5 bg-surface-card hover:bg-surface-elevated border border-border-subtle p-1.5 rounded-lg transition-colors text-xs font-medium text-text-primary"
       >
-        <div className="w-5 h-5 rounded-full bg-surface-input border border-border-subtle text-text-primary flex items-center justify-center font-semibold text-2xs">
+        <div className="w-5 h-5 rounded-full bg-surface-input border border-border-subtle text-text-primary flex items-center justify-center font-medium text-2xs">
           {initials}
         </div>
         {showName && <span className="hidden sm:inline">{username || 'Investidor'}</span>}
@@ -76,10 +77,10 @@ export function UserMenu({ showName = false }: UserMenuProps) {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-52 bg-surface-card border border-border-subtle rounded-xl shadow-lg p-2.5 z-50">
+        <div className="absolute right-0 mt-2 w-56 bg-surface-card border border-border-subtle rounded-xl shadow-lg p-2.5 z-50">
           {/* USER INFO */}
           <div className="px-2.5 py-2 border-b border-border-subtle mb-1.5 flex flex-col min-w-0">
-            <p className="text-2xs text-text-muted font-semibold uppercase tracking-wider leading-none">Conta Ativa</p>
+            <p className="text-2xs text-text-muted font-medium uppercase tracking-wider leading-none">Conta Ativa</p>
             <p className="text-xs text-text-primary font-semibold truncate mt-1">{username || 'Investidor'}</p>
           </div>
 
@@ -113,7 +114,10 @@ export function UserMenu({ showName = false }: UserMenuProps) {
             <span>Avançado</span>
           </Link>
 
-
+          <div className="flex items-center justify-between px-2.5 py-1.5 text-xs text-text-muted">
+            <span>Tema</span>
+            <ThemeToggle />
+          </div>
 
           <div className="h-px bg-border-subtle my-1" />
 

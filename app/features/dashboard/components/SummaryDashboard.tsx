@@ -4,7 +4,7 @@ import dynamic from 'next/dynamic';
 import { memo } from 'react';
 import { BarChart3, Percent, PiggyBank, Target } from 'lucide-react';
 import { StatCard } from '@/components/StatCard';
-import { RiskRadarSkeleton, CategorySummarySkeleton } from '@/components/ui/Skeletons';
+import { RiskRadarSkeleton, CategorySummarySkeleton, StatCardsSkeleton } from '@/components/ui/Skeletons';
 import { formatMoney } from '@/lib/format';
 import { Asset } from '@/types';
 
@@ -33,6 +33,7 @@ interface SummaryDashboardProps {
   categorias: { name: string; meta: number }[];
   onOpenRadar: () => void;
   onUpdate: () => void;
+  loading?: boolean;
 }
 
 export const SummaryDashboard = memo(function SummaryDashboard({
@@ -42,6 +43,7 @@ export const SummaryDashboard = memo(function SummaryDashboard({
   categorias,
   onOpenRadar,
   onUpdate,
+  loading = false,
 }: SummaryDashboardProps) {
   const top = metrics.topCompras[0];
   const totalDividendsPaid = ativos.reduce((acc, a) => acc + (a.dividendos_recebidos ?? 0), 0);
@@ -58,6 +60,9 @@ export const SummaryDashboard = memo(function SummaryDashboard({
 
   return (
     <div className="flex flex-col gap-4">
+      {loading ? (
+        <StatCardsSkeleton />
+      ) : (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Yield on Cost Médio"
@@ -91,6 +96,7 @@ export const SummaryDashboard = memo(function SummaryDashboard({
           marquee={top ? top.motivo : undefined}
         />
       </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:min-h-[420px]">
         <div className="h-full w-full">
