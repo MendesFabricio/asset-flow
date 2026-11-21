@@ -133,7 +133,7 @@ class Dividend(Base):
 
     __table_args__ = (
         Index('idx_dividends_asset_date_com', 'asset_id', 'date_com'),
-        UniqueConstraint('user_id', 'asset_id', 'date_payment', 'type', 'total_value', name='_dividend_unique_uc'),
+        UniqueConstraint('user_id', 'asset_id', 'date_com', 'date_payment', 'type', 'total_value', name='_dividend_unique_uc'),
     )
 
 class PortfolioSnapshot(Base):

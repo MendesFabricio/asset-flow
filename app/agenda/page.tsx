@@ -22,6 +22,10 @@ import { useChartPalette } from '../lib/chartPalette';
 interface Evento {
   ticker: string;
   date: string;
+  date_com?: string;
+  date_payment?: string;
+  type?: string;
+  quantity?: number;
   total: number;
   status: string;
   value_per_share: number;
@@ -130,16 +134,21 @@ export default function ProventosPage() {
     const paddedMonth = String(currentMonth + 1).padStart(2, '0');
     const paddedDay = String(day).padStart(2, '0');
     const dateKey = `${currentYear}-${paddedMonth}-${paddedDay}`;
-    
-    // Procura na agenda futura
-    const futureMatches = events.filter(e => e.date === dateKey);
-    // Procura no histórico (extrato real)
-    const historyMatches = history.filter(h => h.date === dateKey);
-    
-    return [
-      ...futureMatches.map(f => ({ ...f, type: 'future' })),
-      ...historyMatches.map(h => ({ ...h, type: 'past' }))
+
+    const futureMatches = events.filter(e => (e.date_payment || e.date) === dateKey);
+    const historyMatches = history.filter(h => (h.date_payment || h.date) === dateKey);
+
+    const combined = [
+      ...historyMatches.map(h => ({ ...h, sourceType: 'past' as const })),
+      ...futureMatches.map(f => ({ ...f, sourceType: 'future' as const })),
     ];
+    const seen = new Set<string>();
+    return combined.filter(ev => {
+      const k = `${ev.ticker}|${ev.date_com || ev.date}|${ev.date_payment || ev.date}|${Number(ev.total || 0).toFixed(2)}`;
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
   };
 
   const handlePrevMonth = () => {
@@ -348,21 +357,45 @@ export default function ProventosPage() {
                       ) : (
                         events
                           .filter(e => {
-                            const [y, m] = e.date.split('-');
+                            const eff = e.date_payment || e.date;
+                            const [y, m] = eff.split('-');
                             return parseInt(y) === currentYear && parseInt(m) === (currentMonth + 1);
                           })
-                          .map((evt, idx) => (
-                            <div key={idx} className="p-3 bg-slate-900/60 border border-slate-800 rounded-xl flex items-center justify-between">
-                              <div>
-                                <span className="text-xs font-bold text-white block">{evt.ticker}</span>
-                                <span className="text-[9px] text-slate-500 font-mono">Data-COM: {evt.date.split('-').reverse().join('/')}</span>
+                          .map((evt, idx) => {
+                            const payFmt = (evt.date_payment || evt.date).split('-').reverse().join('/');
+                            const comFmt = (evt.date_com || evt.date).split('-').reverse().join('/');
+                            const isPaid = evt.status === 'PAGO';
+                            return (
+                              <div key={idx} className="p-3 bg-slate-900/60 border border-slate-800 rounded-xl flex items-center justify-between gap-3">
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-bold text-white">{evt.ticker}</span>
+                                    {evt.type && (
+                                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-surface border border-border-subtle text-slate-300">
+                                        {evt.type}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="text-[9px] text-slate-400 font-mono block mt-0.5">
+                                    Pgto: {payFmt} · Com: {comFmt}
+                                  </span>
+                                  {evt.quantity ? (
+                                    <span className="text-[9px] text-slate-500 font-mono block">
+                                      {evt.quantity} un. × R$ {Number(evt.value_per_share || 0).toFixed(4)}
+                                    </span>
+                                  ) : null}
+                                </div>
+                                <div className="text-right shrink-0">
+                                  <span className={`text-xs font-mono font-bold block ${isPaid ? 'text-emerald-400' : 'text-amber-400'}`}>
+                                    {money(evt.total)}
+                                  </span>
+                                  <span className={`text-[8px] font-black uppercase tracking-wide block ${isPaid ? 'text-emerald-500/80' : 'text-amber-400'}`}>
+                                    {evt.status}
+                                  </span>
+                                </div>
                               </div>
-                              <div className="text-right">
-                                <span className="text-xs font-mono font-bold text-emerald-400 block">{money(evt.total)}</span>
-                                <span className="text-[8px] font-black text-slate-500 uppercase tracking-wide block">{evt.status}</span>
-                              </div>
-                            </div>
-                          ))
+                            );
+                          })
                       )}
                     </div>
                   </div>
@@ -520,7 +553,13 @@ export default function ProventosPage() {
             {activeTab === 'extrato' && (
               <div className="space-y-8">
                 {['A RECEBER', 'PAGO'].map(statusFilter => {
-                  const items = history.filter(d => d.status === statusFilter);
+                  const items = history
+                    .filter(d => d.status === statusFilter)
+                    .sort((a, b) => {
+                      const da = a.date_payment || a.date || '';
+                      const db = b.date_payment || b.date || '';
+                      return statusFilter === 'A RECEBER' ? da.localeCompare(db) : db.localeCompare(da);
+                    });
                   if (items.length === 0) return null;
 
                   return (
@@ -529,33 +568,53 @@ export default function ProventosPage() {
                         statusFilter === 'PAGO' ? 'text-emerald-500' : 'text-amber-500'
                       }`}>
                         <div className={`w-1.5 h-1.5 rounded-full ${statusFilter === 'PAGO' ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`} />
-                        {statusFilter === 'PAGO' ? 'Liquidados (Em Conta)' : 'Provisionados (Aguardando)'}
+                        {statusFilter === 'PAGO' ? `Liquidados (Em Conta) — ${items.length}` : `Provisionados / Anunciados (Aguardando) — ${items.length}`}
                       </h3>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {items.map((div, i) => (
-                          <div key={i} className="flex items-center justify-between p-4 bg-slate-900/60 border border-slate-800 rounded-xl">
-                            <div className="flex items-center gap-4">
-                              <div className="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 border border-emerald-500/20">
-                                <CalendarCheck size={16} />
+                        {items.map((div, i) => {
+                          const payFmt = (div.date_payment || div.date || '').split('-').reverse().join('/');
+                          const comFmt = (div.date_com || div.date || '').split('-').reverse().join('/');
+                          return (
+                            <div key={i} className="flex items-center justify-between p-4 bg-slate-900/60 border border-slate-800 rounded-xl gap-3">
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
+                                  statusFilter === 'PAGO'
+                                    ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
+                                    : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                                }`}>
+                                  <CalendarCheck size={16} />
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-bold text-white text-base">{div.ticker}</span>
+                                    {div.type && (
+                                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-surface border border-border-subtle text-slate-300">
+                                        {div.type}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-[10px] text-slate-400 font-mono uppercase">
+                                    Pgto: {payFmt} · Data-Com: {comFmt}
+                                  </p>
+                                  {div.quantity ? (
+                                    <p className="text-[9px] text-slate-500 font-mono">
+                                      {div.quantity} un. · R$ {Number(div.value_per_share || 0).toFixed(4)}/cota
+                                    </p>
+                                  ) : null}
+                                </div>
                               </div>
-                              <div>
-                                <span className="font-bold text-white text-base">{div.ticker}</span>
-                                <p className="text-[10px] text-slate-500 font-mono uppercase">
-                                  Data-Com: {div.date.split('-').reverse().join('/')}
+                              <div className="text-right shrink-0">
+                                <p className={`font-mono font-bold text-base ${statusFilter === 'PAGO' ? 'text-emerald-400' : 'text-amber-300'}`}>
+                                  {money(div.total)}
                                 </p>
+                                <span className="text-[8px] text-slate-500 font-bold uppercase block">
+                                  {statusFilter === 'PAGO' ? 'Confirmado' : 'A Receber'}
+                                </span>
                               </div>
                             </div>
-                            <div className="text-right">
-                              <p className={`font-mono font-bold text-base ${statusFilter === 'PAGO' ? 'text-emerald-400' : 'text-slate-300'}`}>
-                                {money(div.total)}
-                              </p>
-                              <span className="text-[8px] text-slate-500 font-bold uppercase block">
-                                {statusFilter === 'PAGO' ? 'Confirmado' : 'Aguardando'}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   );

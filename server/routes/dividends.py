@@ -1,4 +1,5 @@
 from flask import Blueprint, jsonify, g, request
+from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 from db.models import Dividend, Asset, Session, get_active_positions # ⚡ Importada a factory controlada thread-safe
 import logging
@@ -86,20 +87,23 @@ def get_dividend_history():
                 session.query(Dividend)
                 .options(joinedload(Dividend.asset))
                 .filter_by(user_id=g.user_id)
-                .order_by(Dividend.date_com.desc())
+                .order_by(func.coalesce(Dividend.date_payment, Dividend.date_com).desc(), Dividend.id.desc())
                 .all()
             )
-            
+
             results = []
             for div in history:
+                eff_date = div.date_payment or div.date_com
                 results.append({
                     "ticker": div.asset.ticker if div.asset else "UNKNOWN",
-                    "date": div.date_com.strftime('%Y-%m-%d') if div.date_com else None, 
-                    "date_com": div.date_com.strftime('%Y-%m-%d') if div.date_com else None, 
-                    "value_per_share": div.value_per_share,
-                    "quantity": div.quantity_at_date,
-                    "total": div.total_value,
-                    "status": div.status 
+                    "date": eff_date.strftime('%Y-%m-%d') if eff_date else None,
+                    "date_com": div.date_com.strftime('%Y-%m-%d') if div.date_com else None,
+                    "date_payment": eff_date.strftime('%Y-%m-%d') if eff_date else None,
+                    "type": div.type or "Dividendo",
+                    "value_per_share": float(div.value_per_share or 0),
+                    "quantity": float(div.quantity_at_date or 0),
+                    "total": float(div.total_value or 0),
+                    "status": div.status,
                 })
             return jsonify(results)
         except Exception as e:
@@ -304,11 +308,14 @@ def get_dividend_seasonality():
             matrix = {}
             
             for d in divs:
-                if d.date_com:
-                    yr = d.date_com.year
-                    mo = d.date_com.month
+                if d.status != "PAGO":
+                    continue
+                eff_dt = d.date_payment or d.date_com
+                if eff_dt:
+                    yr = eff_dt.year
+                    mo = eff_dt.month
                     val = float(d.total_value)
-                    
+
                     if yr not in matrix:
                         matrix[yr] = {m: 0.0 for m in range(1, 13)}
                     matrix[yr][mo] += val
