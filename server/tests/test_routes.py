@@ -56,3 +56,41 @@ def test_delete_transaction_endpoint(client):
         assert response.status_code == 200
         data = response.get_json()
         assert data["status"] == "Sucesso"
+
+
+def test_scheduler_jobs_list_and_validation(client):
+    from db.models import ScheduledJob, safe_commit
+    from db.session import Session
+
+    with Session() as s:
+        job = s.query(ScheduledJob).first()
+        if not job:
+            job = ScheduledJob(
+                name="scheduled_test_job",
+                description="Test job",
+                job_type="interval",
+                interval_minutes=15,
+                is_active=True,
+            )
+            s.add(job)
+            safe_commit(s)
+        job_id = job.id
+
+    res = client.get('/api/scheduler/jobs')
+    assert res.status_code == 200
+    payload = res.get_json()
+    assert payload["status"] == "Sucesso"
+    assert "worker" in payload
+    assert any("next_run_at" in j for j in payload["data"])
+
+    bad_cron = client.put(f'/api/scheduler/jobs/{job_id}', json={
+        "job_type": "cron",
+        "cron_expression": "invalid cron",
+    })
+    assert bad_cron.status_code == 400
+
+    bad_int = client.put(f'/api/scheduler/jobs/{job_id}', json={
+        "job_type": "interval",
+        "interval_minutes": 0,
+    })
+    assert bad_int.status_code == 400

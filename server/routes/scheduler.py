@@ -1,18 +1,62 @@
 # server/routes/scheduler.py
+from datetime import datetime, timedelta
+import logging
+import os
+import time
+from apscheduler.triggers.cron import CronTrigger
 from flask import Blueprint, jsonify, request, g
 from db.models import Session, ScheduledJob, safe_commit
-from datetime import datetime
-import logging
 
 scheduler_bp = Blueprint('scheduler', __name__)
+
+
+def _get_worker_health() -> dict:
+    hb_path = os.environ.get("WORKER_HEARTBEAT_PATH", "/app/data/worker_heartbeat.txt")
+    if not os.path.exists(hb_path):
+        return {"online": False, "last_heartbeat": None, "age_seconds": None}
+    try:
+        with open(hb_path, "r") as f:
+            ts = float(f.read().strip())
+        age = max(0, int(time.time() - ts))
+        return {
+            "online": age < 90,
+            "last_heartbeat": datetime.fromtimestamp(ts).isoformat(),
+            "age_seconds": age,
+        }
+    except Exception:
+        return {"online": False, "last_heartbeat": None, "age_seconds": None}
+
+
+def _compute_next_run(job: ScheduledJob, now: datetime) -> str | None:
+    if not job.is_active:
+        return None
+    try:
+        if job.job_type == "cron" and job.cron_expression:
+            trigger = CronTrigger.from_crontab(job.cron_expression)
+            nxt = trigger.get_next_fire_time(None, now.astimezone())
+            return nxt.replace(tzinfo=None).isoformat() if nxt else None
+        if job.job_type == "interval" and job.interval_minutes:
+            delta = timedelta(minutes=int(job.interval_minutes))
+            if job.last_run_at:
+                nxt = job.last_run_at + delta
+                if nxt < now:
+                    nxt = now + timedelta(minutes=1)
+                return nxt.isoformat()
+            return (now + delta).isoformat()
+    except Exception:
+        return None
+    return None
+
 
 @scheduler_bp.route('/jobs', methods=['GET'])
 def list_jobs():
     with Session() as session:
         try:
+            now = datetime.now()
             jobs = session.query(ScheduledJob).order_by(ScheduledJob.name).all()
             return jsonify({
                 "status": "Sucesso",
+                "worker": _get_worker_health(),
                 "data": [{
                     "id": j.id,
                     "name": j.name,
@@ -22,6 +66,7 @@ def list_jobs():
                     "interval_minutes": j.interval_minutes,
                     "is_active": j.is_active,
                     "last_run_at": j.last_run_at.isoformat() if j.last_run_at else None,
+                    "next_run_at": _compute_next_run(j, now),
                     # Apresenta "running" para o frontend se o status interno for "pending_manual"
                     "last_run_status": "running" if j.last_run_status == "pending_manual" else j.last_run_status,
                     "last_run_message": j.last_run_message,
@@ -33,6 +78,7 @@ def list_jobs():
             logging.error(f"❌ Erro ao listar jobs: {e}", exc_info=True)
             return jsonify({"status": "Erro", "msg": str(e)}), 500
 
+
 @scheduler_bp.route('/jobs/<int:job_id>/toggle', methods=['POST'])
 def toggle_job(job_id):
     with Session() as session:
@@ -40,11 +86,11 @@ def toggle_job(job_id):
             job = session.query(ScheduledJob).filter_by(id=job_id).first()
             if not job:
                 return jsonify({"status": "Erro", "msg": "Job não encontrado"}), 404
-            
+
             job.is_active = not job.is_active
             job.updated_at = datetime.now()
             safe_commit(session)
-            
+
             status = "ativado" if job.is_active else "desativado"
             logging.info(f"🔧 Job {job.name} {status} por usuário {g.user_id}")
             return jsonify({
@@ -56,6 +102,7 @@ def toggle_job(job_id):
             logging.error(f"❌ Erro ao toggle job {job_id}: {e}", exc_info=True)
             return jsonify({"status": "Erro", "msg": str(e)}), 500
 
+
 @scheduler_bp.route('/jobs/<int:job_id>', methods=['PUT'])
 def update_job(job_id):
     with Session() as session:
@@ -63,21 +110,41 @@ def update_job(job_id):
             job = session.query(ScheduledJob).filter_by(id=job_id).first()
             if not job:
                 return jsonify({"status": "Erro", "msg": "Job não encontrado"}), 404
-            
-            data = request.get_json() or {}
-            
-            if 'cron_expression' in data:
-                job.cron_expression = data['cron_expression']
+
+            data = request.get_json(silent=True) or {}
+            req_type = str(data.get("job_type") or "").strip().lower()
+
+            if req_type in ("cron", "interval"):
+                job.job_type = req_type
+
+            if 'cron_expression' in data and (job.job_type == 'cron' or 'interval_minutes' not in data):
+                expr = str(data['cron_expression'] or "").strip()
+                try:
+                    CronTrigger.from_crontab(expr)
+                except Exception:
+                    return jsonify({
+                        "status": "Erro",
+                        "msg": f"Expressão cron inválida: '{expr}'. Use 5 campos (ex: 0 8 * * *).",
+                    }), 400
+                job.cron_expression = expr
                 job.job_type = 'cron'
-            if 'interval_minutes' in data:
-                job.interval_minutes = int(data['interval_minutes'])
+
+            if 'interval_minutes' in data and (job.job_type == 'interval' or 'cron_expression' not in data):
+                try:
+                    mins = int(data['interval_minutes'])
+                except (TypeError, ValueError):
+                    return jsonify({"status": "Erro", "msg": "Intervalo em minutos deve ser um número inteiro."}), 400
+                if mins < 1:
+                    return jsonify({"status": "Erro", "msg": "Intervalo mínimo é de 1 minuto."}), 400
+                job.interval_minutes = mins
                 job.job_type = 'interval'
+
             if 'is_active' in data:
                 job.is_active = bool(data['is_active'])
-            
+
             job.updated_at = datetime.now()
             safe_commit(session)
-            
+
             logging.info(f"🔧 Job {job.name} atualizado por usuário {g.user_id}")
             return jsonify({
                 "status": "Sucesso",
@@ -90,8 +157,10 @@ def update_job(job_id):
                 }
             })
         except Exception as e:
+            session.rollback()
             logging.error(f"❌ Erro ao atualizar job {job_id}: {e}", exc_info=True)
             return jsonify({"status": "Erro", "msg": str(e)}), 500
+
 
 @scheduler_bp.route('/jobs/<int:job_id>/run', methods=['POST'])
 def run_job(job_id):
@@ -100,14 +169,14 @@ def run_job(job_id):
             job = session.query(ScheduledJob).filter_by(id=job_id).first()
             if not job:
                 return jsonify({"status": "Erro", "msg": "Job não encontrado"}), 404
-            
+
             # Sinaliza ao worker que uma execução manual foi solicitada
             job.last_run_at = datetime.now()
             job.last_run_status = "pending_manual"
             job.last_run_message = "Execução manual solicitada..."
             job.updated_at = datetime.now()
             safe_commit(session)
-            
+
             logging.info(f"▶️ Job {job.name} executado manualmente por usuário {g.user_id}")
             return jsonify({
                 "status": "Sucesso",

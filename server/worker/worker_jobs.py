@@ -212,46 +212,82 @@ def _do_fundamentals_and_reports():
         logging.error(f"❌ [AUTO] Falha na sincronização automática de relatórios/fundamentos: {e}", exc_info=True)
 
 
+def scheduled_database_backup():
+    _run_with_tracking("scheduled_database_backup", _do_database_backup)
+
+
+def _do_database_backup():
+    from db.models.system import prune_expired_system_cache
+    logging.info("💾 JOB DIÁRIO: Executando backup do banco SQLite e limpeza de cache expirado...")
+    service._backup_database()
+    prune_expired_system_cache(max_age_days=7)
+
+
+def scheduled_news_summary_warm():
+    _run_with_tracking("scheduled_news_summary_warm", _do_news_summary_warm)
+
+
+def _do_news_summary_warm():
+    from flask import Flask, g
+    from db.models import Session as DBSession, User
+    from routes.news import get_daily_sector_summary
+
+    logging.info("📰 JOB 07:30: Pré-aquecendo resumo diário de notícias IA...")
+    tmp_app = Flask(__name__)
+    with DBSession() as session:
+        user_ids = [r[0] for r in session.query(User.id).all()]
+    for uid in user_ids or [1]:
+        with tmp_app.test_request_context('/api/news/daily-summary'):
+            g.user_id = uid
+            get_daily_sector_summary()
+
+
 JOB_REGISTRY = {
     "scheduled_update_indices": {
         "func": scheduled_update_indices,
-        "description": "Atualiza índices de mercado e verifica alertas de preço",
+        "description": "Atualiza índices (IBOV, IFIX, Dólar) e verifica alertas de preço",
         "default_type": "interval",
         "default_interval": 5,
     },
     "scheduled_update_prices": {
         "func": scheduled_update_prices,
-        "description": "Atualiza preços de ativos",
+        "description": "Atualiza cotações de mercado de todos os ativos da carteira",
         "default_type": "interval",
         "default_interval": 10,
     },
     "scheduled_daily_snapshot": {
         "func": scheduled_daily_snapshot,
-        "description": "Salva snapshot diário do portfólio e atualiza mês corrente (a cada 4h)",
+        "description": "Salva snapshot diário do portfólio, sinais e evolução mensal",
         "default_type": "interval",
         "default_interval": 240,
     },
     "scheduled_quant_warm": {
         "func": scheduled_quant_warm,
-        "description": "Pré-aquece cache quantitativo: USD rate, Monte Carlo, correlação, risco, fronteira eficiente",
+        "description": "Pré-aquece cache quantitativo: USD rate, Monte Carlo, correlação, risco e fronteira eficiente",
         "default_type": "interval",
         "default_interval": 60,
     },
     "scheduled_dividends_check": {
         "func": scheduled_dividends_check,
-        "description": "Registra dividendos confirmados do dia",
+        "description": "Sincroniza proventos confirmados e envia alertas de novos anúncios e Data-Com",
         "default_type": "cron",
-        "default_cron": "0 8 * * *",
+        "default_cron": "0 8,19 * * *",
     },
     "scheduled_morning_brief_generation": {
         "func": scheduled_morning_brief_generation,
-        "description": "Gera Morning Briefing proativo",
+        "description": "Gera Morning Briefing diário com IA para a carteira",
         "default_type": "cron",
         "default_cron": "0 7 * * *",
     },
+    "scheduled_news_summary_warm": {
+        "func": scheduled_news_summary_warm,
+        "description": "Pré-aquece resumo diário de notícias por setor (Ações, FIIs e Cripto)",
+        "default_type": "cron",
+        "default_cron": "30 7 * * *",
+    },
     "scheduled_daily_sentiment_analysis": {
         "func": scheduled_daily_sentiment_analysis,
-        "description": "Atualiza IA Sentiment automático de todos os ativos da carteira (checa a cada 6h ativos pendentes ou >20h)",
+        "description": "Atualiza IA Sentiment automático de todos os ativos da carteira (a cada 6h)",
         "default_type": "interval",
         "default_interval": 360,
     },
@@ -263,8 +299,14 @@ JOB_REGISTRY = {
     },
     "scheduled_fundamentals_and_reports": {
         "func": scheduled_fundamentals_and_reports,
-        "description": "Sincroniza automaticamente relatórios CVM/FNet e fundamentos (VPA, LPA, DY) a cada 12h",
+        "description": "Sincroniza relatórios CVM/FNet e fundamentos (VPA, LPA, DY) a cada 12h",
         "default_type": "interval",
         "default_interval": 720,
+    },
+    "scheduled_database_backup": {
+        "func": scheduled_database_backup,
+        "description": "Executa backup diário do banco SQLite e limpa caches expirados",
+        "default_type": "cron",
+        "default_cron": "30 23 * * *",
     },
 }
