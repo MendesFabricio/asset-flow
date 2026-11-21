@@ -70,7 +70,7 @@ export const Header = memo(({
           <ThemeToggle />
           <div className="hidden sm:block h-6 w-px bg-border-subtle" />
           <div className="hidden sm:flex flex-col justify-center leading-none">
-            <span className="text-[11px] font-bold text-text-primary tracking-wide uppercase">
+            <span className="text-2xs font-semibold text-text-primary tracking-wide uppercase">
               {username || 'Investidor'}
             </span>
             <div className="mt-1">
@@ -135,11 +135,11 @@ export const Header = memo(({
 
       {/* MOBILE DRAWER */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-t border-border-subtle bg-surface p-4 space-y-4 animate-in slide-in-from-top-3 duration-250 z-40">
+        <div className="md:hidden border-t border-border-subtle bg-surface p-4 space-y-4 z-40">
           
           {/* Status do Pregão */}
           <div className="flex justify-between items-center">
-            <span className="text-[11px] uppercase font-bold text-text-muted">Status Mercado</span>
+            <span className="text-2xs uppercase font-semibold text-text-muted">Status Mercado</span>
             <MarketStatus />
           </div>
 
@@ -147,7 +147,7 @@ export const Header = memo(({
 
           {/* Ferramentas e Configurações */}
           <div className="flex flex-col gap-2">
-            <span className="text-[11px] uppercase font-bold text-text-muted mb-1">Ações da Carteira</span>
+            <span className="text-2xs uppercase font-semibold text-text-muted mb-1">Ações da Carteira</span>
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
@@ -155,7 +155,7 @@ export const Header = memo(({
                   onOpenAddModal();
                   setMobileMenuOpen(false);
                 }}
-                className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 shadow-sm"
+                className="bg-accent hover:bg-accent/90 text-white text-xs font-semibold py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-colors"
               >
                 Novo Ativo
               </button>
@@ -166,7 +166,7 @@ export const Header = memo(({
                   setMobileMenuOpen(false);
                 }}
                 disabled={loading || isRefetching || showRefreshSuccess}
-                className="bg-surface-card border border-border-subtle text-text-primary text-xs font-bold py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 disabled:opacity-50"
+                className="bg-surface-card border border-border-subtle text-text-primary text-xs font-semibold py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 disabled:opacity-50"
               >
                 Recarregar Cotações
               </button>
@@ -177,12 +177,12 @@ export const Header = memo(({
 
           {/* Links adicionais */}
           <div className="flex flex-col gap-2">
-            <span className="text-[11px] uppercase font-bold text-text-muted mb-1">Análises & Sincronias</span>
+            <span className="text-2xs uppercase font-semibold text-text-muted mb-1">Análises & Sincronias</span>
             <div className="flex flex-col gap-1">
               <Link
                 href="/tax"
                 onClick={() => setMobileMenuOpen(false)}
-                className="w-full text-left px-2 py-2 text-xs font-bold rounded-lg hover:bg-surface-elevated text-text-muted hover:text-text-primary"
+                className="w-full text-left px-2 py-2 text-xs font-semibold rounded-lg hover:bg-surface-elevated text-text-muted hover:text-text-primary"
               >
                 Imposto de Renda (DARF)
               </Link>
@@ -192,7 +192,7 @@ export const Header = memo(({
                   onOpenSmartModal();
                   setMobileMenuOpen(false);
                 }}
-                className="w-full text-left px-2 py-2 text-xs font-bold rounded-lg hover:bg-surface-elevated text-text-muted hover:text-text-primary"
+                className="w-full text-left px-2 py-2 text-xs font-semibold rounded-lg hover:bg-surface-elevated text-text-muted hover:text-text-primary"
               >
                 Otimização de Aportes
               </button>
@@ -202,7 +202,7 @@ export const Header = memo(({
                   onSyncReports();
                   setMobileMenuOpen(false);
                 }}
-                className="w-full text-left px-2 py-2 text-xs font-bold rounded-lg hover:bg-surface-elevated text-text-muted hover:text-text-primary"
+                className="w-full text-left px-2 py-2 text-xs font-semibold rounded-lg hover:bg-surface-elevated text-text-muted hover:text-text-primary"
               >
                 Sincronizar CVM (FNET)
               </button>
@@ -212,7 +212,7 @@ export const Header = memo(({
                   onUpdateFundamentals();
                   setMobileMenuOpen(false);
                 }}
-                className="w-full text-left px-2 py-2 text-xs font-bold rounded-lg hover:bg-surface-elevated text-text-muted hover:text-text-primary"
+                className="w-full text-left px-2 py-2 text-xs font-semibold rounded-lg hover:bg-surface-elevated text-text-muted hover:text-text-primary"
               >
                 Atualizar Yahoo Finance
               </button>
