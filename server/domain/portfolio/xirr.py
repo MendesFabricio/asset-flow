@@ -124,8 +124,8 @@ def get_cdi_period_return(session, start_date: date, end_date: date) -> Tuple[fl
         try:
             payload = json.loads(cached.value)
             return float(payload["pct"]), "bcb_cache"
-        except Exception:
-            pass
+        except Exception as exc:
+            logging.debug(f"Cache CDI inválido (bcb_cache): {exc}")
 
     # BCB SGS série diária aceita janelas de até ~10 anos; ajusta start_date se exceder
     query_start = max(start_date, end_date - timedelta(days=3600))
@@ -161,8 +161,8 @@ def get_cdi_period_return(session, start_date: date, end_date: date) -> Tuple[fl
         try:
             payload = json.loads(cached.value)
             return float(payload["pct"]), "bcb_stale_cache"
-        except Exception:
-            pass
+        except Exception as exc:
+            logging.debug(f"Cache CDI inválido (bcb_stale_cache): {exc}")
 
     try:
         from domain.quant.helpers import get_risk_free_rate
@@ -222,8 +222,8 @@ def _current_portfolio_equity(session, user_id: int) -> float:
     try:
         from services import PortfolioService
         usd_rate = float(PortfolioService().get_usd_rate() or 5.5)
-    except Exception:
-        pass
+    except Exception as exc:
+        logging.debug(f"Fallback USD rate no equity atual: {exc}")
 
     total = 0.0
     for pos in positions:

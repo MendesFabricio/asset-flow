@@ -36,8 +36,8 @@ def get_correlation_matrix(session, fetch_prices, allow_compute=True) -> dict:
         if rec and (datetime.now() - rec.updated_at) < timedelta(hours=1):
             logging.info("📐 Retornando matriz de correlação do Cache...")
             return json.loads(rec.value)
-    except Exception:
-        pass
+    except Exception as exc:
+        logging.debug(f"Fallback leitura cache de correlação: {exc}")
 
     if not allow_compute:
         return {"status": "Erro", "msg": "Cache MISS and allow_compute is False."}
@@ -84,8 +84,8 @@ def get_correlation_matrix(session, fetch_prices, allow_compute=True) -> dict:
         rec.value = json.dumps(result)
         rec.updated_at = datetime.now()
         safe_commit(session)
-    except Exception:
-        pass
+    except Exception as exc:
+        logging.debug(f"Fallback gravação cache de correlação: {exc}")
 
     return result
 

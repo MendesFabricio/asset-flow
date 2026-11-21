@@ -115,9 +115,33 @@ export function useAssetData() {
       };
     };
 
-    connect();
+    const handleVisibilityChange = () => {
+      if (typeof document === 'undefined') return;
+      if (document.hidden) {
+        if (retryTimer) {
+          clearTimeout(retryTimer);
+          retryTimer = null;
+        }
+        if (eventSource) {
+          eventSource.close();
+          eventSource = null;
+        }
+      } else if (!eventSource) {
+        connect();
+      }
+    };
+
+    if (typeof document === 'undefined' || !document.hidden) {
+      connect();
+    }
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+    }
 
     return () => {
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      }
       if (retryTimer) clearTimeout(retryTimer);
       if (eventSource) eventSource.close();
     };

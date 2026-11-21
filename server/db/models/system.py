@@ -188,6 +188,39 @@ def get_sync_state_db(key: str) -> dict:
         finally:
             session.close()
 
+
+def get_sync_states_batch_db(
+    keys: tuple[str, ...] = ("cvm_sync", "yahoo_sync", "radar_sync")
+) -> dict[str, dict]:
+    default_state = {
+        "status": "idle",
+        "progress": 0,
+        "total": 0,
+        "message": "Sistema pronto.",
+    }
+    session = _local_session_factory()
+    try:
+        rows = session.query(SyncState).filter(SyncState.key.in_(keys)).all()
+        by_key = {
+            r.key: {
+                "status": r.status,
+                "progress": r.progress,
+                "total": r.total,
+                "message": r.message,
+            }
+            for r in rows
+        }
+        return {k: dict(by_key.get(k) or default_state) for k in keys}
+    except Exception as e:
+        session.rollback()
+        logging.error(f"❌ Erro ao buscar SyncState em lote no banco: {e}")
+        return {
+            k: {"status": "error", "progress": 0, "total": 0, "message": f"Erro: {e}"}
+            for k in keys
+        }
+    finally:
+        session.close()
+
 class DatabaseStateProxy:
     def __init__(self, key):
         self.key = key

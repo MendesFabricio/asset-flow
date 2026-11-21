@@ -45,6 +45,7 @@ from db.models import (
     ScheduledJob,
     update_sync_state_db,
     get_sync_state_db,
+    get_sync_states_batch_db,
     DatabaseStateProxy,
     init_db,
 )

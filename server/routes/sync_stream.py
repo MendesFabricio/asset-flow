@@ -8,7 +8,7 @@ import time
 import json
 import logging
 from flask import Blueprint, Response, stream_with_context
-from db.models import get_sync_state_db  # 💡 CORREÇÃO: Importando a função isolada segura
+from db.models import get_sync_states_batch_db
 
 sync_stream_bp = Blueprint('sync_stream', __name__)
 
@@ -29,11 +29,11 @@ def sync_stream():
         
         try:
             while time.monotonic() - start_time < MAX_DURATION:
-                # 💡 CORREÇÃO: Abre e fecha sessões instantaneamente evitando snapshots travados
-                cvm_sync = get_sync_state_db("cvm_sync")
-                yahoo_sync = get_sync_state_db("yahoo_sync")
-                radar_sync = get_sync_state_db("radar_sync")
-                
+                states = get_sync_states_batch_db(("cvm_sync", "yahoo_sync", "radar_sync"))
+                cvm_sync = states["cvm_sync"]
+                yahoo_sync = states["yahoo_sync"]
+                radar_sync = states["radar_sync"]
+
                 current_payload = {
                     "cvm_sync": cvm_sync,
                     "yahoo_sync": yahoo_sync,
@@ -77,13 +77,11 @@ def sync_stream():
 def get_sync_status():
     """Retorna o estado pontual de sincronia em JSON."""
     from flask import jsonify
-    cvm_sync = get_sync_state_db("cvm_sync")
-    yahoo_sync = get_sync_state_db("yahoo_sync")
-    radar_sync = get_sync_state_db("radar_sync")
+    states = get_sync_states_batch_db(("cvm_sync", "yahoo_sync", "radar_sync"))
     return jsonify({
         "status": "Sucesso",
         "message": "Estado de sincronia carregado com sucesso.",
-        "cvm_sync": cvm_sync,
-        "yahoo_sync": yahoo_sync,
-        "radar_sync": radar_sync,
+        "cvm_sync": states["cvm_sync"],
+        "yahoo_sync": states["yahoo_sync"],
+        "radar_sync": states["radar_sync"],
     })

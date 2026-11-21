@@ -431,7 +431,7 @@ def _collect_db_overrides(session, user_id: Optional[int] = None) -> dict[str, d
                                 pass
                     fund = rep.get("fundamentalist") or {}
                     seg = (fund.get("ticker_info") or {}).get("segmento")
-                    if seg and str(seg).strip() not in ("N/D", "N/A", "None"):
+                    if seg and str(seg).strip() not in ("N/D", "N/A", "None", "Outros"):
                         entry["segmento"] = str(seg).strip()
                     cards = fund.get("cards_indicadores") or []
                     for card in cards:
@@ -484,8 +484,9 @@ def _collect_db_overrides(session, user_id: Optional[int] = None) -> dict[str, d
             ent["leverage_pct"] = raw["leverage_pct"]
         if raw.get("vacancy_pct") is not None and "vacancy_pct" not in ent:
             ent["vacancy_pct"] = raw["vacancy_pct"]
-        if raw.get("segmento") and "segmento" not in ent:
-            ent["segmento"] = raw["segmento"]
+        raw_seg = str(raw.get("segmento") or "").strip()
+        if raw_seg and raw_seg not in ("N/D", "N/A", "None", "Outros") and "segmento" not in ent:
+            ent["segmento"] = raw_seg
         elif scr_row.asset_type == "FII" and "segmento" not in ent and tkr_u in _FII_SEGMENT_FALLBACK:
             ent["segmento"] = _FII_SEGMENT_FALLBACK[tkr_u]
 

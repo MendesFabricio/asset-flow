@@ -1,3 +1,4 @@
+import logging
 import math
 from decimal import Decimal
 from domain.valuation.calculator import (
@@ -54,8 +55,8 @@ def calculate_fundamental_metrics(pos, preco, fator=Decimal('1.0')):
                 m["vi_graham"] = Decimal(str(vi))
                 if preco > Decimal('0.0'):
                     m["mg_graham"] = ((m["vi_graham"] - preco) / preco) * Decimal('100.0')
-    except Exception:
-        pass
+    except Exception as exc:
+        logging.debug(f"Erro ao calcular métricas fundamentalistas: {exc}")
     return m
 
 def apply_strategy(pos, metrics, falta, preco, min_6m, screener_item=None):
@@ -96,8 +97,8 @@ def apply_strategy(pos, metrics, falta, preco, min_6m, screener_item=None):
             if dy_percent > Decimal('6.0'):
                 score += 8
                 motivos.append(f"💰 Bom Pagador de Dividendos (+8) [{float(dy_percent):.1f}%]")
-        except Exception:
-            pass
+        except Exception as exc:
+            logging.debug(f"Erro ao avaliar DY manual na estratégia: {exc}")
 
     rsi = 50.0
     try:
@@ -111,8 +112,8 @@ def apply_strategy(pos, metrics, falta, preco, min_6m, screener_item=None):
                 if df and isinstance(df, list):
                     last = df[-1]
                     rsi = float(last.get('rsi_14', 50.0))
-    except Exception:
-        pass
+    except Exception as exc:
+        logging.debug(f"Erro ao extrair RSI de posição: {exc}")
 
     if rsi < 30.0:
         score += 20
@@ -157,8 +158,8 @@ def apply_strategy(pos, metrics, falta, preco, min_6m, screener_item=None):
                 if lev is not None and float(lev) > 30.0:
                     score -= 15
                     motivos.append(f"🏦 Alavancagem FII Elevada (-15) [{float(lev):.1f}%]")
-        except Exception:
-            pass
+        except Exception as exc:
+            logging.debug(f"Erro ao ler leverage FII em last_report_type: {exc}")
     elif cat_name == "Cripto":
         if preco > Decimal('0.0') and min_6m > Decimal('0.0'):
             desconto = ((preco - min_6m) / min_6m) * Decimal('100.0')

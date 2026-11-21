@@ -26,8 +26,8 @@ def _extract_fnet_health(pos, dolar_rate: float = 1.0) -> dict:
                     health["alavancagem"] = sub.split(":", 1)[1].strip()
                 elif "disponibilidades" in title and sub:
                     health["caixa_pct"] = sub.replace("do PL", "").strip()
-        except Exception:
-            pass
+        except Exception as exc:
+            logging.debug(f"Erro ao extrair saúde FNet do relatório: {exc}")
     if health["p_vp"] is None:
         vpa = float(getattr(pos, "manual_vpa", 0) or 0)
         mdata = pos.asset.market_data if pos.asset and pos.asset.market_data else []
@@ -340,8 +340,8 @@ def calculate_risk_metrics(session, fetch_prices, allow_compute=True, dolar_rate
         fi_rows = session.query(FixedIncome).filter_by(user_id=uid, is_deleted=False).all()
         if isinstance(fi_rows, list):
             fi_by_asset_id = {row.asset_id: row for row in fi_rows}
-    except Exception:
-        pass
+    except Exception as exc:
+        logging.debug(f"Erro ao carregar FixedIncome para risco: {exc}")
     today_date = datetime.now().date()
 
     for pos in positions:
