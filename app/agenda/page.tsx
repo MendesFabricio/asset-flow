@@ -451,7 +451,7 @@ export default function ProventosPage() {
                         <ChartTooltip 
                           contentStyle={{ backgroundColor: palette.tooltipBg, border: `1px solid ${palette.tooltipBorder}`, borderRadius: '12px' }}
                           labelStyle={{ color: palette.tooltipLabel, fontWeight: 'bold' }}
-                          formatter={(value: any) => [`${value}%`, 'Yield on Cost']}
+                          formatter={(value) => [`${value ?? 0}%`, 'Yield on Cost']}
                         />
                         <Legend wrapperStyle={{ fontSize: '11px', color: '#94a3b8' }} />
                         <Bar dataKey="yoc" name="YoC Real" fill="#10b981" radius={[4, 4, 0, 0]} barSize={40} />

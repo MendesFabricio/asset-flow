@@ -26,12 +26,12 @@ export const AddAssetModal = ({ isOpen, onClose, onSuccess }: AddAssetModalProps
   const [validating, setValidating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  const [cachedTickers, setCachedTickers] = useState<any[]>([]);
+  const [cachedTickers, setCachedTickers] = useState<Array<{ ticker: string; type: string; name?: string }>>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
-      apiCall<any[]>('/api/tickers').then(data => {
+      apiCall<Array<{ ticker: string; type: string; name?: string }>>('/api/tickers').then(data => {
         if (Array.isArray(data)) setCachedTickers(data);
       }).catch(console.error);
     }
@@ -39,10 +39,10 @@ export const AddAssetModal = ({ isOpen, onClose, onSuccess }: AddAssetModalProps
 
   const filteredTickers = cachedTickers.filter(t => 
     t.ticker.toLowerCase().includes(formData.ticker.toLowerCase()) || 
-    t.name.toLowerCase().includes(formData.ticker.toLowerCase())
+    (t.name || '').toLowerCase().includes(formData.ticker.toLowerCase())
   ).slice(0, 5);
 
-  const handleSelectTicker = async (tickerObj: any) => {
+  const handleSelectTicker = async (tickerObj: { ticker: string; type: string; name?: string }) => {
     setFormData(prev => ({ ...prev, ticker: tickerObj.ticker, type: tickerObj.type }));
     setShowSuggestions(false);
     setValidating(true);
@@ -122,8 +122,8 @@ export const AddAssetModal = ({ isOpen, onClose, onSuccess }: AddAssetModalProps
         setError(saveData.msg || "Erro ao salvar o ativo.");
       }
 
-    } catch (err: any) {
-      setError(err.message || "Erro de conexão com o servidor.");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Erro de conexão com o servidor.");
     } finally {
       setLoading(false);
       setValidating(false);

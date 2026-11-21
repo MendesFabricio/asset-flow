@@ -19,7 +19,7 @@ interface BriefData {
   rationale: string;
   brief_text: string;
   action: string;
-  risk_metrics: Record<string, any>;
+  risk_metrics: Record<string, string | number | undefined>;
   news_highlights?: NewsHighlight[];
 }
 
@@ -42,8 +42,8 @@ export function MorningBriefing() {
       if (result.status === 'Processando') {
         pollRef.current = setTimeout(() => fetchBrief(false, signal), 20000);
       }
-    } catch (e: any) {
-      if (e.name === 'AbortError' || e.message?.includes('AbortError')) return;
+    } catch (e: unknown) {
+      if (e instanceof Error && (e.name === 'AbortError' || e.message.includes('AbortError'))) return;
       console.error(e);
       setError('Falha ao conectar com o serviço de inteligência.');
     } finally {

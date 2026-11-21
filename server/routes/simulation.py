@@ -100,8 +100,8 @@ def _build_morning_brief_context(user_id: int, dolar_rate: float, selic: float) 
         # A sessão será criada no facade internamente
         service.current_user_id = user_id
         risk = service.calculate_risk_metrics()
-    except Exception:
-        pass
+    except Exception as exc:
+        logging.debug(f"Risk metrics fallback no Morning Brief: {exc}")
 
     enriched_holdings = []
     for h in holdings_details[:5]:
@@ -347,8 +347,8 @@ def morning_brief():
                         has_stale_fallback = cached_payload.get("selic_rate") == "10.50%" or "|" in metrics_vals
                         if cached_payload.get("status") == "Sucesso" and not has_stale_fallback:
                             return jsonify(cached_payload)
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        logging.debug(f"Morning Brief cache read fallback: {exc}")
 
             # Coleta dados do portfólio (rápido, sem Ollama)
             selic = get_risk_free_rate()
@@ -371,8 +371,8 @@ def morning_brief():
                     pending_response = json.loads(cache_record.value)
                     pending_response["status"] = "Processando"
                     pending_response["brief_text"] = "Morning Brief sendo gerado pela IA... Aguarde alguns instantes e recarregue."
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logging.debug(f"Morning Brief pending cache parse fallback: {exc}")
 
             # Dispara Ollama em thread de background — não bloqueia o worker do Gunicorn
             t = threading.Thread(

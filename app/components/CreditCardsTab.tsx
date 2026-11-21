@@ -29,6 +29,8 @@ interface ExpenseItem {
   id: number;
   description: string;
   total_value: number;
+  value?: number;
+  installment_number?: number;
   installments_count: number;
   date: string;
   installments: CreditCardInstallmentItem[];
@@ -235,7 +237,7 @@ export function CreditCardsTab() {
   const categoryTotals: Record<string, number> = {};
   expenses.forEach(e => {
     const cat = getCategoryFromDescription(e.description);
-    const itemValue = Number((e as any).value !== undefined ? (e as any).value : e.total_value || 0);
+    const itemValue = Number(e.value !== undefined ? e.value : e.total_value || 0);
     categoryTotals[cat] = (categoryTotals[cat] || 0) + itemValue;
   });
   const chartData = Object.entries(categoryTotals).map(([name, value]) => ({
@@ -420,7 +422,7 @@ export function CreditCardsTab() {
                 </h4>
                 <div className="space-y-3 overflow-y-auto max-h-[500px] custom-scrollbar pr-2">
                   {expenses.map((e) => {
-                    const itemValue = Number((e as any).value !== undefined ? (e as any).value : e.total_value || 0);
+                    const itemValue = Number(e.value !== undefined ? e.value : e.total_value || 0);
                     return (
                       <div key={e.id} className="p-4 rounded-lg bg-slate-900/50 border border-slate-800 space-y-3">
                         <div className="flex justify-between items-start">
@@ -430,9 +432,9 @@ export function CreditCardsTab() {
                               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-800 text-blue-300 border border-slate-700/60">
                                 {getCategoryFromDescription(e.description)}
                               </span>
-                              {e.installments_count > 1 && (e as any).installment_number && (
+                              {e.installments_count > 1 && e.installment_number && (
                                 <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                                  Parcela {(e as any).installment_number}/{e.installments_count}
+                                  Parcela {e.installment_number}/{e.installments_count}
                                 </span>
                               )}
                             </div>

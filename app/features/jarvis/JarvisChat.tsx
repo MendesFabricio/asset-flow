@@ -45,12 +45,12 @@ export function JarvisChat() {
 
   const fetchHistory = useCallback(() => {
     setLoading(true);
-    apiCall<any>(`/api/ai/history?session_id=${sessionId}`)
+    apiCall<{ status: string; data?: Array<{ role: string; content: string; created_at?: string }> }>(`/api/ai/history?session_id=${sessionId}`)
       .then((res) => {
         if (res.status === 'Sucesso' && res.data) {
-          const historyMsgs = res.data.map((msg: any, idx: number) => ({
+          const historyMsgs = res.data.map((msg, idx: number) => ({
             id: `db_${idx}_${msg.created_at}`,
-            sender: msg.role === 'user' ? 'user' : 'jarvis',
+            sender: (msg.role === 'user' ? 'user' : 'jarvis') as 'user' | 'jarvis',
             text: msg.content
           }));
           if (historyMsgs.length > 0) {
@@ -79,7 +79,7 @@ export function JarvisChat() {
   }, [messages, loading]);
 
   const handleClearHistory = () => {
-    apiCall<any>(`/api/ai/history/clear`, {
+    apiCall<{ status?: string }>(`/api/ai/history/clear`, {
       method: 'POST',
       body: JSON.stringify({ session_id: sessionId })
     })

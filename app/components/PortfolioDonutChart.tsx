@@ -34,7 +34,7 @@ export const PortfolioDonutChart: React.FC<PortfolioDonutChartProps> = React.mem
 
   const { isHidden } = usePrivacy();
 
-  const CustomTooltip = ({ active, payload }: any) => {
+  const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ payload: { name: string; value: number; pct: string; fill?: string } }> }) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       const percent = totalValue > 0 ? ((data.value / totalValue) * 100).toFixed(1) : 0;

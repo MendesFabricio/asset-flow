@@ -42,8 +42,8 @@ def execute_query_portfolio_metrics(session):
     try:
         from services import PortfolioService
         dolar_rate = float(PortfolioService().get_usd_rate() or 5.80)
-    except Exception:
-        pass
+    except Exception as exc:
+        logging.debug(f"Portfolio USD fallback em execute_query_portfolio_metrics: {exc}")
 
     uid = getattr(g, 'user_id', None) if has_request_context() else None
     query = session.query(Position)
@@ -323,8 +323,8 @@ def execute_get_asset_fundamental_data(session, ticker: str):
         try:
             from services import PortfolioService
             dolar_rate = float(PortfolioService().get_usd_rate() or 5.80)
-        except Exception:
-            pass
+        except Exception as exc:
+            logging.debug(f"Portfolio USD fallback no /api/ai: {exc}")
         fator = dolar_rate if asset.currency == 'USD' else 1.0
         eff_price = price_now if price_now > 0 else float(pos.average_price or 0)
         qtd = float(pos.quantity or 0)
@@ -375,8 +375,8 @@ def execute_get_asset_fundamental_data(session, ticker: str):
                     "quality_score": sd.get("quality_score"),
                     "magic_score": sd.get("magic_score"),
                 }
-        except Exception:
-            pass
+        except Exception as exc:
+            logging.debug(f"Screener lookup fallback em context {ticker}: {exc}")
 
     return {
         "status": "Sucesso",

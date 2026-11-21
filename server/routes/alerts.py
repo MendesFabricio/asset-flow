@@ -81,7 +81,7 @@ def get_alerts():
                                     "view"
                                 ))
                     except Exception as parse_err:
-                        pass
+                        logging.debug(f"Parse report_date alerta {asset.ticker}: {parse_err}")
 
                 # =========================================================
                 # 2. ALERTAS DE RISCO FINANCEIRO (Prejuízo, Trap)
@@ -118,8 +118,8 @@ def get_alerts():
                             d_parts = split_date_str.split("-")
                             formatted_date = f"{d_parts[2]}/{d_parts[1]}/{d_parts[0]}"
                             alerts.append(make_alert(asset, "split", "CRÍTICO", f"Desdobramento (Split) confirmado de {ratio}x em {formatted_date}.", 5, "view"))
-                        except Exception:
-                            pass
+                        except Exception as exc:
+                            logging.debug(f"Parse split alerta {asset.ticker}: {exc}")
 
                     # Inplit Alert (Grupamento / Penny Stock)
                     if asset.currency == "BRL" and current_price > 0 and current_price < 1.0:
@@ -153,8 +153,8 @@ def get_alerts():
                                     "severity": 3,
                                     "action": "view"
                                 })
-                        except Exception:
-                            pass
+                        except Exception as exc:
+                            logging.debug(f"Parse data-com alerta {asset.ticker}: {exc}")
 
             # Ordena: Críticos > Risco > Config > Novidade > Alerta > Info
             alerts.sort(key=lambda x: x["severity"], reverse=True)

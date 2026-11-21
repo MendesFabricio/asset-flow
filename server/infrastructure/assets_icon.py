@@ -84,8 +84,8 @@ def _lookup_asset_meta(ticker: str) -> tuple[str, str, str]:
             if asset:
                 cat = asset.category.name if asset.category else ""
                 return cat, (asset.name or ""), (asset.currency or "BRL")
-    except Exception:
-        pass
+    except Exception as exc:
+        logging.debug(f"Lookup local asset icon {ticker}: {exc}")
     return "", "", "BRL"
 
 
@@ -96,8 +96,8 @@ def _fetch_google_favicon(domain: str) -> tuple[bytes, str] | None:
         if res.status_code == 200 and len(res.content) > 300:
             ctype = res.headers.get("content-type", "image/png").split(";")[0].strip()
             return res.content, ctype
-    except Exception:
-        pass
+    except Exception as exc:
+        logging.debug(f"Google favicon fallback {domain}: {exc}")
     return None
 
 
@@ -115,8 +115,8 @@ def _fetch_brapi_svg(ticker: str) -> tuple[bytes, str] | None:
             res = requests.get(url, timeout=4)
             if res.status_code == 200 and b"<svg" in res.content[:512].lower():
                 return res.content, "image/svg+xml"
-        except Exception:
-            pass
+        except Exception as exc:
+            logging.debug(f"Brapi svg fallback {cand}: {exc}")
     return None
 
 
@@ -128,10 +128,9 @@ def _fetch_crypto_icon(ticker: str) -> tuple[bytes, str] | None:
         res = requests.get(url, timeout=4)
         if res.status_code == 200 and len(res.content) > 200:
             return res.content, "image/png"
-    except Exception:
-        pass
+    except Exception as exc:
+        logging.debug(f"Crypto icon fallback {sym}: {exc}")
     return None
-
 
 def _fetch_us_stock_icon(ticker: str) -> tuple[bytes, str] | None:
     try:
@@ -140,8 +139,8 @@ def _fetch_us_stock_icon(ticker: str) -> tuple[bytes, str] | None:
         ctype = res.headers.get("content-type", "")
         if res.status_code == 200 and ctype.startswith("image/") and len(res.content) > 500:
             return res.content, ctype.split(";")[0].strip()
-    except Exception:
-        pass
+    except Exception as exc:
+        logging.debug(f"US stock icon fallback {ticker}: {exc}")
     return None
 
 
@@ -262,8 +261,8 @@ def get_asset_icon(ticker):
         try:
             with open(os.path.join(ICONS_DIR, f"{safe_key}.{ext}"), "wb") as f:
                 f.write(content)
-        except OSError:
-            pass
+        except OSError as exc:
+            logging.debug(f"Falha ao gravar cache local do ícone {ticker}: {exc}")
         return Response(content, mimetype=mime, headers={'Cache-Control': 'public, max-age=86400'})
 
     svg_badge = _build_svg_badge(ticker, category)

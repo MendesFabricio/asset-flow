@@ -150,7 +150,7 @@ export const MonteCarloChart = React.memo(function MonteCarloChart() {
               itemStyle={{ fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', padding: '2px 0' }}
               labelStyle={{ color: '#64748b', marginBottom: '8px', fontSize: '10px', fontWeight: 'bold' }}
               // ⚡ CONTRATO ESTREITO TS: Substituído o 'val: any' por tipagem estruturada estrita
-              formatter={(val: any) => [isHidden ? '••••••' : `R$ ${val.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, '']}
+              formatter={(val) => [isHidden ? '••••••' : `R$ ${Number(val ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, '']}
               labelFormatter={(label) => `Dia ${label}`}
             />
 

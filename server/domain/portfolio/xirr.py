@@ -173,8 +173,18 @@ def get_cdi_period_return(session, start_date: date, end_date: date) -> Tuple[fl
     return fallback_pct, "fallback"
 
 
-def get_ibov_period_return(start_date: date, end_date: date) -> Optional[float]:
+def get_ibov_period_return(start_date: date, end_date: date, session=None) -> Optional[float]:
     """Obtém variação acumulada (%) do IBOVESPA (^BVSP) entre start_date e end_date."""
+    cache_key = f"ibov_bvsp_{start_date.strftime('%Y%m%d')}_{end_date.strftime('%Y%m%d')}"
+    if session is not None:
+        try:
+            cached = session.query(SystemCache).filter_by(key=cache_key).first()
+            if cached and cached.value and cached.updated_at and (datetime.now() - cached.updated_at) < timedelta(hours=24):
+                payload = json.loads(cached.value)
+                return float(payload["pct"])
+        except Exception as exc:
+            logging.debug(f"Cache IBOV inválido: {exc}")
+
     try:
         from infrastructure.price_cache import fetch_price_history
         days = (end_date - start_date).days
@@ -207,7 +217,21 @@ def get_ibov_period_return(start_date: date, end_date: date) -> Optional[float]:
         p1 = float(filtered.iloc[-1])
         if p0 <= 0:
             return None
-        return round(((p1 / p0) - 1.0) * 100.0, 2)
+        pct = round(((p1 / p0) - 1.0) * 100.0, 2)
+        if session is not None:
+            try:
+                serialized = json.dumps({"pct": pct})
+                rec = session.query(SystemCache).filter_by(key=cache_key).first()
+                if rec:
+                    rec.value = serialized
+                    rec.updated_at = datetime.now()
+                else:
+                    session.add(SystemCache(key=cache_key, value=serialized, updated_at=datetime.now()))
+                session.commit()
+            except Exception as exc:
+                session.rollback()
+                logging.debug(f"Falha ao gravar cache IBOV: {exc}")
+        return pct
     except Exception as exc:
         logging.warning(f"IBOV indisponível para benchmark: {exc}")
         return None
@@ -320,6 +344,17 @@ def calculate_portfolio_returns(session, user_id: int) -> dict:
     first_date = first_date or today
     days = max(1, (today - first_date).days)
 
+    ret_cache_key = (
+        f"portfolio_returns_v1_{user_id}_{today.isoformat()}_{len(txs)}_{len(divs)}_"
+        f"{round(total_compras, 2)}_{round(total_vendas, 2)}_{round(total_dividendos, 2)}_{round(patrimonio_atual, 2)}"
+    )
+    try:
+        cached_ret = session.query(SystemCache).filter_by(key=ret_cache_key).first()
+        if cached_ret and cached_ret.value and cached_ret.updated_at and (datetime.now() - cached_ret.updated_at) < timedelta(hours=6):
+            return json.loads(cached_ret.value)
+    except Exception as exc:
+        logging.debug(f"Cache portfolio_returns inválido: {exc}")
+
     xirr_rate = calculate_xirr(cashflows)
     xirr_aa_pct = round(xirr_rate * 100.0, 2) if xirr_rate is not None else None
     xirr_periodo_pct = (
@@ -355,7 +390,7 @@ def calculate_portfolio_returns(session, user_id: int) -> dict:
     twr_pct = round((twr_factor - 1.0) * 100.0, 2) if has_twr else None
 
     cdi_pct, cdi_source = get_cdi_period_return(session, first_date, today)
-    ibov_pct = get_ibov_period_return(first_date, today)
+    ibov_pct = get_ibov_period_return(first_date, today, session=session)
     ipca_pct = float(attribution.get("summary", {}).get("ipca_acumulado_pct", 0.0))
 
     # Taxa real anualizada pelo efeito Fisher (comparando XIRR a.a. vs IPCA anualizado)
@@ -373,7 +408,7 @@ def calculate_portfolio_returns(session, user_id: int) -> dict:
         else None
     )
 
-    return {
+    result_dict = {
         "status": "Sucesso",
         "has_data": True,
         "start_date": first_date.isoformat(),
@@ -401,3 +436,16 @@ def calculate_portfolio_returns(session, user_id: int) -> dict:
             "aporte_liquido": round(total_compras - total_vendas, 2),
         },
     }
+    try:
+        serialized_ret = json.dumps(result_dict)
+        rec = session.query(SystemCache).filter_by(key=ret_cache_key).first()
+        if rec:
+            rec.value = serialized_ret
+            rec.updated_at = datetime.now()
+        else:
+            session.add(SystemCache(key=ret_cache_key, value=serialized_ret, updated_at=datetime.now()))
+        session.commit()
+    except Exception as exc:
+        session.rollback()
+        logging.debug(f"Falha ao gravar cache portfolio_returns: {exc}")
+    return result_dict

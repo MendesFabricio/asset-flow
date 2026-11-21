@@ -225,8 +225,8 @@ def fetch_ticker_fundamentals(
                         price = float(closes.iloc[-1])
                         if len(closes) >= 2 and not prev_close:
                             prev_close = float(closes.iloc[-2])
-            except Exception:
-                pass
+            except Exception as exc:
+                logging.debug(f"Screener history fallback {clean_ticker}: {exc}")
 
         if not price or price <= 0:
             return None
@@ -466,8 +466,8 @@ def _collect_db_overrides(session, user_id: Optional[int] = None) -> dict[str, d
                                     entry["vpa"] = v_num
                             except ValueError:
                                 pass
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logging.debug(f"Screener report override parse falhou: {exc}")
         if entry:
             overrides[tkr_upper] = entry
 
@@ -589,8 +589,8 @@ def refresh_b3_screener(session, user_id: Optional[int] = None, limit: Optional[
                 res = fut.result()
                 if res:
                     fetched.append(res)
-            except Exception:
-                pass
+            except Exception as exc:
+                logging.debug(f"Screener thread future erro: {exc}")
 
     count = _upsert_screener_items(session, fetched)
     elapsed = round(time.monotonic() - start_ts, 2)

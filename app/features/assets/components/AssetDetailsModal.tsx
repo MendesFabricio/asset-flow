@@ -27,8 +27,20 @@ export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalP
     const [explaining, setExplaining] = useState(false);
     const [speaking, setSpeaking] = useState(false);
 
+interface KpiData {
+    rendimento_distribuido?: number | string | null;
+    valor_patrimonial?: number | string | null;
+    vacancia_fisica_pct?: number | string | null;
+    vacancia_financeira_pct?: number | string | null;
+    receita_liquida?: number | string | null;
+    ebitda?: number | string | null;
+    lucro_liquido?: number | string | null;
+    divida_liquida?: number | string | null;
+    observacao_geral?: string | null;
+}
+
     // RI KPIs States
-    const [kpiData, setKpiData] = useState<any | null>(null);
+    const [kpiData, setKpiData] = useState<KpiData | null>(null);
     const [loadingKpi, setLoadingKpi] = useState(false);
     const [kpiError, setKpiError] = useState<string | null>(null);
 
@@ -90,7 +102,7 @@ export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalP
         if (!asset) return;
         setExplaining(true);
         setExplanationText('');
-        apiCall<any>(`/api/ai/explain-score/${asset.ticker}`)
+        apiCall<{ status: string; explanation?: string; msg?: string }>(`/api/ai/explain-score/${asset.ticker}`)
             .then((res) => {
                 if (res.status === 'Sucesso' && res.explanation) {
                     setExplanationText(res.explanation);
@@ -129,13 +141,13 @@ export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalP
         if (!asset) return;
         setLoadingKpi(true);
         setKpiError(null);
-        apiCall<any>(`/api/ai/analyze-pdf`, {
+        apiCall<{ status: string; kpis?: KpiData; msg?: string }>(`/api/ai/analyze-pdf`, {
             method: 'POST',
             body: JSON.stringify({ ticker: asset.ticker })
         })
             .then((res) => {
                 if (res.status === 'Sucesso') {
-                    setKpiData(res.kpis);
+                    setKpiData(res.kpis ?? null);
                 } else {
                     setKpiError(res.msg || 'Erro ao analisar PDF.');
                 }

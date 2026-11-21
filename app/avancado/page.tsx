@@ -78,7 +78,7 @@ export default function AvancadoPage() {
     if (!editingJob) return;
     setSaving(true);
     try {
-      const body: any = {};
+      const body: Record<string, string | number | boolean> = {};
       if (editingJob.job_type === 'cron' && cronExpression) {
         body.cron_expression = cronExpression;
       } else if (editingJob.job_type === 'interval' && intervalMinutes) {

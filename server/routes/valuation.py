@@ -142,6 +142,7 @@ def get_radar_screener():
     sector = request.args.get("sector", "TODOS")
     search = request.args.get("q", "").strip()
     only_outside = request.args.get("only_outside", "false").lower() == "true"
+    include_checklist = request.args.get("include_checklist", "0").lower() in ("1", "true")
 
     try:
         with Session() as session:
@@ -151,6 +152,8 @@ def get_radar_screener():
             for r in rows:
                 d = r.to_dict()
                 d["in_portfolio"] = d["ticker"] in in_port
+                if not include_checklist:
+                    d.pop("checklist", None)
                 items.append(d)
 
             sectors = sorted({i["sector"] for i in items if i.get("sector")})

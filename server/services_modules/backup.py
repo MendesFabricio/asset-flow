@@ -191,7 +191,42 @@ class BackupService:
             latest_total = sum(latest_breakdown.values()) if latest_breakdown else 0
             fractions = {k: v / latest_total for k, v in latest_breakdown.items()} if latest_total > 0 else {}
 
-            for s in snapshots:
+            # Downsample antes do json.loads(s.breakdown) para evitar parse nos ~2000 pontos descartados
+            if full or len(snapshots) <= 400:
+                selected_snapshots = snapshots
+            else:
+                recent_keep = 260
+                older = snapshots[:-recent_keep]
+                recent = snapshots[-recent_keep:]
+                if len(older) <= 140:
+                    selected_snapshots = snapshots
+                else:
+                    bucket_count = 69
+                    body = older[1:]
+                    bucket_size = len(body) / bucket_count
+                    sampled = [older[0]]
+                    for b in range(bucket_count):
+                        s_idx = int(b * bucket_size)
+                        e_idx = min(len(body), int((b + 1) * bucket_size))
+                        if s_idx >= e_idx:
+                            continue
+                        min_i = s_idx
+                        max_i = s_idx
+                        for idx in range(s_idx + 1, e_idx):
+                            v = float(body[idx].total_equity or 0)
+                            if v < float(body[min_i].total_equity or 0):
+                                min_i = idx
+                            if v > float(body[max_i].total_equity or 0):
+                                max_i = idx
+                        if min_i == max_i:
+                            sampled.append(body[min_i])
+                        elif min_i < max_i:
+                            sampled.extend([body[min_i], body[max_i]])
+                        else:
+                            sampled.extend([body[max_i], body[min_i]])
+                    selected_snapshots = sampled + recent
+
+            for s in selected_snapshots:
                 item = {
                     "date": s.date.strftime("%d/%m/%y"), 
                     "Patrimônio": float(s.total_equity or 0),
@@ -215,36 +250,4 @@ class BackupService:
                         
                 history.append(item)
 
-            if full or len(history) <= 400:
-                return history
-
-            # Mantém os últimos 260 pontos diários exatos (1Y completo) e aplica envelope min/max no trecho antigo
-            recent_keep = 260
-            older = history[:-recent_keep]
-            recent = history[-recent_keep:]
-            if len(older) <= 140:
-                return history
-            bucket_count = 69
-            body = older[1:]
-            bucket_size = len(body) / bucket_count
-            sampled = [older[0]]
-            for b in range(bucket_count):
-                s_idx = int(b * bucket_size)
-                e_idx = min(len(body), int((b + 1) * bucket_size))
-                if s_idx >= e_idx:
-                    continue
-                min_i = s_idx
-                max_i = s_idx
-                for idx in range(s_idx + 1, e_idx):
-                    v = body[idx]["Patrimônio"]
-                    if v < body[min_i]["Patrimônio"]:
-                        min_i = idx
-                    if v > body[max_i]["Patrimônio"]:
-                        max_i = idx
-                if min_i == max_i:
-                    sampled.append(body[min_i])
-                elif min_i < max_i:
-                    sampled.extend([body[min_i], body[max_i]])
-                else:
-                    sampled.extend([body[max_i], body[min_i]])
-            return sampled + recent
+            return history

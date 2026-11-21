@@ -20,6 +20,7 @@ interface ParsedTransaction {
   force_duplicate?: boolean;
   description?: string;
   db_matched?: boolean;
+  original_type?: string;
 }
 
 function parseOption(ticker: string) {
@@ -138,8 +139,8 @@ export function UnifiedImportModal({ isOpen, onClose, onSuccess }: UnifiedImport
         
         toast(`${allB3Txs.length} operações, ${allDividends.length} proventos e ${allCorporateEvents.length} eventos!`, 'success');
       }
-    } catch (err: any) {
-      toast(err.message || 'Erro ao processar arquivos.', 'error');
+    } catch (err: unknown) {
+      toast(err instanceof Error ? err.message : 'Erro ao processar arquivos.', 'error');
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -184,8 +185,8 @@ export function UnifiedImportModal({ isOpen, onClose, onSuccess }: UnifiedImport
             const errData = await res.json();
             newTransactions[i] = { ...tx, error: errData.msg || 'Erro' };
           }
-        } catch (err: any) { 
-          newTransactions[i] = { ...tx, error: err.message || 'Erro' };
+        } catch (err: unknown) {
+          newTransactions[i] = { ...tx, error: err instanceof Error ? err.message : 'Erro' };
         }
         setBrokerageTxs([...newTransactions]);
       }
@@ -262,7 +263,7 @@ export function UnifiedImportModal({ isOpen, onClose, onSuccess }: UnifiedImport
 
     if (userAssets.length === 0) {
       try {
-        const res = await apiCall<any>('/api/assets');
+        const res = await apiCall<Asset[] | { assets?: Asset[] }>('/api/assets');
         const list = Array.isArray(res) ? res : (res?.assets || []);
         setUserAssets(list);
       } catch (e) {
@@ -305,8 +306,8 @@ export function UnifiedImportModal({ isOpen, onClose, onSuccess }: UnifiedImport
             const errData = await res.json();
             newB3Txs[i] = { ...tx, error: errData.msg || 'Erro' };
           }
-        } catch (err: any) {
-          newB3Txs[i] = { ...tx, error: err.message || 'Erro' };
+        } catch (err: unknown) {
+          newB3Txs[i] = { ...tx, error: err instanceof Error ? err.message : 'Erro' };
         }
       }
 
@@ -765,7 +766,7 @@ export function UnifiedImportModal({ isOpen, onClose, onSuccess }: UnifiedImport
                                   >
                                     {tx.type === 'BUY' ? 'C' : 'V'}
                                   </button>
-                                  <span className="text-slate-400 text-[11px]">{(tx as any).original_type || tx.type}</span>
+                                  <span className="text-slate-400 text-[11px]">{tx.original_type || tx.type}</span>
                                 </div>
                               </td>
                               <td className="px-3 py-2 text-right text-slate-300">{tx.quantity}</td>

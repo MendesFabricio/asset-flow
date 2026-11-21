@@ -107,9 +107,9 @@ export default function Home() {
     handlers.handleFixAsset(assetId, ativos);
   }, [handlers, ativos]);
 
-  const handleEditAsset = useCallback((a: any) => modals.setEditingAsset(a), [modals]);
+  const handleEditAsset = useCallback((a: Asset) => modals.setEditingAsset(a), [modals]);
   const handleViewNews = useCallback((ticker: string) => modals.setNewsTicker(ticker), [modals]);
-  const handleViewDetails = useCallback((a: any) => modals.setSelectedDetailsAsset(a), [modals]);
+  const handleViewDetails = useCallback((a: Asset) => modals.setSelectedDetailsAsset(a), [modals]);
 
   if (loading) {
     return (

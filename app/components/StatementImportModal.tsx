@@ -149,8 +149,8 @@ export function StatementImportModal({
         installments_count: 1
       }));
       setRows(initialRows);
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Falha ao analisar o arquivo. Verifique o formato.');
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : 'Falha ao analisar o arquivo. Verifique o formato.');
     } finally {
       setLoading(false);
     }
@@ -212,8 +212,8 @@ export function StatementImportModal({
       setFile(null);
       onSuccess();
       onClose();
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Erro ao gravar transações.');
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : 'Erro ao gravar transações.');
     } finally {
       setSubmitting(false);
     }
@@ -458,7 +458,7 @@ export function StatementImportModal({
                             ))}
                           </Pie>
                           <Tooltip
-                            formatter={(value: any) => [formatMoney(Number(value || 0)), '']}
+                            formatter={(value) => [formatMoney(Number(value || 0)), '']}
                             contentStyle={{ backgroundColor: palette.tooltipBg, borderColor: palette.tooltipBorder, borderRadius: '0.75rem', color: palette.tooltipLabel }}
                             itemStyle={{ color: palette.tooltipLabel }}
                           />

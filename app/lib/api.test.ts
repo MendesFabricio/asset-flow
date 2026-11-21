@@ -45,7 +45,7 @@ describe('apiCall', () => {
         const mockData = { ok: true };
         
         // We delay the response so both calls happen while the first is in-flight
-        let resolver: (value: any) => void;
+        let resolver: (value: unknown) => void;
         const fetchPromise = new Promise(resolve => { resolver = resolve; });
         
         (global.fetch as ReturnType<typeof vi.fn>).mockReturnValueOnce(fetchPromise);

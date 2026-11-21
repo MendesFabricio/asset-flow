@@ -159,7 +159,6 @@ class DashboardService:
                         "last_report_url": pos.last_report_url,
                         "last_report_at": pos.last_report_at,
                         "last_report_type": pos.last_report_type,
-                        "fundamentalist_data": pos.last_report_type,
                         "mdata_date": mdata_date_str,
                         "vi_graham": float(item["metrics"].get("vi_graham", 0)),
                         "mg_graham": float(item["metrics"].get("mg_graham", 0)),

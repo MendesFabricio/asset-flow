@@ -32,7 +32,7 @@ function deny(request: NextRequest, pathname: string) {
   return response;
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get('assetflow_session')?.value;
   // Existir não basta: valida assinatura e validade do token emitido pelo Flask.

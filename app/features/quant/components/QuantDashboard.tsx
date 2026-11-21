@@ -104,18 +104,18 @@ export const QuantDashboard = React.memo(function QuantDashboard({ ativos }: { a
     }
   }, [activeTab, fetchReportsAndFG]);
 
-  const tabs = useMemo(() => [
+  const tabs = useMemo(() => ([
     { id: 'performance', label: 'Risco & Performance', icon: <Activity size={14} /> },
     { id: 'optimization', label: 'Otimização', icon: <Target size={14} /> },
     { id: 'simulations', label: 'Simuladores', icon: <TrendingUp size={14} /> },
     { id: 'reports', label: 'Relatórios & Sentimento', icon: <Brain size={14} /> }
-  ], []);
+  ] as const), []);
 
   // Format Recharts Point Tooltip
-  const scatterTooltipFormatter = (value: any, name: any) => {
-    if (name === 'Retorno Esperado') return [`${value}% a.a.`, name];
-    if (name === 'Volatilidade') return [`${value}% a.a.`, name];
-    return [value, name];
+  const scatterTooltipFormatter = (value: string | number | undefined, name: string | number | undefined) => {
+    if (name === 'Retorno Esperado') return [`${value ?? 0}% a.a.`, String(name)];
+    if (name === 'Volatilidade') return [`${value ?? 0}% a.a.`, String(name)];
+    return [value ?? '', String(name ?? '')];
   };
 
   // Otimizando o Render do ScatterChart (Pesado)
@@ -279,7 +279,7 @@ export const QuantDashboard = React.memo(function QuantDashboard({ ativos }: { a
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
+                  onClick={() => setActiveTab(tab.id)}
                   className={`flex flex-col sm:flex-row items-center justify-center gap-1.5 px-2 py-2 rounded-lg text-[10px] sm:text-xs font-semibold uppercase tracking-wider transition-all duration-300 ${
                     isActive
                       ? 'bg-slate-800 text-blue-400 shadow-md ring-1 ring-slate-700/50'

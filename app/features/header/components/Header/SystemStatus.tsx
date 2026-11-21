@@ -100,9 +100,9 @@ export function SystemStatus() {
 
   const renderServiceRow = (
     name: string, 
-    status: 'online' | 'offline' | undefined, 
-    msg: string, 
-    Icon: any
+    status: 'online' | 'offline' | undefined,
+    msg: string,
+    Icon: React.ComponentType<{ size?: number; className?: string }>
   ) => {
     const isOnline = status === 'online';
     return (

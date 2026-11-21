@@ -65,12 +65,14 @@ export default function MonthlyPnLChart() {
     }
   };
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ payload: { month_variation: number; total_market_value: number; asset_performance?: { gainers?: Array<{ ticker: string; variation: number }>; losers?: Array<{ ticker: string; variation: number }> } } }>; label?: string }) => {
     if (active && payload && payload.length) {
       const variation = payload[0].payload.month_variation;
       const marketValue = payload[0].payload.total_market_value;
       const isProfit = variation >= 0;
       const assetPerformance = payload[0].payload.asset_performance;
+      const gainers = assetPerformance?.gainers ?? [];
+      const losers = assetPerformance?.losers ?? [];
 
       return (
         <div className="bg-white/95 dark:bg-slate-900/85 backdrop-blur-xl border border-slate-200/50 dark:border-slate-700/50 p-3 rounded-xl shadow-xl shadow-slate-900/10 dark:shadow-black/40 min-w-[200px]">
@@ -94,13 +96,13 @@ export default function MonthlyPnLChart() {
             </div>
           </div>
           
-          {assetPerformance && (assetPerformance.gainers?.length > 0 || assetPerformance.losers?.length > 0) && (
+          {(gainers.length > 0 || losers.length > 0) && (
             <div className="flex flex-col gap-2 mt-1 pt-2 border-t border-slate-200/50 dark:border-slate-800/80">
-              {assetPerformance.gainers?.length > 0 && (
+              {gainers.length > 0 && (
                 <div>
                   <span className="text-[9px] font-bold text-emerald-600/70 dark:text-emerald-500/70 uppercase tracking-widest mb-1 block">Maiores Altas</span>
                   <div className="flex flex-col gap-1">
-                    {assetPerformance.gainers.map((g: any) => (
+                    {gainers.map((g) => (
                       <div key={g.ticker} className="flex justify-between items-center text-[11px]">
                         <span className="text-slate-700 dark:text-slate-300 font-medium">{g.ticker}</span>
                         <span className="text-emerald-600 dark:text-emerald-400 font-semibold bg-emerald-500/10 px-1 py-0.5 rounded">{isHidden ? 'R$ •••••' : `+${formatMoney(g.variation)}`}</span>
@@ -109,11 +111,11 @@ export default function MonthlyPnLChart() {
                   </div>
                 </div>
               )}
-              {assetPerformance.losers?.length > 0 && (
+              {losers.length > 0 && (
                 <div>
                   <span className="text-[9px] font-bold text-rose-600/70 dark:text-rose-500/70 uppercase tracking-widest mb-1 block mt-2">Maiores Baixas</span>
                   <div className="flex flex-col gap-1">
-                    {assetPerformance.losers.map((l: any) => (
+                    {losers.map((l) => (
                       <div key={l.ticker} className="flex justify-between items-center text-[11px]">
                         <span className="text-slate-700 dark:text-slate-300 font-medium">{l.ticker}</span>
                         <span className="text-rose-600 dark:text-rose-400 font-semibold bg-rose-500/10 px-1 py-0.5 rounded">{isHidden ? 'R$ •••••' : formatMoney(l.variation)}</span>

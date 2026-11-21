@@ -61,8 +61,8 @@ def _extract_vpa_from_report_json(raw_report):
                 num = float(val)
                 if num > 0:
                     return round(num, 2)
-    except Exception:
-        pass
+    except Exception as exc:
+        logging.debug(f"Extract VPA report fallback: {exc}")
     return 0.0
 
 def update_prices(session, invalidate_cache_callback, user_id=None):
@@ -171,8 +171,8 @@ def validate_ticker_on_yahoo(ticker):
             if not hist.empty:
                 price = float(hist['Close'].iloc[-1])
                 return {"valid": True, "ticker": ticker, "price": price}
-        except Exception:
-            pass # Ignora erro inicial para testar o fallback .SA
+        except Exception as exc:
+            logging.debug(f"Ticker {ticker} sem sufixo falhou, testando .SA: {exc}")
             
         if not ticker.endswith('.SA'):
             ticker_sa = f"{ticker}.SA"
@@ -455,8 +455,8 @@ def sync_reports_with_fnet(session, state_dict=None, user_id=None):
                     raw_name = info.get("shortName") or info.get("longName")
                     if raw_name:
                         asset.name = " ".join(str(raw_name).split())
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logging.debug(f"Yahoo name fallback {ticker}: {exc}")
 
             if not asset.cnpj or len(str(asset.cnpj)) < 14:
                 cnpj_encontrado = CNPJFinder.find_by_ticker(ticker)
