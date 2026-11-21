@@ -11,9 +11,9 @@ import React, {
 } from 'react';
 import { CheckCircle, AlertTriangle, Info, X } from 'lucide-react';
 
-export type ToastType = 'success' | 'error' | 'info';
+type ToastType = 'success' | 'error' | 'info';
 
-export interface ToastItem {
+interface ToastItem {
   id: number;
   msg: string;
   type: ToastType;

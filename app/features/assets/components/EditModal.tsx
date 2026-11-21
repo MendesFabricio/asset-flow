@@ -53,7 +53,7 @@ export function getTransactionDisplayMeta(tx: AssetTransaction) {
   return { label, badgeClass, quantityDisplay, quantitySubtext };
 }
 
-export type ReservaActionMode = 'BALANCE' | 'DEPOSIT' | 'WITHDRAW';
+type ReservaActionMode = 'BALANCE' | 'DEPOSIT' | 'WITHDRAW';
 
 export function computeReservaUpdate(params: {
   currentBalance: number;

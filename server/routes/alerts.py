@@ -2,7 +2,7 @@
 import re
 from flask import Blueprint, jsonify, g, request
 from db.models import get_active_positions
-from services import Session
+from db.session import Session
 from datetime import datetime
 import logging
 

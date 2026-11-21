@@ -13,7 +13,7 @@ Job (chamado pelo APScheduler a cada 5 minutos):
 import logging
 from flask import Blueprint, jsonify, request
 from datetime import datetime
-from services import Session
+from db.session import Session
 from db.models import PriceAlert, MarketData, Asset, TriggeredAlert, safe_commit
 from sqlalchemy.orm import joinedload
 from utils.db_utils import with_safe_commit

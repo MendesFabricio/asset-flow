@@ -6,7 +6,7 @@ import logging
 from urllib.parse import quote
 from datetime import datetime, timedelta
 from db.models import Asset, safe_commit
-from services import Session
+from db.session import Session
 from infrastructure.gemini_service import analyze_asset_sentiment_async
 from utils.db_utils import with_safe_commit
 

@@ -8,7 +8,7 @@ import { formatMoney } from '@/lib/format';
 import { useChartPalette } from '@/lib/chartPalette';
 import { PrivateValue } from '@/components/ui/PrivateValue';
 
-export interface SignalHistoryItem {
+interface SignalHistoryItem {
   ticker: string;
   date: string | null;
   score: number;

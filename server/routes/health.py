@@ -7,7 +7,7 @@ import os
 import time
 import logging
 from flask import Blueprint, jsonify
-from services import Session
+from db.session import Session
 from sqlalchemy import text
 from datetime import datetime, timezone
 

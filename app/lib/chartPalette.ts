@@ -2,7 +2,7 @@
 
 import { useTheme } from '@/context/ThemeContext';
 
-export interface ChartPalette {
+interface ChartPalette {
   grid: string;
   axis: string;
   axisLine: string;
