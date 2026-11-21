@@ -35,21 +35,21 @@ export function CreditCardSidebar({
   const totalLimit = cards.reduce((acc, c) => acc + Number(c.limit || 0), 0);
 
   return (
-    <div className="bg-surface-card border border-border-subtle rounded-xl p-4 shadow-sm space-y-4">
+    <div className="bg-surface-card border border-slate-800 rounded-xl p-4 shadow-lg space-y-4">
       <div className="flex justify-between items-center">
-        <h4 className="text-sm font-semibold text-text-primary uppercase tracking-wider">Meus Cartões</h4>
+        <h4 className="text-sm font-bold text-white uppercase tracking-wider">Meus Cartões</h4>
         <div className="flex items-center gap-1.5">
           <button
             onClick={onOpenImport}
             title="Importar fatura em PDF/Excel"
-            className="flex items-center gap-1 bg-accent hover:bg-accent/90 text-white text-xs font-medium px-2.5 py-1 rounded-lg transition-colors"
+            className="flex items-center gap-1 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium px-2.5 py-1 rounded-lg transition shadow"
           >
             <FileText size={13} /> Importar
           </button>
           <button
             onClick={onOpenAddCard}
             title="Adicionar novo cartão"
-            className="p-1 bg-accent hover:bg-accent/90 text-white rounded-lg transition-colors"
+            className="p-1 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg transition"
           >
             <Plus size={16} />
           </button>
@@ -61,21 +61,22 @@ export function CreditCardSidebar({
           <div
             key={c.id}
             onClick={() => onSelectCard(c)}
-            className={`p-3 rounded-lg border text-left cursor-pointer transition-colors flex justify-between items-center ${selectedCard?.id === c.id
-              ? 'bg-accent-soft border-accent text-text-primary'
-              : 'bg-surface-elevated border-border-subtle hover:border-accent/40 text-text-primary'
-              }`}
+            className={`p-3 rounded-lg border text-left cursor-pointer transition flex justify-between items-center ${
+              selectedCard?.id === c.id
+                ? 'bg-indigo-500/10 border-indigo-500 text-white'
+                : 'bg-slate-900/40 border-slate-800 hover:border-slate-700 text-slate-300'
+            }`}
           >
             <div>
               <p className="font-semibold text-sm">{c.name}</p>
-              <p className="text-xs text-text-muted tabular-nums">Limite: {money(c.limit)}</p>
+              <p className="text-xs text-slate-400">Limite: {money(c.limit)}</p>
             </div>
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 onDeleteCard(c.id);
               }}
-              className="text-text-muted hover:text-status-error p-1 rounded-lg transition-colors"
+              className="text-slate-500 hover:text-rose-400 p-1 rounded transition"
             >
               <Trash2 size={14} />
             </button>
@@ -93,19 +94,20 @@ export function CreditCardSidebar({
                 due_day: 1,
               })
             }
-            className={`p-3 rounded-lg border text-left cursor-pointer transition-colors flex justify-between items-center ${selectedCard?.id === 0
-              ? 'bg-accent-soft border-accent text-text-primary'
-              : 'bg-surface-elevated border-border-subtle hover:border-accent/40 text-text-primary'
-              }`}
+            className={`p-3 rounded-lg border text-left cursor-pointer transition flex justify-between items-center ${
+              selectedCard?.id === 0
+                ? 'bg-indigo-500/10 border-indigo-500 text-white shadow-md shadow-indigo-500/10'
+                : 'bg-slate-900/40 border-slate-800 hover:border-slate-700 text-slate-300'
+            }`}
           >
             <div>
-              <p className="font-semibold text-sm flex items-center gap-1.5 text-accent">
+              <p className="font-semibold text-sm flex items-center gap-1.5 text-indigo-300">
                 <span>TOTAL</span>
-                <span className="text-2xs font-medium bg-accent-soft text-accent px-1.5 py-0.5 rounded-md border border-accent/30">
+                <span className="text-[10px] font-normal bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded border border-indigo-500/30">
                   Consolidado
                 </span>
               </p>
-              <p className="text-xs text-text-muted mt-0.5 tabular-nums">Limite: {money(totalLimit)}</p>
+              <p className="text-xs text-slate-400 mt-0.5">Limite: {money(totalLimit)}</p>
             </div>
           </div>
         )}

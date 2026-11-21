@@ -53,7 +53,7 @@ export default function TaxProfileModal() {
     <>
       <button
         onClick={() => setOpened(true)}
-        className="flex items-center gap-2 px-4 py-2 bg-surface-input hover:bg-surface-elevated border border-border-subtle text-text-primary rounded-lg text-sm font-medium transition-colors"
+        className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors"
       >
         <Settings className="w-4 h-4" />
         Configurar Saldos Anteriores
@@ -65,16 +65,16 @@ export default function TaxProfileModal() {
           title="Configurar Saldos de Impostos"
         >
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <p className="text-sm text-text-muted">
+          <p className="text-sm text-slate-500 dark:text-slate-400">
             Informe aqui os prejuízos acumulados que você já trazia de outras corretoras antes de usar o Asset Flow, bem como saldos residuais de DARF (menores que R$ 10,00).
           </p>
           
           {loading ? (
-            <div className="py-8 text-center text-text-muted">Carregando...</div>
+            <div className="py-8 text-center text-slate-500">Carregando...</div>
           ) : (
             <>
               <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-text-muted">
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
                   Prejuízo Acumulado - Ações (Swing Trade) R$
                 </label>
                 <input
@@ -82,12 +82,12 @@ export default function TaxProfileModal() {
                   step="0.01"
                   value={profile.accumulated_loss_stocks_st}
                   onChange={e => handleChange('accumulated_loss_stocks_st', e.target.value)}
-                  className="px-3 py-2 bg-surface-input border border-border-subtle rounded-lg text-text-primary tabular-nums"
+                  className="px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white"
                 />
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-text-muted">
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
                   Prejuízo Acumulado - Ações (Day Trade) R$
                 </label>
                 <input
@@ -95,12 +95,12 @@ export default function TaxProfileModal() {
                   step="0.01"
                   value={profile.accumulated_loss_stocks_dt}
                   onChange={e => handleChange('accumulated_loss_stocks_dt', e.target.value)}
-                  className="px-3 py-2 bg-surface-input border border-border-subtle rounded-lg text-text-primary tabular-nums"
+                  className="px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white"
                 />
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-text-muted">
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
                   Prejuízo Acumulado - FIIs R$
                 </label>
                 <input
@@ -108,12 +108,12 @@ export default function TaxProfileModal() {
                   step="0.01"
                   value={profile.accumulated_loss_fiis}
                   onChange={e => handleChange('accumulated_loss_fiis', e.target.value)}
-                  className="px-3 py-2 bg-surface-input border border-border-subtle rounded-lg text-text-primary tabular-nums"
+                  className="px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white"
                 />
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-text-muted">
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
                   Saldo residual de DARF a recolher (Menor que R$ 10)
                 </label>
                 <input
@@ -121,7 +121,7 @@ export default function TaxProfileModal() {
                   step="0.01"
                   value={profile.accumulated_darf_balance}
                   onChange={e => handleChange('accumulated_darf_balance', e.target.value)}
-                  className="px-3 py-2 bg-surface-input border border-border-subtle rounded-lg text-text-primary tabular-nums"
+                  className="px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white"
                 />
               </div>
 
@@ -129,14 +129,14 @@ export default function TaxProfileModal() {
                 <button
                   type="button"
                   onClick={() => setOpened(false)}
-                  className="px-4 py-2 text-sm font-medium text-text-muted hover:text-text-primary bg-surface-input hover:bg-surface-elevated border border-border-subtle rounded-lg transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-lg transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-accent hover:bg-accent/90 rounded-lg transition-colors disabled:opacity-50"
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50"
                 >
                   <Save className="w-4 h-4" />
                   {saving ? 'Salvando...' : 'Salvar'}

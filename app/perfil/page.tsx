@@ -105,8 +105,8 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-surface text-text-primary font-sans flex items-center justify-center">
-        <div className="text-text-muted">Carregando perfil...</div>
+      <div className="min-h-screen bg-surface text-slate-200 font-sans flex items-center justify-center">
+        <div className="text-slate-400">Carregando perfil...</div>
       </div>
     );
   }
@@ -116,7 +116,7 @@ export default function ProfilePage() {
       <SubPageHeader />
       <div className="max-w-2xl mx-auto p-4 md:p-6">
         <div className="mb-6">
-          <h1 className="text-2xl font-semibold text-text-primary mb-2">Meu Perfil</h1>
+          <h1 className="text-2xl font-bold text-text-primary mb-2">Meu Perfil</h1>
           <p className="text-text-muted text-sm">
             Gerencie suas informações de conta e segurança.
           </p>
@@ -124,8 +124,8 @@ export default function ProfilePage() {
 
         {message && (
           <div className={`mb-6 p-4 rounded-xl border ${message.type === 'success'
-              ? 'bg-status-success/10 border-status-success/30 text-status-success'
-              : 'bg-status-error/10 border-status-error/30 text-status-error'
+              ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300'
+              : 'bg-red-950/40 border-red-500/40 text-red-300'
             }`}>
             <div className="flex items-center gap-2">
               {message.type === 'success' ? (
@@ -143,12 +143,12 @@ export default function ProfilePage() {
         )}
 
         <div className="space-y-6">
-          <form onSubmit={handleUpdateProfile} className="bg-surface-card border border-border-subtle rounded-xl p-6">
-            <h2 className="text-lg font-semibold text-text-primary mb-4">Informações Básicas</h2>
+          <form onSubmit={handleUpdateProfile} className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6">
+            <h2 className="text-lg font-semibold text-white mb-4">Informações Básicas</h2>
 
             <div className="space-y-4">
               <div>
-                <label htmlFor="profile-username" className="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1">
+                <label htmlFor="profile-username" className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
                   Nome de usuário
                 </label>
                 <input
@@ -157,16 +157,16 @@ export default function ProfilePage() {
                   autoComplete="username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-surface-input border border-border-subtle text-text-primary text-sm focus:outline-none focus:border-accent"
+                  className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:border-blue-500"
                 />
               </div>
 
               {profile?.created_at && (
                 <div>
-                  <label className="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1">
+                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
                     Conta criada em
                   </label>
-                  <div className="text-sm text-text-muted tabular-nums">
+                  <div className="text-sm text-slate-500">
                     {new Date(profile.created_at).toLocaleDateString('pt-BR', {
                       day: '2-digit',
                       month: 'long',
@@ -181,19 +181,19 @@ export default function ProfilePage() {
               <button
                 type="submit"
                 disabled={saving}
-                className="px-4 py-2 rounded-lg bg-accent text-white text-sm font-semibold hover:bg-accent/90 disabled:opacity-50 transition-colors"
+                className="px-4 py-2 rounded-lg bg-blue-500 text-white text-sm font-semibold hover:bg-blue-600 disabled:opacity-50 transition-colors"
               >
                 {saving ? 'Salvando...' : 'Salvar alterações'}
               </button>
             </div>
           </form>
 
-          <form onSubmit={handleChangePassword} className="bg-surface-card border border-border-subtle rounded-xl p-6">
-            <h2 className="text-lg font-semibold text-text-primary mb-4">Alterar Senha</h2>
+          <form onSubmit={handleChangePassword} className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6">
+            <h2 className="text-lg font-semibold text-white mb-4">Alterar Senha</h2>
 
             <div className="space-y-4">
               <div>
-                <label htmlFor="current-password" className="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1">
+                <label htmlFor="current-password" className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
                   Senha atual
                 </label>
                 <input
@@ -202,12 +202,12 @@ export default function ProfilePage() {
                   autoComplete="current-password"
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-surface-input border border-border-subtle text-text-primary text-sm focus:outline-none focus:border-accent"
+                  className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:border-blue-500"
                 />
               </div>
 
               <div>
-                <label htmlFor="new-password" className="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1">
+                <label htmlFor="new-password" className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
                   Nova senha
                 </label>
                 <input
@@ -216,12 +216,12 @@ export default function ProfilePage() {
                   autoComplete="new-password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-surface-input border border-border-subtle text-text-primary text-sm focus:outline-none focus:border-accent"
+                  className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:border-blue-500"
                 />
               </div>
 
               <div>
-                <label htmlFor="confirm-password" className="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1">
+                <label htmlFor="confirm-password" className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
                   Confirmar nova senha
                 </label>
                 <input
@@ -230,7 +230,7 @@ export default function ProfilePage() {
                   autoComplete="new-password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-surface-input border border-border-subtle text-text-primary text-sm focus:outline-none focus:border-accent"
+                  className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:border-blue-500"
                 />
               </div>
             </div>
@@ -239,7 +239,7 @@ export default function ProfilePage() {
               <button
                 type="submit"
                 disabled={saving}
-                className="px-4 py-2 rounded-lg bg-status-success text-white text-sm font-semibold hover:bg-status-success/90 disabled:opacity-50 transition-colors"
+                className="px-4 py-2 rounded-lg bg-emerald-500 text-white text-sm font-semibold hover:bg-emerald-600 disabled:opacity-50 transition-colors"
               >
                 {saving ? 'Alterando...' : 'Alterar senha'}
               </button>

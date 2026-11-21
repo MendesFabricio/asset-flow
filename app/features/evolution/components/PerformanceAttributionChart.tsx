@@ -22,7 +22,6 @@ import { apiCall } from '@/lib/api';
 import { formatMoney } from '@/lib/format';
 import { usePrivacy } from '@/context/PrivacyContext';
 import { useChartPalette } from '@/lib/chartPalette';
-import { SEMANTIC_CHART_HEX } from '@/lib/colors';
 import { HistoryDataPoint } from '@/types';
 
 interface AttributionPoint {
@@ -65,13 +64,13 @@ type ViewTab = 'total' | 'classes' | 'attribution';
 type TimeRange = '1y' | '2y' | 'all';
 
 const CLASS_COLORS: Record<string, string> = {
-  'Ação': SEMANTIC_CHART_HEX.blue,
-  'FII': SEMANTIC_CHART_HEX.violet,
-  'Renda Fixa': SEMANTIC_CHART_HEX.emerald,
-  'Cripto': SEMANTIC_CHART_HEX.amber,
-  'Internacional': SEMANTIC_CHART_HEX.pink,
-  'Reserva': SEMANTIC_CHART_HEX.slateMuted,
-  'Outros': SEMANTIC_CHART_HEX.slate,
+  'Ação': '#3b82f6',
+  'FII': '#8b5cf6',
+  'Renda Fixa': '#10b981',
+  'Cripto': '#f59e0b',
+  'Internacional': '#ec4899',
+  'Reserva': '#64748b',
+  'Outros': '#94a3b8',
 };
 
 const getClassColor = (name: string, index: number) =>
@@ -223,25 +222,25 @@ export default function PerformanceAttributionChart({
     <Card className="p-6">
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-5">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-accent-soft rounded-lg border border-accent/20">
-            <TrendingUp size={18} className="text-accent" />
+          <div className="p-2 bg-blue-500/10 rounded-lg border border-blue-500/20">
+            <TrendingUp size={18} className="text-blue-400" />
           </div>
           <div>
             <div className="flex items-center gap-3 flex-wrap">
-              <h3 className="text-base font-semibold text-text-primary">
+              <h3 className="text-base font-bold text-text-primary">
                 Evolução &amp; Atribuição Patrimonial
               </h3>
               {(history.length > 0 || data?.summary) && (
-                <span className="text-xs text-text-muted tabular-nums">
+                <span className="text-xs text-text-secondary">
                   {growthLabel}{' '}
-                  <strong className={growth >= 0 ? 'text-status-success' : 'text-status-error'}>
+                  <strong className={growth >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
                     {growth > 0 ? '+' : ''}
                     {growth.toFixed(2)}%
                   </strong>
                 </span>
               )}
             </div>
-            <p className="text-xs text-text-muted mt-0.5">
+            <p className="text-xs text-text-secondary mt-0.5">
               {view === 'total' && 'Curva diária do patrimônio total comparado ao capital aportado.'}
               {view === 'classes' && 'Distribuição empilhada do patrimônio por classe de ativo.'}
               {view === 'attribution' &&
@@ -257,8 +256,8 @@ export default function PerformanceAttributionChart({
               onClick={() => setView('total')}
               className={`flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-md transition-colors ${
                 view === 'total'
-                  ? 'bg-accent text-white'
-                  : 'text-text-muted hover:text-text-primary'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-text-secondary hover:text-text-primary'
               }`}
             >
               <Activity size={13} /> Total
@@ -269,8 +268,8 @@ export default function PerformanceAttributionChart({
                 onClick={() => setView('classes')}
                 className={`flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-md transition-colors ${
                   view === 'classes'
-                    ? 'bg-accent text-white'
-                    : 'text-text-muted hover:text-text-primary'
+                    ? 'bg-purple-600 text-white'
+                    : 'text-text-secondary hover:text-text-primary'
                 }`}
               >
                 <Layers size={13} /> Classes
@@ -281,8 +280,8 @@ export default function PerformanceAttributionChart({
               onClick={() => setView('attribution')}
               className={`flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-md transition-colors ${
                 view === 'attribution'
-                  ? 'bg-status-success text-white'
-                  : 'text-text-muted hover:text-text-primary'
+                  ? 'bg-emerald-600 text-white'
+                  : 'text-text-secondary hover:text-text-primary'
               }`}
             >
               <BarChart3 size={13} /> Atribuição
@@ -296,8 +295,8 @@ export default function PerformanceAttributionChart({
                 onClick={() => setMode('nominal')}
                 className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${
                   mode === 'nominal'
-                    ? 'bg-accent text-white'
-                    : 'text-text-muted hover:text-text-primary'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-text-secondary hover:text-text-primary'
                 }`}
               >
                 Nominal
@@ -307,8 +306,8 @@ export default function PerformanceAttributionChart({
                 onClick={() => setMode('real')}
                 className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${
                   mode === 'real'
-                    ? 'bg-status-success text-white'
-                    : 'text-text-muted hover:text-text-primary'
+                    ? 'bg-emerald-600 text-white'
+                    : 'text-text-secondary hover:text-text-primary'
                 }`}
               >
                 Real (IPCA)
@@ -325,7 +324,7 @@ export default function PerformanceAttributionChart({
                 className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${
                   activeRange === r
                     ? 'bg-surface-card text-text-primary border border-border-subtle'
-                    : 'text-text-muted hover:text-text-primary'
+                    : 'text-text-secondary hover:text-text-primary'
                 }`}
               >
                 {r === '1y' ? '1A' : r === '2y' ? '2A' : 'Tudo'}
@@ -338,50 +337,50 @@ export default function PerformanceAttributionChart({
       {data?.summary && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5 text-xs">
           <div className="p-3 rounded-lg bg-surface border border-border-subtle">
-            <span className="text-2xs uppercase tracking-wider text-text-muted block">
+            <span className="text-[10px] uppercase tracking-wider text-text-secondary block">
               Aporte do Bolso
             </span>
-            <span className="text-sm font-semibold text-accent tabular-nums">
+            <span className="text-sm font-bold text-blue-400">
               {maskMoney(aporteBolso)}
             </span>
-            <span className="text-2xs text-text-muted block mt-0.5 tabular-nums">
+            <span className="text-[10px] text-text-secondary block mt-0.5">
               Compras líq. (c/ reinvest.): {maskMoney(data.summary.total_aportes_liquidos)}
             </span>
           </div>
           <div className="p-3 rounded-lg bg-surface border border-border-subtle">
-            <span className="text-2xs uppercase tracking-wider text-text-muted block">
+            <span className="text-[10px] uppercase tracking-wider text-text-secondary block">
               {mode === 'real' ? 'Retorno Total Real' : 'Retorno Total'}
             </span>
             <span
-              className={`text-sm font-semibold tabular-nums ${
-                totalReturnVal >= 0 ? 'text-status-success' : 'text-status-error'
+              className={`text-sm font-bold ${
+                totalReturnVal >= 0 ? 'text-emerald-400' : 'text-rose-400'
               }`}
             >
               {maskMoney(totalReturnVal)}
             </span>
-            <span className="text-2xs text-text-muted block mt-0.5 tabular-nums">
+            <span className="text-[10px] text-text-secondary block mt-0.5">
               Mercado: {maskMoney(marketDeltaVal)}
             </span>
           </div>
           <div className="p-3 rounded-lg bg-surface border border-border-subtle">
-            <span className="text-2xs uppercase tracking-wider text-text-muted block">
+            <span className="text-[10px] uppercase tracking-wider text-text-secondary block">
               Dividendos
             </span>
-            <span className="text-sm font-semibold text-status-warning tabular-nums">
+            <span className="text-sm font-bold text-amber-400">
               {maskMoney(data.summary.total_dividendos)}
             </span>
-            <span className="text-2xs text-text-muted block mt-0.5">
+            <span className="text-[10px] text-text-secondary block mt-0.5">
               Proventos pagos até hoje
             </span>
           </div>
           <div className="p-3 rounded-lg bg-surface border border-border-subtle">
-            <span className="text-2xs uppercase tracking-wider text-text-muted block">
+            <span className="text-[10px] uppercase tracking-wider text-text-secondary block">
               IPCA Acumulado
             </span>
-            <span className="text-sm font-semibold text-text-primary tabular-nums">
+            <span className="text-sm font-bold text-text-primary">
               {data.summary.ipca_acumulado_pct.toFixed(2)}%
             </span>
-            <span className="text-2xs text-text-muted block mt-0.5 tabular-nums">
+            <span className="text-[10px] text-text-secondary block mt-0.5">
               Fechamento ({data.series[data.series.length - 1]?.period || 'atual'}): {maskMoney(data.summary.patrimonio_atual)}
             </span>
           </div>
@@ -389,7 +388,7 @@ export default function PerformanceAttributionChart({
       )}
 
       {errorMsg && view === 'attribution' && (
-        <div className="mb-4 rounded-lg border border-status-error/30 bg-status-error/10 px-4 py-2 text-xs text-status-error">
+        <div className="mb-4 rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-2 text-xs text-rose-400">
           {errorMsg}
         </div>
       )}
@@ -398,10 +397,10 @@ export default function PerformanceAttributionChart({
         {view === 'attribution' ? (
           loading ? (
             <div className="h-full flex items-center justify-center">
-              <Loader2 className="w-6 h-6 animate-spin text-text-muted" />
+              <Loader2 className="w-6 h-6 animate-spin text-text-secondary" />
             </div>
           ) : chartData.length === 0 ? (
-            <div className="h-full flex items-center justify-center text-sm text-text-muted">
+            <div className="h-full flex items-center justify-center text-sm text-text-secondary">
               Sem histórico mensal suficiente para atribuição.
             </div>
           ) : (
@@ -427,7 +426,7 @@ export default function PerformanceAttributionChart({
                   orientation="right"
                   width={72}
                   tickFormatter={(v) => formatCompactAxis(Number(v), isHidden)}
-                  tick={{ fill: SEMANTIC_CHART_HEX.purple, fontSize: 11 }}
+                  tick={{ fill: '#a855f7', fontSize: 11 }}
                   tickLine={false}
                   axisLine={false}
                 />
@@ -449,7 +448,7 @@ export default function PerformanceAttributionChart({
                   yAxisId="left"
                   dataKey="aportes_liquidos"
                   name="Aportes Líquidos"
-                  fill={SEMANTIC_CHART_HEX.blue}
+                  fill="#3b82f6"
                   radius={[4, 4, 0, 0]}
                   animationDuration={280}
                 />
@@ -457,7 +456,7 @@ export default function PerformanceAttributionChart({
                   yAxisId="left"
                   dataKey="market_metric"
                   name={mode === 'real' ? 'Mercado Real (pós-IPCA)' : 'Variação Mercado'}
-                  fill={SEMANTIC_CHART_HEX.emerald}
+                  fill="#10b981"
                   radius={[4, 4, 0, 0]}
                   animationDuration={280}
                 />
@@ -465,7 +464,7 @@ export default function PerformanceAttributionChart({
                   yAxisId="left"
                   dataKey="dividendos"
                   name="Dividendos"
-                  fill={SEMANTIC_CHART_HEX.amber}
+                  fill="#f59e0b"
                   radius={[4, 4, 0, 0]}
                   animationDuration={280}
                 />
@@ -474,7 +473,7 @@ export default function PerformanceAttributionChart({
                   type="monotone"
                   dataKey="patrimonio_fim"
                   name="Patrimônio Fim (eixo dir.)"
-                  stroke={SEMANTIC_CHART_HEX.purple}
+                  stroke="#a855f7"
                   strokeWidth={2}
                   strokeDasharray="4 4"
                   dot={false}
@@ -484,7 +483,7 @@ export default function PerformanceAttributionChart({
             </ResponsiveContainer>
           )
         ) : filteredHistory.length === 0 ? (
-          <div className="h-full flex items-center justify-center text-sm text-text-muted">
+          <div className="h-full flex items-center justify-center text-sm text-text-secondary">
             Aguardando dados históricos diários...
           </div>
         ) : (
@@ -493,8 +492,8 @@ export default function PerformanceAttributionChart({
               {view === 'total' && (
                 <defs>
                   <linearGradient id="colorPatrimonioUnified" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={SEMANTIC_CHART_HEX.cyanLight} stopOpacity={0.3} />
-                    <stop offset="95%" stopColor={SEMANTIC_CHART_HEX.cyanLight} stopOpacity={0} />
+                    <stop offset="5%" stopColor="#22d3ee" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#22d3ee" stopOpacity={0} />
                   </linearGradient>
                 </defs>
               )}
@@ -517,7 +516,7 @@ export default function PerformanceAttributionChart({
               />
               <Tooltip
                 cursor={{
-                  stroke: view === 'total' ? SEMANTIC_CHART_HEX.cyanLight : SEMANTIC_CHART_HEX.purple,
+                  stroke: view === 'total' ? '#22d3ee' : '#a855f7',
                   strokeWidth: 1,
                   strokeDasharray: '4 4',
                 }}
@@ -541,7 +540,7 @@ export default function PerformanceAttributionChart({
                     type="monotone"
                     dataKey="Investido"
                     name="Capital Investido (c/ Reinv.)"
-                    stroke={SEMANTIC_CHART_HEX.slate}
+                    stroke="#94a3b8"
                     strokeWidth={1.75}
                     strokeDasharray="4 4"
                     fill="transparent"
@@ -552,7 +551,7 @@ export default function PerformanceAttributionChart({
                     type="monotone"
                     dataKey="Patrimônio"
                     name="Patrimônio Total"
-                    stroke={SEMANTIC_CHART_HEX.cyanLight}
+                    stroke="#22d3ee"
                     strokeWidth={2.25}
                     fill="url(#colorPatrimonioUnified)"
                     activeDot={{ r: 5, strokeWidth: 0, fill: palette.activeDotFill }}
@@ -581,7 +580,7 @@ export default function PerformanceAttributionChart({
       </div>
 
       {view === 'attribution' && (
-        <p className="text-2xs text-text-muted mt-3">
+        <p className="text-[11px] text-text-secondary mt-3">
           Identidade contábil mensal: Δ Custódia = Aportes Líquidos + Variação de Mercado · Fonte IPCA:{' '}
           {data?.ipca_source === 'bcb_sgs_433' ? 'BCB SGS 433' : 'Estimado (Fallback)'}
           {(data?.summary?.ipca_fallback_months ?? 0) > 0

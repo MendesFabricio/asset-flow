@@ -7,10 +7,10 @@ export const AssetValueCell = memo(function AssetValueCell({ ativo }: { ativo: A
   return (
     <td className="px-6 py-5 text-right">
       <div className="flex flex-col items-end">
-        <PrivateValue value={formatMoney(ativo.total_atual)} className="text-text-primary font-semibold tabular-nums" />
+        <PrivateValue value={formatMoney(ativo.total_atual)} className="text-slate-200 font-bold tabular-nums" />
         <PrivateValue
           value={`Investido: ${formatMoney(ativo.total_investido)}`}
-          className="text-2xs text-text-muted tabular-nums"
+          className="text-[10px] text-slate-500 tabular-nums"
         />
       </div>
     </td>

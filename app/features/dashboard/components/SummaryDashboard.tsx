@@ -59,7 +59,7 @@ export const SummaryDashboard = memo(function SummaryDashboard({
       : 'Total Histórico';
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 animate-in fade-in duration-150">
       {loading ? (
         <StatCardsSkeleton />
       ) : (
@@ -69,27 +69,27 @@ export const SummaryDashboard = memo(function SummaryDashboard({
           value={isHidden ? '•••' : metrics.yocMedio.toFixed(2) + '%'}
           subtext="Anual Est."
           icon={Percent}
-          colorClass="text-accent"
+          colorClass="text-purple-400"
         />
         <StatCard
           title="Total Investido"
           value={metrics.money(metrics.totalInvestido)}
           subtext="Custo de Aquisição"
           icon={PiggyBank}
-          colorClass="text-accent"
+          colorClass="text-blue-400"
         />
         <StatCard
           title="Lucro / Prejuízo"
           value={isHidden ? '••••••' : (metrics.lucroTotal > 0 ? '+' : '') + formatMoney(metrics.lucroTotal)}
           subtext={profitSubtext}
           icon={BarChart3}
-          colorClass={metrics.lucroTotal >= 0 ? 'text-status-success' : 'text-status-error'}
+          colorClass={metrics.lucroTotal >= 0 ? 'text-green-400' : 'text-red-400'}
           dailyResult={metrics.variacaoDiariaTotal}
         />
         <StatCard
           title="Top Insight"
           type="insight"
-          colorClass="text-accent"
+          colorClass="text-indigo-400"
           icon={Target}
           value={top ? top.ticker : '--'}
           badge={top ? top.recomendacao : undefined}

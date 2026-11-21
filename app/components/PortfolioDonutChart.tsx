@@ -39,13 +39,13 @@ export const PortfolioDonutChart: React.FC<PortfolioDonutChartProps> = React.mem
       const data = payload[0].payload;
       const percent = totalValue > 0 ? ((data.value / totalValue) * 100).toFixed(1) : 0;
       return (
-        <div className="bg-surface-card border border-border-subtle shadow-lg rounded-xl p-3 z-[100]">
-          <p className="text-sm font-semibold text-text-primary mb-1 flex items-center gap-2">
+        <div className="bg-surface-card backdrop-blur border border-slate-700 shadow-2xl rounded-xl p-3 ring-1 ring-black/5 z-[100]">
+          <p className="text-sm font-bold text-slate-200 mb-1 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full" style={{ backgroundColor: payload[0].payload.fill || CATEGORY_COLORS[data.name] }}></span>
             {data.name}
           </p>
-          <p className="text-xs text-text-muted font-mono tabular-nums">
-            {isHidden ? '••••••' : formatMoney(data.value)} <span className="text-text-muted ml-1">({percent}%)</span>
+          <p className="text-xs text-slate-400 font-mono">
+            {isHidden ? '••••••' : formatMoney(data.value)} <span className="text-slate-500 ml-1">({percent}%)</span>
           </p>
         </div>
       );
@@ -54,17 +54,17 @@ export const PortfolioDonutChart: React.FC<PortfolioDonutChartProps> = React.mem
   };
 
   return (
-    <Card className="flex flex-col h-full min-h-[420px] overflow-hidden bg-surface-card border-border-subtle shadow-sm p-0 relative">
+    <Card className="flex flex-col h-full min-h-[420px] overflow-hidden bg-surface-card border-border-subtle shadow-2xl p-0 relative animate-in fade-in duration-500">
       <div className="p-4 border-b border-border-subtle bg-transparent flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
-          <div className="p-1.5 bg-accent-soft rounded-lg border border-accent/20">
-            <Wallet size={16} className="text-accent" />
+          <div className="p-1.5 bg-indigo-500/10 rounded-lg border border-indigo-500/20">
+            <Wallet size={16} className="text-indigo-400" />
           </div>
-          <h3 className="font-semibold text-text-primary text-xs uppercase tracking-wider leading-none">Distribuição</h3>
+          <h3 className="font-bold text-slate-200 text-xs uppercase tracking-widest leading-none">Distribuição</h3>
         </div>
         <button 
           onClick={onOpenRadar}
-          className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-2xs font-semibold tracking-wider uppercase text-text-muted hover:text-accent hover:bg-accent-soft border border-transparent hover:border-accent/20 transition-colors"
+          className="flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-bold tracking-wider uppercase text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10 border border-transparent hover:border-indigo-500/20 transition-all"
         >
           <Shield size={12} />
           Radar
@@ -74,8 +74,8 @@ export const PortfolioDonutChart: React.FC<PortfolioDonutChartProps> = React.mem
       <div className="flex-1 relative flex items-center justify-center p-4">
         {data.length === 0 ? (
           <div className="flex flex-col items-center justify-center opacity-50">
-            <Wallet size={32} className="text-text-muted mb-2" />
-            <span className="text-xs text-text-muted font-semibold uppercase tracking-wider">Sem Dados</span>
+            <Wallet size={32} className="text-slate-600 mb-2" />
+            <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Sem Dados</span>
           </div>
         ) : (
           <>
@@ -101,10 +101,10 @@ export const PortfolioDonutChart: React.FC<PortfolioDonutChartProps> = React.mem
               </PieChart>
             </ResponsiveContainer>
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
-              <div className="p-3 bg-surface-elevated rounded-full border border-border-subtle mb-1">
-                <Wallet size={20} className="text-text-muted" />
+              <div className="p-3 bg-slate-800/80 rounded-full border border-slate-700/50 shadow-inner mb-1">
+                <Wallet size={20} className="text-slate-400" />
               </div>
-              <span className="text-2xs font-semibold text-text-muted uppercase tracking-wider">Carteira</span>
+              <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Carteira</span>
             </div>
           </>
         )}

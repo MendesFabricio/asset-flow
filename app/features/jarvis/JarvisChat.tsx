@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Brain, User, RefreshCw, ArrowRight, Loader2 } from 'lucide-react';
+import { Send, Brain, User, RefreshCw, ArrowRight } from 'lucide-react';
 import { apiCall } from '@/lib/api';
 import { Markdown } from '@/components/ui/Markdown';
 
@@ -156,7 +156,7 @@ export function JarvisChat() {
       setMessages((prev) =>
         prev.map((msg) =>
           msg.id === jarvisMsgId
-            ? { ...msg, text: 'Ocorreu um erro ao conectar-se à inteligência artificial.' }
+            ? { ...msg, text: '❌ Ocorreu um erro ao conectar-se à inteligência artificial.' }
             : msg
         )
       );
@@ -167,19 +167,19 @@ export function JarvisChat() {
 
 
   return (
-    <div className="max-w-4xl mx-auto bg-surface-card border border-border-subtle rounded-xl overflow-hidden shadow-sm flex flex-col h-[650px]">
+    <div className="max-w-4xl mx-auto bg-surface-card border border-border-subtle rounded-2xl overflow-hidden shadow-2xl flex flex-col h-[650px] backdrop-blur-md">
       {/* Header */}
       <div className="px-5 py-4 border-b border-border-subtle bg-surface-elevated flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-accent-soft rounded-lg border border-accent/20 text-accent">
-            <Brain size={18} />
+          <div className="p-2 bg-indigo-500/10 rounded-xl border border-indigo-500/20 text-indigo-400">
+            <Brain size={18} className="animate-pulse" />
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-text-primary flex items-center gap-1.5">
+            <h3 className="text-sm font-bold text-text-primary flex items-center gap-1.5">
               Assistente Jarvis
-              <span className="text-2xs uppercase font-semibold tracking-wider bg-accent-soft border border-accent/20 text-accent px-1.5 py-0.5 rounded-md">Jarvis Edition</span>
+              <span className="text-[9px] uppercase font-extrabold tracking-wider bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 px-1.5 py-0.5 rounded">Jarvis Edition</span>
             </h3>
-            <p className="text-2xs text-text-muted">Inteligência quantitativa consciente de portfólio</p>
+            <p className="text-[11px] text-text-muted">Inteligência quantitativa consciente de portfólio</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -188,7 +188,7 @@ export function JarvisChat() {
             value={sessionId}
             onChange={(e) => setSessionId(e.target.value)}
             disabled={loading}
-            className="bg-surface-input border border-border-subtle rounded-lg text-2xs font-semibold text-text-primary px-2 py-1 uppercase tracking-wider focus:outline-none focus:border-accent"
+            className="bg-surface-input border border-border-subtle rounded-lg text-[10px] font-bold text-text-primary px-2 py-1 uppercase tracking-wider focus:outline-none focus:border-indigo-500/70"
           >
             {sessionsList.map((s) => (
               <option key={s.id} value={s.id} className="bg-surface-card text-text-primary">
@@ -200,7 +200,7 @@ export function JarvisChat() {
             type="button"
             onClick={handleClearHistory}
             title="Limpar Conversa"
-            className="text-text-muted hover:text-text-primary hover:bg-surface-card p-1.5 rounded-lg transition-colors"
+            className="text-text-muted hover:text-text-primary hover:bg-surface-card p-1.5 rounded-lg transition-all"
           >
             <RefreshCw size={14} />
           </button>
@@ -208,7 +208,7 @@ export function JarvisChat() {
       </div>
 
       {/* Message Thread */}
-      <div className="flex-1 overflow-y-auto px-5 pt-6 pb-5 space-y-4">
+      <div className="flex-1 overflow-y-auto px-5 pt-6 pb-5 space-y-4 scrollbar-thin scrollbar-thumb-slate-700">
         {messages.map((msg) => (
           <div
             key={msg.id}
@@ -220,14 +220,14 @@ export function JarvisChat() {
               className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border ${
                 msg.sender === 'user'
                   ? 'bg-surface-elevated border-border-subtle text-text-muted'
-                  : 'bg-accent-soft border-accent/20 text-accent'
+                  : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400'
               }`}
             >
               {msg.sender === 'user' ? <User size={13} /> : <Brain size={13} />}
             </div>
             
             <div
-              className={`p-3.5 rounded-xl text-xs leading-relaxed border ${
+              className={`p-3.5 rounded-2xl text-xs leading-relaxed border ${
                 msg.sender === 'user'
                   ? 'bg-accent-soft text-text-primary rounded-tr-none border-accent/20'
                   : 'bg-surface-elevated text-text-primary border-border-subtle rounded-tl-none'
@@ -240,12 +240,13 @@ export function JarvisChat() {
 
         {loading && (
           <div className="flex gap-3 max-w-[85%] mr-auto">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border bg-accent-soft border-accent/20 text-accent">
-              <Brain size={13} />
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border bg-indigo-500/10 border-indigo-500/20 text-indigo-400">
+              <Brain size={13} className="animate-pulse" />
             </div>
-            <div className="p-3.5 rounded-xl rounded-tl-none bg-surface-elevated text-text-muted border border-border-subtle flex items-center gap-2 text-xs">
-              <Loader2 size={14} className="animate-spin text-accent" />
-              <span>Analisando portfólio...</span>
+            <div className="p-3.5 rounded-2xl rounded-tl-none bg-indigo-950/10 text-slate-400 border border-indigo-500/5 shadow-inner flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-bounce" style={{ animationDelay: '0ms' }} />
+              <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-bounce" style={{ animationDelay: '150ms' }} />
+              <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-bounce" style={{ animationDelay: '300ms' }} />
             </div>
           </div>
         )}
@@ -259,7 +260,7 @@ export function JarvisChat() {
             <button
               key={s}
               onClick={() => handleSend(s)}
-              className="text-2xs font-medium bg-surface-elevated hover:bg-surface-input text-text-muted hover:text-text-primary border border-border-subtle rounded-lg px-3 py-1.5 transition-colors flex items-center gap-1 group"
+              className="text-[10px] font-semibold bg-surface-card hover:bg-surface-card/80 text-slate-400 hover:text-slate-200 border border-slate-800 rounded-full px-3 py-1.5 transition-all flex items-center gap-1 group"
             >
               <span>{s}</span>
               <ArrowRight size={10} className="opacity-0 group-hover:opacity-100 transition-opacity ml-0.5" />
@@ -269,7 +270,7 @@ export function JarvisChat() {
       )}
 
       {/* Input Box */}
-      <div className="p-4 border-t border-border-subtle bg-surface-elevated flex gap-2.5">
+      <div className="p-4 border-t border-slate-900/60 bg-surface-card/20 flex gap-2.5">
         <input
           type="text"
           placeholder="Pergunte ao Jarvis sobre sua carteira..."
@@ -277,12 +278,12 @@ export function JarvisChat() {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSend(input)}
           disabled={loading}
-          className="flex-1 bg-surface-input border border-border-subtle rounded-lg px-4 py-2.5 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors"
+          className="flex-1 bg-surface-card/50 border border-slate-900 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500/70 focus:ring-1 focus:ring-indigo-500/30 transition-all shadow-[inset_0_1px_2px_rgba(0,0,0,0.5)]"
         />
         <button
           onClick={() => handleSend(input)}
           disabled={loading || !input.trim()}
-          className="p-2.5 bg-accent hover:bg-accent/90 disabled:bg-surface-input disabled:text-text-muted text-white rounded-lg transition-colors flex items-center justify-center border border-accent/20"
+          className="p-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-surface-card/50 disabled:text-slate-600 text-white rounded-xl transition-all shadow-lg hover:shadow-indigo-600/10 flex items-center justify-center border border-indigo-500/20"
         >
           <Send size={14} />
         </button>

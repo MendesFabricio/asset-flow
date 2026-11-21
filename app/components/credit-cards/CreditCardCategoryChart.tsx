@@ -4,7 +4,6 @@ import React from 'react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
 import { formatMoney } from '../../lib/format';
 import { usePrivacy } from '../../context/PrivacyContext';
-import { useChartPalette } from '../../lib/chartPalette';
 
 interface ChartDataItem {
   name: string;
@@ -19,12 +18,11 @@ interface CreditCardCategoryChartProps {
 
 export function CreditCardCategoryChart({ chartData, colors }: CreditCardCategoryChartProps) {
   const { isHidden } = usePrivacy();
-  const palette = useChartPalette();
   if (!chartData || chartData.length === 0) return null;
 
   return (
-    <div className="bg-surface-card border border-border-subtle rounded-xl p-4 shadow-sm space-y-3">
-      <h4 className="text-xs font-semibold text-text-muted uppercase tracking-wider">Gastos por Categoria</h4>
+    <div className="bg-surface-card border border-slate-800 rounded-xl p-4 shadow-lg space-y-3">
+      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Gastos por Categoria</h4>
       <div className="h-52 w-full">
         <ResponsiveContainer width="100%" height="100%" minWidth={0}>
           <PieChart>
@@ -47,10 +45,10 @@ export function CreditCardCategoryChart({ chartData, colors }: CreditCardCategor
                 'Gasto',
               ]}
               contentStyle={{
-                backgroundColor: palette.tooltipBg,
-                borderColor: palette.tooltipBorder,
+                backgroundColor: '#0f172a',
+                borderColor: '#334155',
                 borderRadius: '8px',
-                color: palette.tooltipLabel,
+                color: '#fff',
                 fontSize: '12px',
               }}
             />
@@ -58,7 +56,7 @@ export function CreditCardCategoryChart({ chartData, colors }: CreditCardCategor
               layout="horizontal"
               verticalAlign="bottom"
               align="center"
-              wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }}
+              wrapperStyle={{ fontSize: '10px', paddingTop: '10px' }}
             />
           </PieChart>
         </ResponsiveContainer>

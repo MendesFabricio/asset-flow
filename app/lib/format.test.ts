@@ -39,8 +39,8 @@ describe('getStatusBg', () => {
         expect(getStatusBg('AGUARDAR')).toBe('bg-yellow-500');
     });
 
-    it('should return neutral surface for unknown status', () => {
-        expect(getStatusBg('UNKNOWN')).toBe('bg-surface-input');
-        expect(getStatusBg('')).toBe('bg-surface-input');
+    it('should return slate for unknown status', () => {
+        expect(getStatusBg('UNKNOWN')).toBe('bg-slate-600');
+        expect(getStatusBg('')).toBe('bg-slate-600');
     });
 });

@@ -133,20 +133,20 @@ export default function TaxSellSimulatorCard({ ativos = [] }: { ativos?: Asset[]
     <Card className="p-6 mt-6 flex flex-col gap-5">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border-subtle pb-3">
         <div className="flex items-center gap-2">
-          <Calculator className="text-accent" size={18} />
+          <Calculator className="text-blue-400" size={18} />
           <div>
-            <h3 className="font-semibold text-text-primary text-sm uppercase tracking-wider">
-              Simulador de Venda, Isenção R$ 20k &amp; Tax-Loss Harvesting
+            <h3 className="font-bold text-text-primary text-sm uppercase tracking-wider">
+              Simulador de Venda, Isenção R$ 20k & Tax-Loss Harvesting
             </h3>
-            <p className="text-xs text-text-muted">
+            <p className="text-xs text-text-secondary">
               Simule vendas antes de executar na corretora: previna perda da isenção de ações e compense DARF com prejuízos.
             </p>
           </div>
         </div>
         {simResult && (
           <div className="text-right text-xs">
-            <span className="text-text-muted block">Competência {simResult.period}</span>
-            <span className="font-semibold text-text-primary tabular-nums">
+            <span className="text-text-secondary block">Competência {simResult.period}</span>
+            <span className="font-semibold text-text-primary">
               Prejuízo comp. Ações: {maskMoney(simResult.tax_impact.accumulated_losses_available.stocks_st)} · FIIs:{' '}
               {maskMoney(simResult.tax_impact.accumulated_losses_available.fiis)}
             </span>
@@ -158,24 +158,24 @@ export default function TaxSellSimulatorCard({ ativos = [] }: { ativos?: Asset[]
       {simResult && (
         <div className="p-4 rounded-xl bg-surface border border-border-subtle space-y-2">
           <div className="flex items-center justify-between text-xs">
-            <span className="font-semibold flex items-center gap-1.5 text-text-primary">
-              <Flame size={14} className={isOverLimit ? 'text-status-error' : 'text-status-warning'} />
+            <span className="font-bold flex items-center gap-1.5 text-text-primary">
+              <Flame size={14} className={isOverLimit ? 'text-rose-400' : 'text-amber-400'} />
               Termômetro de Isenção em Ações (Swing Trade)
             </span>
-            <span className={`font-semibold tabular-nums ${isOverLimit ? 'text-status-error' : 'text-status-success'}`}>
+            <span className={`font-bold ${isOverLimit ? 'text-rose-400' : 'text-emerald-400'}`}>
               {maskMoney(totalSales)} / {maskMoney(limit)}
             </span>
           </div>
           <div className="h-2.5 w-full rounded-full bg-surface-card overflow-hidden border border-border-subtle">
             <div
-              className={`h-full transition-[width] duration-300 ${
-                isOverLimit ? 'bg-status-error' : pctUsed > 75 ? 'bg-status-warning' : 'bg-status-success'
+              className={`h-full transition-all duration-300 ${
+                isOverLimit ? 'bg-rose-500' : pctUsed > 75 ? 'bg-amber-500' : 'bg-emerald-500'
               }`}
               style={{ width: `${pctUsed}%` }}
             />
           </div>
           {simResult.tax_impact.breaks_20k_exemption && (
-            <div className="flex items-start gap-2 text-xs text-status-error pt-1">
+            <div className="flex items-start gap-2 text-xs text-rose-400 pt-1">
               <AlertTriangle size={14} className="shrink-0 mt-0.5" />
               <span>
                 Atenção: essa simulação ultrapassa R$ 20.000/mês em vendas de ações, tornando tributável (15%) todo o lucro líquido do mês no segmento!
@@ -188,7 +188,7 @@ export default function TaxSellSimulatorCard({ ativos = [] }: { ativos?: Asset[]
       {/* Formulário de venda simulada */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
         <div className="sm:col-span-2">
-          <label className="text-2xs font-semibold uppercase tracking-wider text-text-muted block mb-1">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-text-secondary block mb-1">
             Ativo em Carteira
           </label>
           <select
@@ -197,18 +197,18 @@ export default function TaxSellSimulatorCard({ ativos = [] }: { ativos?: Asset[]
               setSelectedTicker(e.target.value);
               setQtyInput('');
             }}
-            className="w-full rounded-lg bg-surface border border-border-subtle px-3 py-2 text-sm text-text-primary outline-none focus:border-accent"
+            className="w-full rounded-lg bg-surface border border-border-subtle px-3 py-2 text-sm text-text-primary outline-none focus:border-blue-500"
           >
             {sellableAssets.map((a) => (
               <option key={a.ticker} value={a.ticker}>
-                {a.ticker} ({a.tipo}) · {a.qtd} un.
+                {a.ticker} ({a.tipo}) — {a.qtd} un.
               </option>
             ))}
           </select>
         </div>
 
         <div>
-          <label className="text-2xs font-semibold uppercase tracking-wider text-text-muted block mb-1">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-text-secondary block mb-1">
             Quantidade {activeAsset ? `(máx ${activeAsset.qtd})` : ''}
           </label>
           <input
@@ -219,7 +219,7 @@ export default function TaxSellSimulatorCard({ ativos = [] }: { ativos?: Asset[]
             value={qtyInput}
             onChange={(e) => setQtyInput(e.target.value)}
             placeholder={activeAsset ? String(Math.max(1, Math.floor(activeAsset.qtd / 2))) : '0'}
-            className="w-full rounded-lg bg-surface border border-border-subtle px-3 py-2 text-sm text-text-primary outline-none focus:border-accent tabular-nums"
+            className="w-full rounded-lg bg-surface border border-border-subtle px-3 py-2 text-sm text-text-primary outline-none focus:border-blue-500"
           />
         </div>
 
@@ -227,7 +227,7 @@ export default function TaxSellSimulatorCard({ ativos = [] }: { ativos?: Asset[]
           type="button"
           disabled={!selectedTicker || loading || !(parseFloat(qtyInput) > 0)}
           onClick={() => handleAddOrUpdateSale(selectedTicker, parseFloat(qtyInput))}
-          className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-accent hover:bg-accent/90 text-white px-4 py-2 text-xs font-semibold uppercase tracking-wider transition-colors disabled:opacity-40"
+          className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 text-xs font-bold uppercase tracking-wider transition disabled:opacity-40"
         >
           <Plus size={14} />
           Simular Venda
@@ -235,7 +235,7 @@ export default function TaxSellSimulatorCard({ ativos = [] }: { ativos?: Asset[]
       </div>
 
       {activeAsset && (
-        <div className="flex flex-wrap gap-2 text-2xs">
+        <div className="flex flex-wrap gap-2 text-[11px]">
           {[0.25, 0.5, 1].map((pct) => {
             const suggestedQty =
               activeAsset.tipo === 'Cripto' || activeAsset.tipo === 'Internacional'
@@ -249,7 +249,7 @@ export default function TaxSellSimulatorCard({ ativos = [] }: { ativos?: Asset[]
                   setQtyInput(String(suggestedQty));
                   handleAddOrUpdateSale(activeAsset.ticker, suggestedQty);
                 }}
-                className="px-2.5 py-1 rounded-md border border-border-subtle bg-surface hover:border-accent/50 text-text-muted hover:text-text-primary transition-colors tabular-nums"
+                className="px-2.5 py-1 rounded border border-border-subtle bg-surface hover:border-blue-500/50 text-text-secondary hover:text-text-primary transition"
               >
                 Vender {Math.round(pct * 100)}% ({suggestedQty})
               </button>
@@ -258,7 +258,7 @@ export default function TaxSellSimulatorCard({ ativos = [] }: { ativos?: Asset[]
         </div>
       )}
 
-      {errorMsg && <p className="text-xs text-status-error">{errorMsg}</p>}
+      {errorMsg && <p className="text-xs text-rose-400">{errorMsg}</p>}
 
       {/* Itens na simulação + Impacto Financeiro */}
       {sales.length > 0 && simResult && (
@@ -269,9 +269,9 @@ export default function TaxSellSimulatorCard({ ativos = [] }: { ativos?: Asset[]
                 key={item.ticker}
                 className="inline-flex items-center gap-2 rounded-lg border border-border-subtle bg-surface px-3 py-1.5 text-xs"
               >
-                <span className="font-semibold text-text-primary">{item.ticker}</span>
-                <span className="text-text-muted tabular-nums">{item.quantity_sold} un.</span>
-                <span className={`font-semibold tabular-nums ${item.gain_loss >= 0 ? 'text-status-success' : 'text-status-error'}`}>
+                <span className="font-bold text-text-primary">{item.ticker}</span>
+                <span className="text-text-secondary">{item.quantity_sold} un.</span>
+                <span className={item.gain_loss >= 0 ? 'text-emerald-400 font-semibold' : 'text-rose-400 font-semibold'}>
                   {item.gain_loss >= 0 ? '+' : ''}
                   {maskMoney(item.gain_loss)}
                 </span>
@@ -279,7 +279,7 @@ export default function TaxSellSimulatorCard({ ativos = [] }: { ativos?: Asset[]
                   type="button"
                   onClick={() => handleRemoveSale(item.ticker)}
                   aria-label={`Remover ${item.ticker}`}
-                  className="text-text-muted hover:text-status-error transition-colors"
+                  className="text-text-secondary hover:text-rose-400"
                 >
                   <Trash2 size={12} />
                 </button>
@@ -289,18 +289,18 @@ export default function TaxSellSimulatorCard({ ativos = [] }: { ativos?: Asset[]
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
             <div className="p-3 rounded-xl bg-surface border border-border-subtle">
-              <span className="text-2xs uppercase text-text-muted block">Caixa Bruto Gerado</span>
-              <span className="text-base font-semibold text-text-primary tabular-nums">{maskMoney(simResult.proceeds_total)}</span>
+              <span className="text-[10px] uppercase text-text-secondary block">Caixa Bruto Gerado</span>
+              <span className="text-base font-black text-text-primary">{maskMoney(simResult.proceeds_total)}</span>
             </div>
             <div className="p-3 rounded-xl bg-surface border border-border-subtle">
-              <span className="text-2xs uppercase text-text-muted block">DARF Adicional Estimada</span>
-              <span className="text-base font-semibold text-status-error tabular-nums">
+              <span className="text-[10px] uppercase text-text-secondary block">DARF Adicional Estimada</span>
+              <span className="text-base font-black text-rose-400">
                 {maskMoney(simResult.tax_impact.estimated_darf_delta)}
               </span>
             </div>
             <div className="p-3 rounded-xl bg-surface border border-border-subtle">
-              <span className="text-2xs uppercase text-text-muted block">Caixa Líquido Pós-IR</span>
-              <span className="text-base font-semibold text-status-success tabular-nums">
+              <span className="text-[10px] uppercase text-text-secondary block">Caixa Líquido Pós-IR</span>
+              <span className="text-base font-black text-emerald-400">
                 {maskMoney(simResult.tax_impact.net_proceeds_after_tax)}
               </span>
             </div>
@@ -312,15 +312,15 @@ export default function TaxSellSimulatorCard({ ativos = [] }: { ativos?: Asset[]
       {simResult && simResult.tax_loss_harvesting.length > 0 && (
         <div className="border-t border-border-subtle pt-4 space-y-3">
           <div className="flex items-center gap-2">
-            <Scissors size={15} className="text-status-success" />
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-text-primary">
+            <Scissors size={15} className="text-emerald-400" />
+            <h4 className="text-xs font-bold uppercase tracking-wider text-text-primary">
               Oportunidades de Tax-Loss Harvesting (Compensação Fiscal)
             </h4>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="border-b border-border-subtle text-2xs uppercase text-text-muted">
+                <tr className="border-b border-border-subtle text-[10px] uppercase text-text-secondary">
                   <th className="py-2">Ativo</th>
                   <th className="py-2">Bucket</th>
                   <th className="py-2 text-right">Prejuízo Latente</th>
@@ -331,19 +331,19 @@ export default function TaxSellSimulatorCard({ ativos = [] }: { ativos?: Asset[]
               <tbody className="divide-y divide-border-subtle">
                 {simResult.tax_loss_harvesting.map((cand) => (
                   <tr key={cand.ticker}>
-                    <td className="py-2 font-semibold text-text-primary">{cand.ticker}</td>
-                    <td className="py-2 text-text-muted">{cand.tax_bucket}</td>
-                    <td className="py-2 text-right text-status-error font-semibold tabular-nums">
+                    <td className="py-2 font-bold text-text-primary">{cand.ticker}</td>
+                    <td className="py-2 text-text-secondary">{cand.tax_bucket}</td>
+                    <td className="py-2 text-right text-rose-400 font-semibold">
                       {maskMoney(cand.unrealized_loss)} ({cand.unrealized_loss_pct.toFixed(1)}%)
                     </td>
-                    <td className="py-2 text-right text-status-success font-semibold tabular-nums">
+                    <td className="py-2 text-right text-emerald-400 font-bold">
                       {maskMoney(cand.potential_tax_savings)}
                     </td>
                     <td className="py-2 text-right">
                       <button
                         type="button"
                         onClick={() => handleAddOrUpdateSale(cand.ticker, cand.quantity)}
-                        className="px-2 py-1 rounded-md border border-border-subtle hover:border-status-success/50 text-2xs font-semibold uppercase text-text-primary transition-colors"
+                        className="px-2 py-1 rounded border border-border-subtle hover:border-emerald-500/50 text-[10px] font-bold uppercase text-text-primary"
                       >
                         Colher 100%
                       </button>

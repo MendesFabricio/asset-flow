@@ -141,7 +141,7 @@ export const AddAssetModal = ({ isOpen, onClose, onSuccess }: AddAssetModalProps
     >
       {/* Feedback de Erro Estilizado */}
       {error && (
-        <div className="mb-4 p-3 bg-status-error/10 border border-status-error/20 rounded-lg flex items-center gap-2 text-status-error text-xs font-medium">
+        <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2 text-red-400 text-xs font-medium animate-in fade-in zoom-in-95">
           <AlertCircle size={14} />
           {error}
         </div>
@@ -149,7 +149,7 @@ export const AddAssetModal = ({ isOpen, onClose, onSuccess }: AddAssetModalProps
 
       <div className="space-y-4">
         <div className="space-y-1.5">
-          <label className="text-2xs uppercase font-semibold text-text-muted tracking-wider">Ticker</label>
+          <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Ticker</label>
           <div className="relative">
             <input
               name="ticker"
@@ -163,21 +163,21 @@ export const AddAssetModal = ({ isOpen, onClose, onSuccess }: AddAssetModalProps
                 setFormData({ ...formData, ticker: e.target.value.toUpperCase() });
                 setShowSuggestions(true);
               }}
-              className="w-full bg-surface-input border border-border-subtle rounded-lg p-3 text-text-primary placeholder:text-text-muted focus:border-accent outline-none font-mono uppercase transition-colors"
+              className="w-full bg-slate-100/70 dark:bg-slate-800/30 border border-slate-300 dark:border-slate-700/50 rounded-lg p-3 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 outline-none font-mono uppercase transition-all shadow-sm hover:bg-slate-100 dark:hover:bg-slate-800/40"
             />
-            <Search size={16} className="absolute right-3 top-3.5 text-text-muted" />
+            <Search size={16} className="absolute right-3 top-3.5 text-slate-400 dark:text-slate-600" />
             
             {showSuggestions && formData.ticker && filteredTickers.length > 0 && (
-              <div className="absolute z-20 w-full mt-2 bg-surface-card border border-border-subtle rounded-xl shadow-lg max-h-48 overflow-y-auto divide-y divide-border-subtle">
+              <div className="absolute z-20 w-full mt-2 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/90 dark:border-slate-800 rounded-xl shadow-2xl shadow-slate-900/15 dark:shadow-black/50 max-h-48 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/50">
                 {filteredTickers.map((t) => (
                   <div
                     key={t.ticker}
                     onClick={() => handleSelectTicker(t)}
-                    className="flex justify-between items-center p-3 hover:bg-surface-elevated cursor-pointer transition-colors"
+                    className="flex justify-between items-center p-3 hover:bg-slate-100/90 dark:hover:bg-slate-800/80 cursor-pointer transition-colors"
                   >
                     <div>
-                      <div className="font-mono text-sm text-text-primary font-semibold">{t.ticker}</div>
-                      <div className="text-xs text-text-muted mt-0.5">{t.name}</div>
+                      <div className="font-mono text-sm text-slate-900 dark:text-white font-bold">{t.ticker}</div>
+                      <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{t.name}</div>
                     </div>
                     <Badge label={t.type} variant="blue" />
                   </div>
@@ -188,55 +188,55 @@ export const AddAssetModal = ({ isOpen, onClose, onSuccess }: AddAssetModalProps
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-2xs uppercase font-semibold text-text-muted tracking-wider">Tipo</label>
+          <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Tipo</label>
           <select
             name="type"
             value={formData.type}
             onChange={handleChange}
-            className="w-full bg-surface-input border border-border-subtle rounded-lg p-3 text-text-primary focus:border-accent outline-none appearance-none cursor-pointer transition-colors"
+            className="w-full bg-slate-100/70 dark:bg-slate-800/30 border border-slate-300 dark:border-slate-700/50 rounded-lg p-3 text-slate-900 dark:text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 outline-none appearance-none cursor-pointer transition-all shadow-sm hover:bg-slate-100 dark:hover:bg-slate-800/40"
           >
-            <option value="Ação" className="bg-surface-card text-text-primary">Ação</option>
-            <option value="FII" className="bg-surface-card text-text-primary">Fundo Imobiliário (FII)</option>
-            <option value="Internacional" className="bg-surface-card text-text-primary">Internacional</option>
-            <option value="Cripto" className="bg-surface-card text-text-primary">Criptomoeda</option>
-            <option value="Renda Fixa" className="bg-surface-card text-text-primary">Renda Fixa</option>
-            <option value="Reserva" className="bg-surface-card text-text-primary">Reserva Financeira</option>
+            <option value="Ação" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Ação</option>
+            <option value="FII" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Fundo Imobiliário (FII)</option>
+            <option value="Internacional" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Internacional</option>
+            <option value="Cripto" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Criptomoeda</option>
+            <option value="Renda Fixa" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Renda Fixa</option>
+            <option value="Reserva" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Reserva Financeira</option>
           </select>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1.5">
-            <label className="text-2xs uppercase font-semibold text-text-muted tracking-wider">Quantidade</label>
-            <input name="quantity" type="number" step="0.000001" value={formData.quantity} onChange={handleChange} className="w-full bg-surface-input border border-border-subtle rounded-lg p-3 text-text-primary font-mono tabular-nums focus:border-accent outline-none transition-colors" />
+            <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Quantidade</label>
+            <input name="quantity" type="number" step="0.000001" value={formData.quantity} onChange={handleChange} className="w-full bg-slate-100/70 dark:bg-slate-800/30 border border-slate-300 dark:border-slate-700/50 rounded-lg p-3 text-slate-900 dark:text-white font-mono focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 outline-none transition-all shadow-sm hover:bg-slate-100 dark:hover:bg-slate-800/40" />
           </div>
           <div className="space-y-1.5">
-            <label className="text-2xs uppercase font-semibold text-text-muted tracking-wider">Preço Médio / Atual</label>
-            <input name="average_price" type="number" step="0.01" value={formData.average_price} onChange={handleChange} className="w-full bg-surface-input border border-border-subtle rounded-lg p-3 text-text-primary font-mono tabular-nums focus:border-accent outline-none transition-colors" />
+            <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Preço Médio / Atual</label>
+            <input name="average_price" type="number" step="0.01" value={formData.average_price} onChange={handleChange} className="w-full bg-slate-100/70 dark:bg-slate-800/30 border border-slate-300 dark:border-slate-700/50 rounded-lg p-3 text-slate-900 dark:text-white font-mono focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 outline-none transition-all shadow-sm hover:bg-slate-100 dark:hover:bg-slate-800/40" />
           </div>
         </div>
 
         <div className="space-y-1.5">
           <div className="flex justify-between">
-            <label className="text-2xs uppercase font-semibold text-text-muted tracking-wider">Meta Inicial (%)</label>
+            <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Meta Inicial (%)</label>
             <Badge label={`${formData.target_percent}%`} variant="blue" />
           </div>
           <input
             name="target_percent" type="range" min="0" max="100" step="1"
             value={formData.target_percent}
             onChange={(e) => setFormData({ ...formData, target_percent: Number(e.target.value) })}
-            className="w-full h-1.5 bg-surface-input rounded-lg appearance-none cursor-pointer accent-accent focus:outline-none"
+            className="w-full h-1.5 bg-slate-200 dark:bg-slate-800/50 rounded-lg appearance-none cursor-pointer accent-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
           />
         </div>
       </div>
 
-      <div className="mt-8 flex justify-end gap-3 border-t border-border-subtle pt-5">
-        <button onClick={onClose} className="px-5 py-2.5 text-2xs font-semibold uppercase tracking-wider text-text-muted hover:text-text-primary rounded-lg transition-colors">
+      <div className="mt-8 flex justify-end gap-3 border-t border-slate-200/80 dark:border-slate-800/50 pt-5">
+        <button onClick={onClose} className="px-5 py-2.5 text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-lg transition-colors">
           Cancelar
         </button>
         <button
           onClick={handleSave}
           disabled={loading || validating || !formData.ticker}
-          className="inline-flex justify-center items-center gap-2 rounded-lg bg-accent px-6 py-2.5 text-2xs font-semibold uppercase tracking-wider text-white hover:bg-accent/90 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="inline-flex justify-center items-center gap-2 rounded-lg bg-blue-600 px-6 py-2.5 text-[11px] font-bold uppercase tracking-wider text-white hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-[0_2px_10px_rgba(37,99,235,0.2)]"
         >
           {validating ? (
             <>

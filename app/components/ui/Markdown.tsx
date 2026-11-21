@@ -72,8 +72,8 @@ export function Markdown({ text }: MarkdownProps) {
           rel="noopener noreferrer"
           className={
             isSourcePill
-              ? 'inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-accent-soft border border-accent/30 text-2xs text-accent hover:bg-accent/25 no-underline font-semibold ml-1 align-middle transition-colors'
-              : 'text-accent hover:text-accent/80 underline font-medium'
+              ? 'inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-indigo-500/15 border border-indigo-500/30 text-[10px] text-indigo-300 hover:bg-indigo-500/25 no-underline font-semibold ml-1 align-middle transition-colors'
+              : 'text-indigo-400 hover:text-indigo-300 underline font-medium'
           }
         >
           {label}
@@ -82,19 +82,19 @@ export function Markdown({ text }: MarkdownProps) {
     });
 
     applyRegex(/`([^`]+)`/g, (match, key) => (
-      <code key={key} className="bg-surface-input px-1.5 py-0.5 rounded-md border border-border-subtle text-2xs text-accent font-mono">
+      <code key={key} className="bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800 text-[10px] text-indigo-300 font-mono">
         {match[1]}
       </code>
     ));
 
     applyRegex(/\*\*([^*]+)\*\*/g, (match, key) => (
-      <strong key={key} className="text-text-primary font-semibold">
+      <strong key={key} className="text-white font-extrabold">
         {match[1]}
       </strong>
     ));
 
     applyRegex(/\*([^*]+)\*/g, (match, key) => (
-      <em key={key} className="text-text-primary italic">
+      <em key={key} className="text-slate-200 italic">
         {match[1]}
       </em>
     ));
@@ -116,34 +116,34 @@ export function Markdown({ text }: MarkdownProps) {
 
           if (depth === 1) {
             return (
-              <h1 key={idx} className="text-sm font-semibold text-text-primary mt-4 mb-2 border-b border-border-subtle pb-1">
+              <h1 key={idx} className="text-sm font-black text-white mt-4 mb-2 uppercase tracking-wide border-b border-slate-800 pb-1">
                 {boldText}
               </h1>
             );
           }
           if (depth === 2) {
             return (
-              <h2 key={idx} className="text-xs font-semibold text-text-primary mt-3 mb-1.5">
+              <h2 key={idx} className="text-xs font-black text-slate-100 mt-3 mb-1.5 uppercase tracking-wide">
                 {boldText}
               </h2>
             );
           }
           if (depth === 3) {
             return (
-              <h3 key={idx} className="text-2xs font-semibold text-text-primary mt-2.5 mb-1">
+              <h3 key={idx} className="text-[10px] font-bold text-slate-200 mt-2.5 mb-1 uppercase tracking-wider">
                 {boldText}
               </h3>
             );
           }
           if (depth === 4) {
             return (
-              <h4 key={idx} className="text-2xs font-semibold text-text-muted mt-2 mb-1">
+              <h4 key={idx} className="text-[9.5px] font-semibold text-slate-300 mt-2 mb-1">
                 {boldText}
               </h4>
             );
           }
           return (
-            <h5 key={idx} className="text-2xs font-medium text-text-muted mt-1.5 mb-0.5 italic">
+            <h5 key={idx} className="text-[9px] font-medium text-slate-400 mt-1.5 mb-0.5 italic">
               {boldText}
             </h5>
           );
@@ -154,8 +154,8 @@ export function Markdown({ text }: MarkdownProps) {
           const cleanText = trimmed.replace(/^[-*]\s+/, '');
           return (
             <div key={idx} className="flex items-start gap-1.5 pl-1.5 my-0.5">
-              <span className="text-accent select-none text-2xs mt-0.5">•</span>
-              <p className="text-xs text-text-primary leading-relaxed flex-1">
+              <span className="text-indigo-400 select-none text-[10px] mt-0.5">•</span>
+              <p className="text-xs text-slate-300 leading-relaxed flex-1">
                 {renderInlineFormatting(cleanText)}
               </p>
             </div>
@@ -164,7 +164,7 @@ export function Markdown({ text }: MarkdownProps) {
 
         // Standard Paragraph
         return (
-          <p key={idx} className="text-xs text-text-primary leading-relaxed">
+          <p key={idx} className="text-xs text-slate-300 leading-relaxed">
             {renderInlineFormatting(line)}
           </p>
         );

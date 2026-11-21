@@ -43,9 +43,9 @@ export default function TaxMonthlyReport() {
 
   if (error) {
     return (
-      <div className="bg-status-error/10 border border-status-error/30 p-4 rounded-xl flex gap-3">
-        <AlertCircle className="text-status-error shrink-0 w-5 h-5" />
-        <div className="text-status-error font-medium">
+      <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-4 rounded-lg flex gap-3">
+        <AlertCircle className="text-red-500 shrink-0 w-5 h-5" />
+        <div className="text-red-700 dark:text-red-400 font-medium">
           Não foi possível carregar os dados do imposto.
         </div>
       </div>
@@ -54,15 +54,15 @@ export default function TaxMonthlyReport() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="p-4 bg-surface-card border border-border-subtle rounded-xl shadow-sm">
+      <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm">
         <div className="flex items-end gap-4">
           <div className="flex flex-col gap-1 w-28">
-            <label htmlFor="tax-monthly-year" className="text-sm font-medium text-text-muted">Ano</label>
+            <label htmlFor="tax-monthly-year" className="text-sm font-medium text-slate-700 dark:text-slate-300">Ano</label>
             <select
               id="tax-monthly-year"
               value={year}
               onChange={(e) => setYear(e.target.value)}
-              className="px-3 py-2 bg-surface-input border border-border-subtle rounded-lg text-text-primary tabular-nums"
+              className="px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white"
             >
               {generateYears().map(y => (
                 <option key={y} value={y}>{y}</option>
@@ -70,12 +70,12 @@ export default function TaxMonthlyReport() {
             </select>
           </div>
           <div className="flex flex-col gap-1 w-40">
-            <label htmlFor="tax-monthly-month" className="text-sm font-medium text-text-muted">Mês</label>
+            <label htmlFor="tax-monthly-month" className="text-sm font-medium text-slate-700 dark:text-slate-300">Mês</label>
             <select
               id="tax-monthly-month"
               value={month}
               onChange={(e) => setMonth(e.target.value)}
-              className="px-3 py-2 bg-surface-input border border-border-subtle rounded-lg text-text-primary"
+              className="px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white"
             >
               {generateMonths().map(m => (
                 <option key={m.value} value={m.value}>{m.label}</option>
@@ -86,40 +86,40 @@ export default function TaxMonthlyReport() {
       </div>
 
       {isLoading ? (
-        <div className="text-text-muted py-8">Carregando relatórios...</div>
+        <div className="text-slate-500 py-8">Carregando relatórios...</div>
       ) : report ? (
         <>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-4 bg-surface-card border border-border-subtle rounded-xl shadow-sm flex flex-col gap-1">
-              <span className="text-sm text-text-muted font-medium">DARF a Pagar no Mês</span>
-              <span className={`text-2xl font-semibold tabular-nums ${report.darf.darf_to_pay > 0 ? 'text-status-error' : 'text-status-success'}`}>
+            <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm flex flex-col gap-1">
+              <span className="text-sm text-slate-500 dark:text-slate-400 font-medium">DARF a Pagar no Mês</span>
+              <span className={`text-2xl font-bold ${report.darf.darf_to_pay > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
                 {money(report.darf.darf_to_pay)}
               </span>
               {report.darf.darf_to_pay === 0 && report.darf.next_month_accumulated > 0 && (
-                <span className="text-xs text-text-muted mt-1 tabular-nums">
+                <span className="text-xs text-slate-400 mt-1">
                   * {money(report.darf.next_month_accumulated)} acumulados para o próximo mês (menor que R$ 10).
                 </span>
               )}
             </div>
             
-            <div className="p-4 bg-surface-card border border-border-subtle rounded-xl shadow-sm flex flex-col gap-1 items-start">
-              <span className="text-sm text-text-muted font-medium">Total Vendas Ações (ST)</span>
-              <span className="text-2xl font-semibold text-text-primary tabular-nums">{money(report.sales_total_stocks)}</span>
-              <span className={`px-2 py-0.5 text-xs font-semibold rounded-md mt-1 ${report.is_exempt_stocks_st ? 'bg-status-success/15 text-status-success' : 'bg-status-error/15 text-status-error'}`}>
+            <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm flex flex-col gap-1 items-start">
+              <span className="text-sm text-slate-500 dark:text-slate-400 font-medium">Total Vendas Ações (ST)</span>
+              <span className="text-2xl font-bold text-slate-800 dark:text-slate-100">{money(report.sales_total_stocks)}</span>
+              <span className={`px-2 py-0.5 text-xs font-semibold rounded-full mt-1 ${report.is_exempt_stocks_st ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}>
                 {report.is_exempt_stocks_st ? 'Isento (< 20k)' : 'Tributável (> 20k)'}
               </span>
             </div>
 
-            <div className="p-4 bg-surface-card border border-border-subtle rounded-xl shadow-sm flex flex-col gap-1">
-              <span className="text-sm text-text-muted font-medium">Imposto Total Gerado</span>
-              <span className="text-2xl font-semibold text-text-primary tabular-nums">{money(report.darf.month_tax)}</span>
+            <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm flex flex-col gap-1">
+              <span className="text-sm text-slate-500 dark:text-slate-400 font-medium">Imposto Total Gerado</span>
+              <span className="text-2xl font-bold text-slate-800 dark:text-slate-100">{money(report.darf.month_tax)}</span>
             </div>
           </div>
 
-          <div className="p-4 bg-surface-card border border-border-subtle rounded-xl shadow-sm overflow-x-auto">
-            <h3 className="font-semibold text-text-primary mb-4">Resumo por Categoria</h3>
-            <table className="w-full text-left text-sm text-text-primary">
-              <thead className="bg-surface-input text-text-muted font-medium border-b border-border-subtle">
+          <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm overflow-x-auto">
+            <h3 className="font-semibold text-slate-800 dark:text-slate-100 mb-4">Resumo por Categoria</h3>
+            <table className="w-full text-left text-sm text-slate-600 dark:text-slate-300">
+              <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 font-medium border-b border-slate-200 dark:border-slate-700">
                 <tr>
                   <th className="px-4 py-3">Categoria</th>
                   <th className="px-4 py-3">Lucro/Prejuízo Mensal</th>
@@ -127,42 +127,42 @@ export default function TaxMonthlyReport() {
                   <th className="px-4 py-3">Imposto Gerado</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border-subtle">
-                <tr className="hover:bg-surface-input/40">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/20">
                   <td className="px-4 py-3">Ações (Swing Trade)</td>
-                  <td className={`px-4 py-3 font-medium tabular-nums ${report.profits.stocks_st < 0 ? 'text-status-error' : 'text-status-success'}`}>
+                  <td className={`px-4 py-3 font-medium ${report.profits.stocks_st < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
                     {money(report.profits.stocks_st)}
                   </td>
-                  <td className="px-4 py-3 tabular-nums">{money(report.taxable_profits.stocks_st)}</td>
-                  <td className="px-4 py-3 tabular-nums">{money(report.taxes.stocks_st)}</td>
+                  <td className="px-4 py-3">{money(report.taxable_profits.stocks_st)}</td>
+                  <td className="px-4 py-3">{money(report.taxes.stocks_st)}</td>
                 </tr>
-                <tr className="hover:bg-surface-input/40">
+                <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/20">
                   <td className="px-4 py-3">Ações (Day Trade)</td>
-                  <td className={`px-4 py-3 font-medium tabular-nums ${report.profits.stocks_dt < 0 ? 'text-status-error' : 'text-status-success'}`}>
+                  <td className={`px-4 py-3 font-medium ${report.profits.stocks_dt < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
                     {money(report.profits.stocks_dt)}
                   </td>
-                  <td className="px-4 py-3 tabular-nums">{money(report.taxable_profits.stocks_dt)}</td>
-                  <td className="px-4 py-3 tabular-nums">{money(report.taxes.stocks_dt)}</td>
+                  <td className="px-4 py-3">{money(report.taxable_profits.stocks_dt)}</td>
+                  <td className="px-4 py-3">{money(report.taxes.stocks_dt)}</td>
                 </tr>
-                <tr className="hover:bg-surface-input/40">
+                <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/20">
                   <td className="px-4 py-3">Fundos Imobiliários</td>
-                  <td className={`px-4 py-3 font-medium tabular-nums ${report.profits.fiis < 0 ? 'text-status-error' : 'text-status-success'}`}>
+                  <td className={`px-4 py-3 font-medium ${report.profits.fiis < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
                     {money(report.profits.fiis)}
                   </td>
-                  <td className="px-4 py-3 tabular-nums">{money(report.taxable_profits.fiis)}</td>
-                  <td className="px-4 py-3 tabular-nums">{money(report.taxes.fiis)}</td>
+                  <td className="px-4 py-3">{money(report.taxable_profits.fiis)}</td>
+                  <td className="px-4 py-3">{money(report.taxes.fiis)}</td>
                 </tr>
               </tbody>
             </table>
           </div>
 
-          <div className="p-4 bg-surface-card border border-border-subtle rounded-xl shadow-sm overflow-x-auto">
-            <h3 className="font-semibold text-text-primary mb-4">Detalhamento das Vendas</h3>
+          <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm overflow-x-auto">
+            <h3 className="font-semibold text-slate-800 dark:text-slate-100 mb-4">Detalhamento das Vendas</h3>
             {report.details.length === 0 ? (
-              <p className="text-text-muted text-sm pb-2">Nenhuma venda registrada neste mês.</p>
+              <p className="text-slate-500 dark:text-slate-400 text-sm pb-2">Nenhuma venda registrada neste mês.</p>
             ) : (
-              <table className="w-full text-left text-sm text-text-primary">
-                <thead className="bg-surface-input text-text-muted font-medium border-b border-border-subtle">
+              <table className="w-full text-left text-sm text-slate-600 dark:text-slate-300">
+                <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 font-medium border-b border-slate-200 dark:border-slate-700">
                   <tr>
                     <th className="px-4 py-3">Data</th>
                     <th className="px-4 py-3">Ativo</th>
@@ -172,19 +172,19 @@ export default function TaxMonthlyReport() {
                     <th className="px-4 py-3 text-right">Resultado R$</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border-subtle">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   {report.details.map((tx: TaxReportDetails) => (
-                    <tr key={tx.id} className="hover:bg-surface-input/40">
-                      <td className="px-4 py-3 tabular-nums">{new Date(tx.date).toLocaleDateString('pt-BR')}</td>
+                    <tr key={tx.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/20">
+                      <td className="px-4 py-3">{new Date(tx.date).toLocaleDateString('pt-BR')}</td>
                       <td className="px-4 py-3 font-medium">{tx.ticker}</td>
                       <td className="px-4 py-3">
-                        <span className="px-2 py-1 bg-surface-input rounded-md text-xs border border-border-subtle">
+                        <span className="px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded text-xs">
                           {tx.is_fii ? 'FII' : tx.is_day_trade ? 'Day Trade' : 'Swing Trade'}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-right tabular-nums">{money(tx.sale_value)}</td>
-                      <td className="px-4 py-3 text-right tabular-nums">{money(tx.cost_value)}</td>
-                      <td className={`px-4 py-3 text-right font-medium tabular-nums ${tx.profit < 0 ? 'text-status-error' : 'text-status-success'}`}>
+                      <td className="px-4 py-3 text-right">{money(tx.sale_value)}</td>
+                      <td className="px-4 py-3 text-right">{money(tx.cost_value)}</td>
+                      <td className={`px-4 py-3 text-right font-medium ${tx.profit < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
                         {money(tx.profit)}
                       </td>
                     </tr>

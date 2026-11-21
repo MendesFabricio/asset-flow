@@ -33,14 +33,14 @@ export function AssetRecommendationCell({
   const isEvitar = recLower.includes('evitar');
 
   const colors = isComprar
-    ? 'text-status-success bg-status-success/10 border-status-success/20'
+    ? 'text-emerald-400 bg-emerald-500/10 ring-emerald-500/20'
     : isManter
-    ? 'text-status-warning bg-status-warning/10 border-status-warning/20'
+    ? 'text-amber-400 bg-amber-500/10 ring-amber-500/20'
     : isReduzir
-    ? 'text-status-warning bg-orange-500/10 border-orange-500/20'
+    ? 'text-orange-400 bg-orange-500/10 ring-orange-500/20'
     : isEvitar
-    ? 'text-status-error bg-status-error/10 border-status-error/20'
-    : 'text-text-muted bg-surface-input border-border-subtle';
+    ? 'text-rose-400 bg-rose-500/10 ring-rose-500/20'
+    : 'text-slate-400 bg-slate-500/10 ring-slate-500/20';
 
   const cleanRec = (ativo.recomendacao || '').replace(EMOJI_REGEX, '').trim();
 
@@ -50,19 +50,19 @@ export function AssetRecommendationCell({
         {ativo.falta_comprar > 1 ? (
           <PrivateValue
             value={`+${formatMoney(ativo.falta_comprar)}`}
-            className="w-full max-w-[132px] text-center text-accent font-semibold bg-accent-soft px-2 py-0.5 rounded-md border border-accent/20 text-2xs whitespace-nowrap tabular-nums inline-block"
+            className="w-full max-w-[132px] text-center text-blue-400 font-bold bg-blue-500/10 px-2 py-0.5 rounded ring-1 ring-inset ring-blue-500/20 text-[11px] whitespace-nowrap shadow-sm tabular-nums inline-block"
           />
         ) : (
-          <span className="w-full max-w-[132px] text-center text-text-muted text-2xs font-medium inline-block">-</span>
+          <span className="w-full max-w-[132px] text-center text-slate-700 text-[10px] font-medium inline-block">-</span>
         )}
 
         <div
-          className={`inline-flex items-center justify-center gap-1 text-2xs w-full max-w-[132px] px-1.5 py-0.5 rounded-md border uppercase font-semibold cursor-pointer transition-colors whitespace-nowrap hover:brightness-110 ${colors}`}
+          className={`inline-flex items-center justify-center gap-1 text-[9px] w-full max-w-[132px] px-1.5 py-[3px] rounded-md ring-1 ring-inset uppercase font-bold cursor-pointer transition-all whitespace-nowrap hover:brightness-125 ${colors}`}
           onMouseEnter={onShowRec}
           onMouseLeave={onHide}
         >
           {isComprar && <TrendingUp size={10} strokeWidth={2.5} className="shrink-0" />}
-          {isManter && <div className="w-1.5 h-1.5 rounded-full bg-status-warning mr-0.5 shrink-0" />}
+          {isManter && <div className="w-1.5 h-1.5 rounded-full bg-amber-400 mr-0.5 shrink-0" />}
           {(isEvitar || isReduzir) && <TrendingDown size={10} strokeWidth={2.5} className="shrink-0" />}
           <span className="truncate">{cleanRec}</span>
           <Info size={10} className="opacity-50 hover:opacity-100 transition-opacity ml-0.5 shrink-0" />

@@ -70,7 +70,7 @@ export const MarketTicker = React.memo(() => {
 
   if (loading || activeTickers.length === 0) {
     return (
-      <div className="h-7 w-[210px] bg-surface-card border border-border-subtle rounded-md animate-pulse" />
+      <div className="h-7 w-[210px] bg-slate-900/50 border border-slate-800 rounded-full animate-pulse" />
     );
   }
 
@@ -79,40 +79,40 @@ export const MarketTicker = React.memo(() => {
 
   return (
     <div className="relative group/ticker">
-      <div className="flex items-center justify-between w-[210px] px-3 py-1 bg-surface-card hover:bg-surface-elevated border border-border-subtle rounded-md cursor-pointer transition-colors duration-150 select-none">
-        <span className="text-2xs font-medium text-text-muted tracking-wider uppercase">{current.label}</span>
+      <div className="flex items-center justify-between w-[210px] px-3 py-1 bg-slate-900/80 hover:bg-slate-900 border border-slate-800/80 rounded-full shadow-sm cursor-pointer hover:border-slate-700 transition-all select-none duration-300">
+        <span className="text-[9px] font-bold text-slate-500 tracking-wider uppercase">{current.label}</span>
         
-        <span className="text-xs font-semibold text-text-primary tabular-nums">
+        <span className="text-xs font-semibold text-slate-200 font-mono tabular-nums">
           {current.format(current.data.price)}
         </span>
         
-        <span className={`text-2xs font-medium flex items-center tabular-nums leading-none ${
-          isPositive ? 'text-status-success' : 'text-status-error'
+        <span className={`text-[10px] font-bold flex items-center font-mono tabular-nums leading-none ${
+          isPositive ? 'text-emerald-500' : 'text-rose-500'
         }`}>
-          <span className="mr-0.5 text-2xs">{isPositive ? '▲' : '▼'}</span>
+          <span className="mr-0.5 text-[8px]">{isPositive ? '▲' : '▼'}</span>
           {Math.abs(current.data.change).toFixed(2)}%
         </span>
       </div>
 
       {/* TOOLTIP INTERATIVO */}
-      <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-52 bg-surface-card border border-border-subtle rounded-xl shadow-lg p-3 opacity-0 invisible group-hover/ticker:opacity-100 group-hover/ticker:visible transition-opacity duration-150 z-50 pointer-events-none">
-        <p className="text-2xs font-medium text-text-muted uppercase tracking-wider">Informações do Índice</p>
-        <p className="text-xs font-semibold text-text-primary mt-1">{current.label}</p>
+      <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-52 bg-slate-950 border border-slate-800 rounded-xl shadow-2xl p-3 opacity-0 invisible group-hover/ticker:opacity-100 group-hover/ticker:visible transition-all duration-200 z-50 pointer-events-none">
+        <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Informações do Índice</p>
+        <p className="text-xs font-bold text-slate-200 mt-1">{current.label}</p>
         
-        <div className="mt-2 space-y-1 border-t border-border-subtle pt-2 text-2xs">
+        <div className="mt-2 space-y-1 border-t border-slate-900 pt-2 text-[11px]">
           <div className="flex justify-between">
-            <span className="text-text-muted font-normal">Valor Atual:</span>
-            <span className="text-text-primary font-semibold tabular-nums">{current.format(current.data.price)}</span>
+            <span className="text-slate-500">Valor Atual:</span>
+            <span className="font-mono text-slate-300 font-semibold">{current.format(current.data.price)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-text-muted font-normal">Variação 24h:</span>
-            <span className={`font-medium tabular-nums ${isPositive ? 'text-status-success' : 'text-status-error'}`}>
+            <span className="text-slate-500">Variação 24h:</span>
+            <span className={`font-semibold font-mono ${isPositive ? 'text-emerald-500' : 'text-rose-500'}`}>
               {isPositive ? '+' : '-'}{Math.abs(current.data.change).toFixed(2)}%
             </span>
           </div>
-          <div className="flex justify-between text-2xs text-text-muted mt-1 border-t border-border-subtle pt-1">
+          <div className="flex justify-between text-[10px] text-slate-600 mt-1 border-t border-slate-900/60 pt-1">
             <span>Última Coleta:</span>
-            <span className="tabular-nums">{lastUpdate || '--:--'}</span>
+            <span>{lastUpdate || '--:--'}</span>
           </div>
         </div>
       </div>

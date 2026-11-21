@@ -54,12 +54,12 @@ export const CategorySummary = ({ ativos, categorias = [], onUpdate }: CategoryS
 
   if (!ativos || ativos.length === 0) {
     return (
-      <Card className="flex flex-col items-center justify-center p-8 h-full bg-surface-card border-border-subtle text-center min-h-[400px]">
-        <div className="p-3 bg-accent-soft rounded-lg border border-accent/20 text-accent mb-4">
+      <Card className="flex flex-col items-center justify-center p-8 h-full !bg-surface-card !border-slate-800 text-center min-h-[400px]">
+        <div className="p-3 bg-indigo-500/10 rounded-full border border-indigo-500/20 text-indigo-400 mb-4 animate-pulse">
           <PieChart size={24} />
         </div>
-        <h4 className="text-sm font-semibold text-text-primary mb-1">Nenhum ativo cadastrado</h4>
-        <p className="text-xs text-text-muted max-w-sm mb-4 leading-relaxed">
+        <h4 className="text-sm font-bold text-white mb-1">Nenhum ativo cadastrado</h4>
+        <p className="text-xs text-slate-500 max-w-sm mb-4 leading-relaxed">
           Sua carteira de investimentos está vazia. Cadastre seus ativos em ações, FIIs ou renda fixa para visualizar a distribuição patrimonial e metas.
         </p>
       </Card>
@@ -108,35 +108,35 @@ export const CategorySummary = ({ ativos, categorias = [], onUpdate }: CategoryS
 
   return (
     <>
-      <Card className="flex flex-col h-full min-h-[420px] overflow-hidden bg-surface-card border-border-subtle shadow-sm p-0 relative">
+      <Card className="flex flex-col h-full min-h-[420px] overflow-hidden bg-surface-card border-border-subtle shadow-2xl p-0 animate-in fade-in duration-500 relative">
         <div className="p-4 border-b border-border-subtle bg-transparent flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <div className="p-1.5 bg-accent-soft rounded-lg border border-accent/20">
-              <PieChart size={16} className="text-accent" />
+            <div className="p-1.5 bg-blue-500/10 rounded-lg border border-blue-500/20">
+              <PieChart size={16} className="text-blue-400" />
             </div>
-            <h3 className="font-semibold text-text-primary text-xs uppercase tracking-wider leading-none">Consolidação</h3>
+            <h3 className="font-bold text-slate-200 text-xs uppercase tracking-widest leading-none">Consolidação</h3>
           </div>
           {totalMetaConfigurada !== 100 && (
-            <div className="flex items-center gap-1.5 text-status-warning">
+            <div className="flex items-center gap-1.5 text-amber-500/80 animate-pulse">
               <AlertCircle size={12} />
-              <span className="text-2xs font-semibold uppercase tracking-tight tabular-nums">Metas: {totalMetaConfigurada}%</span>
+              <span className="text-[9px] font-bold uppercase tracking-tight">Metas: {totalMetaConfigurada}%</span>
             </div>
           )}
         </div>
 
-        <div className="flex-1 overflow-y-auto scrollbar-thin">
+        <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
           <table className="w-full text-left text-xs sm:text-sm">
-            <thead className="bg-surface-elevated text-text-muted uppercase text-2xs font-semibold tracking-wider border-b border-border-subtle sticky top-0 z-10">
+            <thead className="bg-slate-900/80 text-slate-500 uppercase text-[10px] font-bold tracking-wider border-b border-slate-800 sticky top-0 z-10 backdrop-blur-sm">
               <tr>
                 <th className="px-6 py-3 text-left w-[180px]">Classe</th>
                 <th className="px-4 py-3 text-right w-[150px]">Investido</th>
-                <th className="px-4 py-3 text-right w-[150px] text-text-primary">Atual</th>
-                <th className="px-4 py-3 text-left w-[140px] text-accent">% vs Meta</th>
+                <th className="px-4 py-3 text-right w-[150px] text-white">Atual</th>
+                <th className="px-4 py-3 text-left w-[140px] text-blue-400">% vs Meta</th>
                 <th className="px-6 py-3 text-center w-24">Meta</th>
               </tr>
             </thead>
 
-            <tbody className="divide-y divide-border-subtle">
+            <tbody className="divide-y divide-slate-800/30">
               {lista.map((item) => {
                 const pctAtual = totalAtualGeral > 0 ? (item.atual / totalAtualGeral) * 100 : 0;
                 const catInfo = categorias.find(c => c.name === item.tipo);
@@ -167,14 +167,14 @@ export const CategorySummary = ({ ativos, categorias = [], onUpdate }: CategoryS
           </table>
         </div>
 
-        <div className="py-2 px-4 bg-surface-elevated border-t border-border-subtle flex justify-between items-center shrink-0">
+        <div className="py-2 px-4 bg-slate-900 border-t border-slate-800 flex justify-between items-center shrink-0">
           <div className="space-y-0.5">
-            <p className="text-2xs font-semibold text-text-muted uppercase tracking-wider leading-none">Patrimônio Atual</p>
-            <PrivateValue value={formatMoney(totalAtualGeral)} className="text-lg font-semibold text-status-success font-mono tabular-nums" />
+            <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest leading-none">Patrimônio Atual</p>
+            <PrivateValue value={formatMoney(totalAtualGeral)} className="text-lg font-bold text-emerald-400 font-mono" />
           </div>
           <div className="text-right space-y-0.5">
-            <p className="text-2xs font-semibold text-text-muted uppercase tracking-wider leading-none">Custo Total</p>
-            <PrivateValue value={formatMoney(totalInvestidoGeral)} className="text-sm font-semibold text-text-primary font-mono tabular-nums" />
+            <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest leading-none">Custo Total</p>
+            <PrivateValue value={formatMoney(totalInvestidoGeral)} className="text-sm font-bold text-slate-300 font-mono" />
           </div>
         </div>
       </Card>

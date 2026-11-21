@@ -7,7 +7,6 @@ import {
   Clock
 } from 'lucide-react';
 import { formatMoney } from '../lib/format';
-import { CHART_PALETTE_SERIES } from '../lib/colors';
 import { CreditCardInstallmentItem, CreditCardsDashboardData } from '../types';
 import { usePrivacy } from '../context/PrivacyContext';
 import { apiCall } from '../lib/api';
@@ -248,7 +247,7 @@ export function CreditCardsTab() {
     name,
     value
   }));
-  const COLORS = CHART_PALETTE_SERIES;
+  const COLORS = ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ec4899', '#06b6d4', '#ef4444', '#64748b'];
 
   const activeInv = cardInvoices.find(i => i.invoice_month === selectedInvoiceMonth);
   const displayLimit = selectedCard ? selectedCard.limit : (dashboard?.total_limit || 0);
@@ -293,10 +292,10 @@ export function CreditCardsTab() {
           />
 
           {/* Faturas Mensais */}
-          <div className="bg-surface-card border border-border-subtle rounded-xl p-4 shadow-sm space-y-3">
-            <h4 className="text-sm font-semibold text-text-primary uppercase tracking-wider flex items-center justify-between">
+          <div className="bg-surface-card border border-slate-800 rounded-xl p-4 shadow-lg space-y-3">
+            <h4 className="text-sm font-bold text-white uppercase tracking-wider flex items-center justify-between">
               <span>Histórico de Faturas</span>
-              {selectedCard && <span className="text-2xs font-normal text-text-muted">{selectedCard.name}</span>}
+              {selectedCard && <span className="text-[10px] font-normal text-slate-400">{selectedCard.name}</span>}
             </h4>
             <div className="space-y-2 max-h-[220px] overflow-y-auto custom-scrollbar">
               {selectedCard ? (
@@ -310,23 +309,23 @@ export function CreditCardsTab() {
                         setSelectedInvoiceMonth(f.invoice_month);
                         loadExpensesByMonth(selectedCard.id, f.invoice_month);
                       }}
-                      className={`w-full p-2.5 rounded-lg border flex justify-between items-center cursor-pointer transition-colors ${
+                      className={`w-full p-2.5 rounded border flex justify-between items-center cursor-pointer transition ${
                         isSelected 
-                          ? 'bg-accent-soft border-accent' 
-                          : 'bg-surface-elevated border-border-subtle hover:border-accent/40'
+                          ? 'bg-blue-600/15 border-blue-500 shadow-sm shadow-blue-500/10' 
+                          : 'bg-slate-900/60 border-slate-800 hover:border-slate-700'
                       }`}
                     >
                       <div className="text-left">
-                        <p className={`text-xs font-semibold ${isSelected ? 'text-accent' : 'text-text-primary'}`}>
+                        <p className={`text-xs font-bold ${isSelected ? 'text-blue-300' : 'text-slate-200'}`}>
                           {formatInvoiceMonthLabel(f.invoice_month)}
                         </p>
-                        <p className="text-2xs text-text-muted mt-0.5 tabular-nums">Total: {money(f.total)}</p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">Total: {money(f.total)}</p>
                       </div>
-                      <span className={`text-2xs px-2 py-0.5 rounded-md font-semibold ${
-                        f.status === 'PAID' ? 'bg-status-success/10 text-status-success border border-status-success/20' :
-                        f.status === 'PARTIAL' ? 'bg-status-warning/10 text-status-warning border border-status-warning/20' :
-                        f.total === 0 ? 'bg-surface-input text-text-muted border border-border-subtle' :
-                        'bg-status-error/10 text-status-error border border-status-error/20'
+                      <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${
+                        f.status === 'PAID' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+                        f.status === 'PARTIAL' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
+                        f.total === 0 ? 'bg-slate-800 text-slate-400 border border-slate-700' :
+                        'bg-rose-500/10 text-rose-400 border border-rose-500/20'
                       }`}>
                         {f.status === 'PAID' ? 'Paga' : f.status === 'PARTIAL' ? 'Parcial' : f.total === 0 ? 'Zerada' : 'Aberta'}
                       </span>
@@ -335,15 +334,15 @@ export function CreditCardsTab() {
                 })
               ) : (
                 dashboard?.faturas.map((f) => (
-                  <div key={f.invoice_month} className="p-2 rounded-lg bg-surface-elevated border border-border-subtle flex justify-between items-center">
+                  <div key={f.invoice_month} className="p-2 rounded bg-slate-900/60 border border-slate-800 flex justify-between items-center">
                     <div>
-                      <p className="text-xs font-semibold text-text-primary">{formatInvoiceMonthLabel(f.invoice_month)}</p>
-                      <p className="text-xs text-text-muted tabular-nums">Total: {money(f.total)}</p>
+                      <p className="text-xs font-semibold text-slate-300">{formatInvoiceMonthLabel(f.invoice_month)}</p>
+                      <p className="text-xs text-slate-400">Total: {money(f.total)}</p>
                     </div>
-                    <span className={`text-2xs px-2 py-0.5 rounded-md font-semibold ${
-                      f.status === 'PAID' ? 'bg-status-success/10 text-status-success border border-status-success/20' :
-                      f.status === 'PARTIAL' ? 'bg-status-warning/10 text-status-warning border border-status-warning/20' :
-                      'bg-status-error/10 text-status-error border border-status-error/20'
+                    <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${
+                      f.status === 'PAID' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+                      f.status === 'PARTIAL' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
+                      'bg-rose-500/10 text-rose-400 border border-rose-500/20'
                     }`}>
                       {f.status === 'PAID' ? 'Paga' : f.status === 'PARTIAL' ? 'Parcial' : 'Aberta'}
                     </span>
@@ -352,36 +351,36 @@ export function CreditCardsTab() {
               )}
 
               {selectedCard && cardInvoices.length === 0 && (
-                <p className="text-xs text-text-muted text-center py-4">Nenhuma fatura encontrada para este cartão.</p>
+                <p className="text-xs text-slate-500 text-center py-4">Nenhuma fatura encontrada para este cartão.</p>
               )}
               {!selectedCard && (!dashboard?.faturas || dashboard.faturas.length === 0) && (
-                <p className="text-xs text-text-muted text-center py-4">Sem faturas lançadas.</p>
+                <p className="text-xs text-slate-500 text-center py-4">Sem faturas lançadas.</p>
               )}
             </div>
           </div>
         </div>
 
         {/* Detalhes do Cartão Selecionado */}
-        <div className="lg:col-span-3 bg-surface-card border border-border-subtle rounded-xl p-5 shadow-sm space-y-5">
+        <div className="lg:col-span-3 bg-surface-card border border-slate-800 rounded-xl p-5 shadow-lg space-y-5">
           {selectedCard ? (
             <>
-              <div className="flex justify-between items-center border-b border-border-subtle pb-4">
+              <div className="flex justify-between items-center border-b border-slate-800 pb-4">
                 <div>
                   <div className="flex items-center gap-2.5 flex-wrap">
-                    <h3 className="text-lg font-semibold text-text-primary">{selectedCard.name}</h3>
+                    <h3 className="text-lg font-bold text-white">{selectedCard.name}</h3>
                     {selectedInvoiceMonth && (
-                      <span className="text-xs font-semibold text-accent bg-accent-soft border border-accent/30 px-2.5 py-0.5 rounded-md flex items-center gap-1">
-                        <Calendar size={12} /> Fatura de {formatInvoiceMonthLabel(selectedInvoiceMonth)}
+                      <span className="text-xs font-bold text-blue-300 bg-blue-500/15 border border-blue-500/30 px-2.5 py-0.5 rounded-md flex items-center gap-1">
+                        📅 Fatura de {formatInvoiceMonthLabel(selectedInvoiceMonth)}
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-text-muted mt-1">
+                  <p className="text-xs text-slate-400 mt-1">
                     Fechamento: Dia {selectedCard.closing_day} | Vencimento: Dia {selectedCard.due_day}
                     {(() => {
                       const invSummary = cardInvoices.find(i => i.invoice_month === selectedInvoiceMonth);
                       return invSummary ? (
-                        <span className="ml-2 pl-2 border-l border-border-subtle text-text-primary tabular-nums">
-                          Total da Fatura: <strong className={invSummary.total === 0 ? 'text-text-muted' : 'text-status-error font-semibold'}>{money(invSummary.total)}</strong>
+                        <span className="ml-2 pl-2 border-l border-slate-700 text-slate-300">
+                          Total da Fatura: <strong className={invSummary.total === 0 ? 'text-slate-400' : 'text-rose-400 font-bold'}>{money(invSummary.total)}</strong>
                         </span>
                       ) : null;
                     })()}
@@ -390,13 +389,13 @@ export function CreditCardsTab() {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setShowImportModal(true)}
-                    className="flex items-center gap-1.5 bg-accent hover:bg-accent/90 text-white text-xs font-semibold px-3.5 py-1.5 rounded-lg transition-colors"
+                    className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3.5 py-1.5 rounded-lg transition shadow-md shadow-blue-600/20"
                   >
                     <FileText size={14} /> Importar Relatório
                   </button>
                   <button
                     onClick={() => setShowAddExpense(true)}
-                    className="flex items-center gap-1 bg-surface-input hover:bg-surface-elevated border border-border-subtle text-text-primary text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
+                    className="flex items-center gap-1 bg-indigo-500 hover:bg-indigo-600 text-white text-xs px-3 py-1.5 rounded-lg transition"
                   >
                     <Plus size={14} /> Registrar Despesa
                   </button>
@@ -407,12 +406,12 @@ export function CreditCardsTab() {
               {expenses.length > 0 ? (
                 <CreditCardCategoryChart chartData={chartData} colors={COLORS} />
               ) : selectedInvoiceMonth ? (
-                <div className="bg-surface-elevated border border-border-subtle rounded-xl p-6 text-center my-2">
-                  <div className="w-10 h-10 rounded-lg bg-surface-input text-text-muted flex items-center justify-center mx-auto mb-2">
+                <div className="bg-slate-900/40 border border-slate-800/80 rounded-xl p-6 text-center my-2">
+                  <div className="w-10 h-10 rounded-full bg-slate-800/80 text-slate-400 flex items-center justify-center mx-auto mb-2">
                     <Calendar size={20} />
                   </div>
-                  <h4 className="text-sm font-semibold text-text-primary">Fatura de {formatInvoiceMonthLabel(selectedInvoiceMonth)} Zerada</h4>
-                  <p className="text-xs text-text-muted mt-1 max-w-md mx-auto">
+                  <h4 className="text-sm font-bold text-white">Fatura de {formatInvoiceMonthLabel(selectedInvoiceMonth)} Zerada</h4>
+                  <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
                     No momento não existem novas despesas importadas ou parcelas de meses anteriores com vencimento nesta competência para o cartão {selectedCard.name}.
                   </p>
                 </div>
@@ -420,64 +419,64 @@ export function CreditCardsTab() {
 
               {/* Lista de Despesas */}
               <div className="space-y-4">
-                <h4 className="text-sm font-semibold text-text-primary uppercase tracking-wider flex items-center justify-between">
+                <h4 className="text-sm font-bold text-white uppercase tracking-wider flex items-center justify-between">
                   <span>Lançamentos da Fatura ({formatInvoiceMonthLabel(selectedInvoiceMonth)})</span>
-                  <span className="text-xs font-normal text-text-muted tabular-nums">{expenses.length} item(ns)</span>
+                  <span className="text-xs font-normal text-slate-400">{expenses.length} item(ns)</span>
                 </h4>
                 <div className="space-y-3 overflow-y-auto max-h-[500px] custom-scrollbar pr-2">
                   {expenses.map((e) => {
                     const itemValue = Number(e.value !== undefined ? e.value : e.total_value || 0);
                     return (
-                      <div key={e.id} className="p-4 rounded-xl bg-surface-elevated border border-border-subtle space-y-3">
+                      <div key={e.id} className="p-4 rounded-lg bg-slate-900/50 border border-slate-800 space-y-3">
                         <div className="flex justify-between items-start">
                           <div>
                             <div className="flex items-center gap-2 flex-wrap">
-                              <p className="font-semibold text-sm text-text-primary">{e.description}</p>
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-2xs font-medium bg-surface-input text-accent border border-border-subtle">
+                              <p className="font-semibold text-sm text-white">{e.description}</p>
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-800 text-blue-300 border border-slate-700/60">
                                 {getCategoryFromDescription(e.description)}
                               </span>
                               {e.installments_count > 1 && e.installment_number && (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-md text-2xs font-semibold bg-accent-soft text-accent border border-accent/20 tabular-nums">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
                                   Parcela {e.installment_number}/{e.installments_count}
                                 </span>
                               )}
                             </div>
-                            <p className="text-xs text-text-muted flex items-center gap-1 mt-1 tabular-nums">
+                            <p className="text-xs text-slate-400 flex items-center gap-1 mt-1">
                               <Calendar size={12} /> Compra em {new Date(e.date).toLocaleDateString()} | {e.installments_count}x de {money((e.total_value || 0) / e.installments_count)}
                             </p>
                           </div>
-                          <div className="text-right tabular-nums">
-                            <p className="font-semibold text-text-primary text-sm">{money(itemValue)}</p>
+                          <div className="text-right">
+                            <p className="font-bold text-slate-200 text-sm">{money(itemValue)}</p>
                             {e.installments_count > 1 && (
-                              <p className="text-2xs text-text-muted">Total da compra: {money(e.total_value)}</p>
+                              <p className="text-[10px] text-slate-400">Total da compra: {money(e.total_value)}</p>
                             )}
                           </div>
                         </div>
 
                         {/* Parcelas */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-2 border-t border-border-subtle">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-2 border-t border-slate-800/60">
                           {e.installments && e.installments.map((inst) => (
                             <button 
                               key={inst.id}
                               type="button"
                               onClick={() => handleToggleInstallmentStatus(inst.id, inst.status)}
-                              className={`p-2 rounded-lg border text-left cursor-pointer transition-colors flex items-center justify-between ${
+                              className={`p-2 rounded border text-left cursor-pointer transition flex items-center justify-between ${
                                 inst.status === 'PAID'
-                                  ? 'bg-status-success/10 border-status-success/20 text-text-muted'
-                                  : 'bg-surface-card border-border-subtle text-text-primary hover:border-accent/40'
+                                  ? 'bg-emerald-500/5 border-emerald-500/20 text-slate-400'
+                                  : 'bg-slate-900 border-slate-800 text-white hover:border-slate-700'
                               }`}
                             >
                               <div>
-                                <p className="text-2xs font-semibold tracking-wider text-text-muted uppercase tabular-nums">
+                                <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
                                   Parcela {inst.installment_number}/{e.installments_count}
                                 </p>
-                                <p className="text-xs font-semibold mt-0.5 tabular-nums">{money(inst.value)}</p>
-                                <p className="text-2xs text-text-muted mt-0.5 tabular-nums">{inst.invoice_month}</p>
+                                <p className="text-xs font-bold mt-0.5">{money(inst.value)}</p>
+                                <p className="text-[9px] text-slate-400 mt-0.5">{inst.invoice_month}</p>
                               </div>
                               {inst.status === 'PAID' ? (
-                                <CheckCircle size={14} className="text-status-success" />
+                                <CheckCircle size={14} className="text-emerald-400" />
                               ) : (
-                                <Clock size={14} className="text-status-warning" />
+                                <Clock size={14} className="text-amber-400" />
                               )}
                             </button>
                           ))}
@@ -487,7 +486,7 @@ export function CreditCardsTab() {
                   })}
 
                   {expenses.length === 0 && (
-                    <div className="text-center py-8 text-text-muted text-sm">
+                    <div className="text-center py-8 text-slate-500 text-sm">
                       Sem lançamentos nesta fatura.
                     </div>
                   )}
@@ -495,7 +494,7 @@ export function CreditCardsTab() {
               </div>
             </>
           ) : (
-            <div className="text-center py-20 text-text-muted text-sm">
+            <div className="text-center py-20 text-slate-500 text-sm">
               Selecione ou crie um cartão de crédito na barra lateral para começar a gerenciar.
             </div>
           )}
@@ -505,62 +504,62 @@ export function CreditCardsTab() {
       {/* MODAL: Adicionar Cartão */}
       {showAddCard && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-surface-card border border-border-subtle rounded-xl w-full max-w-md p-6 relative shadow-lg">
+          <div className="bg-surface-card border border-slate-800 rounded-xl w-full max-w-md p-6 relative shadow-2xl">
             <button 
               onClick={() => setShowAddCard(false)}
-              className="absolute top-4 right-4 text-text-muted hover:text-text-primary"
+              className="absolute top-4 right-4 text-slate-400 hover:text-white"
             >
               <X size={18} />
             </button>
-            <h3 className="text-lg font-semibold text-text-primary mb-4">Adicionar Cartão de Crédito</h3>
+            <h3 className="text-lg font-bold text-white mb-4">Adicionar Cartão de Crédito</h3>
             <form onSubmit={handleCreateCard} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1">Nome do Cartão</label>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Nome do Cartão</label>
                 <input 
                   type="text" 
                   value={cardForm.name} 
                   onChange={(e) => setCardForm({ ...cardForm, name: e.target.value })}
                   placeholder="Ex: Nubank, Inter, XP" 
-                  className="w-full bg-surface-input border border-border-subtle rounded-lg p-2 text-text-primary focus:outline-none focus:border-accent text-sm"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 focus:outline-none focus:border-indigo-500 text-sm"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1">Limite Total (R$)</label>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Limite Total (R$)</label>
                 <input 
                   type="number" 
                   step="0.01"
                   value={cardForm.limit} 
                   onChange={(e) => setCardForm({ ...cardForm, limit: e.target.value })}
                   placeholder="Ex: 5000" 
-                  className="w-full bg-surface-input border border-border-subtle rounded-lg p-2 text-text-primary focus:outline-none focus:border-accent text-sm"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 focus:outline-none focus:border-indigo-500 text-sm"
                   required
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1">Dia Fechamento</label>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Dia Fechamento</label>
                   <input 
                     type="number" 
                     min="1" 
                     max="31"
                     value={cardForm.closing_day} 
                     onChange={(e) => setCardForm({ ...cardForm, closing_day: e.target.value })}
-                    className="w-full bg-surface-input border border-border-subtle rounded-lg p-2 text-text-primary focus:outline-none focus:border-accent text-sm"
+                    className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 focus:outline-none focus:border-indigo-500 text-sm"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1">Dia Vencimento</label>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Dia Vencimento</label>
                   <input 
                     type="number" 
                     min="1" 
                     max="31"
                     value={cardForm.due_day} 
                     onChange={(e) => setCardForm({ ...cardForm, due_day: e.target.value })}
-                    className="w-full bg-surface-input border border-border-subtle rounded-lg p-2 text-text-primary focus:outline-none focus:border-accent text-sm"
+                    className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 focus:outline-none focus:border-indigo-500 text-sm"
                     required
                   />
                 </div>
@@ -568,7 +567,7 @@ export function CreditCardsTab() {
 
               <button 
                 type="submit" 
-                className="w-full bg-accent hover:bg-accent/90 text-white font-semibold py-2 rounded-lg text-sm transition-colors mt-2"
+                className="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-2 rounded-lg text-sm transition mt-2"
               >
                 Cadastrar Cartão
               </button>
@@ -580,66 +579,66 @@ export function CreditCardsTab() {
       {/* MODAL: Registrar Despesa */}
       {showAddExpense && selectedCard && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-surface-card border border-border-subtle rounded-xl w-full max-w-md p-6 relative shadow-lg">
+          <div className="bg-surface-card border border-slate-800 rounded-xl w-full max-w-md p-6 relative shadow-2xl">
             <button 
               onClick={() => setShowAddExpense(false)}
-              className="absolute top-4 right-4 text-text-muted hover:text-text-primary"
+              className="absolute top-4 right-4 text-slate-400 hover:text-white"
             >
               <X size={18} />
             </button>
-            <h3 className="text-lg font-semibold text-text-primary mb-4">Registrar Despesa em {selectedCard.name}</h3>
+            <h3 className="text-lg font-bold text-white mb-4">Registrar Despesa em {selectedCard.name}</h3>
             <form onSubmit={handleCreateExpense} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1">Descrição</label>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Descrição</label>
                 <input 
                   type="text" 
                   value={expenseForm.description} 
                   onChange={(e) => setExpenseForm({ ...expenseForm, description: e.target.value })}
                   placeholder="Ex: Assinatura Netflix, Supermercado" 
-                  className="w-full bg-surface-input border border-border-subtle rounded-lg p-2 text-text-primary focus:outline-none focus:border-accent text-sm"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 focus:outline-none focus:border-indigo-500 text-sm"
                   required
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1">Valor Total (R$)</label>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Valor Total (R$)</label>
                   <input 
                     type="number" 
                     step="0.01"
                     value={expenseForm.total_value} 
                     onChange={(e) => setExpenseForm({ ...expenseForm, total_value: e.target.value })}
                     placeholder="Ex: 150" 
-                    className="w-full bg-surface-input border border-border-subtle rounded-lg p-2 text-text-primary focus:outline-none focus:border-accent text-sm"
+                    className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 focus:outline-none focus:border-indigo-500 text-sm"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1">Qtd Parcelas</label>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Qtd Parcelas</label>
                   <input 
                     type="number" 
                     min="1"
                     value={expenseForm.installments_count} 
                     onChange={(e) => setExpenseForm({ ...expenseForm, installments_count: e.target.value })}
-                    className="w-full bg-surface-input border border-border-subtle rounded-lg p-2 text-text-primary focus:outline-none focus:border-accent text-sm"
+                    className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 focus:outline-none focus:border-indigo-500 text-sm"
                     required
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1">Data da Compra</label>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Data da Compra</label>
                 <input 
                   type="date" 
                   value={expenseForm.date} 
                   onChange={(e) => setExpenseForm({ ...expenseForm, date: e.target.value })}
-                  className="w-full bg-surface-input border border-border-subtle rounded-lg p-2 text-text-primary focus:outline-none focus:border-accent text-sm"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 focus:outline-none focus:border-indigo-500 text-sm"
                 />
               </div>
 
               <button 
                 type="submit" 
-                className="w-full bg-accent hover:bg-accent/90 text-white font-semibold py-2 rounded-lg text-sm transition-colors mt-2"
+                className="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-2 rounded-lg text-sm transition mt-2"
               >
                 Registrar Despesa
               </button>

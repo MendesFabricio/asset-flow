@@ -207,15 +207,15 @@ export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalP
         <ModalShell
             onClose={onClose}
             title={
-                <span className="flex items-center gap-2 text-xl font-semibold">
+                <span className="flex items-center gap-2 text-xl font-bold">
                     {asset.ticker}
-                    <span className="text-xs bg-surface-input text-text-muted px-2 py-0.5 rounded-md border border-border-subtle font-normal">{asset.tipo}</span>
+                    <span className="text-xs bg-slate-800 text-slate-400 px-2 py-0.5 rounded border border-slate-700 font-normal">{asset.tipo}</span>
                 </span>
             }
             subtitle={
-                <span className="flex items-center gap-3 mt-1 text-sm tabular-nums">
+                <span className="flex items-center gap-3 mt-1 text-sm">
                     <span className="text-text-muted">Preço: <strong className="text-text-primary">{money(asset.preco_atual)}</strong></span>
-                    <span className={`${(asset.change_percent ?? 0) >= 0 ? 'text-status-success' : 'text-status-error'} font-semibold`}>
+                    <span className={`${(asset.change_percent ?? 0) >= 0 ? 'text-status-success' : 'text-status-error'} font-bold`}>
                         {(asset.change_percent ?? 0) > 0 ? '+' : ''}{(asset.change_percent ?? 0).toFixed(2)}%
                     </span>
                 </span>
@@ -244,22 +244,22 @@ export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalP
                 </div>
 
                 {/* Direita: Indicadores Rápidos */}
-                <div className="w-full lg:w-80 bg-surface-elevated p-6 overflow-y-auto border-l border-border-subtle space-y-6">
+                <div className="w-full lg:w-80 bg-surface-elevated/50 p-6 overflow-y-auto border-l border-border-subtle space-y-6">
 
                     <div>
-                        <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">Minha Posição</h3>
-                        <div className="space-y-3 tabular-nums">
+                        <h3 className="text-xs font-bold text-text-muted uppercase tracking-wider mb-3">Minha Posição</h3>
+                        <div className="space-y-3">
                             <div className="flex justify-between items-center p-3 bg-surface-card rounded-lg border border-border-subtle">
                                 <span className="text-sm text-text-muted">Total Investido</span>
-                                <span className="text-sm font-semibold text-text-primary">{money(asset.total_investido)}</span>
+                                <span className="text-sm font-bold text-text-primary">{money(asset.total_investido)}</span>
                             </div>
                             <div className="flex justify-between items-center p-3 bg-surface-card rounded-lg border border-border-subtle">
                                 <span className="text-sm text-text-muted">Valor Atual</span>
-                                <span className="text-sm font-semibold text-text-primary">{money(asset.total_atual)}</span>
+                                <span className="text-sm font-bold text-text-primary">{money(asset.total_atual)}</span>
                             </div>
                             <div className="flex justify-between items-center p-3 bg-surface-card rounded-lg border border-border-subtle">
                                 <span className="text-sm text-text-muted">Lucro</span>
-                                <span className={`text-sm font-semibold ${asset.lucro_valor >= 0 ? 'text-status-success' : 'text-status-error'}`}>
+                                <span className={`text-sm font-bold ${asset.lucro_valor >= 0 ? 'text-status-success' : 'text-status-error'}`}>
                                     {money(asset.lucro_valor)} ({asset.lucro_pct.toFixed(2)}%)
                                 </span>
                             </div>
@@ -269,20 +269,20 @@ export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalP
                     {(asset.tipo === 'Ação' || asset.tipo === 'FII') && (
                         <div className="space-y-4">
                             <div>
-                                <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">Fundamentos</h3>
-                                <div className="grid grid-cols-2 gap-2 tabular-nums">
+                                <h3 className="text-xs font-bold text-text-muted uppercase tracking-wider mb-3">Fundamentos</h3>
+                                <div className="grid grid-cols-2 gap-2">
                                     <div className="p-3 bg-surface-card rounded-lg border border-border-subtle text-center">
-                                        <p className="text-2xs text-text-muted uppercase">P/VP</p>
-                                        <p className="text-sm font-semibold text-accent">{asset.p_vp ? asset.p_vp.toFixed(2) : '-'}</p>
+                                        <p className="text-[10px] text-text-muted uppercase">P/VP</p>
+                                        <p className="text-sm font-bold text-accent">{asset.p_vp ? asset.p_vp.toFixed(2) : '-'}</p>
                                     </div>
                                     <div className="p-3 bg-surface-card rounded-lg border border-border-subtle text-center">
-                                        <p className="text-2xs text-text-muted uppercase">DY Est.</p>
-                                        <p className="text-sm font-semibold text-status-success">{asset.manual_dy ? (asset.manual_dy * 100).toFixed(2) + '%' : '-'}</p>
+                                        <p className="text-[10px] text-text-muted uppercase">DY Est.</p>
+                                        <p className="text-sm font-bold text-status-success">{asset.manual_dy ? (asset.manual_dy * 100).toFixed(2) + '%' : '-'}</p>
                                     </div>
                                     {asset.tipo === 'Ação' && (
                                         <div className="p-3 bg-surface-card rounded-lg border border-border-subtle text-center col-span-2">
-                                            <p className="text-2xs text-text-muted uppercase">Margem Graham</p>
-                                            <p className={`text-sm font-semibold ${(asset.mg_graham ?? 0) > 0 ? 'text-status-success' : 'text-status-error'}`}>
+                                            <p className="text-[10px] text-text-muted uppercase">Margem Graham</p>
+                                            <p className={`text-sm font-bold ${(asset.mg_graham ?? 0) > 0 ? 'text-status-success' : 'text-status-error'}`}>
                                                 {asset.mg_graham ? asset.mg_graham.toFixed(1) + '%' : '-'}
                                             </p>
                                         </div>
@@ -294,27 +294,27 @@ export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalP
                     )}
 
                     <div>
-                        <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3 font-mono">Definir Alerta de Preço</h3>
-                        <form onSubmit={handleCreatePriceAlert} className="space-y-3 bg-surface-card p-4 rounded-xl border border-border-subtle">
-                            <div className="flex bg-surface-input p-1 rounded-lg border border-border-subtle gap-1">
+                        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 font-mono">Definir Alerta de Preço</h3>
+                        <form onSubmit={handleCreatePriceAlert} className="space-y-3 bg-slate-900/40 p-4 rounded-lg border border-slate-800/80 shadow-[0_4px_12px_rgba(0,0,0,0.1)]">
+                            <div className="flex bg-slate-950 p-1 rounded-lg border border-slate-800 gap-1">
                                 <button
                                     type="button"
                                     onClick={() => setCondition('ABOVE')}
-                                    className={`flex-1 text-2xs uppercase tracking-wider py-1.5 font-semibold rounded-md transition-colors ${condition === 'ABOVE' ? 'bg-status-success text-white' : 'text-text-muted hover:text-text-primary'}`}
+                                    className={`flex-1 text-[10px] uppercase tracking-wider py-1.5 font-black rounded-md transition-all duration-300 ${condition === 'ABOVE' ? 'bg-emerald-600/90 text-white border border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.25)]' : 'text-slate-500 hover:text-slate-300'}`}
                                 >
                                     Subir Acima ▲
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => setCondition('BELOW')}
-                                    className={`flex-1 text-2xs uppercase tracking-wider py-1.5 font-semibold rounded-md transition-colors ${condition === 'BELOW' ? 'bg-status-error text-white' : 'text-text-muted hover:text-text-primary'}`}
+                                    className={`flex-1 text-[10px] uppercase tracking-wider py-1.5 font-black rounded-md transition-all duration-300 ${condition === 'BELOW' ? 'bg-rose-600/90 text-white border border-rose-500/30 shadow-[0_0_10px_rgba(244,63,94,0.25)]' : 'text-slate-500 hover:text-slate-300'}`}
                                 >
                                     Cair Abaixo ▼
                                 </button>
                             </div>
 
                             <div className="relative">
-                                <span className="absolute left-3 top-2.5 text-xs text-text-muted font-mono">R$</span>
+                                <span className="absolute left-3 top-2.5 text-xs text-slate-500 font-mono">R$</span>
                                 <input
                                     type="number"
                                     step="0.01"
@@ -322,7 +322,7 @@ export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalP
                                     placeholder="0,00"
                                     value={targetPrice}
                                     onChange={(e) => setTargetPrice(e.target.value)}
-                                    className="w-full bg-surface-input border border-border-subtle rounded-lg pl-9 pr-3 py-2 text-xs text-text-primary font-mono tabular-nums placeholder:text-text-muted focus:outline-none focus:border-accent transition-colors"
+                                    className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-xs text-white font-mono placeholder-slate-600 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 transition-all duration-300"
                                     required
                                 />
                             </div>
@@ -332,13 +332,13 @@ export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalP
                                 placeholder="Nota / Observação"
                                 value={note}
                                 onChange={(e) => setNote(e.target.value)}
-                                className="w-full bg-surface-input border border-border-subtle rounded-lg px-3 py-2 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent transition-colors"
+                                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 transition-all duration-300"
                             />
 
                             <button
                                 type="submit"
                                 disabled={loadingAlert}
-                                className="w-full flex items-center justify-center gap-2 bg-accent hover:bg-accent/90 disabled:opacity-50 text-white text-2xs font-semibold uppercase tracking-wider py-2 rounded-lg transition-colors"
+                                className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800/40 text-white text-[11px] font-bold uppercase tracking-wider py-2 rounded-lg transition-all duration-300 hover:scale-[1.01] active:scale-[0.99]"
                             >
                                 {loadingAlert ? (
                                     <RefreshCw size={12} className="animate-spin" />
@@ -349,7 +349,7 @@ export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalP
                             </button>
 
                             {statusMsg && (
-                                <p className={`text-2xs font-semibold text-center mt-2 ${statusMsg.type === 'success' ? 'text-status-success' : 'text-status-error'}`}>
+                                <p className={`text-[10px] font-bold text-center mt-2 ${statusMsg.type === 'success' ? 'text-emerald-400' : 'text-red-400'}`}>
                                     {statusMsg.text}
                                 </p>
                             )}
@@ -357,27 +357,27 @@ export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalP
                     </div>
 
                     {asset.recomendacao && (
-                        <div className={`p-4 rounded-xl border flex flex-col gap-2.5 ${asset.recomendacao.includes('COMPRA') ? 'bg-status-success/10 border-status-success/20 text-status-success' : 'bg-surface-card border-border-subtle text-text-primary'}`}>
+                        <div className={`p-4 rounded-lg border flex flex-col gap-2.5 ${asset.recomendacao.includes('COMPRA') ? 'bg-emerald-950/40 border-emerald-500/20 text-emerald-300' : 'bg-slate-900/60 border-slate-800 text-slate-300'}`}>
                             <div>
-                                <h3 className="text-xs font-semibold uppercase tracking-wider mb-1 opacity-70 flex items-center gap-1.5">
-                                    <Sparkles size={12} className="text-accent" />
+                                <h3 className="text-xs font-bold uppercase tracking-wider mb-1 opacity-70 flex items-center gap-1.5">
+                                    <Sparkles size={12} className="text-indigo-400" />
                                     Recomendação IA
                                 </h3>
-                                <p className="font-semibold text-sm mb-1">{asset.recomendacao}</p>
+                                <p className="font-bold text-sm mb-1">{asset.recomendacao}</p>
                                 <p className="text-xs opacity-75 leading-relaxed">{asset.motivo}</p>
                             </div>
 
                             {/* Score Explainer Button & Text */}
-                            <div className="border-t border-border-subtle pt-2.5">
+                            <div className="border-t border-slate-800/40 pt-2.5">
                                 {explanationText ? (
                                     <div className="space-y-2">
-                                        <p className="text-2xs leading-relaxed text-text-primary bg-surface-elevated p-2.5 rounded-lg border border-border-subtle">
+                                        <p className="text-[11px] leading-relaxed text-slate-300 bg-slate-950/40 p-2.5 rounded border border-slate-900">
                                             {explanationText}
                                         </p>
                                         <button
                                             type="button"
                                             onClick={handleSpeakExplanation}
-                                            className="w-full flex items-center justify-center gap-1.5 bg-surface-input hover:bg-surface-elevated text-text-primary text-2xs font-semibold uppercase tracking-wider py-1.5 rounded-lg transition-colors"
+                                            className="w-full flex items-center justify-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 text-[10px] font-bold uppercase tracking-wider py-1.5 rounded transition"
                                         >
                                             {speaking ? (
                                                 <>
@@ -395,7 +395,7 @@ export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalP
                                         type="button"
                                         disabled={explaining}
                                         onClick={handleExplainScore}
-                                        className="w-full flex items-center justify-center gap-1.5 bg-accent-soft hover:bg-accent/20 text-accent text-2xs font-semibold uppercase tracking-wider py-1.5 rounded-lg transition-colors border border-accent/20"
+                                        className="w-full flex items-center justify-center gap-1.5 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 text-[10px] font-bold uppercase tracking-wider py-1.5 rounded transition border border-indigo-500/10"
                                     >
                                         {explaining ? (
                                             <>
@@ -414,77 +414,77 @@ export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalP
 
                     {/* RI KPIs Parser Block */}
                     {asset.last_report_url && (
-                        <div className="p-4 rounded-xl bg-surface-card border border-border-subtle flex flex-col gap-2.5">
-                            <h3 className="text-xs font-semibold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
-                                <FileSpreadsheet size={12} className="text-status-success" />
+                        <div className="p-4 rounded-lg bg-slate-900/40 border border-slate-800/80 flex flex-col gap-2.5">
+                            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                                <FileSpreadsheet size={12} className="text-emerald-500" />
                                 KPIs de Relatório de RI (IA)
                             </h3>
 
                             {kpiData ? (
                                 <div className="space-y-3">
-                                    <div className="overflow-x-auto w-full border border-border-subtle rounded-lg">
-                                        <table className="w-full text-2xs text-left border-collapse bg-surface-elevated">
-                                            <tbody className="divide-y divide-border-subtle text-text-muted tabular-nums">
+                                    <div className="overflow-x-auto w-full border border-slate-900 rounded">
+                                        <table className="w-full text-[11px] text-left border-collapse bg-slate-950/20">
+                                            <tbody className="divide-y divide-slate-900 text-slate-400">
                                                 {asset.tipo === 'FII' ? (
                                                     <>
-                                                        <tr>
-                                                            <td className="p-2 text-text-muted">Rendimento Distr.:</td>
-                                                            <td className="p-2 font-semibold text-text-primary">
+                                                        <tr className="hover:bg-slate-900/10">
+                                                            <td className="p-2 text-slate-500">Rendimento Distr.:</td>
+                                                            <td className="p-2 font-bold text-slate-300">
                                                                 {typeof kpiData.rendimento_distribuido === 'number'
                                                                     ? formatMoney(kpiData.rendimento_distribuido)
                                                                     : kpiData.rendimento_distribuido || '-'}
                                                             </td>
                                                         </tr>
-                                                        <tr>
-                                                            <td className="p-2 text-text-muted">VP da Cota:</td>
-                                                            <td className="p-2 font-semibold text-text-primary">
+                                                        <tr className="hover:bg-slate-900/10">
+                                                            <td className="p-2 text-slate-500">VP da Cota:</td>
+                                                            <td className="p-2 font-bold text-slate-300">
                                                                 {typeof kpiData.valor_patrimonial === 'number'
                                                                     ? formatMoney(kpiData.valor_patrimonial)
                                                                     : kpiData.valor_patrimonial || '-'}
                                                             </td>
                                                         </tr>
-                                                        <tr>
-                                                            <td className="p-2 text-text-muted">Vacância Física:</td>
-                                                            <td className="p-2 font-semibold text-text-primary">
+                                                        <tr className="hover:bg-slate-900/10">
+                                                            <td className="p-2 text-slate-500">Vacância Física:</td>
+                                                            <td className="p-2 font-bold text-slate-300">
                                                                 {kpiData.vacancia_fisica_pct != null ? `${kpiData.vacancia_fisica_pct}%` : '-'}
                                                             </td>
                                                         </tr>
-                                                        <tr>
-                                                            <td className="p-2 text-text-muted">Vacância Financeira:</td>
-                                                            <td className="p-2 font-semibold text-text-primary">
+                                                        <tr className="hover:bg-slate-900/10">
+                                                            <td className="p-2 text-slate-500">Vacância Financeira:</td>
+                                                            <td className="p-2 font-bold text-slate-300">
                                                                 {kpiData.vacancia_financeira_pct != null ? `${kpiData.vacancia_financeira_pct}%` : '-'}
                                                             </td>
                                                         </tr>
                                                     </>
                                                 ) : (
                                                     <>
-                                                        <tr>
-                                                            <td className="p-2 text-text-muted">Receita Líquida:</td>
-                                                            <td className="p-2 font-semibold text-text-primary">
+                                                        <tr className="hover:bg-slate-900/10">
+                                                            <td className="p-2 text-slate-500">Receita Líquida:</td>
+                                                            <td className="p-2 font-bold text-slate-300">
                                                                 {typeof kpiData.receita_liquida === 'number'
                                                                     ? formatMoney(kpiData.receita_liquida)
                                                                     : kpiData.receita_liquida || '-'}
                                                             </td>
                                                         </tr>
-                                                        <tr>
-                                                            <td className="p-2 text-text-muted">EBITDA:</td>
-                                                            <td className="p-2 font-semibold text-text-primary">
+                                                        <tr className="hover:bg-slate-900/10">
+                                                            <td className="p-2 text-slate-500">EBITDA:</td>
+                                                            <td className="p-2 font-bold text-slate-300">
                                                                 {typeof kpiData.ebitda === 'number'
                                                                     ? formatMoney(kpiData.ebitda)
                                                                     : kpiData.ebitda || '-'}
                                                             </td>
                                                         </tr>
-                                                        <tr>
-                                                            <td className="p-2 text-text-muted">Lucro Líquido:</td>
-                                                            <td className="p-2 font-semibold text-text-primary">
+                                                        <tr className="hover:bg-slate-900/10">
+                                                            <td className="p-2 text-slate-500">Lucro Líquido:</td>
+                                                            <td className="p-2 font-bold text-slate-300">
                                                                 {typeof kpiData.lucro_liquido === 'number'
                                                                     ? formatMoney(kpiData.lucro_liquido)
                                                                     : kpiData.lucro_liquido || '-'}
                                                             </td>
                                                         </tr>
-                                                        <tr>
-                                                            <td className="p-2 text-text-muted">Dívida Líquida:</td>
-                                                            <td className="p-2 font-semibold text-text-primary">
+                                                        <tr className="hover:bg-slate-900/10">
+                                                            <td className="p-2 text-slate-500">Dívida Líquida:</td>
+                                                            <td className="p-2 font-bold text-slate-300">
                                                                 {typeof kpiData.divida_liquida === 'number'
                                                                     ? formatMoney(kpiData.divida_liquida)
                                                                     : kpiData.divida_liquida || '-'}
@@ -496,7 +496,7 @@ export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalP
                                         </table>
                                     </div>
                                     {kpiData.observacao_geral && (
-                                        <p className="text-2xs leading-relaxed text-text-muted bg-surface-elevated p-2 rounded-lg">
+                                        <p className="text-[10px] leading-relaxed text-slate-400 bg-slate-950/40 p-2 rounded">
                                             <strong>IA:</strong> {kpiData.observacao_geral}
                                         </p>
                                     )}
@@ -507,7 +507,7 @@ export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalP
                                         type="button"
                                         disabled={loadingKpi}
                                         onClick={handleAnalyzeRI}
-                                        className="w-full flex items-center justify-center gap-1.5 bg-status-success/15 hover:bg-status-success/25 text-status-success text-2xs font-semibold uppercase tracking-wider py-1.5 rounded-lg transition-colors border border-status-success/20"
+                                        className="w-full flex items-center justify-center gap-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 text-[10px] font-bold uppercase tracking-wider py-1.5 rounded transition border border-emerald-500/10"
                                     >
                                         {loadingKpi ? (
                                             <>
@@ -518,7 +518,7 @@ export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalP
                                         )}
                                     </button>
                                     {kpiError && (
-                                        <p className="text-2xs text-status-error text-center font-semibold">{kpiError}</p>
+                                        <p className="text-[9px] text-red-400 text-center font-bold">{kpiError}</p>
                                     )}
                                 </div>
                             )}

@@ -40,9 +40,9 @@ export default function TaxAnnualReport() {
 
   if (error) {
     return (
-      <div className="bg-status-error/10 border border-status-error/30 p-4 rounded-xl flex gap-3">
-        <AlertCircle className="text-status-error shrink-0 w-5 h-5" />
-        <div className="text-status-error font-medium">
+      <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-4 rounded-lg flex gap-3">
+        <AlertCircle className="text-red-500 shrink-0 w-5 h-5" />
+        <div className="text-red-700 dark:text-red-400 font-medium">
           Não foi possível carregar os dados da declaração anual.
         </div>
       </div>
@@ -51,15 +51,15 @@ export default function TaxAnnualReport() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="p-4 bg-surface-card border border-border-subtle rounded-xl shadow-sm flex items-center justify-between">
+      <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm flex items-center justify-between">
         <div>
-          <h3 className="font-semibold text-text-primary">Ano-Calendário</h3>
-          <p className="text-sm text-text-muted">Ano de referência para a declaração (o ano em que os fatos ocorreram).</p>
+          <h3 className="font-bold text-slate-800 dark:text-slate-100">Ano-Calendário</h3>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Ano de referência para a declaração (o ano em que os fatos ocorreram).</p>
         </div>
         <select
           value={year}
           onChange={(e) => setYear(e.target.value)}
-          className="px-4 py-2 bg-surface-input border border-border-subtle rounded-lg text-text-primary font-medium w-32 tabular-nums"
+          className="px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium w-32"
         >
           {generateYears().map(y => (
             <option key={y} value={y}>{y}</option>
@@ -68,49 +68,49 @@ export default function TaxAnnualReport() {
       </div>
 
       {isLoading ? (
-        <div className="text-text-muted py-8 text-center">Calculando declaração anual completa... isso pode levar alguns segundos.</div>
+        <div className="text-slate-500 py-8 text-center">Calculando declaração anual completa... isso pode levar alguns segundos.</div>
       ) : report ? (
         <div className="flex flex-col gap-6">
           
           {/* Bens e Direitos */}
-          <div className="bg-surface-card border border-border-subtle rounded-xl shadow-sm overflow-hidden">
-            <div className="bg-surface-input px-4 py-3 border-b border-border-subtle">
-              <h3 className="font-semibold text-text-primary">Ficha: Bens e Direitos (Posição em 31/12)</h3>
-              <p className="text-xs text-text-muted">Copie o texto da discriminação para colar no programa da Receita.</p>
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm overflow-hidden">
+            <div className="bg-slate-50 dark:bg-slate-800/80 px-4 py-3 border-b border-slate-200 dark:border-slate-800">
+              <h3 className="font-bold text-slate-800 dark:text-slate-100">Ficha: Bens e Direitos (Posição em 31/12)</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Copie o texto da discriminação para colar no programa da Receita.</p>
             </div>
             
             {report.bens_e_direitos.length === 0 ? (
-              <div className="p-6 text-center text-text-muted">Nenhum ativo em carteira no dia 31/12 deste ano.</div>
+              <div className="p-6 text-center text-slate-500">Nenhum ativo em carteira no dia 31/12 deste ano.</div>
             ) : (
-              <div className="divide-y divide-border-subtle">
+              <div className="divide-y divide-slate-100 dark:divide-slate-800">
                 {report.bens_e_direitos.map((asset) => (
-                  <div key={asset.ticker} className="p-4 flex flex-col gap-3 hover:bg-surface-input/40">
+                  <div key={asset.ticker} className="p-4 flex flex-col gap-3 hover:bg-slate-50/50 dark:hover:bg-slate-800/20">
                     <div className="flex justify-between items-start">
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="font-semibold text-text-primary">{asset.ticker}</span>
-                          <span className="text-xs px-2 py-0.5 rounded-md bg-surface-input text-text-muted border border-border-subtle">
+                          <span className="font-bold text-slate-800 dark:text-slate-100">{asset.ticker}</span>
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
                             {asset.category}
                           </span>
                         </div>
-                        <span className="text-sm text-text-muted">CNPJ: {asset.cnpj}</span>
+                        <span className="text-sm text-slate-500 dark:text-slate-400">CNPJ: {asset.cnpj}</span>
                       </div>
                       <div className="text-right">
-                        <div className="font-semibold text-text-primary tabular-nums">{money(asset.total_cost)}</div>
-                        <div className="text-xs text-text-muted tabular-nums">Qtde: {asset.quantity} | PM: {money(asset.average_price)}</div>
+                        <div className="font-semibold text-slate-800 dark:text-slate-100">{money(asset.total_cost)}</div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400">Qtde: {asset.quantity} | PM: {money(asset.average_price)}</div>
                       </div>
                     </div>
                     
                     <div className="relative group">
-                      <div className="bg-surface-input p-3 rounded-lg pr-12 text-sm text-text-primary border border-border-subtle">
+                      <div className="bg-slate-100 dark:bg-slate-800 p-3 rounded-lg pr-12 text-sm text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                         {isHidden ? 'Discriminação oculta no modo privacidade.' : asset.description}
                       </div>
                       <button
                         onClick={() => copyToClipboard(asset.description, asset.ticker)}
-                        className="absolute right-2 top-2 p-1.5 text-text-muted hover:text-accent hover:bg-surface-elevated rounded-lg transition-colors"
+                        className="absolute right-2 top-2 p-1.5 text-slate-400 hover:text-blue-500 hover:bg-white dark:hover:bg-slate-700 rounded-md transition-colors"
                         title="Copiar texto"
                       >
-                        {copiedId === asset.ticker ? <Check className="w-4 h-4 text-status-success" /> : <Copy className="w-4 h-4" />}
+                        {copiedId === asset.ticker ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
                       </button>
                     </div>
                   </div>
@@ -121,53 +121,53 @@ export default function TaxAnnualReport() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Rendimentos Isentos */}
-            <div className="bg-surface-card border border-border-subtle rounded-xl shadow-sm overflow-hidden">
-              <div className="bg-surface-input px-4 py-3 border-b border-border-subtle">
-                <h3 className="font-semibold text-text-primary">Ficha: Rendimentos Isentos e Não Tributáveis</h3>
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm overflow-hidden">
+              <div className="bg-slate-50 dark:bg-slate-800/80 px-4 py-3 border-b border-slate-200 dark:border-slate-800">
+                <h3 className="font-bold text-slate-800 dark:text-slate-100">Ficha: Rendimentos Isentos e Não Tributáveis</h3>
               </div>
               <div className="p-4 flex flex-col gap-4">
-                <div className="flex justify-between items-center pb-3 border-b border-border-subtle">
-                  <span className="text-sm text-text-muted">Dividendos</span>
-                  <span className="font-medium text-text-primary tabular-nums">{money(report.rendimentos_isentos.dividendos)}</span>
+                <div className="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-slate-800">
+                  <span className="text-sm text-slate-600 dark:text-slate-400">Dividendos</span>
+                  <span className="font-medium text-slate-800 dark:text-slate-100">{money(report.rendimentos_isentos.dividendos)}</span>
                 </div>
-                <div className="flex justify-between items-center pb-3 border-b border-border-subtle">
-                  <span className="text-sm text-text-muted">Lucro Ações (Vendas até 20k)</span>
-                  <span className="font-medium text-text-primary tabular-nums">{money(report.rendimentos_isentos.lucro_vendas_20k)}</span>
+                <div className="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-slate-800">
+                  <span className="text-sm text-slate-600 dark:text-slate-400">Lucro Ações (Vendas até 20k)</span>
+                  <span className="font-medium text-slate-800 dark:text-slate-100">{money(report.rendimentos_isentos.lucro_vendas_20k)}</span>
                 </div>
                 <div className="flex justify-between items-center pt-1">
-                  <span className="font-semibold text-text-primary">Total Isento</span>
-                  <span className="font-semibold text-status-success tabular-nums">{money(report.rendimentos_isentos.total)}</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-100">Total Isento</span>
+                  <span className="font-bold text-green-600 dark:text-green-400">{money(report.rendimentos_isentos.total)}</span>
                 </div>
               </div>
             </div>
 
             {/* Tributação Exclusiva */}
-            <div className="bg-surface-card border border-border-subtle rounded-xl shadow-sm overflow-hidden">
-              <div className="bg-surface-input px-4 py-3 border-b border-border-subtle">
-                <h3 className="font-semibold text-text-primary">Ficha: Tributação Exclusiva/Definitiva</h3>
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm overflow-hidden">
+              <div className="bg-slate-50 dark:bg-slate-800/80 px-4 py-3 border-b border-slate-200 dark:border-slate-800">
+                <h3 className="font-bold text-slate-800 dark:text-slate-100">Ficha: Tributação Exclusiva/Definitiva</h3>
               </div>
               <div className="p-4 flex flex-col gap-4">
-                <div className="flex justify-between items-center pb-3 border-b border-border-subtle">
-                  <span className="text-sm text-text-muted">Juros Sobre Capital Próprio (JCP)</span>
-                  <span className="font-medium text-text-primary tabular-nums">{money(report.rendimentos_exclusivos.jcp)}</span>
+                <div className="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-slate-800">
+                  <span className="text-sm text-slate-600 dark:text-slate-400">Juros Sobre Capital Próprio (JCP)</span>
+                  <span className="font-medium text-slate-800 dark:text-slate-100">{money(report.rendimentos_exclusivos.jcp)}</span>
                 </div>
                 <div className="flex justify-between items-center pt-1 mt-auto">
-                  <span className="font-semibold text-text-primary">Total Exclusivo</span>
-                  <span className="font-semibold text-accent tabular-nums">{money(report.rendimentos_exclusivos.total)}</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-100">Total Exclusivo</span>
+                  <span className="font-bold text-blue-600 dark:text-blue-400">{money(report.rendimentos_exclusivos.total)}</span>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Renda Variável */}
-          <div className="bg-surface-card border border-border-subtle rounded-xl shadow-sm overflow-hidden overflow-x-auto">
-            <div className="bg-surface-input px-4 py-3 border-b border-border-subtle">
-              <h3 className="font-semibold text-text-primary">Ficha: Renda Variável (Operações Comuns / Day-Trade)</h3>
-              <p className="text-xs text-text-muted">Resumo mês a mês para preenchimento. Atenção ao IRRF (Dedo Duro) que pode ser deduzido no imposto devido!</p>
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm overflow-hidden overflow-x-auto">
+            <div className="bg-slate-50 dark:bg-slate-800/80 px-4 py-3 border-b border-slate-200 dark:border-slate-800">
+              <h3 className="font-bold text-slate-800 dark:text-slate-100">Ficha: Renda Variável (Operações Comuns / Day-Trade)</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Resumo mês a mês para preenchimento. Atenção ao IRRF (Dedo Duro) que pode ser deduzido no imposto devido!</p>
             </div>
             
-            <table className="w-full text-left text-sm text-text-primary">
-              <thead className="bg-surface-input/60 text-text-muted font-medium border-b border-border-subtle">
+            <table className="w-full text-left text-sm text-slate-600 dark:text-slate-300">
+              <thead className="bg-slate-50/50 dark:bg-slate-800/40 text-slate-700 dark:text-slate-200 font-medium border-b border-slate-200 dark:border-slate-700">
                 <tr>
                   <th className="px-4 py-3">Mês</th>
                   <th className="px-4 py-3 text-right">Ações (ST)</th>
@@ -176,22 +176,22 @@ export default function TaxAnnualReport() {
                   <th className="px-4 py-3 text-right">IRRF (Dedo Duro)</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border-subtle">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {report.renda_variavel.map((mes) => {
                   const total_irrf = mes.irrf_st + mes.irrf_dt + mes.irrf_fii;
                   return (
-                    <tr key={mes.month} className="hover:bg-surface-input/40">
-                      <td className="px-4 py-3 font-medium tabular-nums">{mes.month}/{report.year}</td>
-                      <td className={`px-4 py-3 text-right tabular-nums ${mes.profit_st < 0 ? 'text-status-error' : 'text-status-success'} ${mes.is_exempt_st && mes.profit_st > 0 ? 'opacity-50' : ''}`} title={mes.is_exempt_st ? 'Isento (Vendas < 20k)' : ''}>
+                    <tr key={mes.month} className="hover:bg-slate-50 dark:hover:bg-slate-800/20">
+                      <td className="px-4 py-3 font-medium">{mes.month}/{report.year}</td>
+                      <td className={`px-4 py-3 text-right ${mes.profit_st < 0 ? 'text-red-500' : 'text-green-600 dark:text-green-400'} ${mes.is_exempt_st && mes.profit_st > 0 ? 'opacity-50' : ''}`} title={mes.is_exempt_st ? 'Isento (Vendas < 20k)' : ''}>
                         {money(mes.profit_st)}
                       </td>
-                      <td className={`px-4 py-3 text-right tabular-nums ${mes.profit_dt < 0 ? 'text-status-error' : 'text-status-success'}`}>
+                      <td className={`px-4 py-3 text-right ${mes.profit_dt < 0 ? 'text-red-500' : 'text-green-600 dark:text-green-400'}`}>
                         {money(mes.profit_dt)}
                       </td>
-                      <td className={`px-4 py-3 text-right tabular-nums ${mes.profit_fii < 0 ? 'text-status-error' : 'text-status-success'}`}>
+                      <td className={`px-4 py-3 text-right ${mes.profit_fii < 0 ? 'text-red-500' : 'text-green-600 dark:text-green-400'}`}>
                         {money(mes.profit_fii)}
                       </td>
-                      <td className="px-4 py-3 text-right font-medium text-text-primary tabular-nums">
+                      <td className="px-4 py-3 text-right font-medium text-slate-800 dark:text-slate-200">
                         {total_irrf > 0 ? money(total_irrf) : '-'}
                       </td>
                     </tr>

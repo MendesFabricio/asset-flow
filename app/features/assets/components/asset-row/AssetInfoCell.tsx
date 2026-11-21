@@ -27,7 +27,7 @@ export function AssetInfoCell({
   return (
     <td className="px-6 py-5">
       <div className="flex items-center gap-3">
-        <div className="relative h-9 w-9 shrink-0 rounded-full bg-surface-input border border-border-subtle overflow-hidden">
+        <div className="relative h-9 w-9 shrink-0 rounded-full bg-slate-800/80 border border-slate-700/50 overflow-hidden shadow-sm group-hover:scale-110 transition-transform duration-300">
           {!imgError ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -37,27 +37,27 @@ export function AssetInfoCell({
               onError={() => setImgError(true)}
             />
           ) : (
-            <div className={`h-full w-full flex items-center justify-center text-2xs font-semibold text-white ${getStatusBg(ativo.status)}`}>
+            <div className={`h-full w-full flex items-center justify-center text-[9px] font-bold text-white ${getStatusBg(ativo.status)}`}>
               {ativo.ticker.substring(0, 2)}
             </div>
           )}
         </div>
         <div>
-          <div className="font-semibold text-text-primary text-sm flex items-center gap-2">
+          <div className="font-bold text-white text-sm flex items-center gap-2">
             <button
               type="button"
               onClick={() => onViewDetails(ativo)}
-              className="hover:text-accent hover:underline flex items-center gap-1 transition-colors group/name text-left"
+              className="hover:text-blue-400 hover:underline flex items-center gap-1 transition-all group/name text-left"
             >
               {ativo.ticker}
-              <Search size={10} className="text-text-muted opacity-0 group-hover/name:opacity-100 transition-opacity" />
+              <Search size={10} className="text-slate-500 opacity-0 group-hover/name:opacity-100 transition-opacity" />
             </button>
 
-            <div className="flex opacity-0 group-hover:opacity-100 transition-opacity gap-1 ml-1">
+            <div className="flex opacity-0 group-hover:opacity-100 transition-all gap-1 ml-1">
               <button
                 type="button"
                 onClick={onOpenReport}
-                className={`p-1 hover:bg-surface-input rounded-lg transition-colors ${stats.hasReports ? 'text-accent' : 'text-text-muted'}`}
+                className={`p-1 hover:bg-slate-700 rounded transition-colors ${stats.hasReports ? 'text-blue-400' : 'text-slate-600'}`}
                 title="Docs"
                 aria-label={`Documentos de ${ativo.ticker}`}
               >
@@ -66,7 +66,7 @@ export function AssetInfoCell({
               <button
                 type="button"
                 onClick={() => onEdit(ativo)}
-                className="p-1 hover:bg-surface-input rounded-lg text-text-muted hover:text-accent transition-colors"
+                className="p-1 hover:bg-slate-700 rounded text-slate-500 hover:text-blue-400 transition-colors"
                 title="Gerenciar Ativo"
                 aria-label={`Gerenciar ${ativo.ticker}`}
               >
@@ -76,7 +76,7 @@ export function AssetInfoCell({
                 <button
                   type="button"
                   onClick={() => onViewNews(ativo.ticker)}
-                  className="p-1 hover:bg-surface-input rounded-lg text-text-muted hover:text-status-success transition-colors"
+                  className="p-1 hover:bg-slate-700 rounded text-slate-500 hover:text-emerald-400 transition-colors"
                   title="Notícias"
                   aria-label={`Notícias de ${ativo.ticker}`}
                 >
@@ -85,12 +85,12 @@ export function AssetInfoCell({
               )}
             </div>
           </div>
-          <div className="text-2xs text-text-muted uppercase font-medium tracking-wide">
+          <div className="text-[10px] text-slate-500 uppercase font-medium tracking-wide">
             {ativo.tipo === 'Reserva' ? (
-              'RESERVA · CAIXINHA'
+              'RESERVA • CAIXINHA'
             ) : (
               <>
-                {ativo.tipo} · <PrivateValue value={`${ativo.qtd} UN`} className="tabular-nums" />
+                {ativo.tipo} • <PrivateValue value={`${ativo.qtd} UN`} className="tabular-nums" />
               </>
             )}
           </div>

@@ -113,7 +113,7 @@ export default function Home() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-surface text-text-primary font-sans selection:bg-accent/30 pb-6 relative">
+      <main className="min-h-screen bg-surface text-text-primary font-sans selection:bg-blue-500/30 pb-6 relative">
         <Header
           total={0}
           ativos={EMPTY_ASSETS}
@@ -137,7 +137,7 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-surface text-text-primary font-sans selection:bg-accent/30 pb-6 relative">
+    <main className="min-h-screen bg-surface text-text-primary font-sans selection:bg-blue-500/30 pb-6 relative">
       <Header
         total={data?.resumo?.Total || 0}
         ativos={ativos}
@@ -209,7 +209,7 @@ export default function Home() {
 
         <SyncStatusIndicators syncStatus={syncStatus} fundamentalsStatus={fundamentalsStatus} />
 
-        <div className="text-center text-2xs text-text-muted/60 mt-6 mb-1 tabular-nums">AssetFlow v{packageJson.version}</div>
+        <div className="text-center text-[11px] text-text-muted/60 mt-6 mb-1">AssetFlow v{packageJson.version}</div>
       </div>
 
 

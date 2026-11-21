@@ -38,21 +38,21 @@ export function ConfirmDialog({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
       {/* Backdrop */}
       <div 
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-[120ms]"
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
         onClick={onCancel}
       />
       
       {/* Dialog */}
-      <div className="relative bg-surface-card border border-border-subtle shadow-lg rounded-xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-[120ms]">
+      <div className="relative bg-surface-card border border-border-subtle shadow-2xl rounded-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
         <div className="p-6">
           <div className="flex gap-4">
             <div className="flex-shrink-0">
-              <div className="w-10 h-10 rounded-lg bg-status-error/10 flex items-center justify-center border border-status-error/20">
+              <div className="w-10 h-10 rounded-full bg-status-error/10 flex items-center justify-center border border-status-error/20">
                 <AlertTriangle className="text-status-error" size={20} />
               </div>
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-text-primary">{title}</h3>
+              <h3 className="text-lg font-bold text-text-primary">{title}</h3>
               <p className="mt-2 text-sm text-text-muted">{message}</p>
             </div>
           </div>
@@ -69,7 +69,7 @@ export function ConfirmDialog({
           <button
             type="button"
             onClick={onConfirm}
-            className="px-4 py-2 rounded-lg text-sm font-semibold bg-status-error hover:bg-status-error/90 text-white border border-status-error transition-colors"
+            className="px-4 py-2 rounded-lg text-sm font-semibold bg-red-600 hover:bg-red-500 text-white shadow-sm border border-red-500 transition-colors"
           >
             {confirmLabel}
           </button>

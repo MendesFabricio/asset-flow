@@ -37,40 +37,40 @@ export const CorrelationHeatmap = React.memo(function CorrelationHeatmap() {
 
   // Helper to resolve color gradient based on correlation coefficient (-1.0 to 1.0)
   const getCellColor = (val: number) => {
-    if (val === 1.0) return 'bg-surface-input border-border-subtle text-text-muted font-semibold'; // Auto-correlação diagonal
+    if (val === 1.0) return 'bg-surface-input border-slate-700 text-slate-400 font-bold'; // Auto-correlação diagonal
     
     // Positiva: verde
     if (val > 0) {
-      if (val > 0.7) return 'bg-status-success/80 text-white font-semibold';
-      if (val > 0.4) return 'bg-status-success/50 text-white';
-      return 'bg-status-success/20 text-status-success';
+      if (val > 0.7) return 'bg-emerald-500/80 text-white font-bold';
+      if (val > 0.4) return 'bg-emerald-500/50 text-emerald-100';
+      return 'bg-emerald-500/20 text-emerald-300';
     }
     
     // Negativa: vermelha
     if (val < 0) {
       const abs = Math.abs(val);
-      if (abs > 0.7) return 'bg-status-error/80 text-white font-semibold';
-      if (abs > 0.4) return 'bg-status-error/50 text-white';
-      return 'bg-status-error/20 text-status-error';
+      if (abs > 0.7) return 'bg-red-500/80 text-white font-bold';
+      if (abs > 0.4) return 'bg-red-500/50 text-red-100';
+      return 'bg-red-500/20 text-red-300';
     }
 
-    return 'bg-surface-input/40 text-text-muted';
+    return 'bg-surface-card/50 text-slate-500';
   };
 
   if (loading) {
     return (
-      <div className="animate-pulse h-[450px] bg-surface-card rounded-xl border border-border-subtle" />
+      <div className="animate-pulse h-[450px] bg-surface-card/40 rounded-2xl border border-slate-800/80" />
     );
   }
 
   if (error || !data || data.tickers.length < 2) {
     return (
-      <Card className="flex flex-col items-center justify-center p-8 text-center min-h-[300px]">
-        <AlertTriangle className="text-status-warning mb-3" size={32} />
-        <p className="text-text-primary text-sm font-semibold">
+      <Card className="flex flex-col items-center justify-center p-8 text-center bg-surface-card !border-slate-800 min-h-[300px]">
+        <AlertTriangle className="text-amber-500 mb-3" size={32} />
+        <p className="text-slate-300 text-sm font-semibold">
           {error || 'Dados Insuficientes para Correlação'}
         </p>
-        <p className="text-text-muted text-xs mt-2 max-w-sm">
+        <p className="text-slate-500 text-xs mt-2 max-w-sm">
           A matriz de correlação de Pearson requer um histórico consolidado de pelo menos 2 ativos de renda variável para cruzar as informações.
         </p>
       </Card>
@@ -80,7 +80,7 @@ export const CorrelationHeatmap = React.memo(function CorrelationHeatmap() {
   const { tickers, categories, matrix } = data;
 
   return (
-    <Card className="flex flex-col p-6 mt-2">
+    <Card className="flex flex-col bg-surface-card/50 !border-slate-800/80 shadow-2xl p-6 mt-2">
       {/* O cabeçalho explicativo foi movido para o Accordion pai no QuantDashboard */}
 
       {/* Grid de Correlação */}
@@ -93,7 +93,7 @@ export const CorrelationHeatmap = React.memo(function CorrelationHeatmap() {
             {tickers.map((t, idx) => (
               <div
                 key={`hdr-${t}`}
-                className="flex-1 text-center text-2xs font-semibold text-text-muted uppercase tracking-tight py-1 truncate"
+                className="flex-1 text-center text-[9px] font-bold text-slate-400 uppercase tracking-tight py-1 truncate"
                 title={`${t} (${categories[idx]})`}
               >
                 {t}
@@ -106,7 +106,7 @@ export const CorrelationHeatmap = React.memo(function CorrelationHeatmap() {
             <div key={`row-${tRow}`} className="flex items-center mb-1">
               {/* Rótulo da Linha */}
               <div
-                className="w-20 shrink-0 text-left text-2xs font-semibold text-text-muted uppercase tracking-tight pr-2 truncate"
+                className="w-20 shrink-0 text-left text-[9px] font-bold text-slate-400 uppercase tracking-tight pr-2 truncate"
                 title={`${tRow} (${categories[rIdx]})`}
               >
                 {tRow}
@@ -118,7 +118,7 @@ export const CorrelationHeatmap = React.memo(function CorrelationHeatmap() {
                 return (
                   <div
                     key={`cell-${tRow}-${tCol}`}
-                    className={`flex-1 text-center py-2.5 mx-0.5 rounded-md text-2xs font-mono tabular-nums border border-border-subtle/50 transition-colors cursor-pointer ${getCellColor(
+                    className={`flex-1 text-center py-2.5 mx-0.5 rounded text-[10px] font-mono border transition-all hover:scale-105 cursor-pointer ${getCellColor(
                       val
                     )}`}
                     title={`${tRow} vs ${tCol}: ${val.toFixed(4)} (${categories[rIdx]} / ${categories[cIdx]})`}
@@ -133,17 +133,17 @@ export const CorrelationHeatmap = React.memo(function CorrelationHeatmap() {
       </div>
 
       {/* Legenda */}
-      <div className="flex items-center gap-4 mt-6 pt-4 border-t border-border-subtle text-2xs font-medium text-text-muted uppercase tracking-wider">
+      <div className="flex items-center gap-4 mt-6 pt-4 border-t border-slate-800/80 text-[10px] font-medium text-slate-500 uppercase tracking-wider">
         <div className="flex items-center gap-1.5">
-          <div className="w-2.5 h-2.5 bg-status-success/80 rounded-md" />
+          <div className="w-2.5 h-2.5 bg-emerald-500/80 rounded" />
           <span>Forte Correlação (+)</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="w-2.5 h-2.5 bg-surface-input rounded-md border border-border-subtle" />
+          <div className="w-2.5 h-2.5 bg-surface-input rounded border border-slate-700" />
           <span>Diagonal (Mesmo Ativo)</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="w-2.5 h-2.5 bg-status-error/80 rounded-md" />
+          <div className="w-2.5 h-2.5 bg-red-500/80 rounded" />
           <span>Forte Correlação (-)</span>
         </div>
       </div>

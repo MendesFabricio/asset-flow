@@ -153,12 +153,12 @@ export function ComparatorTab({ ativos = [] }: ComparatorTabProps) {
 
   return (
     <div className="space-y-6">
-      <div className="bg-surface-card border border-border-subtle rounded-xl p-5 space-y-4">
+      <div className="bg-surface-card border border-border-subtle rounded-2xl p-5 space-y-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <GitCompare size={18} className="text-accent" />
-              <h2 className="text-base font-semibold text-text-primary">Comparador Fundamentalista Lado a Lado</h2>
+              <h2 className="text-base font-extrabold text-text-primary">Comparador Fundamentalista Lado a Lado</h2>
             </div>
             <p className="text-xs text-text-muted">
               Compare até 4 Ações ou FIIs da B3 em Preço Teto, Graham, DCF, múltiplos e Score de Qualidade.
@@ -177,7 +177,7 @@ export function ComparatorTab({ ativos = [] }: ComparatorTabProps) {
             <button
               type="submit"
               disabled={!tickerInput.trim() || selectedTickers.length >= 4}
-              className="px-3 py-2 rounded-lg bg-accent text-white text-xs font-semibold hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
+              className="px-3 py-2 rounded-lg bg-accent text-white text-xs font-bold hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
             >
               <Plus size={13} /> Comparar
             </button>
@@ -189,7 +189,7 @@ export function ComparatorTab({ ativos = [] }: ComparatorTabProps) {
           {selectedTickers.map((t) => (
             <span
               key={t}
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-accent-soft text-accent text-xs font-semibold border border-accent/30"
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-accent-soft text-accent text-xs font-bold border border-accent/30"
             >
               {t}
               <button
@@ -205,13 +205,13 @@ export function ComparatorTab({ ativos = [] }: ComparatorTabProps) {
 
           {portfolioSuggestions.length > 0 && selectedTickers.length < 4 && (
             <div className="flex items-center gap-1.5 ml-auto flex-wrap">
-              <span className="text-2xs uppercase tracking-wider text-text-muted font-semibold">Da carteira:</span>
+              <span className="text-[10px] uppercase tracking-wider text-text-muted font-bold">Da carteira:</span>
               {portfolioSuggestions.map((a) => (
                 <button
                   key={a.ticker}
                   type="button"
                   onClick={() => setSelectedTickers((prev) => [...prev, a.ticker])}
-                  className="text-2xs px-2 py-0.5 rounded-md bg-surface-elevated border border-border-subtle text-text-muted hover:text-text-primary hover:border-accent transition-colors"
+                  className="text-[11px] px-2 py-0.5 rounded-full bg-surface-elevated border border-border-subtle text-text-muted hover:text-text-primary hover:border-accent"
                 >
                   + {a.ticker}
                 </button>
@@ -222,7 +222,7 @@ export function ComparatorTab({ ativos = [] }: ComparatorTabProps) {
       </div>
 
       {/* Tabela comparativa */}
-      <div className="bg-surface-card border border-border-subtle rounded-xl overflow-hidden">
+      <div className="bg-surface-card border border-border-subtle rounded-2xl overflow-hidden">
         {loading ? (
           <div className="p-10 text-center text-xs text-text-muted flex items-center justify-center gap-2">
             <Loader2 size={16} className="animate-spin text-accent" />
@@ -237,11 +237,11 @@ export function ComparatorTab({ ativos = [] }: ComparatorTabProps) {
             <table className="w-full text-left text-xs">
               <thead className="bg-surface-elevated border-b border-border-subtle">
                 <tr>
-                  <th scope="col" className="px-4 py-3 text-2xs uppercase tracking-wider text-text-muted w-48">Indicador</th>
+                  <th scope="col" className="px-4 py-3 text-[10px] uppercase tracking-wider text-text-muted w-48">Indicador</th>
                   {items.map((it) => (
                     <th key={it.ticker} scope="col" className="px-4 py-3 text-right">
-                      <div className="font-semibold text-sm text-text-primary">{it.ticker}</div>
-                      <div className="text-2xs font-normal text-text-muted truncate max-w-[160px] ml-auto">
+                      <div className="font-extrabold text-sm text-text-primary">{it.ticker}</div>
+                      <div className="text-[10px] font-normal text-text-muted truncate max-w-[160px] ml-auto">
                         {it.name}
                       </div>
                     </th>
@@ -271,8 +271,8 @@ export function ComparatorTab({ ativos = [] }: ComparatorTabProps) {
                         return (
                           <td
                             key={it.ticker}
-                            className={`px-4 py-2.5 text-right font-mono tabular-nums ${
-                              isBest ? 'font-semibold text-status-success bg-status-success/5' : 'text-text-primary'
+                            className={`px-4 py-2.5 text-right font-mono ${
+                              isBest ? 'font-extrabold text-status-success bg-status-success/5' : 'text-text-primary'
                             }`}
                           >
                             <span className="inline-flex items-center gap-1 justify-end">

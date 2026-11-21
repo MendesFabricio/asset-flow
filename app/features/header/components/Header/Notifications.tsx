@@ -413,7 +413,7 @@ export function Notifications({ onFixAsset }: NotificationsProps) {
   const getSeverityStyles = (severity: number, type: string) => {
     if (type === 'SINAL') {
       return {
-        icon: <Zap size={17} className="text-accent" />,
+        icon: <Zap size={17} className="text-purple-400" />,
         borderClass: 'border-purple-500/40 bg-purple-500/5',
         hoverClass: 'hover:bg-purple-500/10',
       };
@@ -455,7 +455,7 @@ export function Notifications({ onFixAsset }: NotificationsProps) {
     }
     if (type === 'NOVIDADE') {
       return {
-        icon: <FileText size={17} className="text-accent" />,
+        icon: <FileText size={17} className="text-purple-400" />,
         borderClass: 'border-purple-400/40 bg-purple-500/5',
         hoverClass: 'hover:bg-purple-500/10',
       };
@@ -475,16 +475,16 @@ export function Notifications({ onFixAsset }: NotificationsProps) {
         aria-label="Central de Notificações"
         aria-haspopup="menu"
         aria-expanded={isOpen}
-        className={`p-2 rounded-lg transition-colors border relative group ${
+        className={`p-2 rounded-lg transition-all border relative group ${
           isOpen
-            ? 'bg-surface-elevated border-accent/50 text-text-primary'
+            ? 'bg-surface-elevated border-accent/50 text-text-primary shadow-[0_0_15px_rgba(59,130,246,0.15)]'
             : 'bg-surface-card hover:bg-surface-elevated text-text-muted hover:text-text-primary border-border-subtle'
         }`}
         title="Central de Notificações"
       >
         <Bell
           size={16}
-          className={`transition-colors duration-150 ${
+          className={`transition-all duration-300 ${
             alerts.length > 0
               ? 'text-status-warning animate-[wiggle_1s_ease-in-out_infinite]'
               : 'text-text-muted group-hover:text-text-primary'
@@ -492,7 +492,7 @@ export function Notifications({ onFixAsset }: NotificationsProps) {
         />
 
         {alerts.length > 0 && (
-          <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-status-error border border-surface text-2xs font-semibold text-white">
+          <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-status-error border border-surface text-[9px] font-bold text-white shadow-[0_0_8px_rgba(244,63,94,0.6)]">
             {alerts.length}
           </span>
         )}
@@ -500,13 +500,13 @@ export function Notifications({ onFixAsset }: NotificationsProps) {
 
       {isOpen && (
         <>
-          <div className="fixed inset-0 z-40 bg-black/15 backdrop-blur-sm" onClick={() => setIsOpen(false)} />
+          <div className="fixed inset-0 z-40 bg-black/15 backdrop-blur-[0.5px]" onClick={() => setIsOpen(false)} />
 
-          <div className="absolute right-0 mt-3 w-96 max-w-[92vw] origin-top-right bg-surface-card border border-border-subtle rounded-xl shadow-lg z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-[120ms]">
+          <div className="absolute right-0 mt-3 w-96 max-w-[92vw] origin-top-right bg-surface-card border border-border-subtle rounded-2xl shadow-[0_10px_35px_rgba(0,0,0,0.65)] z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
             {/* Header + Tabs */}
             <div className="px-3.5 pt-3 pb-2 border-b border-border-subtle bg-surface-elevated/70 space-y-2.5">
               <div className="flex justify-between items-center">
-                <h3 className="font-semibold text-text-primary text-xs uppercase tracking-wider flex items-center gap-1.5">
+                <h3 className="font-bold text-text-primary text-xs uppercase tracking-wider flex items-center gap-1.5">
                   <Bell size={13} className="text-accent" />
                   Central de Notificações
                 </h3>
@@ -515,7 +515,7 @@ export function Notifications({ onFixAsset }: NotificationsProps) {
                     <button
                       type="button"
                       onClick={handleMarkAllRead}
-                      className="flex items-center gap-1 px-2 py-1 rounded-lg text-2xs font-semibold text-status-success bg-status-success/10 hover:bg-status-success/20 border border-status-success/20 transition-colors"
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold text-status-success bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 transition-colors"
                       title="Marcar todas como lidas"
                     >
                       <CheckCheck size={12} /> Ler todas
@@ -538,7 +538,7 @@ export function Notifications({ onFixAsset }: NotificationsProps) {
                 <button
                   type="button"
                   onClick={() => setActiveTab('notifications')}
-                  className={`py-1 px-2 rounded-lg text-2xs font-semibold transition-colors ${
+                  className={`py-1 px-2 rounded-lg text-[10px] font-bold transition-colors ${
                     activeTab === 'notifications'
                       ? 'bg-accent text-white'
                       : 'text-text-muted hover:text-text-primary'
@@ -549,7 +549,7 @@ export function Notifications({ onFixAsset }: NotificationsProps) {
                 <button
                   type="button"
                   onClick={() => setActiveTab('active')}
-                  className={`py-1 px-2 rounded-lg text-2xs font-semibold transition-colors ${
+                  className={`py-1 px-2 rounded-lg text-[10px] font-bold transition-colors ${
                     activeTab === 'active'
                       ? 'bg-accent text-white'
                       : 'text-text-muted hover:text-text-primary'
@@ -560,7 +560,7 @@ export function Notifications({ onFixAsset }: NotificationsProps) {
                 <button
                   type="button"
                   onClick={() => setActiveTab('history')}
-                  className={`py-1 px-2 rounded-lg text-2xs font-semibold transition-colors flex items-center justify-center gap-1 ${
+                  className={`py-1 px-2 rounded-lg text-[10px] font-bold transition-colors flex items-center justify-center gap-1 ${
                     activeTab === 'history'
                       ? 'bg-accent text-white'
                       : 'text-text-muted hover:text-text-primary'
@@ -579,20 +579,20 @@ export function Notifications({ onFixAsset }: NotificationsProps) {
                   <div className="p-2.5 rounded-xl bg-surface border border-border-subtle space-y-2.5">
                     <div className="flex items-center justify-between gap-2">
                       <div className="min-w-0">
-                        <span className="text-2xs font-semibold uppercase tracking-wider text-text-primary block">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-text-primary block">
                           Telegram Bot
                         </span>
-                        <span className="text-2xs text-text-muted block truncate">
+                        <span className="text-[10px] text-text-muted block truncate">
                           {telegramConfigured
                             ? `Conectado (${tgMasked || 'ativo'})`
-                            : 'Desativado. Configure aqui para receber no celular'}
+                            : 'Desativado — configure aqui para receber no celular'}
                         </span>
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
                         <button
                           type="button"
                           onClick={() => setShowTelegramForm((v) => !v)}
-                          className="px-2 py-1 rounded-lg text-2xs font-semibold bg-surface-elevated text-text-primary border border-border-subtle hover:border-accent/50 transition-colors"
+                          className="px-2 py-1 rounded-lg text-[10px] font-bold bg-surface-elevated text-text-primary border border-border-subtle hover:border-accent/50 transition-colors"
                         >
                           {showTelegramForm ? 'Fechar' : 'Configurar'}
                         </button>
@@ -601,7 +601,7 @@ export function Notifications({ onFixAsset }: NotificationsProps) {
                             type="button"
                             onClick={handleTestTelegram}
                             disabled={testingTelegram}
-                            className="flex items-center gap-1 px-2 py-1 rounded-lg text-2xs font-semibold bg-accent-soft text-accent border border-accent/30 hover:bg-accent/20 disabled:opacity-50 transition-colors"
+                            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold bg-accent-soft text-accent border border-accent/30 hover:bg-accent/20 disabled:opacity-50 transition-colors"
                           >
                             <Send size={11} /> {testingTelegram ? '...' : 'Testar'}
                           </button>
@@ -611,7 +611,7 @@ export function Notifications({ onFixAsset }: NotificationsProps) {
 
                     {showTelegramForm && (
                       <form onSubmit={handleSaveTelegram} className="space-y-2 pt-2 border-t border-border-subtle">
-                        <p className="text-2xs text-text-muted leading-snug">
+                        <p className="text-[10px] text-text-muted leading-snug">
                           Crie um bot no <span className="font-mono text-text-primary">@BotFather</span> e pegue seu ID no{' '}
                           <span className="font-mono text-text-primary">@userinfobot</span>.
                         </p>
@@ -621,7 +621,7 @@ export function Notifications({ onFixAsset }: NotificationsProps) {
                           value={tgTokenInput}
                           onChange={(e) => setTgTokenInput(e.target.value)}
                           required
-                          className="w-full bg-surface-input border border-border-subtle rounded-lg px-2.5 py-1.5 text-2xs font-mono text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent"
+                          className="w-full bg-surface-input border border-border-subtle rounded-lg px-2.5 py-1.5 text-[11px] font-mono text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent"
                         />
                         <input
                           type="text"
@@ -629,7 +629,7 @@ export function Notifications({ onFixAsset }: NotificationsProps) {
                           value={tgChatIdInput}
                           onChange={(e) => setTgChatIdInput(e.target.value)}
                           required
-                          className="w-full bg-surface-input border border-border-subtle rounded-lg px-2.5 py-1.5 text-2xs font-mono text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent"
+                          className="w-full bg-surface-input border border-border-subtle rounded-lg px-2.5 py-1.5 text-[11px] font-mono text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent"
                         />
                         <div className="flex items-center justify-between gap-2">
                           {telegramConfigured ? (
@@ -637,7 +637,7 @@ export function Notifications({ onFixAsset }: NotificationsProps) {
                               type="button"
                               onClick={handleClearTelegram}
                               disabled={savingTelegram}
-                              className="px-2 py-1 rounded-lg text-2xs font-semibold text-status-error hover:bg-status-error/10 transition-colors"
+                              className="px-2 py-1 rounded-lg text-[10px] font-bold text-status-error hover:bg-red-500/10 transition-colors"
                             >
                               Remover
                             </button>
@@ -647,7 +647,7 @@ export function Notifications({ onFixAsset }: NotificationsProps) {
                           <button
                             type="submit"
                             disabled={savingTelegram}
-                            className="px-3 py-1 rounded-lg text-2xs font-semibold bg-accent text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
+                            className="px-3 py-1 rounded-lg text-[10px] font-bold bg-accent text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
                           >
                             {savingTelegram ? 'Salvando...' : 'Salvar'}
                           </button>
@@ -659,44 +659,44 @@ export function Notifications({ onFixAsset }: NotificationsProps) {
                   {loadingSubtab ? (
                     <div className="text-center py-8 text-text-muted flex flex-col items-center gap-2">
                       <RefreshCw size={18} className="animate-spin text-accent" />
-                      <p className="text-2xs">Carregando alertas ativos...</p>
+                      <p className="text-[10px]">Carregando alertas ativos...</p>
                     </div>
                   ) : activePriceAlerts.length === 0 ? (
                     <div className="text-center py-8 text-text-muted flex flex-col items-center gap-2">
                       <Bell size={18} className="opacity-30" />
-                      <p className="text-2xs">Nenhum alerta de preço configurado.</p>
+                      <p className="text-[10px]">Nenhum alerta de preço configurado.</p>
                     </div>
                   ) : (
                     <div className="space-y-1.5">
                       {activePriceAlerts.map((alert) => (
                         <div
                           key={alert.id}
-                          className="flex items-center justify-between p-2.5 bg-surface rounded-xl border border-border-subtle hover:border-accent/40 transition-colors gap-2"
+                          className="flex items-center justify-between p-2.5 bg-surface rounded-xl border border-border-subtle hover:border-accent/40 transition-all gap-2"
                         >
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="font-semibold text-text-primary text-xs">{alert.ticker}</span>
+                              <span className="font-bold text-text-primary text-xs">{alert.ticker}</span>
                               <span
-                                className={`text-2xs font-semibold px-1.5 py-0.5 rounded-md border ${
+                                className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${
                                   alert.condition === 'ABOVE'
-                                    ? 'bg-status-success/10 text-status-success border-status-success/20'
-                                    : 'bg-status-error/10 text-status-error border-status-error/20'
+                                    ? 'bg-emerald-500/10 text-status-success border-emerald-500/20'
+                                    : 'bg-red-500/10 text-status-error border-red-500/20'
                                 }`}
                               >
                                 {alert.condition === 'ABOVE' ? 'Acima ▲' : 'Abaixo ▼'}
                               </span>
-                              <span className="text-xs font-mono tabular-nums font-semibold text-accent">
+                              <span className="text-xs font-mono font-bold text-accent">
                                 R$ {Number(alert.target_price).toFixed(2)}
                               </span>
                             </div>
                             {alert.note && (
-                              <p className="text-2xs text-text-muted truncate mt-0.5">{alert.note}</p>
+                              <p className="text-[10px] text-text-muted truncate mt-0.5">{alert.note}</p>
                             )}
                           </div>
                           <button
                             type="button"
                             onClick={() => handleDeletePriceAlert(alert.id)}
-                            className="p-1.5 bg-surface-elevated hover:bg-status-error/15 text-text-muted hover:text-status-error rounded-lg border border-border-subtle transition-colors shrink-0"
+                            className="p-1.5 bg-surface-elevated hover:bg-red-500/15 text-text-muted hover:text-status-error rounded-md border border-border-subtle transition-all shrink-0"
                             title="Excluir Alerta"
                           >
                             <Trash2 size={12} />
@@ -710,12 +710,12 @@ export function Notifications({ onFixAsset }: NotificationsProps) {
                 loadingSubtab ? (
                   <div className="text-center py-8 text-text-muted flex flex-col items-center gap-2">
                     <RefreshCw size={18} className="animate-spin text-accent" />
-                    <p className="text-2xs">Carregando histórico...</p>
+                    <p className="text-[10px]">Carregando histórico...</p>
                   </div>
                 ) : historyEvents.length === 0 ? (
                   <div className="text-center py-8 text-text-muted flex flex-col items-center gap-2">
                     <History size={18} className="opacity-30" />
-                    <p className="text-2xs">Nenhum alerta disparado no histórico ainda.</p>
+                    <p className="text-[10px]">Nenhum alerta disparado no histórico ainda.</p>
                   </div>
                 ) : (
                   <div className="space-y-1.5">
@@ -736,14 +736,14 @@ export function Notifications({ onFixAsset }: NotificationsProps) {
                         >
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-1.5">
-                              <span className="font-semibold text-text-primary text-xs">{ev.ticker}</span>
-                              <span className="text-2xs font-semibold uppercase px-1.5 py-0.5 rounded-md bg-surface-elevated border border-border-subtle text-text-muted">
+                              <span className="font-bold text-text-primary text-xs">{ev.ticker}</span>
+                              <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded bg-surface-elevated border border-border-subtle text-text-muted">
                                 {mapped.type}
                               </span>
                             </div>
-                            <span className="text-2xs font-mono tabular-nums text-text-muted">{dtFmt}</span>
+                            <span className="text-[9px] font-mono text-text-muted">{dtFmt}</span>
                           </div>
-                          <p className="text-2xs text-text-muted leading-snug">{mapped.message}</p>
+                          <p className="text-[11px] text-text-muted leading-snug">{mapped.message}</p>
                         </div>
                       );
                     })}
@@ -752,16 +752,16 @@ export function Notifications({ onFixAsset }: NotificationsProps) {
               ) : hasError ? (
                 <div className="text-center py-10 text-text-muted flex flex-col items-center justify-center gap-2">
                   <WifiOff size={20} className="opacity-50 text-status-error" />
-                  <p className="text-2xs font-medium">Falha na rede ou servidor instável.</p>
+                  <p className="text-[10px] font-medium">Falha na rede ou servidor instável.</p>
                 </div>
               ) : alerts.length === 0 ? (
                 <div className="text-center py-10 text-text-muted flex flex-col items-center justify-center gap-3">
-                  <div className="p-3 bg-status-success/10 rounded-full border border-status-success/20">
+                  <div className="p-3 bg-emerald-500/10 rounded-full border border-emerald-500/20">
                     <CheckCircle size={22} className="text-status-success" />
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-text-primary">Tudo em dia</p>
-                    <p className="text-2xs mt-0.5 text-text-muted">
+                    <p className="text-xs font-bold text-text-primary">Tudo em dia</p>
+                    <p className="text-[10px] mt-0.5 text-text-muted">
                       Nenhuma notificação pendente no momento.
                     </p>
                   </div>
@@ -772,18 +772,18 @@ export function Notifications({ onFixAsset }: NotificationsProps) {
                   return (
                     <div
                       key={alert.id}
-                      className={`relative flex gap-2.5 p-3 rounded-xl border transition-colors duration-150 group ${borderClass} ${hoverClass}`}
+                      className={`relative flex gap-2.5 p-3 rounded-xl border transition-all duration-200 group ${borderClass} ${hoverClass}`}
                     >
                       <div className="mt-0.5 shrink-0">{icon}</div>
 
                       <div className="flex-1 min-w-0 flex flex-col gap-0.5">
                         <div className="flex items-center gap-1.5">
-                          <span className="font-semibold text-text-primary text-xs">{alert.ticker}</span>
-                          <span className="text-2xs font-semibold text-text-muted uppercase bg-surface px-1.5 py-0.5 rounded-md border border-border-subtle">
+                          <span className="font-bold text-text-primary text-xs">{alert.ticker}</span>
+                          <span className="text-[8px] font-bold text-text-muted uppercase bg-surface px-1.5 py-0.5 rounded border border-border-subtle">
                             {alert.type}
                           </span>
                         </div>
-                        <p className="text-2xs text-text-muted leading-snug">{alert.message}</p>
+                        <p className="text-[11px] text-text-muted leading-snug">{alert.message}</p>
                       </div>
 
                       <div className="flex items-center gap-1 shrink-0 self-center">

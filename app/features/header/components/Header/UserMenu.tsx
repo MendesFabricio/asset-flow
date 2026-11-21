@@ -6,7 +6,6 @@ import {
   ChevronDown, User, Settings, LogOut, Eye, EyeOff
 } from 'lucide-react';
 import { usePrivacy } from '@/context/PrivacyContext';
-import { ThemeToggle } from '@/components/ThemeToggle';
 
 interface UserMenuProps {
   showName?: boolean;
@@ -67,26 +66,26 @@ export function UserMenu({ showName = false }: UserMenuProps) {
         aria-label="Menu do usuário"
         aria-haspopup="menu"
         aria-expanded={isOpen}
-        className="flex items-center gap-1.5 bg-surface-card hover:bg-surface-elevated border border-border-subtle p-1.5 rounded-lg transition-colors text-xs font-medium text-text-primary"
+        className="flex items-center gap-1.5 bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 p-1.5 rounded-xl transition-all text-xs font-semibold text-slate-200"
       >
-        <div className="w-5 h-5 rounded-full bg-surface-input border border-border-subtle text-text-primary flex items-center justify-center font-medium text-2xs">
+        <div className="w-5 h-5 rounded-full bg-gradient-to-br from-slate-700 to-slate-800 border border-slate-600/40 text-slate-200 flex items-center justify-center font-bold text-[9px] shadow-sm">
           {initials}
         </div>
         {showName && <span className="hidden sm:inline">{username || 'Investidor'}</span>}
-        <ChevronDown size={11} className={`transition-transform duration-150 text-text-muted ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown size={11} className={`transition-transform duration-200 text-slate-500 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-56 bg-surface-card border border-border-subtle rounded-xl shadow-lg p-2.5 z-50">
+        <div className="absolute right-0 mt-2 w-52 bg-slate-950 border border-slate-850 rounded-xl shadow-[0_10px_35px_rgba(0,0,0,0.85)] p-2.5 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
           {/* USER INFO */}
-          <div className="px-2.5 py-2 border-b border-border-subtle mb-1.5 flex flex-col min-w-0">
-            <p className="text-2xs text-text-muted font-medium uppercase tracking-wider leading-none">Conta Ativa</p>
-            <p className="text-xs text-text-primary font-semibold truncate mt-1">{username || 'Investidor'}</p>
+          <div className="px-2.5 py-2 border-b border-slate-900 mb-1.5 flex flex-col min-w-0">
+            <p className="text-[8px] text-slate-500 font-extrabold uppercase tracking-widest leading-none">Conta Ativa</p>
+            <p className="text-xs text-white font-bold truncate mt-1">{username || 'Investidor'}</p>
           </div>
 
           <Link
             href="/perfil"
-            className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-surface-elevated text-text-muted hover:text-text-primary transition-colors flex items-center gap-2.5 text-xs"
+            className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-slate-900 text-slate-400 hover:text-slate-200 transition-colors flex items-center gap-2.5 text-xs"
             onClick={() => setIsOpen(false)}
           >
             <User size={13} />
@@ -99,7 +98,7 @@ export function UserMenu({ showName = false }: UserMenuProps) {
               togglePrivacy();
               setIsOpen(false);
             }}
-            className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-surface-elevated text-text-muted hover:text-text-primary transition-colors flex items-center gap-2.5 text-xs"
+            className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-slate-900 text-slate-400 hover:text-slate-200 transition-colors flex items-center gap-2.5 text-xs"
           >
             {isHidden ? <Eye size={13} /> : <EyeOff size={13} />}
             <span>{isHidden ? "Exibir Valores" : "Ocultar Valores"}</span>
@@ -107,26 +106,23 @@ export function UserMenu({ showName = false }: UserMenuProps) {
 
           <Link
             href="/avancado"
-            className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-surface-elevated text-text-muted hover:text-text-primary transition-colors flex items-center gap-2.5 text-xs"
+            className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-slate-900 text-slate-400 hover:text-slate-200 transition-colors flex items-center gap-2.5 text-xs"
             onClick={() => setIsOpen(false)}
           >
             <Settings size={13} />
             <span>Avançado</span>
           </Link>
 
-          <div className="flex items-center justify-between px-2.5 py-1.5 text-xs text-text-muted">
-            <span>Tema</span>
-            <ThemeToggle />
-          </div>
 
-          <div className="h-px bg-border-subtle my-1" />
+
+          <div className="h-px bg-slate-900 my-1" />
 
           <button
             type="button"
             onClick={handleLogout}
-            className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-status-error/10 text-text-muted hover:text-status-error transition-colors flex items-center gap-2.5 text-xs font-semibold"
+            className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-rose-950/20 text-slate-400 hover:text-rose-400 transition-colors flex items-center gap-2.5 text-xs font-bold"
           >
-            <LogOut size={13} className="text-status-error" />
+            <LogOut size={13} className="text-rose-500/80" />
             <span>Sair do sistema</span>
           </button>
         </div>

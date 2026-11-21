@@ -120,28 +120,28 @@ export function ToolsMenu({
         aria-label="Menu de ferramentas"
         aria-haspopup="menu"
         aria-expanded={isOpen}
-        className={`bg-surface-card hover:bg-surface-elevated text-text-primary px-3 py-2 rounded-lg transition-colors flex items-center gap-2 text-xs font-medium border border-border-subtle ${
-          isSyncActive ? 'border-accent/50' : ''
+        className={`bg-slate-900/60 hover:bg-slate-800 text-slate-200 hover:text-white px-3 py-2 rounded-lg transition-all flex items-center gap-2 text-xs font-bold border border-slate-800 shadow-sm ${
+          isSyncActive ? 'border-blue-500/50 shadow-[0_0_10px_rgba(59,130,246,0.15)] text-white' : ''
         }`}
       >
         <span className="relative flex items-center gap-1.5 select-none">
           Ferramentas
           {isSyncActive && (
-            <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
           )}
         </span>
-        <ChevronDown size={14} className={`transition-transform duration-150 ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown size={14} className={`transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 max-h-[calc(100vh-5rem)] overflow-y-auto bg-surface-card border border-border-subtle rounded-xl shadow-lg p-4 z-50">
+        <div className="absolute right-0 mt-2 w-80 max-h-[calc(100vh-5rem)] overflow-y-auto bg-slate-950 border border-slate-800/80 rounded-xl shadow-[0_10px_35px_rgba(0,0,0,0.75)] p-4 z-50 animate-in fade-in slide-in-from-top-2 duration-200 ease-out">
           <div className="space-y-4">
             
             {/* SEÇÃO GESTÃO */}
             <div>
               <div className="flex items-center gap-1.5 px-1.5 mb-1.5">
-                <Briefcase size={10} className="text-text-muted" />
-                <span className="text-2xs font-medium text-text-muted uppercase tracking-wider">Gestão de Carteira</span>
+                <Briefcase size={10} className="text-slate-500" />
+                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Gestão de Carteira</span>
               </div>
               <div className="space-y-1">
                 <button
@@ -151,12 +151,12 @@ export function ToolsMenu({
                     setIsOpen(false);
                   }}
                   disabled={loading || isRefetching || showRefreshSuccess}
-                  className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-surface-elevated transition-colors flex items-center gap-2.5 text-xs text-text-primary disabled:opacity-50"
+                  className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-slate-900/60 transition-colors flex items-center gap-2.5 text-xs text-slate-200 disabled:opacity-50"
                 >
-                  <RefreshCw size={14} className={`${(loading || isRefetching) ? 'animate-spin text-accent' : 'text-accent'} ${showRefreshSuccess ? 'text-status-success' : ''}`} />
+                  <RefreshCw size={14} className={`${(loading || isRefetching) ? 'animate-spin text-blue-400' : 'text-blue-400'} ${showRefreshSuccess ? 'text-emerald-400' : ''}`} />
                   <div>
-                    <p className="font-medium">Recarregar Carteira</p>
-                    <p className="text-2xs text-text-muted">Recalcular preços e cotações ativas</p>
+                    <p className="font-bold">Recarregar Carteira</p>
+                    <p className="text-[9px] text-slate-500">Recalcular preços e cotações ativas</p>
                   </div>
                 </button>
 
@@ -166,12 +166,15 @@ export function ToolsMenu({
                     setIsImportModalOpen(true);
                     setIsOpen(false);
                   }}
-                  className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-surface-elevated transition-colors flex items-center gap-2.5 text-xs text-text-primary"
+                  className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-slate-900/60 transition-colors flex items-center gap-2.5 text-xs text-slate-200"
                 >
-                  <FileText size={14} className="text-accent" />
+                  <FileText size={14} className="text-blue-400" />
                   <div>
-                    <p className="font-medium">Importação de Notas (B3)</p>
-                    <p className="text-2xs text-text-muted">Leitor OCR SINACOR & Conciliação B3</p>
+                    <p className="font-bold flex items-center gap-1.5">
+                      <span className="whitespace-nowrap">Importação de Notas (B3)</span>
+                      <span className="px-1.5 py-0.5 bg-blue-500/10 border border-blue-500/20 text-[9px] text-blue-400 rounded-md font-bold uppercase shrink-0">Novo</span>
+                    </p>
+                    <p className="text-[9px] text-slate-500">Leitor OCR SINACOR & Conciliação B3</p>
                   </div>
                 </button>
 
@@ -186,12 +189,12 @@ export function ToolsMenu({
                     }
                     setIsOpen(false);
                   }}
-                  className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-surface-elevated transition-colors flex items-center gap-2.5 text-xs text-text-primary"
+                  className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-slate-900/60 transition-colors flex items-center gap-2.5 text-xs text-slate-200"
                 >
-                  <Download size={14} className="text-status-success" />
+                  <Download size={14} className="text-emerald-400" />
                   <div>
-                    <p className="font-medium">Exportar Posições (CSV)</p>
-                    <p className="text-2xs text-text-muted">Valor investido, atual, qtd e % da carteira</p>
+                    <p className="font-bold">Exportar Posições (CSV)</p>
+                    <p className="text-[9px] text-slate-500">Valor investido, atual, qtd e % da carteira</p>
                   </div>
                 </button>
 
@@ -205,8 +208,8 @@ export function ToolsMenu({
                 >
                   <Database size={14} className="text-accent" />
                   <div>
-                    <p className="font-medium">Exportar Histórico Tratado (JSON)</p>
-                    <p className="text-2xs text-text-muted">Transações, eventos corporativos e proventos</p>
+                    <p className="font-bold">Exportar Histórico Tratado (JSON)</p>
+                    <p className="text-[9px] text-text-muted">Transações, eventos corporativos e proventos</p>
                   </div>
                 </button>
 
@@ -217,48 +220,51 @@ export function ToolsMenu({
                       onOpenCorporateAction();
                       setIsOpen(false);
                     }}
-                    className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-surface-elevated transition-colors flex items-center gap-2.5 text-xs text-text-primary"
+                    className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-slate-900/60 transition-colors flex items-center gap-2.5 text-xs text-slate-200"
                   >
-                    <Layers size={14} className="text-accent" />
+                    <Layers size={14} className="text-purple-400" />
                     <div>
-                      <p className="font-medium">Eventos Corporativos</p>
-                      <p className="text-2xs text-text-muted">Splits, Inplits, Bonificações e Incorporações</p>
+                      <p className="font-bold flex items-center gap-1.5">
+                        <span>Eventos Corporativos</span>
+                        <span className="px-1 py-0.2 bg-purple-500/10 border border-purple-500/20 text-[8px] text-purple-400 rounded-md font-bold uppercase">Novo</span>
+                      </p>
+                      <p className="text-[9px] text-slate-500">Splits, Inplits, Bonificações e Incorporações</p>
                     </div>
                   </button>
                 )}
               </div>
             </div>
 
-            <div className="h-px bg-border-subtle" />
+            <div className="h-px bg-slate-900" />
 
             {/* SEÇÃO INTELIGÊNCIA */}
             <div>
               <div className="flex items-center gap-1.5 px-1.5 mb-1.5">
-                <TrendingUp size={10} className="text-text-muted" />
-                <span className="text-2xs font-medium text-text-muted uppercase tracking-wider">Inteligência Financeira</span>
+                <TrendingUp size={10} className="text-slate-500" />
+                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Inteligência Financeira</span>
               </div>
               <div className="space-y-1">
                 <Link
                   href="/agenda"
                   onClick={() => setIsOpen(false)}
-                  className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-surface-elevated transition-colors flex items-center gap-2.5 text-xs text-text-primary"
+                  className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-slate-900/60 transition-colors flex items-center gap-2.5 text-xs text-slate-200"
                 >
-                  <Calendar size={14} className="text-accent" />
+                  <Calendar size={14} className="text-indigo-400" />
                   <div>
-                    <p className="font-medium">Proventos & Renda Passiva</p>
-                    <p className="text-2xs text-text-muted">Histórico de dividendos e yield futuro</p>
+                    <p className="font-bold">Proventos & Renda Passiva</p>
+                    <p className="text-[9px] text-slate-500">Histórico de dividendos e yield futuro</p>
                   </div>
                 </Link>
 
                 <Link
                   href="/tax"
                   onClick={() => setIsOpen(false)}
-                  className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-surface-elevated transition-colors flex items-center gap-2.5 text-xs text-text-primary"
+                  className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-slate-900/60 transition-colors flex items-center gap-2.5 text-xs text-slate-200"
                 >
-                  <FileText size={14} className="text-status-error" />
+                  <FileText size={14} className="text-rose-400" />
                   <div>
-                    <p className="font-medium">Imposto de Renda (DARF)</p>
-                    <p className="text-2xs text-text-muted">Gestão de DARF e IRPF Anual</p>
+                    <p className="font-bold">Imposto de Renda (DARF)</p>
+                    <p className="text-[9px] text-slate-500">Gestão de DARF e IRPF Anual</p>
                   </div>
                 </Link>
 
@@ -269,24 +275,24 @@ export function ToolsMenu({
                     onOpenSmartModal();
                     setIsOpen(false);
                   }}
-                  className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-surface-elevated transition-colors flex items-center gap-2.5 text-xs text-text-primary"
+                  className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-slate-900/60 transition-colors flex items-center gap-2.5 text-xs text-slate-200"
                 >
-                  <TrendingUp size={14} className="text-status-warning" />
+                  <TrendingUp size={14} className="text-amber-400" />
                   <div>
-                    <p className="font-medium">Otimização de Aportes</p>
-                    <p className="text-2xs text-text-muted">Alocação inteligente baseada em Markowitz</p>
+                    <p className="font-bold">Otimização de Aportes</p>
+                    <p className="text-[9px] text-slate-500">Alocação inteligente baseada em Markowitz</p>
                   </div>
                 </button>
               </div>
             </div>
 
-            <div className="h-px bg-border-subtle" />
+            <div className="h-px bg-slate-900" />
 
             {/* SEÇÃO SISTEMA */}
             <div>
               <div className="flex items-center gap-1.5 px-1.5 mb-1.5">
-                <Settings size={10} className="text-text-muted" />
-                <span className="text-2xs font-medium text-text-muted uppercase tracking-wider">Sincronizadores</span>
+                <Settings size={10} className="text-slate-500" />
+                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Sincronizadores</span>
               </div>
               <div className="space-y-1">
                 <button
@@ -296,15 +302,15 @@ export function ToolsMenu({
                     setIsOpen(false);
                   }}
                   disabled={syncingReports}
-                  className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-surface-elevated transition-colors flex items-center gap-2.5 text-xs text-text-primary disabled:opacity-50"
+                  className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-slate-900/60 transition-colors flex items-center gap-2.5 text-xs text-slate-200 disabled:opacity-50"
                 >
-                  <Layers size={14} className={syncingReports ? 'animate-spin text-accent' : 'text-accent'} />
+                  <Layers size={14} className={syncingReports ? 'animate-spin text-purple-400' : 'text-purple-400'} />
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium flex items-center justify-between">
+                    <p className="font-bold flex items-center justify-between">
                       <span>CVM (FNET Sync)</span>
-                      {syncingReports && <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />}
+                      {syncingReports && <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse" />}
                     </p>
-                    <p className="text-2xs text-text-muted truncate">
+                    <p className="text-[9px] text-slate-500 truncate">
                       {syncingReports ? syncStatus.message : "Fatos relevantes e PDFs de Fundos"}
                     </p>
                   </div>
@@ -317,15 +323,15 @@ export function ToolsMenu({
                     setIsOpen(false);
                   }}
                   disabled={updatingFundamentals}
-                  className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-surface-elevated transition-colors flex items-center gap-2.5 text-xs text-text-primary disabled:opacity-50"
+                  className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-slate-900/60 transition-colors flex items-center gap-2.5 text-xs text-slate-200 disabled:opacity-50"
                 >
-                  <Brain size={14} className={updatingFundamentals ? 'animate-pulse text-status-error' : 'text-status-error'} />
+                  <Brain size={14} className={updatingFundamentals ? 'animate-pulse text-rose-400' : 'text-rose-400'} />
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold flex items-center justify-between">
+                    <p className="font-bold flex items-center justify-between">
                       <span>Metadados Yahoo Finance</span>
-                      {updatingFundamentals && <span className="w-1.5 h-1.5 rounded-full bg-status-error animate-pulse" />}
+                      {updatingFundamentals && <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse" />}
                     </p>
-                    <p className="text-2xs text-text-muted truncate">
+                    <p className="text-[9px] text-slate-500 truncate">
                       {updatingFundamentals ? fundamentalsStatus.message : "Busca de dividendos históricos"}
                     </p>
                   </div>

@@ -11,7 +11,7 @@ export const getStatusBg = (status: string) => {
     case 'AGUARDAR':
       return 'bg-yellow-500';
     default:
-      return 'bg-surface-input';
+      return 'bg-slate-600';
   }
 };
 export * from './api';

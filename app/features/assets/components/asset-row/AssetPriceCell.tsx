@@ -16,7 +16,7 @@ export function AssetPriceCell({ stats, isReserva = false, onShowFin, onHide }: 
       <td className="px-6 py-5 text-right hidden sm:table-cell">
         <div className="flex flex-col items-end">
           <span className="text-text-muted font-mono text-sm">—</span>
-          <span className="text-2xs text-text-muted">Caixa (R$)</span>
+          <span className="text-[10px] text-text-muted">Caixa (R$)</span>
         </div>
       </td>
     );
@@ -32,8 +32,8 @@ export function AssetPriceCell({ stats, isReserva = false, onShowFin, onHide }: 
         <div className="flex items-center gap-2 justify-end">
           {showVar && (
             <div
-              className={`text-2xs font-semibold flex items-center gap-1 px-1.5 py-0.5 rounded-md cursor-pointer transition-colors tabular-nums ${
-                isZero ? 'text-text-muted bg-surface-input' : stats.isPositiveIntraday ? 'text-status-success bg-status-success/15' : 'text-status-error bg-status-error/15'
+              className={`text-[10px] font-bold flex items-center gap-1 px-1.5 py-0.5 rounded cursor-pointer transition-all hover:scale-105 tabular-nums ${
+                isZero ? 'text-slate-400 bg-slate-800/60' : stats.isPositiveIntraday ? 'text-emerald-400 bg-emerald-400/20' : 'text-rose-400 bg-rose-400/20'
               }`}
               onMouseEnter={onShowFin}
               onMouseLeave={onHide}
@@ -51,14 +51,14 @@ export function AssetPriceCell({ stats, isReserva = false, onShowFin, onHide }: 
               </span>
             </div>
           )}
-          <PrivateValue value={stats.displayPrice} className="text-text-primary font-mono text-sm tabular-nums" />
+          <PrivateValue value={stats.displayPrice} className="text-slate-300 font-mono text-sm tabular-nums" />
         </div>
-        <PrivateValue value={`PM: ${stats.displayPM}`} className="text-2xs text-text-muted tabular-nums" />
+        <PrivateValue value={`PM: ${stats.displayPM}`} className="text-[10px] text-slate-600 tabular-nums" />
         {stats.displayAdjustedPM && (
           <span title="PM ilustrativo descontando dividendos já recebidos (não altera o PM fiscal)">
             <PrivateValue
               value={`PM c/ Div.: ${stats.displayAdjustedPM}`}
-              className="text-2xs text-status-success/80 tabular-nums"
+              className="text-[10px] text-emerald-500/80 tabular-nums"
             />
           </span>
         )}

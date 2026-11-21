@@ -60,36 +60,36 @@ export const AssetsTable = React.memo(({ assets, tab, onEdit, onViewNews, onView
   if (isExcludedTab) return null;
 
   return (
-    <div className="bg-surface-card rounded-xl border border-border-subtle overflow-hidden shadow-sm mt-6">
+    <div className="bg-surface-card/90 rounded-2xl border border-slate-800/40 overflow-hidden shadow-2xl animate-in fade-in duration-150 mt-6">
 
-      {/* Barra de Busca Integrada */}
-      <div className="p-4 bg-surface-elevated border-b border-border-subtle flex flex-col sm:flex-row justify-between items-center gap-3">
+      {/* Barra de Busca Premium Integrada */}
+      <div className="p-4 bg-slate-950/20 border-b border-slate-800/40 flex flex-col sm:flex-row justify-between items-center gap-3">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold uppercase tracking-wider text-text-muted">Meus Ativos</span>
-          <span className="text-2xs font-semibold px-2 py-0.5 rounded-md bg-accent-soft text-accent border border-accent/20 tabular-nums">
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Meus Ativos</span>
+          <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 tabular-nums">
             {filteredAssets.length}
           </span>
         </div>
         <div className="relative w-full sm:w-72 group">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted group-focus-within:text-accent transition-colors" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-400 transition-colors" />
           <input
             type="text"
             placeholder="Pesquisar por ticker ou categoria..."
             value={search}
             onChange={handleSearchChange}
-            className="w-full pl-9 pr-10 py-1.5 rounded-lg bg-surface-input border border-border-subtle text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent transition-colors"
+            className="w-full pl-9 pr-10 py-1.5 rounded-lg bg-slate-950/50 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500/70 focus:ring-1 focus:ring-blue-500/30 transition-all shadow-[inset_0_1px_2px_rgba(0,0,0,0.4)]"
           />
           {isPending && (
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-2xs font-semibold text-accent uppercase tracking-wider animate-pulse pointer-events-none">
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[9px] font-bold text-blue-400 uppercase tracking-widest animate-pulse pointer-events-none">
               Filtrando...
             </span>
           )}
         </div>
       </div>
 
-      <div className="overflow-x-auto max-h-[600px] overflow-y-auto scrollbar-thin">
+      <div className="overflow-x-auto max-h-[600px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-800">
         <table className="w-full text-left text-sm">
-          <thead className="bg-surface-elevated text-text-muted uppercase text-2xs font-semibold tracking-wider border-b border-border-subtle sticky top-0 z-10">
+          <thead className="bg-slate-950/95 text-slate-400/70 uppercase text-[10px] font-bold tracking-widest border-b border-slate-800/40 sticky top-0 z-10">
             <tr>
               <th className="px-6 py-5">Ativo</th>
               <th className="px-6 py-5 text-right">Minha Posição</th>
@@ -100,7 +100,7 @@ export const AssetsTable = React.memo(({ assets, tab, onEdit, onViewNews, onView
               {(tab === 'Ação' || tab === 'FII') && <th className="px-6 py-5 text-center hidden lg:table-cell w-24">Indicadores</th>}
             </tr>
           </thead>
-          <tbody className="divide-y divide-border-subtle">
+          <tbody className="divide-y divide-slate-800/30">
             {filteredAssets.length > 0 ? (
               filteredAssets.map((ativo) => (
                 <AssetRow
@@ -115,13 +115,13 @@ export const AssetsTable = React.memo(({ assets, tab, onEdit, onViewNews, onView
             ) : (
               <tr>
                 <td colSpan={7} className="p-12 text-center">
-                  <div className="flex flex-col items-center justify-center text-text-muted gap-2.5 max-w-xs mx-auto">
-                    <div className="p-3 bg-surface-elevated rounded-lg border border-border-subtle text-text-muted">
+                  <div className="flex flex-col items-center justify-center text-slate-500 gap-2.5 max-w-xs mx-auto">
+                    <div className="p-3 bg-slate-950/50 rounded-full border border-slate-800/60 text-slate-400">
                       <Search size={20} />
                     </div>
                     <div>
-                      <p className="text-xs font-semibold text-text-primary uppercase tracking-wider">Sem correspondências</p>
-                      <p className="text-2xs text-text-muted mt-1 leading-normal">Não encontramos nenhum ativo nesta categoria com o termo digitado.</p>
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Sem correspondências</p>
+                      <p className="text-[11px] text-slate-600 mt-1 leading-normal">Não encontramos nenhum ativo nesta categoria com o termo digitado.</p>
                     </div>
                   </div>
                 </td>
