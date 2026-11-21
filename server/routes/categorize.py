@@ -2,7 +2,6 @@
 from flask import Blueprint, request, jsonify
 from utils.categorizer_engine import categorizer_engine
 from pydantic import BaseModel, Field
-from typing import List, Optional
 
 categorize_bp = Blueprint('categorize', __name__)
 

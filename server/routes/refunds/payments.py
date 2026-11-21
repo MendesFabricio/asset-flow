@@ -1,6 +1,6 @@
 from flask import jsonify, request, g
 from . import refunds_bp
-from db.models import Session, Debtor, ReceivableLoan, LoanInstallment, PaymentTransaction, safe_commit
+from db.models import Session, Debtor, LoanInstallment, PaymentTransaction, safe_commit
 from datetime import datetime
 from decimal import Decimal
 from .utils import log_audit

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Force Next.js rebuild
 export const dynamic = 'force-dynamic';
 
 // Proxy de streaming para o Jarvis (Ollama function-calling no backend Flask).

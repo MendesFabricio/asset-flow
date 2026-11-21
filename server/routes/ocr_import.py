@@ -1,7 +1,7 @@
 import os
 import logging
 from tempfile import NamedTemporaryFile
-from flask import Blueprint, jsonify, request, g
+from flask import Blueprint, jsonify, request
 from utils.brokerage_note_parser import extract_brokerage_note_transactions
 from utils.b3_parser import extract_b3_extract_transactions
 from utils.dedup import match_b3_to_db

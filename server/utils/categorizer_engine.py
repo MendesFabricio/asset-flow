@@ -1,7 +1,7 @@
 import re
 import math
 from collections import defaultdict
-from typing import Dict, List, Tuple, Any
+from typing import Dict, List, Tuple
 
 # 🏷️ Categorias Padrão do AssetFlow
 CATEGORIES = [

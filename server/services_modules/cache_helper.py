@@ -1,7 +1,7 @@
 # server/services_modules/cache_helper.py
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from db.models import SystemCache, safe_commit
 from db.session import Session
 from infrastructure.price_cache import invalidate as _invalidate_cache

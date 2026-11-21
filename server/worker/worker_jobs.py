@@ -131,7 +131,6 @@ def _do_morning_brief():
         from db.models import Session as DBSession, Position
         app = Flask(__name__)
         with app.app_context():
-            from flask import g
             with DBSession() as session:
                 user_ids = [r[0] for r in session.query(Position.user_id).distinct().all()]
                 for uid in user_ids:

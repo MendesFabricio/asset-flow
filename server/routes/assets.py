@@ -4,7 +4,7 @@ from typing import Optional
 import sys
 import os
 import logging
-from concurrent.futures import ThreadPoolExecutor, as_completed # ⚡ Injetado o motor de paralelismo
+from concurrent.futures import ThreadPoolExecutor  # ⚡ Injetado o motor de paralelismo
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from services import PortfolioService

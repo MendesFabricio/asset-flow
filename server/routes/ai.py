@@ -1,10 +1,8 @@
 import logging
-import os
-import requests
 import json
 from decimal import Decimal
 from flask import Blueprint, request, Response, stream_with_context, jsonify, g, has_request_context
-from db.session import Session, engine
+from db.session import Session
 from db.models import Asset, Position, LoanInstallment, AIChatHistory, safe_commit
 from utils.db_utils import with_safe_commit
 from sqlalchemy.orm import joinedload
@@ -12,7 +10,6 @@ from infrastructure.gemini_service import MODEL_NAME, generate_ai_text, get_gemi
 from infrastructure.local_ai import get_ollama_status, stream_ollama_chat
 from infrastructure.price_cache import fetch_price_history
 from domain.quant.risk import calculate_risk_metrics
-from google import genai
 
 import re
 

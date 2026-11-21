@@ -1,10 +1,9 @@
 import fitz
 import re
 import logging
-from decimal import Decimal
 from datetime import datetime
 from utils.ticker_helper import resolve_ticker, extract_option_meta
-from utils.import_shared import parse_brl_number, normalize_date, TransactionCandidate
+from utils.import_shared import parse_brl_number
 
 _CRYPTO_TICKERS = {"COIN11", "ETHY11", "HASH11", "BTHC11", "ETHE11", "QBTC11", "QETH11"}
 _INTL_ETF_TICKERS = {"VWRA11", "IVVB11", "WRLD11", "XINA11", "EURP11", "SPXI11", "NASD11", "GOLD11"}

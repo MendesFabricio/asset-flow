@@ -2,14 +2,12 @@
 import logging
 import traceback
 from decimal import Decimal
-from sqlalchemy.orm import joinedload
-from db.models import Asset, Category, Position, MarketScreenerItem, get_active_positions
+from db.models import Category, MarketScreenerItem, get_active_positions
 from utils.formatters import extract_position_metrics
 from db.session import Session
 
 from .dashboard_metrics import calculate_fundamental_metrics, apply_strategy
 from .dashboard_alerts import build_alerts
-from utils.date_helper import get_invoice_month_helper as get_fatura_mes_helper
 from datetime import datetime, timedelta, timezone
 
 try:

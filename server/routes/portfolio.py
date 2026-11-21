@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, g, request
+from flask import Blueprint, jsonify, request
 from db.session import Session
 from utils.db_utils import get_current_user_id
 from domain.portfolio.monthly_snapshot import (
@@ -71,7 +71,6 @@ def _run_history_sync(user_id):
             # Fetch all transactions ordered by date
             from sqlalchemy import func
             from db.models import MarketData, PortfolioSnapshot, Asset, SyncState
-            import calendar
             import json
             
             # Helper to update state inside the same session

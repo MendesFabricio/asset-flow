@@ -2,7 +2,6 @@ import os
 import re
 import fitz  # PyMuPDF
 import logging
-from decimal import Decimal
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("StatementParser")

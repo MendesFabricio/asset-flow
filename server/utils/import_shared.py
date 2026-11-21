@@ -1,7 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional
 import re
-from datetime import datetime
 
 @dataclass
 class TransactionCandidate:

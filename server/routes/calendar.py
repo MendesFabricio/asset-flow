@@ -6,9 +6,7 @@ from datetime import datetime
 import pytz
 import logging
 import time
-import requests
 import threading
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from utils.http_client import get_secure_session
 
 calendar_bp = Blueprint('calendar', __name__)

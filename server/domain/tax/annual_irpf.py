@@ -1,4 +1,3 @@
-import calendar
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Dict, Any
@@ -6,7 +5,7 @@ from typing import Dict, Any
 from sqlalchemy import func
 
 from db.session import Session
-from db.models import AssetTransaction, TaxProfile, Asset, Category, Dividend, Position
+from db.models import AssetTransaction, Asset, Category, Dividend, Position
 from utils.ticker_helper import extract_option_meta
 
 

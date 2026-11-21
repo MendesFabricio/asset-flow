@@ -1,9 +1,6 @@
 # server/routes/maintenance.py
 from flask import Blueprint, jsonify, request
 from services import PortfolioService
-from db.models import Position, Session, safe_commit, engine
-from utils.db_utils import with_safe_commit
-from sqlalchemy import text
 import logging
 
 maintenance_bp = Blueprint('maintenance', __name__)

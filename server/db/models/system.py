@@ -3,7 +3,7 @@ import shutil
 import logging
 import sqlite3
 import time
-from sqlalchemy import Column, Integer, String, Numeric, ForeignKey, DateTime, Date, Boolean, Index, text
+from sqlalchemy import Column, Integer, String, Numeric, ForeignKey, DateTime, Date, Boolean, Index
 from sqlalchemy.orm import relationship, sessionmaker
 from datetime import datetime
 from db.models.base import Base, safe_commit

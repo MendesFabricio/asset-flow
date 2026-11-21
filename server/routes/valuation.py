@@ -8,7 +8,7 @@ from datetime import timedelta
 import logging
 import threading
 from typing import Optional
-from flask import Blueprint, g, jsonify, request
+from flask import Blueprint, jsonify, request
 from pydantic import BaseModel, Field, ValidationError
 
 from db.models import (

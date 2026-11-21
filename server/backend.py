@@ -1,7 +1,5 @@
 import os
-import time
 import atexit
-import threading
 import logging
 import decimal
 import sentry_sdk
@@ -15,7 +13,6 @@ from sentry_sdk.integrations.flask import FlaskIntegration
 # Importações de Infraestrutura e Persistência
 from db.models import init_db, DatabaseStateProxy, get_sync_state_db, update_sync_state_db
 from db.session import Session
-from services import PortfolioService
 
 
 # Importações dos Blueprints

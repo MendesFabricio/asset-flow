@@ -4,7 +4,7 @@ from db.models import Session, Debtor, ReceivableLoan, LoanInstallment, safe_com
 from sqlalchemy.orm import joinedload
 from datetime import datetime
 from decimal import Decimal
-from utils.date_helper import get_invoice_month_helper as get_fatura_mes_helper, get_due_date_helper as get_due_date_for_fatura_helper, add_months_helper as add_months
+from utils.date_helper import get_invoice_month_helper as get_fatura_mes_helper, get_due_date_helper as get_due_date_for_fatura_helper
 from .utils import get_config, log_audit
 
 @refunds_bp.route('/loans', methods=['GET', 'POST'])

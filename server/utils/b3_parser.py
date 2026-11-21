@@ -1,8 +1,6 @@
 import fitz
 import re
 import logging
-from decimal import Decimal
-from datetime import datetime
 from utils.ticker_helper import get_canonical_ticker
 from utils.import_shared import parse_brl_number
 

@@ -7,17 +7,11 @@ import logging
 import requests
 import json
 import threading
-import time
 from datetime import datetime, timedelta
 from flask import Blueprint, jsonify, g, request
 from services import PortfolioService
-from db.models import Session, Asset, Position, SystemCache, safe_commit
+from db.models import Session, SystemCache, safe_commit
 from domain.quant.helpers import get_risk_free_rate
-from infrastructure.gemini_service import MODEL_NAME, get_genai_client
-from google import genai
-from google.genai import types
-from sqlalchemy.orm import joinedload
-from routes.news import get_daily_sector_summary
 
 simulation_bp = Blueprint('simulation', __name__)
 service = PortfolioService()

@@ -9,7 +9,6 @@ from datetime import date, datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 
 import requests
-from sqlalchemy import func
 
 from db.models import AssetTransaction, Dividend, SystemCache
 from domain.portfolio.monthly_snapshot import get_monthly_evolution_series
