@@ -19,6 +19,7 @@ $rows = [ordered]@{
     "hex cru no JSX"         = (Count-All $txs '#[0-9a-fA-F]{6}')
     "rounded-2xl/3xl"        = (Count-All $ui  'rounded-2xl|rounded-3xl')
     "font-extrabold/black"   = (Count-All $ui  'font-extrabold|font-black')
+    "texto *-300/400 claro"  = (Count-All $ui  '\btext-(?:[a-z]+)-(?:300|400)\b')
     "font-bold"              = (Count-All $ui  '\bfont-bold\b')
     "tabular-nums (>= 60)"   = (Count-All $ui  'tabular-nums')
     "backdrop-blur"          = (Count-All $ui  'backdrop-blur')
@@ -36,6 +37,7 @@ $metas = @{
     "hex cru no JSX"        = 0
     "rounded-2xl/3xl"       = 0
     "font-extrabold/black"  = 0
+    "texto *-300/400 claro" = 0
 }
 $falhas = 0
 Write-Host ""
@@ -62,6 +64,21 @@ if (Test-Path $counter) {
     $json = & $py $counter --surface app 2>$null | ConvertFrom-Json
     if ($json) {
         Write-Host ("  TOTAL de tells: {0}  (linha de base: 709)" -f $json.total)
+    }
+}
+
+# Distribuicao de peso: o objetivo e hierarquia, nao apenas 3 valores possiveis.
+$semibold = (Count-All $ui '\bfont-semibold\b')
+$medium   = (Count-All $ui '\bfont-medium\b')
+$totalW   = $semibold + $medium + (Count-All $ui '\bfont-normal\b')
+if ($totalW -gt 0) {
+    $pctSection = [math]::Round(($semibold / $totalW) * 100)
+    Write-Host ""
+    Write-Host "=== Hierarquia de peso ===" -ForegroundColor Cyan
+    Write-Host ("  semibold(600) {0,5}  medium(500) {1,5}  normal/400 {2,5}" -f $semibold, $medium, ($totalW - $semibold - $medium))
+    if ($pctSection -gt 70) {
+        Write-Host ("  ATENCAO: {0}% do texto em 600. A regra pede 3 pesos USADOS para criar hierarquia," -f $pctSection) -ForegroundColor Yellow
+        Write-Host "  nao 3 pesos disponiveis. Atribua 500 a label e 400 a corpo na Fase 2, por tela." -ForegroundColor Yellow
     }
 }
 

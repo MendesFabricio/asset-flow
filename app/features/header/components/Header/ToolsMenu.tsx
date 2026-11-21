@@ -222,11 +222,11 @@ export function ToolsMenu({
                     }}
                     className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-surface-elevated transition-colors flex items-center gap-2.5 text-xs text-text-primary"
                   >
-                    <Layers size={14} className="text-purple-400" />
+                    <Layers size={14} className="text-accent" />
                     <div>
                       <p className="font-semibold flex items-center gap-1.5">
                         <span>Eventos Corporativos</span>
-                        <span className="px-1.5 py-0.5 bg-purple-500/10 border border-purple-500/20 text-2xs text-purple-400 rounded-md font-semibold uppercase">Novo</span>
+                        <span className="px-1.5 py-0.5 bg-purple-500/10 border border-purple-500/20 text-2xs text-accent rounded-md font-semibold uppercase">Novo</span>
                       </p>
                       <p className="text-2xs text-text-muted">Splits, Inplits, Bonificações e Incorporações</p>
                     </div>
@@ -249,7 +249,7 @@ export function ToolsMenu({
                   onClick={() => setIsOpen(false)}
                   className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-surface-elevated transition-colors flex items-center gap-2.5 text-xs text-text-primary"
                 >
-                  <Calendar size={14} className="text-indigo-400" />
+                  <Calendar size={14} className="text-accent" />
                   <div>
                     <p className="font-semibold">Proventos & Renda Passiva</p>
                     <p className="text-2xs text-text-muted">Histórico de dividendos e yield futuro</p>
@@ -304,7 +304,7 @@ export function ToolsMenu({
                   disabled={syncingReports}
                   className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-surface-elevated transition-colors flex items-center gap-2.5 text-xs text-text-primary disabled:opacity-50"
                 >
-                  <Layers size={14} className={syncingReports ? 'animate-spin text-purple-400' : 'text-purple-400'} />
+                  <Layers size={14} className={syncingReports ? 'animate-spin text-accent' : 'text-accent'} />
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold flex items-center justify-between">
                       <span>CVM (FNET Sync)</span>

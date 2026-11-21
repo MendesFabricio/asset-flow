@@ -33,19 +33,15 @@ export const StatCard = React.memo(({
   let semanticBg = "bg-accent/10";
   let semanticBorder = "border-accent/20";
 
-  if (colorClass.includes("purple") || colorClass.includes("indigo")) {
-    semanticColor = "text-indigo-400";
-    semanticBg = "bg-indigo-500/10";
-    semanticBorder = "border-indigo-500/20";
-  } else if (colorClass.includes("green") || colorClass.includes("emerald")) {
+  if (colorClass.includes("status-success") || colorClass.includes("green") || colorClass.includes("emerald")) {
     semanticColor = "text-status-success";
     semanticBg = "bg-status-success/10";
     semanticBorder = "border-status-success/20";
-  } else if (colorClass.includes("red") || colorClass.includes("rose")) {
+  } else if (colorClass.includes("status-error") || colorClass.includes("red") || colorClass.includes("rose")) {
     semanticColor = "text-status-error";
     semanticBg = "bg-status-error/10";
     semanticBorder = "border-status-error/20";
-  } else if (colorClass.includes("amber") || colorClass.includes("yellow")) {
+  } else if (colorClass.includes("status-warning") || colorClass.includes("amber") || colorClass.includes("yellow")) {
     semanticColor = "text-status-warning";
     semanticBg = "bg-status-warning/10";
     semanticBorder = "border-status-warning/20";

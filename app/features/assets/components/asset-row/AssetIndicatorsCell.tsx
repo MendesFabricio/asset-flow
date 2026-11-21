@@ -44,7 +44,7 @@ export const AssetIndicatorsCell = memo(function AssetIndicatorsCell({ ativo, ta
                   : `Número Mágico (renda mensal): ${ativo.qtd} de ${magicNumber} cotas necessárias para o rendimento mensal pagar uma nova cota.`
               }
               className={`text-2xs flex items-center gap-1 justify-end w-24 px-1 font-semibold cursor-pointer ${
-                atingiuMagic ? 'text-cyan-400' : 'text-text-muted'
+                atingiuMagic ? 'text-accent' : 'text-text-muted'
               }`}
             >
               <Snowflake size={11} className={atingiuMagic ? 'opacity-100' : 'opacity-70'} />

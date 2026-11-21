@@ -61,11 +61,10 @@ export function CreditCardSidebar({
           <div
             key={c.id}
             onClick={() => onSelectCard(c)}
-            className={`p-3 rounded-lg border text-left cursor-pointer transition-colors flex justify-between items-center ${
-              selectedCard?.id === c.id
-                ? 'bg-accent-soft border-accent text-text-primary'
-                : 'bg-surface-elevated border-border-subtle hover:border-accent/40 text-text-primary'
-            }`}
+            className={`p-3 rounded-lg border text-left cursor-pointer transition-colors flex justify-between items-center ${selectedCard?.id === c.id
+              ? 'bg-accent-soft border-accent text-text-primary'
+              : 'bg-surface-elevated border-border-subtle hover:border-accent/40 text-text-primary'
+              }`}
           >
             <div>
               <p className="font-semibold text-sm">{c.name}</p>
@@ -94,11 +93,10 @@ export function CreditCardSidebar({
                 due_day: 1,
               })
             }
-            className={`p-3 rounded-lg border text-left cursor-pointer transition-colors flex justify-between items-center ${
-              selectedCard?.id === 0
-                ? 'bg-accent-soft border-accent text-text-primary'
-                : 'bg-surface-elevated border-border-subtle hover:border-accent/40 text-text-primary'
-            }`}
+            className={`p-3 rounded-lg border text-left cursor-pointer transition-colors flex justify-between items-center ${selectedCard?.id === 0
+              ? 'bg-accent-soft border-accent text-text-primary'
+              : 'bg-surface-elevated border-border-subtle hover:border-accent/40 text-text-primary'
+              }`}
           >
             <div>
               <p className="font-semibold text-sm flex items-center gap-1.5 text-accent">

@@ -54,11 +54,10 @@ export function CategoryRow({
           ) : (
             Math.abs(item.variacaoPct) > 0.001 && (
               <div
-                className={`flex items-center gap-0.5 text-2xs font-mono font-semibold tabular-nums px-1.5 py-0.5 rounded-md cursor-pointer transition-colors ${
-                  isPositiveVar
-                    ? 'text-status-success bg-status-success/10 border border-status-success/20'
-                    : 'text-status-error bg-status-error/10 border border-status-error/20'
-                }`}
+                className={`flex items-center gap-0.5 text-2xs font-mono font-semibold tabular-nums px-1.5 py-0.5 rounded-md cursor-pointer transition-colors ${isPositiveVar
+                  ? 'text-status-success bg-status-success/10 border border-status-success/20'
+                  : 'text-status-error bg-status-error/10 border border-status-error/20'
+                  }`}
                 onMouseEnter={(e) => onShowFinance(e, { valor: item.variacaoValor, isPositive: isPositiveVar })}
                 onMouseLeave={onHideFinance}
               >

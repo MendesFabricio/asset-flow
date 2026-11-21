@@ -120,7 +120,7 @@ interface InputControlProps {
 const InputControl = ({ label, value, field, step, precision, color = "blue", onAdjust, onChange }: InputControlProps) => {
   const colorClasses = {
     blue: { ring: "focus-within:ring-accent/40", text: "text-accent", hoverBg: "hover:bg-accent/10" },
-    purple: { ring: "focus-within:ring-purple-500/40", text: "text-purple-400", hoverBg: "hover:bg-purple-500/10" },
+    purple: { ring: "focus-within:ring-purple-500/40", text: "text-accent", hoverBg: "hover:bg-purple-500/10" },
     emerald: { ring: "focus-within:ring-status-success/40", text: "text-status-success", hoverBg: "hover:bg-status-success/10" }
   };
   const style = colorClasses[color as keyof typeof colorClasses] || colorClasses.blue;

@@ -58,7 +58,7 @@ const STATUS_BADGE: Record<string, string> = {
   COMPRAR: 'text-status-success bg-status-success/10 border-status-success/30',
   NEUTRO: 'text-status-warning bg-status-warning/10 border-status-warning/30',
   INCONCLUSIVO: 'text-text-muted bg-surface-input border-border-subtle',
-  REDUZIR: 'text-orange-400 bg-orange-500/10 border-orange-500/30',
+  REDUZIR: 'text-status-warning bg-orange-500/10 border-orange-500/30',
   EVITAR: 'text-status-error bg-status-error/10 border-status-error/30',
 };
 

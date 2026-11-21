@@ -134,8 +134,8 @@ const ReportModal = ({ isOpen, onClose, ativo }: ReportModalProps) => {
 
     const getIndicatorStyles = (tipo?: string) => {
         switch (tipo) {
-            case 'risco': return { border: 'border-orange-500/20', bg: 'bg-orange-500/5', icon: <ShieldAlert size={14} className="text-orange-400" /> };
-            case 'rentabilidade': return { border: 'border-purple-500/20', bg: 'bg-purple-500/5', icon: <PieChart size={14} className="text-purple-400" /> };
+            case 'risco': return { border: 'border-orange-500/20', bg: 'bg-orange-500/5', icon: <ShieldAlert size={14} className="text-status-warning" /> };
+            case 'rentabilidade': return { border: 'border-purple-500/20', bg: 'bg-purple-500/5', icon: <PieChart size={14} className="text-accent" /> };
             case 'caixa': return { border: 'border-status-success/20', bg: 'bg-status-success/5', icon: <Coins size={14} className="text-status-success" /> };
             default: return { border: 'border-border-subtle', bg: 'bg-surface-elevated', icon: <BarChart3 size={14} className="text-text-muted" /> };
         }
@@ -284,7 +284,7 @@ const ReportModal = ({ isOpen, onClose, ativo }: ReportModalProps) => {
                                                                             <span className="text-2xs text-text-primary font-mono text-right">{formatCompactMoney(item.lucro)}</span>
                                                                         </div>
                                                                         <div className="flex justify-between items-center gap-4">
-                                                                            <span className="text-2xs text-cyan-400 font-semibold">FCO:</span>
+                                                                            <span className="text-2xs text-accent font-semibold">FCO:</span>
                                                                             <span className="text-2xs text-text-primary font-mono text-right">{formatCompactMoney(item.fco || 0)}</span>
                                                                         </div>
                                                                     </div>

@@ -31,37 +31,35 @@ export default function TaxPage() {
           </div>
         </div>
 
-      <div className="flex border-b border-border-subtle">
-        <button
-          type="button"
-          onClick={() => setActiveTab('monthly')}
-          className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-            activeTab === 'monthly'
-              ? 'border-accent text-accent'
-              : 'border-transparent text-text-muted hover:text-text-primary'
-          }`}
-        >
-          <Receipt className="w-4 h-4" />
-          DARF (Mensal)
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('annual')}
-          className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-            activeTab === 'annual'
-              ? 'border-accent text-accent'
-              : 'border-transparent text-text-muted hover:text-text-primary'
-          }`}
-        >
-          <PieChart className="w-4 h-4" />
-          IRPF (Anual)
-        </button>
-      </div>
+        <div className="flex border-b border-border-subtle">
+          <button
+            type="button"
+            onClick={() => setActiveTab('monthly')}
+            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'monthly'
+                ? 'border-accent text-accent'
+                : 'border-transparent text-text-muted hover:text-text-primary'
+              }`}
+          >
+            <Receipt className="w-4 h-4" />
+            DARF (Mensal)
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('annual')}
+            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'annual'
+                ? 'border-accent text-accent'
+                : 'border-transparent text-text-muted hover:text-text-primary'
+              }`}
+          >
+            <PieChart className="w-4 h-4" />
+            IRPF (Anual)
+          </button>
+        </div>
 
-      <div className="mt-4">
-        {activeTab === 'monthly' && <TaxMonthlyReport />}
-        {activeTab === 'annual' && <TaxAnnualReport />}
-      </div>
+        <div className="mt-4">
+          {activeTab === 'monthly' && <TaxMonthlyReport />}
+          {activeTab === 'annual' && <TaxAnnualReport />}
+        </div>
       </div>
     </div>
   );

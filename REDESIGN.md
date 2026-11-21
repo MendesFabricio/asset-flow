@@ -146,6 +146,10 @@ Escala efetiva: **11 · 12 · 14 · 16 · 18 · 20 · 24**
 > badge quebrar linha em célula apertada da tabela, ajuste o `padding`, não o tamanho da fonte.
 
 - **Pesos: só 3.** `400` corpo · `500` label/ênfase · `600` título e número. **Remover `font-extrabold` e `font-black`.**
+  > ⚠️ **Trocar `font-bold` por `font-semibold` em tudo NÃO cumpre a regra.** Em 21/11 isso levou o app a
+  > **84% do texto em 600** — a métrica zerou e a hierarquia continuou inexistente, só mudou de peso.
+  > A regra é **usar** os 3 para criar contraste: 600 em título e número, 500 em label, 400 em corpo.
+  > Essa atribuição é trabalho da Fase 2, por tela. O verificador avisa quando passar de 70%.
 - **Números:** `tabular-nums` obrigatório em toda célula monetária, percentual e quantidade.
   Criar a utility `.num` e aplicá-la em `formatMoney`/`formatPercent` (ou nas classes de célula).
 
@@ -167,7 +171,14 @@ Escala efetiva: **11 · 12 · 14 · 16 · 18 · 20 · 24**
 - Tokens apenas: `bg-surface`, `bg-surface-card`, `bg-surface-input`, `text-text-primary`,
   `text-text-muted`, `border-border-subtle`, `text-status-success|warning|error`, `bg-accent`.
 - **Proibido:** `slate-*`, `zinc-*`, `gray-*`, e qualquer hex no JSX.
+- **Proibido `text-*-300` e `text-*-400`** de qualquer matiz (`purple`, `indigo`, `cyan`, `orange`,
+  `emerald`, `rose`, `amber`…). Em fundo branco do tema claro dão contraste ~2,4:1 — falha WCAG AA.
+  Use `text-status-success` / `text-status-warning` / `text-status-error` / `text-accent`.
+  > Isso vale **porque** o bloco `!important` de `.light-theme` foi removido. Antes, esses tons eram
+  > corrigidos por override; hoje não há mais rede de segurança. Regra: cor de texto é token ou não é.
+- **Permitido:** `bg-*-500` sólido com texto branco (contraste OK nos dois temas).
 - Tooltip de gráfico: usar `useChartPalette` (`app/lib/chartPalette.ts`), nunca `#0f172a` fixo.
+  Cor de série de gráfico vive em `SEMANTIC_CHART_HEX` (`app/lib/colors.ts`), não no JSX.
 
 ### Sombras e movimento
 

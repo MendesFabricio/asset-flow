@@ -90,7 +90,7 @@ function getYocQuality(yoc: number, dy: number): YocQuality {
     return {
       barColor: SEMANTIC_CHART_HEX.teal,
       label: 'Bom',
-      badgeClass: 'bg-teal-500/15 text-teal-400 border-teal-500/30',
+      badgeClass: 'bg-teal-500/15 text-status-success border-teal-500/30',
       spread,
       spreadClass,
       spreadLabel,

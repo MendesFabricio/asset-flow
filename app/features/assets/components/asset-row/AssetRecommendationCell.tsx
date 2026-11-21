@@ -37,7 +37,7 @@ export function AssetRecommendationCell({
     : isManter
     ? 'text-status-warning bg-status-warning/10 border-status-warning/20'
     : isReduzir
-    ? 'text-orange-400 bg-orange-500/10 border-orange-500/20'
+    ? 'text-status-warning bg-orange-500/10 border-orange-500/20'
     : isEvitar
     ? 'text-status-error bg-status-error/10 border-status-error/20'
     : 'text-text-muted bg-surface-input border-border-subtle';

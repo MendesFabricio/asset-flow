@@ -413,7 +413,7 @@ export function Notifications({ onFixAsset }: NotificationsProps) {
   const getSeverityStyles = (severity: number, type: string) => {
     if (type === 'SINAL') {
       return {
-        icon: <Zap size={17} className="text-purple-400" />,
+        icon: <Zap size={17} className="text-accent" />,
         borderClass: 'border-purple-500/40 bg-purple-500/5',
         hoverClass: 'hover:bg-purple-500/10',
       };
@@ -455,7 +455,7 @@ export function Notifications({ onFixAsset }: NotificationsProps) {
     }
     if (type === 'NOVIDADE') {
       return {
-        icon: <FileText size={17} className="text-purple-400" />,
+        icon: <FileText size={17} className="text-accent" />,
         borderClass: 'border-purple-400/40 bg-purple-500/5',
         hoverClass: 'hover:bg-purple-500/10',
       };

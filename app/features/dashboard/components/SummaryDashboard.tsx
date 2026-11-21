@@ -64,27 +64,27 @@ export const SummaryDashboard = memo(function SummaryDashboard({
           value={isHidden ? '•••' : metrics.yocMedio.toFixed(2) + '%'}
           subtext="Anual Est."
           icon={Percent}
-          colorClass="text-purple-400"
+          colorClass="text-accent"
         />
         <StatCard
           title="Total Investido"
           value={metrics.money(metrics.totalInvestido)}
           subtext="Custo de Aquisição"
           icon={PiggyBank}
-          colorClass="text-blue-400"
+          colorClass="text-accent"
         />
         <StatCard
           title="Lucro / Prejuízo"
           value={isHidden ? '••••••' : (metrics.lucroTotal > 0 ? '+' : '') + formatMoney(metrics.lucroTotal)}
           subtext={profitSubtext}
           icon={BarChart3}
-          colorClass={metrics.lucroTotal >= 0 ? 'text-green-400' : 'text-red-400'}
+          colorClass={metrics.lucroTotal >= 0 ? 'text-status-success' : 'text-status-error'}
           dailyResult={metrics.variacaoDiariaTotal}
         />
         <StatCard
           title="Top Insight"
           type="insight"
-          colorClass="text-indigo-400"
+          colorClass="text-accent"
           icon={Target}
           value={top ? top.ticker : '--'}
           badge={top ? top.recomendacao : undefined}
