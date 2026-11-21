@@ -7,7 +7,14 @@ from flask import Blueprint, jsonify, g, request
 from sqlalchemy import or_
 from db.models import Dividend, SystemCache, TriggeredAlert, get_active_positions, safe_commit
 from db.session import Session
-from utils.notifier import format_alert_telegram, is_telegram_configured, send_telegram_message
+from utils.notifier import (
+    clear_telegram_config,
+    format_alert_telegram,
+    get_telegram_status,
+    is_telegram_configured,
+    save_telegram_config,
+    send_telegram_message,
+)
 
 alerts_bp = Blueprint('alerts', __name__)
 
@@ -284,13 +291,37 @@ def dismiss_alerts():
             return jsonify({"status": "Erro", "msg": str(e)}), 500
 
 
+@alerts_bp.route('/api/alerts/telegram-config', methods=['GET', 'POST'])
+def telegram_config_endpoint():
+    """Consulta ou salva as credenciais do Telegram Bot no banco (sem precisar editar .env)."""
+    if request.method == 'GET':
+        return jsonify({"status": "Sucesso", **get_telegram_status()})
+
+    body = request.get_json(silent=True) or {}
+    if body.get("clear"):
+        info = clear_telegram_config()
+        return jsonify({"status": "Sucesso", "msg": "Configuração do Telegram removida.", **info})
+
+    try:
+        info = save_telegram_config(
+            bot_token=str(body.get("bot_token") or ""),
+            chat_id=str(body.get("chat_id") or ""),
+        )
+        return jsonify({"status": "Sucesso", "msg": "Telegram configurado com sucesso!", **info})
+    except ValueError as err:
+        return jsonify({"status": "Erro", "msg": str(err)}), 400
+    except Exception as exc:
+        logging.error(f"❌ Erro ao salvar config do Telegram: {exc}", exc_info=True)
+        return jsonify({"status": "Erro", "msg": "Falha ao salvar configuração."}), 500
+
+
 @alerts_bp.route('/api/alerts/test-telegram', methods=['POST'])
 def test_telegram_channel():
-    """Envia mensagem de teste para o Telegram configurado no .env."""
+    """Envia mensagem de teste para o Telegram configurado (site ou .env)."""
     if not is_telegram_configured():
         return jsonify({
             "status": "Erro",
-            "msg": "Defina TELEGRAM_BOT_TOKEN e TELEGRAM_CHAT_ID no .env para ativar o Telegram.",
+            "msg": "Configure o Bot Token e o Chat ID do Telegram primeiro.",
         }), 400
 
     ok = send_telegram_message(

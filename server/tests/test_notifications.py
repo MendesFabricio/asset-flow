@@ -36,6 +36,8 @@ def _setup_memory_db(monkeypatch):
 
     monkeypatch.setattr("routes.alerts.Session", _CtxSession)
     monkeypatch.setattr("routes.alerts_price.Session", _CtxSession)
+    monkeypatch.setattr("db.session.Session", _CtxSession)
+    monkeypatch.setattr("db.session.engine", engine)
     monkeypatch.setattr("routes.auth.verify_session_token", lambda _: {"user_id": 1, "username": "Fabricio"})
     return SessionLocal
 
@@ -117,3 +119,20 @@ def test_non_destructive_notifications_dismiss_datacom_and_latest_price(monkeypa
         assert len(client.get("/api/price-alerts/notifications").get_json()["notifications"]) == 0
         hist = client.get("/api/price-alerts/history").get_json()
         assert len(hist["events"]) == 2
+
+        # 5. Configuração dinâmica do Telegram via API (com máscara de token e remoção)
+        assert client.get("/api/alerts/telegram-config").get_json()["configured"] is False
+        save_res = client.post("/api/alerts/telegram-config", json={
+            "bot_token": "123456789:ABCDEFGHJKLMNPQRSTUV",
+            "chat_id": "987654321",
+        })
+        assert save_res.status_code == 200
+        saved = save_res.get_json()
+        assert saved["configured"] is True
+        assert saved["source"] == "db"
+        assert saved["chat_id"] == "987654321"
+        assert "ABCDEF" not in saved["bot_token_masked"]
+        assert saved["bot_token_masked"].startswith("123456...")
+
+        clr = client.post("/api/alerts/telegram-config", json={"clear": True}).get_json()
+        assert clr["configured"] is False

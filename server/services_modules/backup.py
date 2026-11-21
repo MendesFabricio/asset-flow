@@ -92,7 +92,8 @@ class BackupService:
         if signal_changes_tg:
             from utils.notifier import format_alert_telegram, send_telegram_message
             send_telegram_message(
-                format_alert_telegram("⚡ Mudança de Sinal (Valuation) — AssetFlow", signal_changes_tg)
+                format_alert_telegram("⚡ Mudança de Sinal (Valuation) — AssetFlow", signal_changes_tg),
+                session=session,
             )
 
     def _backup_database(self):

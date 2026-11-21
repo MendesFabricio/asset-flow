@@ -76,6 +76,15 @@ interface HistoryResponse {
   events?: TriggeredNotification[];
 }
 
+interface TelegramStatusResponse {
+  status: string;
+  configured: boolean;
+  bot_token_masked?: string;
+  chat_id?: string;
+  source?: string;
+  msg?: string;
+}
+
 interface NotificationsProps {
   onFixAsset: (assetId: number) => void;
 }
@@ -150,6 +159,11 @@ export function Notifications({ onFixAsset }: NotificationsProps) {
   const [historyEvents, setHistoryEvents] = useState<TriggeredNotification[]>([]);
   const [loadingSubtab, setLoadingSubtab] = useState(false);
   const [testingTelegram, setTestingTelegram] = useState(false);
+  const [showTelegramForm, setShowTelegramForm] = useState(false);
+  const [tgTokenInput, setTgTokenInput] = useState('');
+  const [tgChatIdInput, setTgChatIdInput] = useState('');
+  const [tgMasked, setTgMasked] = useState('');
+  const [savingTelegram, setSavingTelegram] = useState(false);
 
   const seenTriggeredRef = useRef<Set<number>>(new Set());
   const firstPollDoneRef = useRef(false);
@@ -163,9 +177,17 @@ export function Notifications({ onFixAsset }: NotificationsProps) {
   const fetchActivePriceAlerts = useCallback(async () => {
     setLoadingSubtab(true);
     try {
-      const data = await apiCall<ActivePriceAlertsResponse>('/api/price-alerts');
+      const [data, tgData] = await Promise.all([
+        apiCall<ActivePriceAlertsResponse>('/api/price-alerts'),
+        apiCall<TelegramStatusResponse>('/api/alerts/telegram-config'),
+      ]);
       if (data.status === 'Sucesso' && Array.isArray(data.alerts)) {
         setActivePriceAlerts(data.alerts);
+      }
+      if (tgData?.status === 'Sucesso') {
+        setTelegramConfigured(Boolean(tgData.configured));
+        setTgMasked(tgData.bot_token_masked || '');
+        if (tgData.chat_id) setTgChatIdInput(tgData.chat_id);
       }
     } catch (err) {
       console.error('Erro ao buscar alertas ativos:', err);
@@ -308,6 +330,50 @@ export function Notifications({ onFixAsset }: NotificationsProps) {
       }
     } catch (err) {
       console.error('Erro ao deletar alerta ativo:', err);
+    }
+  };
+
+  const handleSaveTelegram = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingTelegram(true);
+    try {
+      const res = await apiCall<TelegramStatusResponse>('/api/alerts/telegram-config', {
+        method: 'POST',
+        body: JSON.stringify({ bot_token: tgTokenInput, chat_id: tgChatIdInput }),
+      });
+      if (res.status === 'Sucesso') {
+        setTelegramConfigured(Boolean(res.configured));
+        setTgMasked(res.bot_token_masked || '');
+        setTgTokenInput('');
+        setShowTelegramForm(false);
+        notify(res.msg || 'Telegram configurado com sucesso!', 'success');
+      } else {
+        notify(res.msg || 'Não foi possível salvar.', 'error');
+      }
+    } catch (err) {
+      notify(err instanceof Error ? err.message : 'Erro ao salvar configuração.', 'error');
+    } finally {
+      setSavingTelegram(false);
+    }
+  };
+
+  const handleClearTelegram = async () => {
+    setSavingTelegram(true);
+    try {
+      const res = await apiCall<TelegramStatusResponse>('/api/alerts/telegram-config', {
+        method: 'POST',
+        body: JSON.stringify({ clear: true }),
+      });
+      setTelegramConfigured(Boolean(res.configured));
+      setTgMasked(res.bot_token_masked || '');
+      setTgTokenInput('');
+      setTgChatIdInput('');
+      setShowTelegramForm(false);
+      notify(res.msg || 'Configuração removida.', 'info');
+    } catch (err) {
+      notify(err instanceof Error ? err.message : 'Erro ao remover configuração.', 'error');
+    } finally {
+      setSavingTelegram(false);
     }
   };
 
@@ -509,27 +575,84 @@ export function Notifications({ onFixAsset }: NotificationsProps) {
             <div className="max-h-[24rem] overflow-y-auto p-2.5 space-y-2 bg-surface/40 scrollbar-thin">
               {activeTab === 'active' ? (
                 <div className="space-y-3">
-                  {/* Status do Canal Telegram */}
-                  <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-surface border border-border-subtle">
-                    <div className="min-w-0">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-text-primary block">
-                        Telegram Bot
-                      </span>
-                      <span className="text-[10px] text-text-muted block truncate">
-                        {telegramConfigured
-                          ? 'Conectado via .env (preço, sinal e proventos)'
-                          : 'Desativado — configure TELEGRAM_BOT_TOKEN e CHAT_ID'}
-                      </span>
+                  {/* Status & Configuração do Canal Telegram */}
+                  <div className="p-2.5 rounded-xl bg-surface border border-border-subtle space-y-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-text-primary block">
+                          Telegram Bot
+                        </span>
+                        <span className="text-[10px] text-text-muted block truncate">
+                          {telegramConfigured
+                            ? `Conectado (${tgMasked || 'ativo'})`
+                            : 'Desativado — configure aqui para receber no celular'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setShowTelegramForm((v) => !v)}
+                          className="px-2 py-1 rounded-lg text-[10px] font-bold bg-surface-elevated text-text-primary border border-border-subtle hover:border-accent/50 transition-colors"
+                        >
+                          {showTelegramForm ? 'Fechar' : 'Configurar'}
+                        </button>
+                        {telegramConfigured && (
+                          <button
+                            type="button"
+                            onClick={handleTestTelegram}
+                            disabled={testingTelegram}
+                            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold bg-accent-soft text-accent border border-accent/30 hover:bg-accent/20 disabled:opacity-50 transition-colors"
+                          >
+                            <Send size={11} /> {testingTelegram ? '...' : 'Testar'}
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    {telegramConfigured && (
-                      <button
-                        type="button"
-                        onClick={handleTestTelegram}
-                        disabled={testingTelegram}
-                        className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-accent-soft text-accent border border-accent/30 hover:bg-accent/20 disabled:opacity-50 transition-colors"
-                      >
-                        <Send size={11} /> {testingTelegram ? 'Enviando...' : 'Testar'}
-                      </button>
+
+                    {showTelegramForm && (
+                      <form onSubmit={handleSaveTelegram} className="space-y-2 pt-2 border-t border-border-subtle">
+                        <p className="text-[10px] text-text-muted leading-snug">
+                          Crie um bot no <span className="font-mono text-text-primary">@BotFather</span> e pegue seu ID no{' '}
+                          <span className="font-mono text-text-primary">@userinfobot</span>.
+                        </p>
+                        <input
+                          type="password"
+                          placeholder={tgMasked ? `Bot Token atual: ${tgMasked}` : 'Bot Token (ex: 123456:ABC...)'}
+                          value={tgTokenInput}
+                          onChange={(e) => setTgTokenInput(e.target.value)}
+                          required
+                          className="w-full bg-surface-input border border-border-subtle rounded-lg px-2.5 py-1.5 text-[11px] font-mono text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Chat ID (ex: 123456789)"
+                          value={tgChatIdInput}
+                          onChange={(e) => setTgChatIdInput(e.target.value)}
+                          required
+                          className="w-full bg-surface-input border border-border-subtle rounded-lg px-2.5 py-1.5 text-[11px] font-mono text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent"
+                        />
+                        <div className="flex items-center justify-between gap-2">
+                          {telegramConfigured ? (
+                            <button
+                              type="button"
+                              onClick={handleClearTelegram}
+                              disabled={savingTelegram}
+                              className="px-2 py-1 rounded-lg text-[10px] font-bold text-status-error hover:bg-red-500/10 transition-colors"
+                            >
+                              Remover
+                            </button>
+                          ) : (
+                            <span />
+                          )}
+                          <button
+                            type="submit"
+                            disabled={savingTelegram}
+                            className="px-3 py-1 rounded-lg text-[10px] font-bold bg-accent text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
+                          >
+                            {savingTelegram ? 'Salvando...' : 'Salvar'}
+                          </button>
+                        </div>
+                      </form>
                     )}
                   </div>
 
