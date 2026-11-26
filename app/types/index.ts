@@ -174,16 +174,6 @@ export interface EfficientFrontierData {
   max_sharpe: FrontierPoint;
   min_vol: FrontierPoint;
 }
-export interface CreditCardInstallmentItem {
-  id: number;
-  installment_number: number;
-  value: number;
-  due_date: string;
-  status: string; // PENDING, PAID
-  invoice_month: string;
-}
-
-
 
 export interface ReceivableInstallmentItem {
   id: number;
@@ -221,18 +211,6 @@ export interface ReceivablesDashboardData {
   distribuicao_devedores: Array<{
     devedor: string;
     saldo: number;
-  }>;
-}
-export interface CreditCardsDashboardData {
-  total_limit: number;
-  total_spent: number;
-  total_pending: number;
-  faturas: Array<{
-    invoice_month: string;
-    total: number;
-    pending: number;
-    paid: number;
-    status: 'PAID' | 'PARTIAL' | 'PENDING';
   }>;
 }
 

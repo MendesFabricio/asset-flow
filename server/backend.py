@@ -6,6 +6,7 @@ import decimal
 from flask import Flask, jsonify, request, g
 from flask_cors import CORS
 from flask.json.provider import DefaultJSONProvider
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 # Importações de Infraestrutura e Persistência
 from db.models import init_db, DatabaseStateProxy, get_sync_state_db, update_sync_state_db
@@ -28,17 +29,15 @@ from routes.sync_stream import sync_stream_bp
 from routes.simulation import simulation_bp
 from routes.ai import ai_bp
 from routes.quant_analysis import quant_bp
-from routes.credit_cards import cards_bp
 from routes.fixed_income import fixed_income_bp
-from routes.statement_import import statement_import_bp
 from routes.auth import auth_bp, verify_session_token
 from routes.ocr_import import ocr_import_bp
 from infrastructure.assets_icon import assets_icon_bp
 from routes.scheduler import scheduler_bp
 from routes.tax import tax_bp
 from routes.portfolio import portfolio_bp
-from routes.categorize import categorize_bp
 from routes.valuation import valuation_bp
+from routes.signals_v2 import signals_v2_bp
 
 logging.basicConfig(
     level=logging.INFO,
@@ -88,6 +87,8 @@ def create_app(config_object=None) -> Flask:
     if is_prod and secret_key == default_dev_secret and not is_testing:
         raise RuntimeError("SECRET_KEY de produção ausente ou igual ao valor padrão de desenvolvimento.")
     app.config["SECRET_KEY"] = secret_key
+    app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024  # 25 MB upload limit
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
     if secret_key == default_dev_secret:
         logging.warning("⚠️ SECRET_KEY não definida no ambiente! Utilizando chave padrão de desenvolvimento.")
 
@@ -129,13 +130,21 @@ def create_app(config_object=None) -> Flask:
         user_data = verify_session_token(token)
         if not user_data:
             return jsonify({"status": "Erro", "msg": "Sessão inválida ou expirada. Efetue login novamente."}), 401
-            
-        from db.models import User
-        with Session() as session:
-            user_exists = session.query(User).filter_by(id=user_data["user_id"]).first()
-            if not user_exists:
-                return jsonify({"status": "Erro", "msg": "Sessão expirada ou usuário não existe no sistema."}), 401
-                
+
+        if user_data.get("_verified_user"):
+            g.current_user_payload = user_data["_verified_user"]
+        else:
+            from db.models import User
+            with Session() as session:
+                user_exists = session.query(User).filter_by(id=user_data["user_id"]).first()
+                if not user_exists:
+                    return jsonify({"status": "Erro", "msg": "Sessão expirada ou usuário não existe no sistema."}), 401
+                g.current_user_payload = {
+                    "id": user_exists.id,
+                    "username": user_exists.username,
+                    "created_at": user_exists.created_at.isoformat() if user_exists.created_at else None,
+                }
+
         g.user_id = user_data["user_id"]
         g.username = user_data["username"]
 
@@ -193,15 +202,13 @@ def create_app(config_object=None) -> Flask:
     app.register_blueprint(simulation_bp)
     app.register_blueprint(ai_bp)
     app.register_blueprint(quant_bp)
-    app.register_blueprint(cards_bp)
     app.register_blueprint(fixed_income_bp)
-    app.register_blueprint(statement_import_bp)
     app.register_blueprint(scheduler_bp, url_prefix='/api/scheduler')
     app.register_blueprint(ocr_import_bp)
     app.register_blueprint(tax_bp)
     app.register_blueprint(portfolio_bp)
-    app.register_blueprint(categorize_bp)
     app.register_blueprint(valuation_bp)
+    app.register_blueprint(signals_v2_bp)
     logging.info("✅ Todos os blueprints registrados com sucesso.")
 
     return app

@@ -168,7 +168,7 @@ export const AddAssetModal = ({ isOpen, onClose, onSuccess }: AddAssetModalProps
             <Search size={16} className="absolute right-3 top-3.5 text-slate-400 dark:text-slate-600" />
             
             {showSuggestions && formData.ticker && filteredTickers.length > 0 && (
-              <div className="absolute z-20 w-full mt-2 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/90 dark:border-slate-800 rounded-xl shadow-2xl shadow-slate-900/15 dark:shadow-black/50 max-h-48 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/50">
+              <div className="absolute z-20 w-full mt-2 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/90 dark:border-slate-800 rounded-xl shadow-2xl shadow-slate-900/15 dark:shadow-black/50 max-h-48 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/50 origin-top animate-in fade-in zoom-in-95 duration-150 ease-[var(--ease-out)]">
                 {filteredTickers.map((t) => (
                   <div
                     key={t.ticker}
@@ -207,7 +207,7 @@ export const AddAssetModal = ({ isOpen, onClose, onSuccess }: AddAssetModalProps
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1.5">
             <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Quantidade</label>
-            <input name="quantity" type="number" step="0.000001" value={formData.quantity} onChange={handleChange} className="w-full bg-slate-100/70 dark:bg-slate-800/30 border border-slate-300 dark:border-slate-700/50 rounded-lg p-3 text-slate-900 dark:text-white font-mono focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 outline-none transition-all shadow-sm hover:bg-slate-100 dark:hover:bg-slate-800/40" />
+            <input name="quantity" type="number" step={['Ação', 'FII', 'ETF', 'BDR'].includes(formData.type) ? '1' : '0.000001'} value={formData.quantity} onChange={handleChange} className="w-full bg-slate-100/70 dark:bg-slate-800/30 border border-slate-300 dark:border-slate-700/50 rounded-lg p-3 text-slate-900 dark:text-white font-mono focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 outline-none transition-all shadow-sm hover:bg-slate-100 dark:hover:bg-slate-800/40" />
           </div>
           <div className="space-y-1.5">
             <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Preço Médio / Atual</label>

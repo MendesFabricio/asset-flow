@@ -1,6 +1,7 @@
 x-shared-env: &shared-env
   SECRET_KEY: ${SECRET_KEY:-asset_flow_dev_secret_key_default_value_change_in_prod}
   ENVIRONMENT: development
+  TZ: America/Sao_Paulo
 
 services:
   # --- BACKEND DEV (Flask) ---
@@ -37,7 +38,7 @@ services:
       - gateway_net
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.assetflow-backend.rule=Host(`api.assetflow.localhost`) || Host(`api.assetflow.192.168.3.11.nip.io`)"
+      - "traefik.http.routers.assetflow-backend.rule=Host(`api.assetflow.localhost`) || Host(`api.assetflow.192.168.3.11.nip.io`) || Host(`api.assetflow.100.102.199.1.nip.io`)"
       - "traefik.http.routers.assetflow-backend.entrypoints=web"
       - "traefik.http.services.assetflow-backend.loadbalancer.server.port=5328"
 
@@ -87,6 +88,7 @@ services:
       - WATCHPACK_POLLING=true
       - CHOKIDAR_USEPOLLING=true
       - ENVIRONMENT=development
+      - TZ=America/Sao_Paulo
       - TURBOPACK=0
       - BACKEND_URL=http://backend:5328
     networks:
@@ -94,7 +96,7 @@ services:
       - gateway_net
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.assetflow-frontend.rule=Host(`assetflow.localhost`) || Host(`assetflow.192.168.3.11.nip.io`)"
+      - "traefik.http.routers.assetflow-frontend.rule=Host(`assetflow.localhost`) || Host(`assetflow.192.168.3.11.nip.io`) || Host(`assetflow.100.102.199.1.nip.io`)"
       - "traefik.http.routers.assetflow-frontend.entrypoints=web"
       - "traefik.http.services.assetflow-frontend.loadbalancer.server.port=3000"
 

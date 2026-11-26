@@ -23,7 +23,12 @@ class Asset(Base):
     
     category = relationship("Category", back_populates="assets")
     positions = relationship("Position", back_populates="asset", cascade="all, delete-orphan")
-    market_data = relationship("MarketData", back_populates="asset", cascade="all, delete-orphan")
+    market_data = relationship(
+        "MarketData",
+        back_populates="asset",
+        order_by="desc(MarketData.date), desc(MarketData.id)",
+        cascade="all, delete-orphan",
+    )
     dividends = relationship("Dividend", back_populates="asset", cascade="all, delete-orphan")
     fixed_incomes = relationship("FixedIncome", back_populates="asset", cascade="all, delete-orphan")
 
@@ -32,11 +37,6 @@ class Asset(Base):
     ai_status = Column(String, default="idle")
     ai_updated_at = Column(DateTime, nullable=True)
     upcoming_split = Column(String, nullable=True)
-    
-    credit_rating = Column(String, nullable=True)
-    duration_years = Column(Float, nullable=True)
-    indexer_cdi_pct = Column(Float, nullable=True)
-    indexer_ipca_pct = Column(Float, nullable=True)
 
 class Position(Base):
     __tablename__ = 'positions'
@@ -79,7 +79,6 @@ class AssetTransaction(Base):
     transaction_date = Column(DateTime, default=datetime.now)
     created_at = Column(DateTime, default=datetime.now)
     is_option = Column(Boolean, default=False)
-    option_meta = Column(JSON, nullable=True)
     
     corporate_event_id = Column(Integer, ForeignKey('corporate_events.id', ondelete="SET NULL"), nullable=True, index=True)
 

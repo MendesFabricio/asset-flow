@@ -26,7 +26,8 @@ def apply_payment_to_installments(session, installments, amount, forma_pagamento
         
         if remaining_payment < due_amount:
             tx = PaymentTransaction(
-                installment_id=inst.id,
+                installment=inst,
+                user_id=inst.user_id,
                 valor_pago=remaining_payment,
                 data_movimentacao=datetime.now(),
                 tipo_movimentacao="PARCIAL",
@@ -40,7 +41,8 @@ def apply_payment_to_installments(session, installments, amount, forma_pagamento
         else:
             tx_type = "ANTECIPADO" if datetime.now() < inst.data_vencimento else "ATRASADO"
             tx = PaymentTransaction(
-                installment_id=inst.id,
+                installment=inst,
+                user_id=inst.user_id,
                 valor_pago=due_amount,
                 data_movimentacao=datetime.now(),
                 tipo_movimentacao=tx_type,
@@ -56,14 +58,16 @@ def apply_payment_to_installments(session, installments, amount, forma_pagamento
     if remaining_payment > 0 and installments:
         last_inst = installments[-1]
         tx_excess = PaymentTransaction(
-            installment_id=last_inst.id,
+            installment=last_inst,
+            user_id=last_inst.user_id,
             valor_pago=remaining_payment,
             data_movimentacao=datetime.now(),
             tipo_movimentacao="EXCESSO",
             forma_pagamento=forma_pagamento
         )
         session.add(tx_excess)
-        
+
+    session.flush()
     return remaining_payment
 
 def process_single_payment(session, installment, amount, forma_pagamento):
@@ -95,30 +99,6 @@ def process_single_payment(session, installment, amount, forma_pagamento):
         loan.status = "PENDENTE"
         
     return remaining_excess
-
-@refunds_bp.route('/installments/<int:id>/pay', methods=['POST'])
-def pay_installment(id):
-    data = request.json or {}
-    forma_pagamento = data.get('forma_pagamento', 'Pix')
-    try:
-        valor_pago = Decimal(str(data.get('valor_pago', 0)))
-    except Exception:
-        return jsonify({"status": "Erro", "msg": "Valor de pagamento inválido"}), 400
-        
-    if valor_pago <= 0:
-        return jsonify({"status": "Erro", "msg": "Valor de pagamento deve ser maior que zero"}), 400
-        
-    with Session() as db:
-        inst = db.query(LoanInstallment).filter_by(id=id, user_id=g.user_id, is_deleted=False).first()
-        if not inst:
-            return jsonify({"status": "Erro", "msg": "Parcela não encontrada"}), 404
-            
-        if inst.status == 'PAGA':
-            return jsonify({"status": "Erro", "msg": "Parcela já está paga"}), 400
-            
-        process_single_payment(db, inst, valor_pago, forma_pagamento)
-        safe_commit(db)
-        return jsonify({"msg": "Pagamento registrado com sucesso!"})
 
 @refunds_bp.route('/installments/pay-batch', methods=['POST'])
 def pay_batch():

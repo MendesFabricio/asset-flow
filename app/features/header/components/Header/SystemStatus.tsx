@@ -135,7 +135,7 @@ export function SystemStatus() {
         aria-label="Status do sistema"
         aria-haspopup="menu"
         aria-expanded={isOpen}
-        className={`flex items-center gap-2 px-3 py-1.5 rounded-full border bg-slate-900/40 backdrop-blur-md cursor-pointer transition-all duration-300 hover:bg-slate-900/80 ${config.borderColor}`}
+        className={`h-9 flex items-center gap-2 px-3 rounded-xl border bg-surface-card cursor-pointer transition-colors duration-200 hover:bg-surface-elevated ${config.borderColor}`}
       >
         <span className="relative flex h-2 w-2">
           {(!data || data.status !== 'online') && (

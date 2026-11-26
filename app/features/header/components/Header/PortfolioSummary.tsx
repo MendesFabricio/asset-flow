@@ -24,20 +24,20 @@ export function PortfolioSummary({ total, ativos, money, loading = false }: Port
   const isPositive = dailyChangePct >= 0;
 
   return (
-    <div className="hidden md:flex items-center border-l border-slate-900 pl-4 ml-2 select-none">
+    <div className="hidden md:flex items-center border-l border-border-subtle pl-4 ml-1 select-none">
       <div className="text-right min-w-[140px]">
-        <p className="text-[9px] text-slate-500 uppercase font-bold tracking-wider leading-none">Patrimônio Líquido</p>
+        <p className="text-[10px] text-text-muted uppercase font-semibold tracking-wider leading-none">Patrimônio Líquido</p>
         
         {loading ? (
           <div className="mt-1.5 space-y-1 animate-pulse">
-            <div className="h-4 w-28 bg-slate-800 rounded ml-auto" />
-            <div className="h-2.5 w-20 bg-slate-800 rounded ml-auto" />
+            <div className="h-4 w-28 bg-surface-input rounded ml-auto" />
+            <div className="h-2.5 w-20 bg-surface-input rounded ml-auto" />
           </div>
         ) : total === 0 && !hasAssets ? (
-          <p className="text-xs text-slate-400 font-medium leading-tight mt-1.5">Sem ativos cadastrados</p>
+          <p className="text-xs text-text-muted font-medium leading-tight mt-1.5">Sem ativos cadastrados</p>
         ) : (
           <>
-            <p className="text-base font-bold text-white leading-tight mt-1 font-mono tabular-nums">
+            <p className="text-lg font-bold text-text-primary leading-tight mt-0.5 font-mono tabular-nums">
               {isHidden ? '••••••' : money(total)}
             </p>
             

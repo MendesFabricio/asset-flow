@@ -9,14 +9,14 @@ description: Apply when you need a fast lookup of which agents, skills, or valid
 
 ## Agents & Skills
 
-- **Masters**: `orchestrator`, `project-planner`, `security-auditor` (Cyber/Audit), `backend-specialist` (API/DB), `frontend-specialist` (UI/UX), `mobile-developer`, `debugger`, `game-developer`
-- **Key Skills**: `clean-code`, `brainstorming`, `app-builder`, `frontend-design`, `mobile-design`, `plan-writing`, `behavioral-modes`
+- **Masters**: `orchestrator`, `project-planner`, `security-auditor` (Cyber/Audit), `backend-specialist` (API/DB), `frontend-specialist` (UI/UX), `debugger`
+- **Key Skills**: `clean-code`, `brainstorming`, `app-builder`, `frontend-design`, `plan-writing`, `behavioral-modes`
 
 ## Key Scripts
 
 - **Verify**: `.agents/scripts/verify_all.py`, `.agents/scripts/checklist.py`
 - **Scanners**: `security_scan.py`
-- **Audits**: `ux_audit.py`, `mobile_audit.py`, `lighthouse_audit.py`, `seo_checker.py`
+- **Audits**: `ux_audit.py`, `lighthouse_audit.py`
 - **Test**: `playwright_runner.py`, `test_runner.py`
 
 ---

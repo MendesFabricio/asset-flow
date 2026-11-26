@@ -97,30 +97,10 @@ def get_news(ticker):
                         should_trigger = True
 
                 if should_trigger and news_list:
-                    # Coleta dados estruturados da posição para repassar à IA
-                    pos_qty = 0.0
-                    pos_avg = 0.0
-                    pos_target = 0.0
-                    
-                    from db.models import Position
-                    user_id = getattr(g, 'user_id', None)
-                    if user_id:
-                        position = session.query(Position).filter_by(asset_id=asset.id, user_id=user_id).first()
-                        if position:
-                            pos_qty = float(position.quantity or 0.0)
-                            pos_avg = float(position.average_price or 0.0)
-                            pos_target = float(position.target_percent or 0.0)
-                    
-                    position_info = {
-                        "quantity": pos_qty,
-                        "average_price": pos_avg,
-                        "target_percent": pos_target
-                    }
-                    
-                    analyze_asset_sentiment_async(asset.id, asset.ticker, news_list, position_info)
                     asset.ai_status = "processing"
                     asset.ai_updated_at = datetime.now()  # Registra o início do processamento como referência de timeout
                     safe_commit(session)
+                    analyze_asset_sentiment_async(asset.id, asset.ticker, news_list, None)
                 elif should_trigger:
                     asset.ai_status = "idle"
                     asset.ai_updated_at = datetime.now()
@@ -141,87 +121,3 @@ def get_news(ticker):
         except Exception as e:
             logging.error(f"❌ Erro operacional no barramento de notícias para {ticker}: {str(e)}")
             return jsonify({"news": [], "ai_sentiment": {"status": "idle"}}), 200
-
-
-@news_bp.route('/api/news/daily-summary', methods=['GET'])
-def get_daily_sector_summary():
-    from flask import request, g
-    force_reanalyze = request.args.get("force", "false").lower() == "true"
-    with Session() as session:
-        try:
-            from db.models import SystemCache, safe_commit
-            import json
-            
-            # 1. Tenta recuperar do cache (expiração de 12 horas)
-            cache_key = f"sector_news_summary_{g.user_id}"
-            cache_record = session.query(SystemCache).filter_by(key=cache_key).first()
-            if cache_record and not force_reanalyze:
-                age = datetime.now() - cache_record.updated_at
-                if age < timedelta(hours=12):
-                    return jsonify(json.loads(cache_record.value))
-                    
-            # 2. Busca e compila notícias
-            sectors = {
-                "Ações": "https://news.google.com/rss/search?q=acoes+b3+bolsa+de+valores+ibovespa&hl=pt-BR&gl=BR&ceid=BR:pt-419",
-                "FIIs": "https://news.google.com/rss/search?q=fundos+imobiliarios+fii+ifix&hl=pt-BR&gl=BR&ceid=BR:pt-419",
-                "Cripto": "https://news.google.com/rss/search?q=criptomoedas+bitcoin+cripto+ethereum&hl=pt-BR&gl=BR&ceid=BR:pt-419"
-            }
-            
-            summaries = {}
-            headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
-            }
-            
-            from infrastructure.gemini_service import generate_ai_text
-
-            def _fetch_sector_titles(item):
-                sec, url = item
-                titles_found = []
-                try:
-                    response = requests.get(url, headers=headers, timeout=5)
-                    if response.status_code == 200:
-                        feed = feedparser.parse(response.content)
-                        titles_found = [entry.title for entry in feed.entries[:6]]
-                except Exception as feed_err:
-                    logging.warning(f"Erro ao buscar RSS para setor {sec}: {feed_err}")
-                return sec, titles_found
-
-            with ThreadPoolExecutor(max_workers=3) as pool:
-                titles_by_sector = dict(pool.map(_fetch_sector_titles, sectors.items()))
-
-            for sector in sectors:
-                titles = titles_by_sector.get(sector) or []
-
-                if not titles:
-                    summaries[sector] = "Sem notícias relevantes encontradas nas últimas horas."
-                    continue
-                    
-                from utils.prompt_loader import load_prompt
-                template = load_prompt("daily_sector_summary_v1.txt")
-                titles_text = "\n".join([f"- {t}" for t in titles])
-                prompt = template.format(sector=sector, titles_text=titles_text)
-                
-                try:
-                    summary_text, _provider = generate_ai_text(prompt, temperature=0.2)
-                    summaries[sector] = summary_text or "IA indisponível no momento."
-                except Exception as ai_err:
-                    logging.warning(f"Erro ao gerar resumo de {sector} na IA: {ai_err}")
-                    summaries[sector] = "IA indisponível no momento."
-                    
-            # 3. Salva no cache
-            result_data = {
-                "status": "Sucesso",
-                "summaries": summaries,
-                "updated_at": datetime.now().isoformat()
-            }
-            
-            if not cache_record:
-                cache_record = SystemCache(key=cache_key)
-                session.add(cache_record)
-            cache_record.value = json.dumps(result_data)
-            safe_commit(session)
-            
-            return jsonify(result_data)
-        except Exception as e:
-            logging.error(f"Erro geral no resumo setorial diário: {e}", exc_info=True)
-            return jsonify({"status": "Erro", "msg": str(e)}), 500

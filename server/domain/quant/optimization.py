@@ -102,11 +102,17 @@ def calculate_markowitz_optimization(session, fetch_prices) -> dict:
     N = len(avail_tickers)
     risk_free = get_risk_free_rate()
     
-    num_portfolios = 2000
-    weights_matrix = np.random.random((num_portfolios, N))
+    num_portfolios = 2500
+    rng = np.random.default_rng(42)
+    weights_matrix = rng.random((num_portfolios, N))
     weights_matrix = weights_matrix / np.sum(weights_matrix, axis=1, keepdims=True)
-    
-    p_rets = np.dot(weights_matrix, mean_returns) * 252
+    if N >= 4:
+        max_w = min(0.40, max(0.25, 2.5 / N))
+        for _ in range(4):
+            weights_matrix = np.clip(weights_matrix, 0.0, max_w)
+            weights_matrix = weights_matrix / np.sum(weights_matrix, axis=1, keepdims=True)
+
+    p_rets = np.expm1(np.dot(weights_matrix, mean_returns) * 252)
     cov_ann = cov_matrix * 252
     p_vols = np.sqrt(np.einsum('ij,jk,ik->i', weights_matrix, cov_ann, weights_matrix))
     p_sharpes = np.where(p_vols > 0, (p_rets - risk_free) / p_vols, 0.0)
@@ -170,11 +176,17 @@ def calculate_efficient_frontier_points(session, fetch_prices) -> dict:
     risk_free = get_risk_free_rate()
     ticker_clean_map = dict(zip(tickers_yf, tickers_clean))
     
-    num_portfolios = 2000
-    weights_matrix = np.random.random((num_portfolios, N))
+    num_portfolios = 2500
+    rng = np.random.default_rng(42)
+    weights_matrix = rng.random((num_portfolios, N))
     weights_matrix = weights_matrix / np.sum(weights_matrix, axis=1, keepdims=True)
-    
-    p_rets = np.dot(weights_matrix, mean_returns) * 252
+    if N >= 4:
+        max_w = min(0.40, max(0.25, 2.5 / N))
+        for _ in range(4):
+            weights_matrix = np.clip(weights_matrix, 0.0, max_w)
+            weights_matrix = weights_matrix / np.sum(weights_matrix, axis=1, keepdims=True)
+
+    p_rets = np.expm1(np.dot(weights_matrix, mean_returns) * 252)
     cov_ann = cov_matrix * 252
     p_vols = np.sqrt(np.einsum('ij,jk,ik->i', weights_matrix, cov_ann, weights_matrix))
     p_sharpes = np.where(p_vols > 0, (p_rets - risk_free) / p_vols, 0.0)

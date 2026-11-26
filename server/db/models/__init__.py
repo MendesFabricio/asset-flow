@@ -23,14 +23,10 @@ from db.models.financials import (
     ReceivableLoan,
     LoanInstallment,
     PaymentTransaction,
-    CreditCard,
-    CardExpense,
-    CardInstallment,
     FixedIncome,
 )
 from db.models.system import (
     MarketData,
-    AuditLog,
     PriceAlert,
     SyncState,
     SystemCache,
@@ -44,6 +40,14 @@ from db.models.system import (
     init_db,
 )
 from db.models.valuation import MarketScreenerItem, WatchlistItem
+from db.models.signals import (
+    PriceHistoryDaily,
+    FundamentalSnapshot,
+    MarketRegimeDaily,
+    SignalSetupStat,
+    SignalLedger,
+    SignalOutcome,
+)
 
 __all__ = [
     "Session",
@@ -68,12 +72,8 @@ __all__ = [
     "ReceivableLoan",
     "LoanInstallment",
     "PaymentTransaction",
-    "CreditCard",
-    "CardExpense",
-    "CardInstallment",
     "FixedIncome",
     "MarketData",
-    "AuditLog",
     "PriceAlert",
     "SyncState",
     "SystemCache",
@@ -82,6 +82,12 @@ __all__ = [
     "ScheduledJob",
     "MarketScreenerItem",
     "WatchlistItem",
+    "PriceHistoryDaily",
+    "FundamentalSnapshot",
+    "MarketRegimeDaily",
+    "SignalSetupStat",
+    "SignalLedger",
+    "SignalOutcome",
     "update_sync_state_db",
     "get_sync_state_db",
     "get_sync_states_batch_db",

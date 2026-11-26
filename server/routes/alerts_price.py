@@ -11,6 +11,7 @@ Job (chamado pelo APScheduler a cada 5 minutos):
   check_price_alerts()              Verifica se algum alerta foi atingido
 """
 import logging
+import re
 from flask import Blueprint, jsonify, request
 from datetime import datetime
 from db.session import Session
@@ -176,7 +177,20 @@ def _infer_event_type(row: TriggeredAlert) -> str:
         return "SIGNAL_CHANGE"
     if row.condition == "DIVIDEND_ANNOUNCED":
         return "DIVIDEND_ANNOUNCED"
+    if row.condition in ("EMISSION_ANNOUNCED", "CORP_EVENT_ANNOUNCED"):
+        return "CORPORATE_EVENT"
     return "PRICE_ALERT"
+
+
+def _resolve_triggered_link(row: TriggeredAlert) -> str | None:
+    if _infer_event_type(row) != "CORPORATE_EVENT":
+        return None
+    m = re.search(r"·\s*ID\s+(\S+)", row.note or "")
+    if m:
+        doc_id = m.group(1).strip()
+        if doc_id.isdigit():
+            return f"https://fnet.bmfbovespa.com.br/fnet/publico/exibirDocumento?id={doc_id}"
+    return None
 
 
 def _serialize_triggered_alert(row: TriggeredAlert) -> dict:
@@ -189,6 +203,7 @@ def _serialize_triggered_alert(row: TriggeredAlert) -> dict:
         "target_price": float(row.target_price or 0),
         "current_price": float(row.current_price or 0),
         "note": row.note or "",
+        "link": _resolve_triggered_link(row),
         "is_notified": bool(row.is_notified),
         "triggered_at": row.triggered_at.isoformat() if row.triggered_at else None,
     }
@@ -314,32 +329,4 @@ def get_alert_notifications():
             })
         except Exception as e:
             logging.error(f"❌ Erro ao buscar notificações de alertas: {e}", exc_info=True)
-            return jsonify({"status": "Erro", "msg": str(e)}), 500
-
-
-@price_alerts_bp.route('/api/price-alerts/notifications/read', methods=['POST'])
-def mark_alert_notifications_read():
-    """Marca um, vários ou todos os TriggeredAlerts do usuário como lidos."""
-    from flask import g
-    body = request.get_json(silent=True) or {}
-    mark_all = bool(body.get("all"))
-    alert_id = body.get("id")
-    alert_ids = body.get("ids") or ([alert_id] if alert_id is not None else [])
-
-    with Session() as session:
-        try:
-            query = session.query(TriggeredAlert).filter(
-                TriggeredAlert.is_notified == False,
-                or_(TriggeredAlert.user_id == g.user_id, TriggeredAlert.user_id.is_(None)),
-            )
-            if not mark_all:
-                if not alert_ids:
-                    return jsonify({"status": "Erro", "msg": "Informe id, ids ou all=true."}), 400
-                query = query.filter(TriggeredAlert.id.in_([int(x) for x in alert_ids]))
-            updated = query.update({"is_notified": True}, synchronize_session=False)
-            safe_commit(session)
-            return jsonify({"status": "Sucesso", "updated": int(updated or 0)})
-        except Exception as e:
-            session.rollback()
-            logging.error(f"❌ Erro ao marcar notificações como lidas: {e}", exc_info=True)
             return jsonify({"status": "Erro", "msg": str(e)}), 500

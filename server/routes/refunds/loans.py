@@ -3,7 +3,7 @@ from . import refunds_bp
 from db.models import Session, Debtor, ReceivableLoan, LoanInstallment, safe_commit
 from sqlalchemy.orm import joinedload
 from datetime import datetime
-from decimal import Decimal
+from decimal import Decimal, ROUND_DOWN
 from utils.date_helper import get_invoice_month_helper as get_fatura_mes_helper, get_due_date_helper as get_due_date_for_fatura_helper
 from .utils import get_config, log_audit
 
@@ -59,7 +59,7 @@ def handle_loans():
             db.flush()
             log_audit(db, "receivable_loans", loan.id, "status", None, "PENDENTE")
             
-            valor_parcela = valor_total / total_parcelas
+            valor_parcela_base = (valor_total / Decimal(str(total_parcelas))).quantize(Decimal("0.01"), rounding=ROUND_DOWN)
             
             for i in range(total_parcelas):
                 if i == 0:
@@ -72,12 +72,16 @@ def handle_loans():
                     m = (m - 1) % 12 + 1
                     fatura_atual = f"{y}-{m:02d}"
                     
-                vencimento_atual = get_due_date_for_fatura_helper(fatura_atual, config.vencimento_dia)
+                vencimento_atual = get_due_date_for_fatura_helper(
+                    fatura_atual, config.vencimento_dia, closing_day=config.fechamento_dia
+                )
+                is_last = (i == total_parcelas - 1)
+                parcela_val = (valor_total - valor_parcela_base * Decimal(str(total_parcelas - 1))) if is_last else valor_parcela_base
                 
                 inst = LoanInstallment(
                     loan_id=loan.id,
                     numero_parcela=i+1,
-                    valor_parcela=valor_parcela,
+                    valor_parcela=parcela_val,
                     data_vencimento=vencimento_atual,
                     status="ABERTA",
                     fatura_mes=fatura_atual,
@@ -184,7 +188,9 @@ def update_loan(id):
                     inst = loan.installments[0]
                     config = get_config(db)
                     fatura_nova = get_fatura_mes_helper(dt, config.fechamento_dia)
-                    vencimento_novo = get_due_date_for_fatura_helper(fatura_nova, config.vencimento_dia)
+                    vencimento_novo = get_due_date_for_fatura_helper(
+                        fatura_nova, config.vencimento_dia, closing_day=config.fechamento_dia
+                    )
                     log_audit(db, "loan_installments", inst.id, "fatura_mes", inst.fatura_mes, fatura_nova)
                     inst.fatura_mes = fatura_nova
                     log_audit(db, "loan_installments", inst.id, "data_vencimento", inst.data_vencimento, vencimento_novo)

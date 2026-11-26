@@ -214,8 +214,8 @@ export function ValuationPanel({ ticker, assetType, compact = false }: Valuation
 
         <div className="w-full h-2 rounded-full bg-surface-input overflow-hidden">
           <div
-            className={`h-full transition-all duration-500 ${qualityColor.split(' ')[1]}`}
-            style={{ width: `${Math.max(4, qualityScore)}%` }}
+            className={`w-full h-full origin-left transition-transform duration-250 ease-[var(--ease-out)] ${qualityColor.split(' ')[1]}`}
+            style={{ transform: `scaleX(${Math.max(4, qualityScore) / 100})` }}
           />
         </div>
       </div>
@@ -293,6 +293,30 @@ export function ValuationPanel({ ticker, assetType, compact = false }: Valuation
         </div>
       )}
 
+      {/* Blended Fair Value (Triangulação) */}
+      {(() => {
+        const targets = [
+          data.bazin_price,
+          data.asset_type === 'FII' ? data.vpa : data.graham_price,
+          data.gordon_price,
+          data.dcf_price,
+        ].filter((v): v is number => typeof v === 'number' && v > 0);
+        if (targets.length === 0) return null;
+        const blended = targets.reduce((a, b) => a + b, 0) / targets.length;
+        const blendedMargin = data.price > 0 ? ((blended - data.price) / data.price) * 100 : null;
+        return (
+          <div className="p-3 rounded-xl bg-surface-elevated border border-border-subtle flex items-center justify-between gap-2">
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted block">
+                Preço Justo Combinado ({targets.length} modelos)
+              </span>
+              <span className="text-base font-mono font-bold text-text-primary">{money(blended)}</span>
+            </div>
+            <MarginBadge pct={blendedMargin} />
+          </div>
+        );
+      })()}
+
       {/* Grid de Preço Justo (Bazin, Graham, Gordon, DCF) */}
       <div className="grid grid-cols-2 gap-2.5">
         <div className="p-3 rounded-xl bg-surface-card border border-border-subtle space-y-1">
@@ -345,9 +369,18 @@ export function ValuationPanel({ ticker, assetType, compact = false }: Valuation
         </div>
 
         <div className="p-3 rounded-xl bg-surface-card border border-border-subtle space-y-1">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted block">
-            Modelo Gordon
-          </span>
+          <div className="flex items-center justify-between gap-1">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
+              Modelo Gordon
+            </span>
+            <MarginBadge
+              pct={
+                data.gordon_price && data.price > 0
+                  ? ((data.gordon_price - data.price) / data.price) * 100
+                  : null
+              }
+            />
+          </div>
           <p className="text-sm font-mono font-bold text-text-primary">
             {data.gordon_price ? money(data.gordon_price) : 'N/D'}
           </p>
@@ -362,7 +395,11 @@ export function ValuationPanel({ ticker, assetType, compact = false }: Valuation
             <MarginBadge pct={data.margin_dcf_pct} />
           </div>
           <p className="text-sm font-mono font-bold text-text-primary">
-            {data.dcf_price ? money(data.dcf_price) : 'N/D'}
+            {terminalGrowth >= discountRate - 0.5
+              ? 'g ≥ WACC'
+              : data.dcf_price
+              ? money(data.dcf_price)
+              : 'N/D'}
           </p>
           <p className="text-[10px] text-text-muted">
             {data.magic_score !== null && data.magic_score !== undefined
@@ -388,8 +425,8 @@ export function ValuationPanel({ ticker, assetType, compact = false }: Valuation
                   </span>
                   <div className="w-full max-w-[28px] bg-surface-input rounded-t overflow-hidden flex items-end h-10">
                     <div
-                      className="w-full bg-status-success rounded-t transition-all duration-500"
-                      style={{ height: `${pct}%` }}
+                      className="w-full h-full bg-status-success rounded-t origin-bottom transition-transform duration-250 ease-[var(--ease-out)]"
+                      style={{ transform: `scaleY(${Math.max(0, Math.min(pct, 100)) / 100})` }}
                     />
                   </div>
                   <span className="text-[10px] font-mono text-text-muted">{d.year}</span>

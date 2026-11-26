@@ -80,7 +80,7 @@ export const AssetTooltip = ({ type, data, style }: AssetTooltipProps) => {
                             <span className={`text-[9px] font-bold ${data.rsi < 30 ? 'text-emerald-400' : data.rsi > 70 ? 'text-rose-400' : 'text-blue-400'}`}>{data.rsi.toFixed(0)}</span>
                         </div>
                         <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden flex relative">
-                            <div className={`h-full transition-all duration-1000 ${data.rsi < 30 ? 'bg-emerald-500' : data.rsi > 70 ? 'bg-rose-500' : 'bg-blue-500'}`} style={{ width: `${Math.min(data.rsi, 100)}%` }}></div>
+                            <div className={`w-full h-full origin-left transition-transform duration-250 ease-[var(--ease-out)] ${data.rsi < 30 ? 'bg-emerald-500' : data.rsi > 70 ? 'bg-rose-500' : 'bg-blue-500'}`} style={{ transform: `scaleX(${Math.min(data.rsi, 100) / 100})` }}></div>
                         </div>
                     </div>
                 </>

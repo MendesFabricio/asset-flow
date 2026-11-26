@@ -54,7 +54,7 @@ export function CategoryRow({
           ) : (
             Math.abs(item.variacaoPct) > 0.001 && (
               <div
-                className={`flex items-center gap-0.5 text-[9px] font-mono font-bold px-1.5 py-0.5 rounded cursor-pointer transition-all hover:scale-105 ${
+                className={`flex items-center gap-0.5 text-[9px] font-mono font-bold px-1.5 py-0.5 rounded cursor-pointer transition-transform duration-150 hover-fine:hover:scale-105 ${
                   isPositiveVar
                     ? 'text-emerald-400 bg-emerald-400/10 border border-emerald-400/20'
                     : 'text-rose-400 bg-rose-400/10 border border-rose-400/20'
@@ -102,8 +102,8 @@ export function CategoryRow({
             </div>
             <div className="h-2.5 w-full bg-slate-900/80 border border-slate-800/60 shadow-inner rounded-full overflow-hidden relative p-[1px]">
               <div
-                className={`h-full rounded-full ${barColor} opacity-90 transition-all duration-500 shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)]`}
-                style={{ width: `${visualWidth}%` }}
+                className={`w-full h-full rounded-full origin-left ${barColor} opacity-90 transition-transform duration-250 ease-[var(--ease-out)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)]`}
+                style={{ transform: `scaleX(${Math.max(0, Math.min(visualWidth, 100)) / 100})` }}
               ></div>
             </div>
           </div>

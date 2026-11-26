@@ -423,7 +423,6 @@ def serialize_history_payload(session, user_id):
             "is_day_trade": bool(tx.is_day_trade),
             "transaction_date": _iso_or_none(tx.transaction_date),
             "is_option": bool(tx.is_option),
-            "option_meta": tx.option_meta,
             "corporate_event_idx": corp_id_to_idx.get(tx.corporate_event_id),
         }
         for tx in tx_rows
@@ -666,7 +665,6 @@ def _restore_history_payload(session, user_id, payload, mode="replace"):
             is_day_trade=bool(item.get("is_day_trade", False)),
             transaction_date=tx_dt,
             is_option=bool(item.get("is_option", False)),
-            option_meta=item.get("option_meta"),
             corporate_event_id=corp_idx_to_id.get(ce_idx) if ce_idx is not None else None,
         )
         session.add(tx)

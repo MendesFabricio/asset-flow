@@ -264,6 +264,7 @@ class PortfolioCrudService:
 
                 # tx_date is already computed above
                 
+                from utils.ticker_helper import extract_option_meta
                 transaction = AssetTransaction(
                     position_id=pos.id,
                     user_id=user_id,
@@ -273,9 +274,39 @@ class PortfolioCrudService:
                     unit_price=price_dec,
                     total_value=total_value,
                     cost_basis=cost_basis,
+                    is_option=bool(extract_option_meta(ticker)),
                     transaction_date=tx_date
                 )
                 session.add(transaction)
+                session.flush()
+
+                # Se houver eventos ou transações posteriores à data informada, reexecuta ledger inteiro
+                later_tx = (
+                    session.query(AssetTransaction.id)
+                    .filter(
+                        AssetTransaction.position_id == pos.id,
+                        AssetTransaction.user_id == user_id,
+                        AssetTransaction.transaction_date > tx_date,
+                    )
+                    .first()
+                )
+                if later_tx is not None:
+                    from domain.portfolio.ledger_replay import replay_position_transactions
+                    from db.models import CorporateEvent
+                    all_txs = (
+                        session.query(AssetTransaction)
+                        .filter_by(position_id=pos.id, user_id=user_id)
+                        .order_by(AssetTransaction.transaction_date.asc(), AssetTransaction.id.asc())
+                        .all()
+                    )
+                    ce_ids = {t.corporate_event_id for t in all_txs if getattr(t, "corporate_event_id", None)}
+                    ce_map = (
+                        {ce.id: ce for ce in session.query(CorporateEvent).filter(CorporateEvent.id.in_(ce_ids)).all()}
+                        if ce_ids else {}
+                    )
+                    r_qty, r_pm = replay_position_transactions(all_txs, ce_map)
+                    pos.quantity = r_qty
+                    pos.average_price = r_pm
                 
                 self._invalidate_quant_cache(session)
                 safe_commit(session)
@@ -343,39 +374,18 @@ class PortfolioCrudService:
                 # Recalcula a posição baseada em todas as transações restantes
                 pos = session.query(Position).filter_by(id=pos_id, user_id=user_id).first()
                 if pos:
+                    from db.models import CorporateEvent
+                    from domain.portfolio.ledger_replay import replay_position_transactions
                     remaining_txs = session.query(AssetTransaction).filter_by(
                         position_id=pos.id, user_id=user_id
                     ).order_by(AssetTransaction.transaction_date.asc(), AssetTransaction.id.asc()).all()
 
-                    running_qty = Decimal("0.0")
-                    running_pm = Decimal("0.0")
-
-                    for t in remaining_txs:
-                        if t.type in ("BUY", "TICKER_CHANGE_IN", "SPIN_OFF_RECEIPT"):
-                            total_val = t.total_value if (t.total_value and t.total_value > 0) else (t.quantity * t.unit_price)
-                            new_qty = running_qty + t.quantity
-                            if new_qty > 0:
-                                running_pm = ((running_qty * running_pm) + total_val) / new_qty
-                            running_qty = new_qty
-                        elif t.type == "SELL":
-                            t.cost_basis = running_pm
-                            running_qty -= t.quantity
-                            if running_qty <= 0:
-                                running_qty = Decimal("0.0")
-                                running_pm = Decimal("0.0")
-                        elif t.type == "DEPOSIT":
-                            running_qty = t.quantity or Decimal("1.0")
-                            running_pm += t.total_value if t.total_value is not None else t.unit_price
-                        elif t.type == "WITHDRAW":
-                            running_qty = t.quantity or Decimal("1.0")
-                            running_pm = max(Decimal("0.0"), running_pm - (t.total_value if t.total_value is not None else t.unit_price))
-                        elif t.type in ("SPLIT", "INPLIT", "BONUS", "AMORTIZATION", "SPIN_OFF", "ADJUSTMENT"):
-                            running_qty = t.quantity
-                            running_pm = t.unit_price
-                        elif t.type == "TICKER_CHANGE_OUT":
-                            running_qty = Decimal("0.0")
-                            running_pm = Decimal("0.0")
-
+                    ce_ids = {t.corporate_event_id for t in remaining_txs if getattr(t, "corporate_event_id", None)}
+                    ce_map = (
+                        {ce.id: ce for ce in session.query(CorporateEvent).filter(CorporateEvent.id.in_(ce_ids)).all()}
+                        if ce_ids else {}
+                    )
+                    running_qty, running_pm = replay_position_transactions(remaining_txs, ce_map)
                     pos.quantity = running_qty
                     pos.average_price = running_pm
 
@@ -434,6 +444,7 @@ class PortfolioCrudService:
                     unit_cost=Decimal(str(payload.get("unit_cost", 0.0))) if action_type in ["BONUS", "AMORTIZATION"] else None,
                     new_ticker=payload.get("new_ticker") if action_type in ["SPIN_OFF", "TICKER_CHANGE"] else None,
                     received_qty=Decimal(str(payload.get("received_qty", 0))) if action_type == "SPIN_OFF" else None,
+                    cost_percent=Decimal(str(payload.get("cost_percent", 0))) if action_type == "SPIN_OFF" else None,
                     date=tx_date.date(),
                     source="MANUAL"
                 )
@@ -464,40 +475,57 @@ class PortfolioCrudService:
                         else:
                             new_pm = old_pm
                 
-                    # Tratar fração (venda automática)
+                    # Tratar fração (leilão ou redistribuição de custo sem perda)
                     fraction = new_qty - Decimal(math.floor(new_qty))
-                    if fraction > 0:
-                        new_qty = Decimal(math.floor(new_qty))
-                        
-                    transaction = AssetTransaction(
-                        position_id=pos.id,
-                        user_id=user_id,
-                        ticker=ticker,
-                        type=action_type,
-                        quantity=new_qty,
-                        unit_price=new_pm,
-                        total_value=Decimal("0.0"),
-                        transaction_date=tx_date,
-                        corporate_event_id=corp_event.id
-                    )
-                    session.add(transaction)
-                    
-                    pos.quantity = new_qty
-                    pos.average_price = new_pm
-                    
+                    floored_qty = Decimal(math.floor(new_qty))
                     if fraction > 0 and auction_value > 0:
+                        # Armazena quantidade pré-leilão no evento e baixa a fração via SELL com cost_basis preenchido
+                        transaction = AssetTransaction(
+                            position_id=pos.id,
+                            user_id=user_id,
+                            ticker=ticker,
+                            type=action_type,
+                            quantity=new_qty,
+                            unit_price=new_pm,
+                            total_value=Decimal("0.0"),
+                            transaction_date=tx_date,
+                            corporate_event_id=corp_event.id
+                        )
+                        session.add(transaction)
+                        pos.quantity = floored_qty
+                        pos.average_price = new_pm
+
                         sell_tx = AssetTransaction(
                             position_id=pos.id,
                             user_id=user_id,
                             ticker=ticker,
                             type="SELL",
                             quantity=fraction,
-                            unit_price=auction_value / fraction if fraction > 0 else Decimal("0"),
+                            unit_price=auction_value / fraction,
                             total_value=auction_value,
+                            cost_basis=new_pm,
                             transaction_date=tx_date,
                             corporate_event_id=corp_event.id
                         )
                         session.add(sell_tx)
+                    else:
+                        if fraction > 0 and floored_qty > 0:
+                            new_pm = (new_qty * new_pm) / floored_qty
+                        new_qty_final = floored_qty if fraction > 0 else new_qty
+                        transaction = AssetTransaction(
+                            position_id=pos.id,
+                            user_id=user_id,
+                            ticker=ticker,
+                            type=action_type,
+                            quantity=new_qty_final,
+                            unit_price=new_pm,
+                            total_value=Decimal("0.0"),
+                            transaction_date=tx_date,
+                            corporate_event_id=corp_event.id
+                        )
+                        session.add(transaction)
+                        pos.quantity = new_qty_final
+                        pos.average_price = new_pm
 
                 elif action_type == "SPIN_OFF":
                     new_ticker = payload.get("new_ticker")
@@ -507,8 +535,12 @@ class PortfolioCrudService:
                     if not new_ticker or received_qty <= 0 or cost_percent <= 0:
                         raise ValueError("Para Cisão, informe o Ticker Recebido, Quantidade e % de Custo.")
                     
-                    cost_transfer = (cost_percent / Decimal("100")) * pos.average_price
-                    pos.average_price = max(Decimal("0"), pos.average_price - cost_transfer)
+                    # Conserva 100% do custo total transferido mesmo quando received_qty != pos.quantity
+                    total_parent_cost = pos.quantity * pos.average_price
+                    transferred_total_cost = (cost_percent / Decimal("100")) * total_parent_cost
+                    parent_cost_reduction_ps = (cost_percent / Decimal("100")) * pos.average_price
+                    pos.average_price = max(Decimal("0"), pos.average_price - parent_cost_reduction_ps)
+                    child_unit_cost = transferred_total_cost / received_qty
                     
                     transaction_orig = AssetTransaction(
                         position_id=pos.id,
@@ -535,13 +567,13 @@ class PortfolioCrudService:
                             asset_id=new_asset.id, 
                             user_id=user_id,
                             quantity=received_qty,
-                            average_price=cost_transfer,
+                            average_price=child_unit_cost,
                             target_percent=Decimal("0.0")
                         )
                         session.add(new_pos)
                         session.flush()
                     else:
-                        total_val = (new_pos.quantity * new_pos.average_price) + (received_qty * cost_transfer)
+                        total_val = (new_pos.quantity * new_pos.average_price) + transferred_total_cost
                         new_pos.quantity += received_qty
                         new_pos.average_price = total_val / new_pos.quantity
                         
@@ -551,8 +583,8 @@ class PortfolioCrudService:
                         ticker=new_ticker,
                         type="SPIN_OFF_RECEIPT",
                         quantity=received_qty,
-                        unit_price=cost_transfer,
-                        total_value=received_qty * cost_transfer,
+                        unit_price=child_unit_cost,
+                        total_value=transferred_total_cost,
                         transaction_date=tx_date,
                         corporate_event_id=corp_event.id
                     )

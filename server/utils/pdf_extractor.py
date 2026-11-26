@@ -1,4 +1,7 @@
 import fitz  # PyMuPDF
+import base64
+import io
+import zipfile
 import re
 import requests
 import json
@@ -22,12 +25,39 @@ def extract_kpis_from_pdf(pdf_path_or_url: str, is_fii: bool = True) -> dict:
                 raise Exception(f"URL não autorizada para download de PDF: {pdf_path_or_url}")
 
             logging.info(f"📥 Baixando PDF de RI para análise: {pdf_path_or_url}...")
-            r = requests.get(pdf_path_or_url, timeout=45)
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+                "Accept": "application/pdf,application/octet-stream,*/*;q=0.8",
+            }
+            r = requests.get(pdf_path_or_url, headers=headers, timeout=45)
             if r.status_code != 200:
                 raise Exception(f"Falha ao baixar PDF. Status: {r.status_code}")
-            
+
+            raw_bytes = r.content or b""
+            if raw_bytes.startswith(b"PK"):
+                with zipfile.ZipFile(io.BytesIO(raw_bytes)) as zf:
+                    pdf_name = next((n for n in zf.namelist() if n.lower().endswith(".pdf")), None)
+                    if not pdf_name:
+                        raise Exception("O arquivo ZIP da CVM não contém nenhum PDF interno.")
+                    raw_bytes = zf.read(pdf_name)
+
+            if not raw_bytes.lstrip().startswith(b"%PDF"):
+                decoded = None
+                try:
+                    candidate = base64.b64decode(raw_bytes.strip(), validate=True)
+                    if candidate.lstrip().startswith(b"%PDF"):
+                        decoded = candidate
+                except Exception:
+                    decoded = None
+                if decoded is not None:
+                    raw_bytes = decoded
+                else:
+                    raise Exception(
+                        "O documento de RI disponível para este ativo não é um PDF válido (pode ser HTML/ZIP ou indisponível no momento)."
+                    )
+
             with NamedTemporaryFile(delete=False, suffix=".pdf") as f:
-                f.write(r.content)
+                f.write(raw_bytes)
                 temp_path = f.name
             target_path = temp_path
         else:
@@ -49,38 +79,37 @@ def extract_kpis_from_pdf(pdf_path_or_url: str, is_fii: bool = True) -> dict:
             if len(target_pages) >= 8:  # Limita a 8 páginas para economizar contexto
                 break
                 
-        # 3. Consolida o texto e aplica Regex básicas para limpar espaçamentos múltiplos
+        # 3. Consolida o texto preservando quebras de linha (tabelas financeiras)
         extracted_text_lines = []
-        for idx, text in target_pages:
-            # Substitui múltiplos espaços por um único espaço
-            clean_text = re.sub(r'\s+', ' ', text)
-            # Isola sequências numéricas que parecem dados tabulares (ex: R$ 123.456,78 ou 12,5%)
+        for _idx, text in target_pages:
+            clean_text = "\n".join(re.sub(r'[ \t]+', ' ', ln).strip() for ln in text.splitlines() if ln.strip())
             extracted_text_lines.append(clean_text)
-            
-        consolidated_text = "\n".join(extracted_text_lines)[:6000] # Limite físico
-        
-        # 4. Injeta no prompt para o Llama 3.2:3b extrair como JSON rígido
+
+        consolidated_text = "\n\n".join(extracted_text_lines)[:8000]
+
+        # 4. Schema JSON limpo (sem comentários # que quebram parsers locais)
         schema_info = (
             "Para FIIs, responda APENAS com este JSON:\n"
             "{\n"
-            "  \"rendimento_distribuido\": 0.0, # valor em R$ ou percentual\n"
-            "  \"valor_patrimonial\": 0.0, # valor da cota patrimonial em R$\n"
-            "  \"vacancia_fisica_pct\": 0.0, # percentual de vacância física (0 a 100)\n"
-            "  \"vacancia_financeira_pct\": 0.0, # percentual de vacância financeira\n"
-            "  \"credit_rating\": null, # Rating de crédito médio (ex: AAA, AA, BrAA+). null se não houver\n"
-            "  \"duration_years\": null, # Prazo médio / Duration da carteira em anos (> 0). null se não houver\n"
-            "  \"indexer_cdi_pct\": null, # % do patrimônio/carteira indexado ao CDI (0 a 100, NÃO taxa nem spread). null se não houver\n"
-            "  \"indexer_ipca_pct\": null, # % do patrimônio/carteira indexado ao IPCA (0 a 100, NÃO taxa nem spread). null se não houver\n"
-            "  \"observacao_geral\": \"Breve comentário sobre os destaques\"\n"
-            "}"
+            '  "rendimento_distribuido": null,\n'
+            '  "valor_patrimonial": null,\n'
+            '  "vacancia_fisica_pct": null,\n'
+            '  "vacancia_financeira_pct": null,\n'
+            '  "credit_rating": null,\n'
+            '  "duration_years": null,\n'
+            '  "indexer_cdi_pct": null,\n'
+            '  "indexer_ipca_pct": null,\n'
+            '  "observacao_geral": "Breve comentário sobre os destaques"\n'
+            "}\n"
+            "Campos FII: vacância/indexadores em % (0 a 100), duration_years > 0, valores monetários em R$."
             if is_fii else
             "Para Ações, responda APENAS com este JSON:\n"
             "{\n"
-            "  \"receita_liquida\": 0.0, # receita líquida do trimestre em R$\n"
-            "  \"ebitda\": 0.0, # EBITDA em R$\n"
-            "  \"lucro_liquido\": 0.0, # lucro líquido em R$\n"
-            "  \"divida_liquida\": 0.0, # dívida líquida em R$\n"
-            "  \"observacao_geral\": \"Breve comentário sobre os destaques\"\n"
+            '  "receita_liquida": null,\n'
+            '  "ebitda": null,\n'
+            '  "lucro_liquido": null,\n'
+            '  "divida_liquida": null,\n'
+            '  "observacao_geral": "Breve comentário sobre os destaques"\n'
             "}"
         )
         

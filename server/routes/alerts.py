@@ -48,8 +48,8 @@ def _save_dismissed_ids(session, user_id: int, ids: set[str]) -> None:
 
 
 # ⚡ Micro-otimização: make_alert definido no escopo do módulo para evitar re-alocações na execução do loop
-def make_alert(asset, field, type_alert, msg, severity, action=None):
-    return {
+def make_alert(asset, field, type_alert, msg, severity, action=None, link=None):
+    item = {
         "id": f"{asset.id}_{field}_{type_alert}",
         "asset_id": asset.id,
         "ticker": asset.ticker,
@@ -59,6 +59,9 @@ def make_alert(asset, field, type_alert, msg, severity, action=None):
         "severity": severity,
         "action": action
     }
+    if link:
+        item["link"] = link
+    return item
 
 
 def _collect_portfolio_alerts(session, user_id: int) -> list[dict]:
@@ -130,7 +133,8 @@ def _collect_portfolio_alerts(session, user_id: int) -> list[dict]:
                             "NOVIDADE",
                             f"📄 {msg_prefix} recente ({report_date_str}). Já analisou?",
                             2,
-                            "view"
+                            "view",
+                            link=pos.last_report_url,
                         ))
             except Exception as parse_err:
                 logging.debug(f"Parse report_date alerta {asset.ticker}: {parse_err}")

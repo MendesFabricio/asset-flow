@@ -103,18 +103,43 @@ def fetch_price_history(tickers: list, period: str = "1y"):
             logging.info(f"🌐 Cache MISS: baixando {len(missing)}/{len(unique_tickers)} tickers ({period})...")
             from utils.http_client import get_secure_session
             secure_session = get_secure_session(timeout=15.0)
-            downloaded = yf.download(
-                missing, period=period, group_by="ticker",
-                progress=False, auto_adjust=False, threads=True,
-                session=secure_session,
-            )
-            new_slices = _extract_ticker_slices(downloaded, missing)
-            exp = time.monotonic() + PRICE_CACHE_TTL
+            downloaded = pd.DataFrame()
+            new_slices: dict[str, pd.DataFrame] = {}
+            try:
+                downloaded = yf.download(
+                    missing, period=period, group_by="ticker",
+                    progress=False, auto_adjust=False, threads=True,
+                    session=secure_session,
+                )
+                new_slices = _extract_ticker_slices(downloaded, missing)
+            except Exception as e:
+                logging.warning(f"⚠️ Falha no lote yf.download ({len(missing)} tickers), usando fallback individual: {e}")
+
+            # Fallback individual para tickers ausentes do lote
+            for t in missing:
+                if t not in new_slices or new_slices[t].empty:
+                    try:
+                        hist = yf.Ticker(t, session=secure_session).history(period=period, auto_adjust=False)
+                        if hist is not None and not hist.empty:
+                            new_slices[t] = hist
+                    except Exception as te:
+                        logging.debug(f"⚠️ Fallback individual falhou para {t}: {te}")
+
+            now_m = time.monotonic()
             with _CACHE_LOCK:
-                for t, df_slice in new_slices.items():
-                    _TICKER_CACHE[(t, period)] = (df_slice, exp)
-                    frames[t] = df_slice
-            combined = pd.concat(frames, axis=1) if frames else downloaded
+                for t in missing:
+                    df_slice = new_slices.get(t)
+                    if df_slice is not None and not df_slice.empty:
+                        _TICKER_CACHE[(t, period)] = (df_slice, now_m + PRICE_CACHE_TTL)
+                        frames[t] = df_slice
+                    else:
+                        # Negative cache curto (5 min) para evitar rajadas em tickers inválidos
+                        _TICKER_CACHE[(t, period)] = (pd.DataFrame(), now_m + 300)
+                while len(_TICKER_CACHE) > 300:
+                    oldest_key = next(iter(_TICKER_CACHE))
+                    _TICKER_CACHE.pop(oldest_key, None)
+            non_empty = {k: v for k, v in frames.items() if v is not None and not v.empty}
+            combined = pd.concat(non_empty, axis=1) if non_empty else downloaded
 
         with _CACHE_LOCK:
             if cache_key in _CACHE:

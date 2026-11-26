@@ -60,8 +60,8 @@ export const StatCard = React.memo(({
   const isPositiveDaily = hasDaily && dailyResult >= 0;
 
   return (
-    <div className="relative rounded-xl border border-border-subtle shadow-sm transition-all duration-300 ease-in-out hover:scale-[1.02] hover:-translate-y-1 hover:shadow-md hover:border-accent/40 group min-h-[125px]">
-      
+    <div className="relative rounded-xl border border-border-subtle shadow-sm transition-[transform,border-color,box-shadow] duration-200 ease-[var(--ease-out)] hover-fine:hover:scale-[1.015] hover-fine:hover:-translate-y-0.5 hover:shadow-md hover:border-accent/40 group min-h-[96px]">
+
       {/* Background layer (with overflow-hidden for the glow) */}
       <div className={`absolute inset-0 overflow-hidden rounded-xl pointer-events-none bg-surface-card bg-gradient-to-br ${semanticGradient}`}>
         {/* Glow de fundo */}
@@ -69,12 +69,12 @@ export const StatCard = React.memo(({
       </div>
 
       {/* Content layer */}
-      <div className="relative z-10 flex flex-col justify-between h-full p-5">
+      <div className="relative z-10 flex flex-col justify-between h-full p-3.5">
         {/* Header do Card */}
         <div className="flex justify-between items-start">
           <div className="flex flex-col">
             {/* Label / Microcopy */}
-            <p className="text-[11px] font-bold uppercase tracking-wider text-text-muted leading-none mb-2">{title}</p>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-text-muted leading-none mb-1.5">{title}</p>
 
             {type === 'insight' ? (
               <div className="flex items-center gap-2 mt-0.5">
@@ -103,47 +103,47 @@ export const StatCard = React.memo(({
         </div>
 
         {/* Footer do Card */}
-        <div className="mt-4 pt-3 relative z-10">
-        {type === 'insight' ? (
-          marquee ? (
-            <div className="relative flex items-center w-full cursor-pointer group/tooltip">
-              {/* Texto da Esquerda (Subtítulos / Secundário) */}
-              <p className="text-xs font-medium text-text-muted flex items-center gap-1.5 opacity-90 transition-colors group-hover/tooltip:text-text-primary">
-                <span className={`w-1.5 h-1.5 rounded-full ${semanticBg} border ${semanticBorder}`}></span>
-                Por que aportar?
-              </p>
-              
-              {/* Tooltip Hover */}
-              <div className="absolute bottom-full left-0 mb-2 hidden group-hover/tooltip:flex flex-col gap-1 w-max max-w-[250px] p-2.5 bg-surface-elevated/95 backdrop-blur-sm text-text-primary text-[11px] rounded-lg shadow-2xl border border-border-subtle z-50">
-                {marquee.split(' • ').map((item, idx) => (
-                  <span key={idx} className="flex items-center gap-1">
-                    {item}
-                  </span>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <p className="text-[11px] text-text-muted font-bold uppercase">Aguardando sinais...</p>
-          )
-        ) : (
-          <div className="flex items-center justify-between w-full">
-            {/* Texto da Esquerda (Subtítulos / Secundário) */}
-            <p className="text-xs font-medium text-text-muted flex items-center gap-1.5 opacity-90">
-              <span className={`w-1.5 h-1.5 rounded-full ${semanticBg} border ${semanticBorder}`}></span>
-              {subtext}
-            </p>
+        <div className="mt-2.5 pt-2 relative z-10">
+          {type === 'insight' ? (
+            marquee ? (
+              <div className="relative flex items-center w-full cursor-pointer group/tooltip">
+                {/* Texto da Esquerda (Subtítulos / Secundário) */}
+                <p className="text-xs font-medium text-text-muted flex items-center gap-1.5 opacity-90 transition-colors group-hover/tooltip:text-text-primary">
+                  <span className={`w-1.5 h-1.5 rounded-full ${semanticBg} border ${semanticBorder}`}></span>
+                  Por que aportar?
+                </p>
 
-            {/* Resultado Diário (Direita) */}
-            {hasDaily && dailyResult !== 0 && (
-              <div className={`flex items-center gap-1 text-xs font-bold animate-in slide-in-from-right-2 ${isPositiveDaily ? 'text-status-success' : 'text-status-error'}`}>
-                {isPositiveDaily ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                {isHidden ? 'R$ •••••' : formatMoney(Math.abs(dailyResult))}
-                {/* Microcopy */}
-                <span className="text-[11px] text-text-muted font-normal ml-0.5">Hoje</span>
+                {/* Tooltip Hover */}
+                <div className="absolute bottom-full left-0 mb-2 hidden group-hover/tooltip:flex flex-col gap-1 w-max max-w-[250px] p-2.5 bg-surface-elevated/95 backdrop-blur-sm text-text-primary text-[11px] rounded-lg shadow-2xl border border-border-subtle z-50">
+                  {marquee.split(' • ').map((item, idx) => (
+                    <span key={idx} className="flex items-center gap-1">
+                      {item}
+                    </span>
+                  ))}
+                </div>
               </div>
-            )}
-          </div>
-        )}
+            ) : (
+              <p className="text-[11px] text-text-muted font-bold uppercase">Aguardando sinais...</p>
+            )
+          ) : (
+            <div className="flex items-center justify-between w-full">
+              {/* Texto da Esquerda (Subtítulos / Secundário) */}
+              <p className="text-xs font-medium text-text-muted flex items-center gap-1.5 opacity-90">
+                <span className={`w-1.5 h-1.5 rounded-full ${semanticBg} border ${semanticBorder}`}></span>
+                {subtext}
+              </p>
+
+              {/* Resultado Diário (Direita) */}
+              {hasDaily && dailyResult !== 0 && (
+                <div className={`flex items-center gap-1 text-xs font-bold animate-in slide-in-from-right-2 ${isPositiveDaily ? 'text-status-success' : 'text-status-error'}`}>
+                  {isPositiveDaily ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                  {isHidden ? 'R$ •••••' : formatMoney(Math.abs(dailyResult))}
+                  {/* Microcopy */}
+                  <span className="text-[11px] text-text-muted font-normal ml-0.5">Hoje</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

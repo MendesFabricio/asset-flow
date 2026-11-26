@@ -2,13 +2,15 @@
 
 import { useEffect, useState } from 'react';
 import { portfolioService, MonthlyEvolutionData, SyncStatus } from '@/services/portfolio';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from 'recharts';
 import { formatMoney } from '@/lib/format';
 import { usePrivacy } from '@/context/PrivacyContext';
+import { useChartPalette } from '@/lib/chartPalette';
 import { RefreshCw, Loader2 } from 'lucide-react';
 
 export default function MonthlyPnLChart() {
   const { isHidden } = usePrivacy() as { isHidden: boolean };
+  const palette = useChartPalette();
   const [data, setData] = useState<MonthlyEvolutionData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -197,40 +199,54 @@ export default function MonthlyPnLChart() {
       <div className="h-80 w-full">
         {isLoading ? (
           <div className="h-full flex items-center justify-center">
-            <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+            <Loader2 className="w-6 h-6 animate-spin text-text-muted" />
           </div>
-        ) : data.length === 0 ? (
-          <div className="h-full flex items-center justify-center text-slate-500">Sem dados de lucro/prejuízo no período.</div>
-        ) : (
+        ) : (() => {
+          const filteredData = selectedYear === 'all' ? data : data.filter(d => d.period.endsWith(selectedYear));
+          if (filteredData.length === 0) {
+            return (
+              <div className="h-full flex items-center justify-center text-text-muted text-sm">
+                Sem dados de lucro/prejuízo para o período selecionado.
+              </div>
+            );
+          }
+          return (
           <ResponsiveContainer width="100%" height="100%" minWidth={0}>
             <BarChart
-              data={selectedYear === 'all' ? data : data.filter(d => d.period.endsWith(selectedYear))}
+              data={filteredData}
               margin={{ top: 10, right: 10, left: 10, bottom: 0 }}
             >
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" opacity={0.2} />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={palette.grid} opacity={0.45} />
               <XAxis 
                 dataKey="period" 
-                tick={{ fill: '#64748b', fontSize: 12 }}
+                tick={{ fill: palette.axis, fontSize: 12 }}
                 tickLine={false}
                 axisLine={false}
                 dy={10}
               />
               <YAxis 
                 width={80}
-                tickFormatter={(value) => isHidden ? '••••' : `R$ ${value}`}
-                tick={{ fill: '#64748b', fontSize: 12 }}
+                tickFormatter={(value) => {
+                  if (isHidden) return '••••';
+                  const num = Number(value);
+                  if (Math.abs(num) >= 1000) return `R$ ${(num / 1000).toFixed(1).replace('.', ',')}k`;
+                  return `R$ ${num.toFixed(0)}`;
+                }}
+                tick={{ fill: palette.axis, fontSize: 12 }}
                 tickLine={false}
                 axisLine={false}
               />
+              <ReferenceLine y={0} stroke={palette.axis} strokeOpacity={0.5} />
               <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
               <Bar dataKey="month_variation" radius={[4, 4, 4, 4]} animationDuration={280}>
-                {(selectedYear === 'all' ? data : data.filter(d => d.period.endsWith(selectedYear))).map((entry, index) => (
+                {filteredData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={(entry.month_variation ?? 0) >= 0 ? '#10B981' : '#EF4444'} />
                 ))}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
-        )}
+          );
+        })()}
       </div>
     </div>
   );

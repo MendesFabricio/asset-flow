@@ -45,7 +45,7 @@ RUN groupadd -g 1001 appgroup && \
     chown -R appuser:appgroup /app
 
 # Configurações do Python e diretório raiz
-ENV PYTHONPATH=/app
+ENV PYTHONPATH=/app:/app/server:/app/server/worker
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 

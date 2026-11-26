@@ -1,5 +1,4 @@
 'use client';
-import dynamic from 'next/dynamic';
 import React, { useEffect, useCallback } from 'react';
 import { usePrivacy } from './context/PrivacyContext';
 import { useToast } from './context/ToastContext';
@@ -22,7 +21,6 @@ import {
   BarChart3,
   Bitcoin,
   Building2,
-  CreditCard,
   Globe,
   Landmark,
   Layers,
@@ -32,14 +30,10 @@ import {
   Brain,
   Compass,
   GitCompare,
-  PiggyBank,
 } from 'lucide-react';
-
-const RiskRadarModal = dynamic(() => import('./components/RiskRadarModal').then(mod => mod.RiskRadarModal), { ssr: false });
 
 const EMPTY_ASSETS: Asset[] = [];
 const EMPTY_CATEGORIES: { name: string; meta: number }[] = [];
-const EMPTY_ALERTS: { titulo: string; significado: string; acao: string }[] = [];
 
 const portfolioTabs: TabItem[] = [
   { id: 'Resumo', icon: <Layers size={14} />, label: 'Resumo' },
@@ -50,7 +44,6 @@ const portfolioTabs: TabItem[] = [
   { id: 'Renda Fixa', icon: <Landmark size={14} />, label: 'Renda Fixa' },
   { id: 'Reserva', icon: <Wallet size={14} />, label: 'Reserva' },
   { id: 'Reembolsos', icon: <Wallet size={14} />, label: 'Reembolsos' },
-  { id: 'Cartoes', icon: <CreditCard size={14} />, label: 'Cartões' },
 ];
 
 const analyticsTabs: TabItem[] = [
@@ -58,7 +51,6 @@ const analyticsTabs: TabItem[] = [
   { id: 'Quantitativo', icon: <BarChart3 size={14} />, label: 'Análise Quant' },
   { id: 'Radar', icon: <Compass size={14} />, label: 'Radar B3' },
   { id: 'Comparador', icon: <GitCompare size={14} />, label: 'Comparador' },
-  { id: 'RendaPassiva', icon: <PiggyBank size={14} />, label: 'Renda Passiva' },
   { id: 'Jarvis', icon: <Brain size={14} />, label: 'Jarvis AI' },
 ];
 
@@ -74,9 +66,6 @@ export default function Home() {
     setIsRefetching,
     showRefreshSuccess,
     setShowRefreshSuccess,
-    isRadarModalOpen,
-    openRadarModal,
-    closeRadarModal,
     modals,
   } = dashboard;
 
@@ -101,7 +90,6 @@ export default function Home() {
 
   const ativos = data?.ativos || EMPTY_ASSETS;
   const categorias = data?.categorias || EMPTY_CATEGORIES;
-  const alertas = data?.alertas || EMPTY_ALERTS;
 
   const handleFixAsset = useCallback((assetId: number) => {
     handlers.handleFixAsset(assetId, ativos);
@@ -113,7 +101,7 @@ export default function Home() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-surface text-text-primary font-sans selection:bg-blue-500/30 pb-6 relative">
+      <main className="min-h-screen flex flex-col bg-surface text-text-primary font-sans selection:bg-blue-500/30 pb-3 relative">
         <Header
           total={0}
           ativos={EMPTY_ASSETS}
@@ -125,7 +113,7 @@ export default function Home() {
           onManualRefresh={handleManualRefresh}
           onOpenSmartModal={handlers.handleOpenSmartModal}
           onOpenAddModal={handlers.handleOpenAddModal}
-          onOpenCorporateAction={() => {}}
+          onOpenCorporateAction={() => { }}
           onFixAsset={handleFixAsset}
           loading={true}
           isRefetching={false}
@@ -137,7 +125,7 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-surface text-text-primary font-sans selection:bg-blue-500/30 pb-6 relative">
+    <main className="min-h-screen flex flex-col bg-surface text-text-primary font-sans selection:bg-blue-500/30 pb-3 relative">
       <Header
         total={data?.resumo?.Total || 0}
         ativos={ativos}
@@ -164,8 +152,8 @@ export default function Home() {
         onPrefetch={prefetchTabChunk}
       />
 
-      <div id="main-content" tabIndex={-1} className="max-w-7xl mx-auto p-4 md:p-6 outline-none">
-        
+      <div id="main-content" tabIndex={-1} className="flex-1 flex flex-col w-full max-w-7xl mx-auto px-4 lg:px-6 py-4 outline-none">
+
         <ErrorBoundary>
           <DashboardTabContent
             tab={tab}
@@ -174,7 +162,6 @@ export default function Home() {
             ativos={ativos}
             categorias={categorias}
             history={history}
-            onOpenRadar={openRadarModal}
             onUpdate={refetch}
           />
         </ErrorBoundary>
@@ -209,15 +196,8 @@ export default function Home() {
 
         <SyncStatusIndicators syncStatus={syncStatus} fundamentalsStatus={fundamentalsStatus} />
 
-        <div className="text-center text-[11px] text-text-muted/60 mt-6 mb-1">AssetFlow v{packageJson.version}</div>
+        <div className="mt-auto pt-4 text-center text-[11px] text-text-muted/60">AssetFlow v{packageJson.version}</div>
       </div>
-
-
-      {isRadarModalOpen && (
-        <ErrorBoundary>
-          <RiskRadarModal isOpen={true} onClose={closeRadarModal} alertas={alertas} />
-        </ErrorBoundary>
-      )}
     </main>
   );
 }

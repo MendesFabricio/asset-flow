@@ -10,6 +10,10 @@ interface CorrelationResponse {
   tickers: string[];
   categories: string[];
   matrix: number[][];
+  window?: string;
+  observations?: number;
+  dropped_tickers?: string[];
+  top_hedges?: Array<{ pair: string; corr: number }>;
 }
 
 export const CorrelationHeatmap = React.memo(function CorrelationHeatmap() {
@@ -132,20 +136,30 @@ export const CorrelationHeatmap = React.memo(function CorrelationHeatmap() {
         </div>
       </div>
 
-      {/* Legenda */}
-      <div className="flex items-center gap-4 mt-6 pt-4 border-t border-slate-800/80 text-[10px] font-medium text-slate-500 uppercase tracking-wider">
-        <div className="flex items-center gap-1.5">
-          <div className="w-2.5 h-2.5 bg-emerald-500/80 rounded" />
-          <span>Forte Correlação (+)</span>
+      {/* Legenda & Metadados */}
+      <div className="flex flex-wrap items-center justify-between gap-4 mt-6 pt-4 border-t border-border-subtle text-[10px] font-medium text-text-muted uppercase tracking-wider">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-1.5">
+            <div className="w-2.5 h-2.5 bg-emerald-500/80 rounded" />
+            <span>Forte Correlação (+)</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-2.5 h-2.5 bg-surface-input rounded border border-border-subtle" />
+            <span>Diagonal (1,00)</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-2.5 h-2.5 bg-red-500/80 rounded" />
+            <span>Forte Correlação (-)</span>
+          </div>
         </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-2.5 h-2.5 bg-surface-input rounded border border-slate-700" />
-          <span>Diagonal (Mesmo Ativo)</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-2.5 h-2.5 bg-red-500/80 rounded" />
-          <span>Forte Correlação (-)</span>
-        </div>
+        {(data.observations || (data.top_hedges && data.top_hedges.length > 0)) && (
+          <div className="flex flex-wrap items-center gap-3 normal-case text-[11px] text-text-muted">
+            {data.observations && <span>Janela: {data.window || '1y'} ({data.observations} pregões)</span>}
+            {data.top_hedges && data.top_hedges[0] && (
+              <span>Melhor Hedge: <strong className="text-text-primary">{data.top_hedges[0].pair}</strong> ({data.top_hedges[0].corr.toFixed(2).replace('.', ',')})</span>
+            )}
+          </div>
+        )}
       </div>
     </Card>
   );

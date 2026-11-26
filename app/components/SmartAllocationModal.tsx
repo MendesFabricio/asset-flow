@@ -1,6 +1,6 @@
 'use client';
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { Calculator, Sparkles, AlertTriangle, Activity, RefreshCw, Coins } from 'lucide-react';
+import { Calculator, Sparkles, AlertTriangle, Activity, RefreshCw, Coins, Wallet } from 'lucide-react';
 
 import { formatMoney } from '../lib/format';
 import { apiCall } from '../lib/api';
@@ -20,8 +20,20 @@ interface ServerSuggestion {
   lot_size: number;
   score: number;
   corr_penalty: number;
+  wilson_lb_95?: number | null;
   ai_sentiment?: 'Positivo' | 'Neutro' | 'Negativo' | string | null;
   rationale: string;
+}
+
+interface FreeCashBridgeData {
+  status: string;
+  components?: {
+    dividends_30d?: number;
+    receivables_30d?: number;
+    receivables_overdue_excluded?: number;
+  };
+  net_free_cash_30d?: number;
+  reserve_gap?: number;
 }
 
 interface ServerRebalanceResult {
@@ -45,8 +57,12 @@ export const SmartAllocationModal = ({ isOpen, onClose, ativos = [] }: SmartAllo
   const { isHidden } = usePrivacy() as { isHidden: boolean };
   const [amountStr, setAmountStr] = useState('');
   const [reinvestDividends, setReinvestDividends] = useState(true);
+  const [includeReceivables, setIncludeReceivables] = useState(false);
   const [maxAssetPct, setMaxAssetPct] = useState<string>('20');
   const [monthDividends, setMonthDividends] = useState(0);
+  const [receivables30d, setReceivables30d] = useState(0);
+  const [overdueExcluded, setOverdueExcluded] = useState(0);
+  const [reserveGap, setReserveGap] = useState(0);
   const [serverResult, setServerResult] = useState<ServerRebalanceResult | null>(null);
   const [serverLoading, setServerLoading] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -54,18 +70,22 @@ export const SmartAllocationModal = ({ isOpen, onClose, ativos = [] }: SmartAllo
   useEffect(() => {
     if (!isOpen) return;
     let active = true;
-    const now = new Date();
-    const ymPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    apiCall<{ date?: string; total?: number }[]>('/api/dividends/history')
-      .then((rows) => {
-        if (!active || !Array.isArray(rows)) return;
-        const sum = rows
-          .filter((d) => d.date && d.date.startsWith(ymPrefix))
-          .reduce((acc, d) => acc + (Number(d.total) || 0), 0);
-        setMonthDividends(Number(sum.toFixed(2)));
+    apiCall<FreeCashBridgeData>('/api/cashflow/free-cash-bridge?window_days=30')
+      .then((res) => {
+        if (!active || res?.status !== 'Sucesso') return;
+        const div30 = Number(res.components?.dividends_30d || 0);
+        const rec30 = Number(res.components?.receivables_30d || 0);
+        setMonthDividends(Number(div30.toFixed(2)));
+        setReceivables30d(Number(rec30.toFixed(2)));
+        setOverdueExcluded(Number((res.components?.receivables_overdue_excluded || 0).toFixed(2)));
+        setReserveGap(Number((res.reserve_gap || 0).toFixed(2)));
       })
       .catch(() => {
-        if (active) setMonthDividends(0);
+        if (active) {
+          setMonthDividends(0);
+          setReceivables30d(0);
+          setOverdueExcluded(0);
+        }
       });
     return () => {
       active = false;
@@ -110,10 +130,11 @@ export const SmartAllocationModal = ({ isOpen, onClose, ativos = [] }: SmartAllo
 
   const baseInput = parseCurrency(amountStr);
   const extraDividends = reinvestDividends ? monthDividends : 0;
-  const effectiveContribution = baseInput + extraDividends;
+  const extraReceivables = includeReceivables ? receivables30d : 0;
+  const effectiveContribution = baseInput + extraDividends + extraReceivables;
 
   const handleSimulate = useCallback(async () => {
-    const amount = parseCurrency(amountStr) + (reinvestDividends ? monthDividends : 0);
+    const amount = parseCurrency(amountStr) + (reinvestDividends ? monthDividends : 0) + (includeReceivables ? receivables30d : 0);
     if (!amount || amount <= 0) return;
     setServerLoading(true);
     setServerError(null);
@@ -133,7 +154,7 @@ export const SmartAllocationModal = ({ isOpen, onClose, ativos = [] }: SmartAllo
     } finally {
       setServerLoading(false);
     }
-  }, [amountStr, reinvestDividends, monthDividends, maxAssetPct]);
+  }, [amountStr, reinvestDividends, includeReceivables, monthDividends, receivables30d, maxAssetPct]);
 
   const estimatedPassiveDelta = useMemo(() => {
     if (!serverResult) return 0;
@@ -177,7 +198,7 @@ export const SmartAllocationModal = ({ isOpen, onClose, ativos = [] }: SmartAllo
                 <div>
                   <p className="text-[10px] font-bold text-amber-400 uppercase">Proteção de Capital</p>
                   <p className="text-[10px] text-amber-200/70 leading-tight">
-                    <b>{formatMoney(sobra)}</b> preservados. Motivos: Efeito de arredondamento de lotes/unidades (compras apenas em unidades inteiras, com exceção da aba Reserva).
+                    <b>{maskMoney(sobra)}</b> preservados. Motivos: Efeito de arredondamento de lotes/unidades (compras apenas em unidades inteiras, com exceção da aba Reserva).
                   </p>
                 </div>
               </div>
@@ -256,19 +277,51 @@ export const SmartAllocationModal = ({ isOpen, onClose, ativos = [] }: SmartAllo
               </select>
             </div>
 
-            {monthDividends > 0 && (
-              <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-3.5 py-2">
-                <input
-                  type="checkbox"
-                  checked={reinvestDividends}
-                  onChange={(e) => setReinvestDividends(e.target.checked)}
-                  className="accent-emerald-500 rounded"
-                />
-                <Coins size={14} className="text-emerald-400" />
-                <span>
-                  Reinvestir proventos do mês (<strong>+{maskMoney(monthDividends)}</strong>)
-                </span>
-              </label>
+            {(monthDividends > 0 || receivables30d > 0) && (
+              <div className="w-full max-w-sm bg-surface-elevated border border-border-subtle rounded-xl p-3 space-y-2">
+                <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-text-secondary">
+                  <span className="flex items-center gap-1.5">
+                    <Wallet size={13} className="text-emerald-400" />
+                    Ponte de Caixa Livre (30d)
+                  </span>
+                  <span className="font-mono text-emerald-400">
+                    {maskMoney(monthDividends + receivables30d)}
+                  </span>
+                </div>
+                {monthDividends > 0 && (
+                  <label className="flex items-center gap-2 text-xs text-text-secondary cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={reinvestDividends}
+                      onChange={(e) => setReinvestDividends(e.target.checked)}
+                      className="accent-emerald-500 rounded"
+                    />
+                    <Coins size={13} className="text-emerald-400 shrink-0" />
+                    <span>
+                      Proventos provisionados 30d (<strong>+{maskMoney(monthDividends)}</strong>)
+                    </span>
+                  </label>
+                )}
+                {receivables30d > 0 && (
+                  <label className="flex items-center gap-2 text-xs text-text-secondary cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={includeReceivables}
+                      onChange={(e) => setIncludeReceivables(e.target.checked)}
+                      className="accent-blue-500 rounded"
+                    />
+                    <span>
+                      Contas a Receber 30d (<strong>+{maskMoney(receivables30d)}</strong>)
+                    </span>
+                  </label>
+                )}
+                {(overdueExcluded > 0 || reserveGap > 0) && (
+                  <p className="text-[10px] text-text-muted leading-tight">
+                    {overdueExcluded > 0 ? `Vencidos excluídos: ${maskMoney(overdueExcluded)}. ` : ''}
+                    {reserveGap > 0 ? `Gap Reserva: ${maskMoney(reserveGap)}.` : ''}
+                  </p>
+                )}
+              </div>
             )}
 
             <button
@@ -333,8 +386,13 @@ export const SmartAllocationModal = ({ isOpen, onClose, ativos = [] }: SmartAllo
                           onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
                         />
                         <div>
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
                             <p className="font-bold text-text-primary text-sm">{s.ticker}</p>
+                            {typeof s.wilson_lb_95 === 'number' && s.wilson_lb_95 > 0 && (
+                              <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-full border bg-blue-500/10 text-blue-400 border-blue-500/30">
+                                WLB {(s.wilson_lb_95 * 100).toFixed(0)}%
+                              </span>
+                            )}
                             {s.ai_sentiment && (() => {
                               const sentKey = s.ai_sentiment.trim().toLowerCase();
                               return (

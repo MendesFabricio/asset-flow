@@ -28,16 +28,6 @@ class MarketData(Base):
         Index('idx_market_data_asset_date', 'asset_id', 'date'),
     )
 
-class AuditLog(Base):
-    __tablename__ = "audit_logs"
-    id = Column(Integer, primary_key=True)
-    tabela_afetada = Column(String, nullable=False)
-    registro_id = Column(Integer, nullable=False)
-    campo_alterado = Column(String, nullable=False)
-    valor_antigo = Column(String, nullable=True)
-    valor_novo = Column(String, nullable=True)
-    alterado_em = Column(DateTime, default=datetime.now)
-
 class PriceAlert(Base):
     __tablename__ = "price_alerts"
 
@@ -359,14 +349,6 @@ def init_db():
                 "job_type": "cron",
                 "interval_minutes": None,
                 "cron_expression": "0 8 * * *",
-                "is_active": True,
-            },
-            {
-                "name": "scheduled_morning_brief_generation",
-                "description": "Gera Morning Briefing proativo",
-                "job_type": "cron",
-                "interval_minutes": None,
-                "cron_expression": "0 7 * * *",
                 "is_active": True,
             },
         ]

@@ -47,11 +47,13 @@ def get_correlation_matrix(session, fetch_prices, allow_compute=True) -> dict:
 
     prices = prices.dropna(axis=1, how="all")
     prices = _align_prices_to_b3(prices)
-    prices = prices[[c for c in prices.columns if prices[c].count() >= 30]]
+    kept_cols = [c for c in prices.columns if prices[c].count() >= 30]
+    dropped = [tickers_map.get(c, c) for c in prices.columns if c not in kept_cols]
+    prices = prices[kept_cols]
     if prices.shape[1] < 2:
         return {"status": "Erro", "msg": "Dados insuficientes para correlação."}
 
-    ret = prices.pct_change().dropna()
+    ret = np.log(prices / prices.shift(1)).replace([np.inf, -np.inf], np.nan).dropna()
     if ret.shape[0] < 30:
         return {"status": "Erro", "msg": f"Apenas {ret.shape[0]} pregões comuns."}
 
@@ -73,7 +75,14 @@ def get_correlation_matrix(session, fetch_prices, allow_compute=True) -> dict:
                 "value": round(float(v), 2),
             })
 
-    result = {"status": "Sucesso", "labels": labels, "matrix": matrix}
+    result = {
+        "status": "Sucesso",
+        "labels": labels,
+        "matrix": matrix,
+        "window": "1y",
+        "observations": int(ret.shape[0]),
+        "dropped_tickers": dropped,
+    }
 
     try:
         from db.models import SystemCache, safe_commit
@@ -117,7 +126,9 @@ def calculate_sector_correlation(session, fetch_prices) -> dict:
     raw = fetch_prices(list(set(tickers_yf)), period="1y")
     prices = _extract_close_prices(raw)
     prices = _align_prices_to_b3(prices)
-    prices = prices[[c for c in prices.columns if prices[c].count() >= 30]]
+    kept_cols = [c for c in prices.columns if prices[c].count() >= 30]
+    dropped_yf = set(prices.columns) - set(kept_cols)
+    prices = prices[kept_cols]
     
     if prices.shape[1] < 2:
         return {
@@ -127,7 +138,14 @@ def calculate_sector_correlation(session, fetch_prices) -> dict:
             "matrix": [[1.0] * len(tickers_clean) for _ in tickers_clean]
         }
         
-    returns = prices.pct_change().dropna(how="all")
+    returns = np.log(prices / prices.shift(1)).replace([np.inf, -np.inf], np.nan).dropna()
+    if returns.empty:
+        return {
+            "status": "Sucesso",
+            "tickers": tickers_clean,
+            "categories": categories,
+            "matrix": [[1.0] * len(tickers_clean) for _ in tickers_clean]
+        }
     decay_factor = 0.94
     alpha_ewma = 1.0 - decay_factor
     ewma_corr_df = returns.ewm(alpha=alpha_ewma).corr()
@@ -144,22 +162,32 @@ def calculate_sector_correlation(session, fetch_prices) -> dict:
             final_categories.append(cat)
             
     matrix_data = []
-    for t_row in sorted_assets:
+    pairs = []
+    for r_idx, t_row in enumerate(sorted_assets):
         row_yf = t_row[0]
         if row_yf not in corr_matrix.columns:
             continue
         row_values = []
-        for t_col in sorted_assets:
+        for c_idx, t_col in enumerate(sorted_assets):
             col_yf = t_col[0]
             if col_yf not in corr_matrix.columns:
                 continue
             corr_val = float(corr_matrix.loc[row_yf, col_yf])
             row_values.append(round(corr_val, 4))
+            if r_idx < c_idx:
+                pairs.append({"pair": f"{t_row[1]} / {t_col[1]}", "corr": round(corr_val, 2)})
         matrix_data.append(row_values)
-        
+
+    pairs_sorted = sorted(pairs, key=lambda x: x["corr"])
+    dropped_clean = [clean for yf_t, clean, _ in sorted_assets if yf_t in dropped_yf or yf_t not in corr_matrix.columns]
     return {
         "status": "Sucesso",
         "tickers": final_tickers,
         "categories": final_categories,
-        "matrix": matrix_data
+        "matrix": matrix_data,
+        "window": "1y",
+        "observations": int(returns.shape[0]),
+        "dropped_tickers": dropped_clean,
+        "top_hedges": pairs_sorted[:3],
+        "top_correlated": list(reversed(pairs_sorted[-3:])),
     }

@@ -145,61 +145,6 @@ class PaymentTransaction(Base):
     installment = relationship("LoanInstallment", back_populates="transactions")
     user = relationship("User", back_populates="payment_transactions")
 
-class CreditCard(Base):
-    __tablename__ = "credit_cards"
-    id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"), nullable=False, index=True)
-    name = Column(String, nullable=False)
-    limit = Column(Numeric(18, 4), nullable=False)
-    closing_day = Column(Integer, nullable=False)
-    due_day = Column(Integer, nullable=False)
-    is_deleted = Column(Boolean, default=False)
-
-    expenses = relationship("CardExpense", back_populates="card", cascade="all, delete-orphan")
-    user = relationship("User", back_populates="credit_cards")
-
-    __table_args__ = (
-        Index('idx_credit_cards_user_deleted', 'user_id', 'is_deleted'),
-    )
-
-class CardExpense(Base):
-    __tablename__ = "card_expenses"
-    id = Column(Integer, primary_key=True)
-    card_id = Column(Integer, ForeignKey('credit_cards.id', ondelete="CASCADE"), nullable=False)
-    user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"), nullable=False, index=True)
-    description = Column(String, nullable=False)
-    total_value = Column(Numeric(18, 4), nullable=False)
-    installments_count = Column(Integer, default=1)
-    date = Column(DateTime, default=datetime.now)
-    is_deleted = Column(Boolean, default=False)
-
-    card = relationship("CreditCard", back_populates="expenses")
-    installments = relationship("CardInstallment", back_populates="expense", cascade="all, delete-orphan")
-    user = relationship("User", back_populates="card_expenses")
-
-    __table_args__ = (
-        Index('idx_card_expenses_user_deleted', 'user_id', 'is_deleted'),
-    )
-
-class CardInstallment(Base):
-    __tablename__ = "card_installments"
-    id = Column(Integer, primary_key=True)
-    expense_id = Column(Integer, ForeignKey('card_expenses.id', ondelete="CASCADE"), nullable=False)
-    user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"), nullable=False, index=True)
-    installment_number = Column(Integer, nullable=False)
-    value = Column(Numeric(18, 4), nullable=False)
-    due_date = Column(DateTime, nullable=False)
-    status = Column(String, default="PENDING")
-    invoice_month = Column(String, nullable=False)
-    is_deleted = Column(Boolean, default=False)
-
-    expense = relationship("CardExpense", back_populates="installments")
-    user = relationship("User", back_populates="card_installments")
-
-    __table_args__ = (
-        Index('idx_card_installments_user_deleted', 'user_id', 'is_deleted'),
-    )
-
 class FixedIncome(Base):
     __tablename__ = "fixed_income"
     id = Column(Integer, primary_key=True)

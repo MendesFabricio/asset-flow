@@ -1,12 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { BellRing, History, Loader2, RefreshCw } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts';
+import { BellRing, History, Loader2, RefreshCw, ShieldCheck, Activity } from 'lucide-react';
 import { apiCall } from '@/lib/api';
 import { formatMoney } from '@/lib/format';
 import { useChartPalette } from '@/lib/chartPalette';
 import { PrivateValue } from '@/components/ui/PrivateValue';
+import { SignalExplainabilityCard, SignalOpportunityV2 } from './SignalExplainabilityCard';
 
 interface SignalHistoryItem {
   ticker: string;
@@ -66,14 +67,34 @@ function fmtRet(v: number | null) {
   return `${v > 0 ? '+' : ''}${v.toFixed(1)}%`;
 }
 
+interface SignalV2OpportunitiesResponse {
+  status: string;
+  regime?: {
+    composite_regime?: string;
+    label?: string;
+    selic_annual?: number;
+  };
+  calibration_summary?: {
+    total_audited?: number;
+    brier_score?: number | null;
+    observed_hit_rate?: number | null;
+  };
+  opportunities?: SignalOpportunityV2[];
+}
+
 export function SignalsBookView({ onSelectTicker }: { onSelectTicker: (ticker: string) => void }) {
   const palette = useChartPalette();
   const [tickerFilter, setTickerFilter] = useState('');
   const [debouncedTicker, setDebouncedTicker] = useState('');
+  const [universeFilter, setUniverseFilter] = useState<'all' | 'portfolio' | 'market'>('all');
+  const [horizonDays, setHorizonDays] = useState<30 | 90 | 180>(90);
   const [latestOnly, setLatestOnly] = useState(true);
+  const [showAuditHistory, setShowAuditHistory] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [recalibrating, setRecalibrating] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [data, setData] = useState<SignalHistoryResponse | null>(null);
+  const [v2Data, setV2Data] = useState<SignalV2OpportunitiesResponse | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -89,18 +110,42 @@ export function SignalsBookView({ onSelectTicker }: { onSelectTicker: (ticker: s
       const qs = debouncedTicker
         ? `?ticker=${encodeURIComponent(debouncedTicker)}&limit=300`
         : '?limit=300';
-      const res = await apiCall<SignalHistoryResponse>(`/api/valuation/signals/history${qs}`);
+      const v2Params = new URLSearchParams({ horizon: String(horizonDays) });
+      if (debouncedTicker) v2Params.set('ticker', debouncedTicker);
+      if (universeFilter !== 'all') v2Params.set('universe', universeFilter);
+      const [res, resV2] = await Promise.all([
+        apiCall<SignalHistoryResponse>(`/api/valuation/signals/history${qs}`),
+        apiCall<SignalV2OpportunitiesResponse>(`/api/signals/v2/opportunities?${v2Params.toString()}`).catch(() => null),
+      ]);
       if (res.status === 'Sucesso') {
         setData(res);
       } else {
         setErrorMsg('Não foi possível carregar o Livro de Sinais.');
+      }
+      if (resV2 && resV2.status === 'Sucesso') {
+        setV2Data(resV2);
       }
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : 'Erro ao carregar Livro de Sinais.');
     } finally {
       setLoading(false);
     }
-  }, [debouncedTicker]);
+  }, [debouncedTicker, horizonDays, universeFilter]);
+
+  const handleRecalibrate = useCallback(async () => {
+    setRecalibrating(true);
+    try {
+      await apiCall('/api/signals/v2/recalibrate', {
+        method: 'POST',
+        body: JSON.stringify({ sync_prices: true }),
+      });
+      await loadHistory();
+    } catch {
+      setErrorMsg('Falha ao recalibrar o motor estatístico.');
+    } finally {
+      setRecalibrating(false);
+    }
+  }, [loadHistory]);
 
   useEffect(() => {
     loadHistory();
@@ -156,11 +201,10 @@ export function SignalsBookView({ onSelectTicker }: { onSelectTicker: (ticker: s
           <button
             type="button"
             onClick={() => setLatestOnly((prev) => !prev)}
-            className={`px-3 py-1.5 rounded-lg border text-xs font-bold transition-colors ${
-              latestOnly
+            className={`px-3 py-1.5 rounded-lg border text-xs font-bold transition-colors ${latestOnly
                 ? 'bg-accent-soft border-accent/40 text-accent'
                 : 'bg-surface-elevated border-border-subtle text-text-muted hover:text-text-primary'
-            }`}
+              }`}
             title="Alternar entre apenas o último sinal de cada ativo ou todo o histórico diário"
           >
             {latestOnly ? 'Último por ativo' : 'Histórico diário'}
@@ -181,8 +225,108 @@ export function SignalsBookView({ onSelectTicker }: { onSelectTicker: (ticker: s
           >
             {loading ? <Loader2 size={12} className="animate-spin text-accent" /> : <RefreshCw size={12} />} Atualizar
           </button>
+          <button
+            type="button"
+            disabled={recalibrating}
+            onClick={handleRecalibrate}
+            className="px-3 py-1.5 rounded-lg bg-accent-soft border border-accent/40 text-xs font-bold text-accent hover:bg-accent/20 flex items-center gap-1 disabled:opacity-50"
+          >
+            {recalibrating ? <Loader2 size={12} className="animate-spin" /> : <ShieldCheck size={12} />}
+            Recalibrar Walk-Forward
+          </button>
         </div>
       </div>
+
+      {/* Painel v2: Regime Macro, Brier Score & Cards de Explicabilidade */}
+      {v2Data && (
+        <div className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="bg-surface-card border border-border-subtle rounded-2xl p-3.5 md:col-span-2 flex items-center justify-between gap-3">
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+                  <Activity size={12} className="text-accent" /> Regime de Mercado Vigente
+                </div>
+                <div className="text-sm font-bold text-text-primary mt-0.5">
+                  {v2Data.regime?.label || v2Data.regime?.composite_regime || 'Calculando regime...'}
+                </div>
+              </div>
+              {v2Data.regime?.selic_annual != null && (
+                <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-lg bg-surface-elevated border border-border-subtle text-accent">
+                  Selic {(v2Data.regime.selic_annual * 100).toFixed(2)}%
+                </span>
+              )}
+            </div>
+            <div className="bg-surface-card border border-border-subtle rounded-2xl p-3.5 flex items-center justify-between gap-2">
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-wider text-text-muted">Brier Score (90d)</div>
+                <div className="text-sm font-mono font-bold text-text-primary mt-0.5">
+                  {v2Data.calibration_summary?.brier_score != null
+                    ? v2Data.calibration_summary.brier_score.toFixed(3)
+                    : 'Aguardando M ≥ 1'}
+                </div>
+              </div>
+              <div className="text-right text-[10px] text-text-muted">
+                <div>{v2Data.calibration_summary?.total_audited ?? 0} auditoria(s)</div>
+                {v2Data.calibration_summary?.observed_hit_rate != null && (
+                  <div>Acerto real: {(v2Data.calibration_summary.observed_hit_rate * 100).toFixed(1)}%</div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {v2Data.opportunities && v2Data.opportunities.length > 0 && (
+            <div className="space-y-2.5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5">
+                  {([
+                    { id: 'all', label: 'Todos (Carteira + Líquidas)' },
+                    { id: 'portfolio', label: 'Minha Carteira' },
+                    { id: 'market', label: 'Mercado (Alta Liquidez)' },
+                  ] as const).map((u) => (
+                    <button
+                      key={u.id}
+                      type="button"
+                      onClick={() => setUniverseFilter(u.id)}
+                      className={`px-2.5 py-1 rounded-lg border text-[11px] font-bold transition-colors ${
+                        universeFilter === u.id
+                          ? 'bg-accent-soft border-accent/40 text-accent'
+                          : 'bg-surface-card border-border-subtle text-text-muted hover:text-text-primary'
+                      }`}
+                    >
+                      {u.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-1">
+                  {([30, 90, 180] as const).map((h) => (
+                    <button
+                      key={h}
+                      type="button"
+                      onClick={() => setHorizonDays(h)}
+                      className={`px-2 py-1 rounded-lg border text-[11px] font-mono font-bold transition-colors ${
+                        horizonDays === h
+                          ? 'bg-accent-soft border-accent/40 text-accent'
+                          : 'bg-surface-card border-border-subtle text-text-muted hover:text-text-primary'
+                      }`}
+                    >
+                      {h}d
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                {v2Data.opportunities.slice(0, 10).map((opp) => (
+                  <SignalExplainabilityCard
+                    key={`${opp.ticker}-${opp.setup_code}`}
+                    opportunity={opp}
+                    onSelectTicker={onSelectTicker}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {loading && !data && (
         <div className="bg-surface-card border border-border-subtle rounded-2xl p-10 flex items-center justify-center gap-2 text-xs text-text-muted">
@@ -197,8 +341,24 @@ export function SignalsBookView({ onSelectTicker }: { onSelectTicker: (ticker: s
         </div>
       )}
 
-      {/* Gráfico de Backtest / Distribuição por Status */}
-      {chartRows.length > 0 && (
+      <div className="flex items-center justify-between pt-2 border-t border-border-subtle">
+        <span className="text-xs text-text-muted">
+          Auditoria histórica de snapshots ({data?.summary?.total || 0} registros)
+        </span>
+        <button
+          type="button"
+          onClick={() => setShowAuditHistory((prev) => !prev)}
+          aria-expanded={showAuditHistory}
+          className="px-3 py-1.5 rounded-lg bg-surface-card border border-border-subtle text-xs font-bold text-text-secondary hover:text-text-primary hover:border-accent transition-colors"
+        >
+          {showAuditHistory ? 'Ocultar Auditoria & Histórico' : 'Ver Auditoria & Histórico Completo'}
+        </button>
+      </div>
+
+      {showAuditHistory && (
+        <>
+          {/* Gráfico de Backtest / Distribuição por Status */}
+          {chartRows.length > 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="lg:col-span-2 bg-surface-card border border-border-subtle rounded-2xl p-4">
             <div className="flex items-center justify-between mb-3">
@@ -216,7 +376,10 @@ export function SignalsBookView({ onSelectTicker }: { onSelectTicker: (ticker: s
                 <BarChart data={chartRows} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke={palette.grid} vertical={false} />
                   <XAxis dataKey="status" stroke={palette.axis} fontSize={10} tickLine={false} axisLine={false} tickFormatter={(v) => String(v).replaceAll('_', ' ')} />
-                  <YAxis stroke={palette.axis} fontSize={10} tickLine={false} axisLine={false} />
+                  <YAxis yAxisId="left" stroke={palette.axis} fontSize={10} tickLine={false} axisLine={false} tickFormatter={(v) => hasAnyForwardReturns ? `${v}%` : `${v}`} />
+                  {!hasAnyForwardReturns && (
+                    <YAxis yAxisId="right" orientation="right" stroke={palette.axis} fontSize={10} tickLine={false} axisLine={false} domain={[0, 100]} />
+                  )}
                   <Tooltip
                     contentStyle={{
                       backgroundColor: palette.tooltipBg,
@@ -228,14 +391,15 @@ export function SignalsBookView({ onSelectTicker }: { onSelectTicker: (ticker: s
                   <Legend wrapperStyle={{ fontSize: '10px' }} />
                   {hasAnyForwardReturns ? (
                     <>
-                      <Bar dataKey="ret_30d" name="Retorno 30d (%)" fill="#3b82f6" radius={[4, 4, 0, 0]} animationDuration={250} />
-                      <Bar dataKey="ret_90d" name="Retorno 90d (%)" fill="#10b981" radius={[4, 4, 0, 0]} animationDuration={250} />
-                      <Bar dataKey="ret_180d" name="Retorno 180d (%)" fill="#8b5cf6" radius={[4, 4, 0, 0]} animationDuration={250} />
+                      <ReferenceLine yAxisId="left" y={0} stroke={palette.axis} strokeOpacity={0.5} />
+                      <Bar yAxisId="left" dataKey="ret_30d" name="Retorno 30d (%)" fill="#3b82f6" radius={[4, 4, 0, 0]} animationDuration={250} />
+                      <Bar yAxisId="left" dataKey="ret_90d" name="Retorno 90d (%)" fill="#10b981" radius={[4, 4, 0, 0]} animationDuration={250} />
+                      <Bar yAxisId="left" dataKey="ret_180d" name="Retorno 180d (%)" fill="#8b5cf6" radius={[4, 4, 0, 0]} animationDuration={250} />
                     </>
                   ) : (
                     <>
-                      <Bar dataKey="count" name="Qtd. Ativos" fill="#3b82f6" radius={[4, 4, 0, 0]} animationDuration={250} />
-                      <Bar dataKey="avg_score" name="Score Médio" fill="#10b981" radius={[4, 4, 0, 0]} animationDuration={250} />
+                      <Bar yAxisId="left" dataKey="count" name="Qtd. Ativos" fill="#3b82f6" radius={[4, 4, 0, 0]} animationDuration={250} />
+                      <Bar yAxisId="right" dataKey="avg_score" name="Score Médio" fill="#10b981" radius={[4, 4, 0, 0]} animationDuration={250} />
                     </>
                   )}
                 </BarChart>
@@ -331,6 +495,8 @@ export function SignalsBookView({ onSelectTicker }: { onSelectTicker: (ticker: s
           </table>
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 }

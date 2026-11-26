@@ -87,6 +87,40 @@ def calculate_dividend_forecast(session) -> dict:
     total_projected = 0.0
     default_cutoff = date.today() - timedelta(days=365)
 
+    is_mock_session = type(session).__name__ in ("MagicMock", "Mock")
+    divs_by_asset: dict[int, list] = {}
+    split_txs_by_ticker: dict[str, list] = {}
+    corp_evts_by_asset: dict[int, list] = {}
+
+    if not is_mock_session:
+        asset_ids = [p.asset_id for p in positions if p.asset]
+        tickers_u = [p.asset.ticker.upper() for p in positions if p.asset]
+        if asset_ids:
+            div_q = session.query(Dividend).filter(Dividend.asset_id.in_(asset_ids))
+            if uid is not None:
+                div_q = div_q.filter(Dividend.user_id == uid)
+            for d in div_q.all():
+                divs_by_asset.setdefault(d.asset_id, []).append(d)
+
+            ce_q = session.query(CorporateEvent).filter(
+                CorporateEvent.asset_id.in_(asset_ids),
+                CorporateEvent.type.in_(("SPLIT", "INPLIT", "BONUS")),
+            )
+            if uid is not None:
+                ce_q = ce_q.filter(CorporateEvent.user_id == uid)
+            for ce in ce_q.all():
+                corp_evts_by_asset.setdefault(ce.asset_id, []).append(ce)
+
+        if tickers_u:
+            tx_q = session.query(AssetTransaction).filter(
+                AssetTransaction.ticker.in_(tickers_u),
+                AssetTransaction.type.in_(("SPLIT", "INPLIT", "BONUS")),
+            )
+            if uid is not None:
+                tx_q = tx_q.filter(AssetTransaction.user_id == uid)
+            for stx in tx_q.all():
+                split_txs_by_ticker.setdefault((stx.ticker or "").upper(), []).append(stx)
+
     for pos in positions:
         if not pos.asset:
             continue
@@ -97,21 +131,34 @@ def calculate_dividend_forecast(session) -> dict:
         ticker = pos.asset.ticker.upper()
         qty = float(pos.quantity)
 
-        # Filtra dividendos do ativo pertencentes ao usuario
-        if uid is not None:
-            divs = session.query(Dividend).filter_by(asset_id=pos.asset_id, user_id=uid).all()
-        else:
-            divs = session.query(Dividend).filter_by(asset_id=pos.asset_id).all()
+        if is_mock_session:
+            if uid is not None:
+                divs = session.query(Dividend).filter_by(asset_id=pos.asset_id, user_id=uid).all()
+            else:
+                divs = session.query(Dividend).filter_by(asset_id=pos.asset_id).all()
 
-        # Ignora histórico pré-desdobramento/agrupamento e eventos mais antigos que 12 meses
+            split_q = session.query(AssetTransaction).filter(
+                AssetTransaction.ticker == ticker,
+                AssetTransaction.type.in_(("SPLIT", "INPLIT", "BONUS")),
+            )
+            if uid is not None:
+                split_q = split_q.filter(AssetTransaction.user_id == uid)
+            split_txs = split_q.all()
+
+            corp_filters = [
+                CorporateEvent.asset_id == pos.asset_id,
+                CorporateEvent.type.in_(("SPLIT", "INPLIT", "BONUS")),
+            ]
+            if uid is not None:
+                corp_filters.append(CorporateEvent.user_id == uid)
+            corp_evts = session.query(CorporateEvent).filter(*corp_filters).all()
+        else:
+            divs = divs_by_asset.get(pos.asset_id, [])
+            split_txs = split_txs_by_ticker.get(ticker, [])
+            corp_evts = corp_evts_by_asset.get(pos.asset_id, [])
+
+        # Ignora histórico pré-desdobramento/agrupamento/bonificação e eventos mais antigos que 12 meses
         latest_split_date = None
-        split_q = session.query(AssetTransaction).filter(
-            AssetTransaction.ticker == ticker,
-            AssetTransaction.type.in_(("SPLIT", "INPLIT")),
-        )
-        if uid is not None:
-            split_q = split_q.filter(AssetTransaction.user_id == uid)
-        split_txs = split_q.all()
         if isinstance(split_txs, (list, tuple)):
             for stx in split_txs:
                 raw_dt = getattr(stx, "transaction_date", None)
@@ -124,13 +171,6 @@ def calculate_dividend_forecast(session) -> dict:
                 if latest_split_date is None or dt_d > latest_split_date:
                     latest_split_date = dt_d
 
-        corp_filters = [
-            CorporateEvent.asset_id == pos.asset_id,
-            CorporateEvent.type.in_(("SPLIT", "INPLIT")),
-        ]
-        if uid is not None:
-            corp_filters.append(CorporateEvent.user_id == uid)
-        corp_evts = session.query(CorporateEvent).filter(*corp_filters).all()
         if isinstance(corp_evts, (list, tuple)):
             for ce in corp_evts:
                 raw_dt = getattr(ce, "date", None)

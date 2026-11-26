@@ -89,18 +89,16 @@ def calculate_risk_metrics(session, fetch_prices, allow_compute=True, dolar_rate
     prices = _align_prices_to_b3(prices)
     prices = prices[[c for c in prices.columns if prices[c].count() >= 30]]
 
-    for col in prices.columns:
-        if col == BENCHMARK:
-            continue
-        ratio = prices[col] / prices[col].shift(1)
-        bad_mask = (ratio < 0.5) | (ratio > 2.0)
-        prices.loc[bad_mask, col] = np.nan
-        prices[col] = prices[col].ffill()
-
     if BENCHMARK not in prices.columns:
         return {"status": "Erro", "msg": "IBOVESPA indisponível."}
 
-    log_ret = np.log(prices / prices.shift(1)).dropna()
+    log_ret = np.log(prices / prices.shift(1))
+    # Remove glitches pontuais de split/cotação sem deslocar o salto para t+1 (antes de .dropna)
+    for col in log_ret.columns:
+        if col == BENCHMARK:
+            continue
+        log_ret[col] = log_ret[col].where(log_ret[col].abs() <= 0.693, 0.0)
+    log_ret = log_ret.dropna()
     bench = log_ret[BENCHMARK]
     avail = [t for t in tickers_yf if t in log_ret.columns]
     if not avail:
@@ -344,32 +342,52 @@ def calculate_risk_metrics(session, fetch_prices, allow_compute=True, dolar_rate
         logging.debug(f"Erro ao carregar FixedIncome para risco: {exc}")
     today_date = datetime.now().date()
 
+    _RF_ETF_SPECS = {
+        "B5P211": {"duration": 2.5, "indexers": {"IPCA+ (IMA-B 5)": 100}},
+        "IMAB11": {"duration": 6.5, "indexers": {"IPCA+ (IMA-B)": 100}},
+        "IB5M11": {"duration": 10.0, "indexers": {"IPCA+ (IMA-B 5+)": 100}},
+        "IRFM11": {"duration": 2.2, "indexers": {"PRE (IRF-M)": 100}},
+        "DEBB11": {"duration": 3.5, "indexers": {"CDI+ (Debêntures)": 100}},
+        "LFTS11": {"duration": 0.5, "indexers": {"SELIC (LFT)": 100}},
+        "NTNS11": {"duration": 3.0, "indexers": {"IPCA+ (NTN-B)": 100}},
+    }
+
     for pos in positions:
-        if not pos.asset or pos.asset.category.name not in ["FII", "Renda Fixa", "Reserva"]:
+        if not pos.asset or pos.asset.category.name not in ["FII", "Renda Fixa"]:
             continue
         ticker = pos.asset.ticker.upper().strip()
         fi_record = fi_by_asset_id.get(pos.asset_id)
 
-        rating = pos.asset.credit_rating or "N/D"
-        raw_dur = pos.asset.duration_years
-        duration = raw_dur if (raw_dur is not None and 0.0 < float(raw_dur) <= 40.0) else None
-        if duration is None and fi_record is not None and getattr(fi_record, "due_date", None):
+        rating = "N/D"
+        duration = None
+        if fi_record is not None and getattr(fi_record, "due_date", None):
             due_d = fi_record.due_date.date() if isinstance(fi_record.due_date, datetime) else fi_record.due_date
             duration = round(max(0.0, (due_d - today_date).days / 365.25), 1)
 
-        cdi = pos.asset.indexer_cdi_pct
-        ipca = pos.asset.indexer_ipca_pct
-        if cdi is None and ipca is None:
-            if fi_record is not None and getattr(fi_record, "index_type", None):
-                indexers = {str(fi_record.index_type).upper(): 100}
-            else:
-                indexers = {}
+        if fi_record is not None and getattr(fi_record, "index_type", None):
+            indexers = {str(fi_record.index_type).upper(): 100}
+        elif ticker in _RF_ETF_SPECS:
+            duration = duration if duration is not None else _RF_ETF_SPECS[ticker]["duration"]
+            indexers = dict(_RF_ETF_SPECS[ticker]["indexers"])
         else:
             indexers = {}
-            if cdi is not None and 0.0 < float(cdi) <= 100.0:
-                indexers["CDI"] = round(float(cdi), 1)
-            if ipca is not None and 0.0 < float(ipca) <= 100.0:
-                indexers["IPCA"] = round(float(ipca), 1)
+            raw_rep = getattr(pos, "last_report_type", None)
+            if isinstance(raw_rep, str) and raw_rep.strip().startswith("{"):
+                try:
+                    kpis = json.loads(raw_rep).get("pdf_kpis") or {}
+                    dur_y = kpis.get("duration_years")
+                    if dur_y is not None and 0 < float(dur_y) <= 50:
+                        duration = round(float(dur_y), 1)
+                    cdi_p = kpis.get("indexer_cdi_pct")
+                    if cdi_p is not None and 0 < float(cdi_p) <= 100:
+                        indexers["CDI"] = round(float(cdi_p), 1)
+                    ipca_p = kpis.get("indexer_ipca_pct")
+                    if ipca_p is not None and 0 < float(ipca_p) <= 100:
+                        indexers["IPCA"] = round(float(ipca_p), 1)
+                    if kpis.get("credit_rating"):
+                        rating = str(kpis["credit_rating"])[:16]
+                except Exception:
+                    pass
 
         fnet_health = _extract_fnet_health(pos, dolar_rate=dolar_rate)
         fii_credit_map.append({

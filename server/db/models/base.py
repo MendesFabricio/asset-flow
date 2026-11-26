@@ -14,7 +14,7 @@ def safe_commit(session):
         session.rollback()
         raise e
 
-def get_active_positions(session, user_id, include_dividends: bool = True):
+def get_active_positions(session, user_id, include_dividends: bool = False):
     """Retorna posições ativas (quantity > 0 ou target_percent > 0) com eager loading de Asset, Category, MarketData e opcionalmente Dividends."""
     from sqlalchemy.orm import selectinload
     from db.models.portfolio import Position, Asset

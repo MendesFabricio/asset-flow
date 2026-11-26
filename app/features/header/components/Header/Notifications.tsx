@@ -2,149 +2,24 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  Bell,
-  AlertTriangle,
-  CheckCircle,
-  WifiOff,
-  AlertOctagon,
-  Info,
-  Settings,
-  RefreshCw,
-  ChevronRight,
-  FileText,
-  Trash2,
-  X,
-  CheckCheck,
-  History,
-  Zap,
-  Coins,
-  Send,
-  RotateCcw,
-} from 'lucide-react';
+import { Bell, CheckCheck, History, RotateCcw } from 'lucide-react';
 import { apiCall } from '@/lib/api';
 import { useToast } from '@/context/ToastContext';
+import {
+  ActivePriceAlert,
+  ActivePriceAlertsResponse,
+  AlertItem,
+  AlertsResponse,
+  HistoryResponse,
+  mapTriggeredToAlert,
+  PopoverTab,
+  TelegramStatusResponse,
+  TriggeredNotification,
+} from './notifications/types';
+import { ActiveAlertsAndTelegramTab } from './notifications/ActiveAlertsAndTelegramTab';
+import { NotificationsHistoryTab, NotificationsListTab } from './notifications/NotificationsHistoryTab';
 
-interface AlertItem {
-  id: string;
-  triggered_id?: number;
-  asset_id: number;
-  ticker: string;
-  type: string;
-  message: string;
-  field: string;
-  severity: number;
-  action: 'edit' | 'sync' | 'view' | 'refresh' | 'agenda' | 'valuation' | null;
-}
-
-interface TriggeredNotification {
-  id: number;
-  asset_id: number | null;
-  event_type?: 'PRICE_ALERT' | 'SIGNAL_CHANGE' | 'DIVIDEND_ANNOUNCED' | string;
-  ticker: string;
-  condition: 'ABOVE' | 'BELOW' | 'SIGNAL_CHANGE' | 'DIVIDEND_ANNOUNCED' | string;
-  target_price: number;
-  current_price: number;
-  note: string;
-  is_notified?: boolean;
-  triggered_at: string;
-}
-
-interface ActivePriceAlert {
-  id: number;
-  ticker: string;
-  target_price: number;
-  condition: 'ABOVE' | 'BELOW';
-  note: string;
-  created_at: string;
-}
-
-interface AlertsResponse {
-  items?: AlertItem[];
-  total?: number;
-  dismissed_count?: number;
-  telegram_configured?: boolean;
-}
-
-interface ActivePriceAlertsResponse {
-  status: string;
-  alerts: ActivePriceAlert[];
-}
-
-interface HistoryResponse {
-  status: string;
-  events?: TriggeredNotification[];
-}
-
-interface TelegramStatusResponse {
-  status: string;
-  configured: boolean;
-  bot_token_masked?: string;
-  chat_id?: string;
-  source?: string;
-  msg?: string;
-}
-
-interface NotificationsProps {
-  onFixAsset: (assetId: number) => void;
-}
-
-type PopoverTab = 'notifications' | 'active' | 'history';
-
-function mapTriggeredToAlert(n: TriggeredNotification): AlertItem {
-  const evType =
-    n.event_type ||
-    (n.condition === 'SIGNAL_CHANGE'
-      ? 'SIGNAL_CHANGE'
-      : n.condition === 'DIVIDEND_ANNOUNCED'
-        ? 'DIVIDEND_ANNOUNCED'
-        : 'PRICE_ALERT');
-
-  if (evType === 'SIGNAL_CHANGE') {
-    return {
-      id: `triggered-${n.id}`,
-      triggered_id: n.id,
-      asset_id: n.asset_id ?? 0,
-      ticker: n.ticker,
-      type: 'SINAL',
-      message: n.note || `Mudança de sinal em ${n.ticker} (R$ ${n.current_price.toFixed(2)})`,
-      field: 'signal',
-      severity: 4,
-      action: 'valuation',
-    };
-  }
-
-  if (evType === 'DIVIDEND_ANNOUNCED') {
-    return {
-      id: `triggered-${n.id}`,
-      triggered_id: n.id,
-      asset_id: n.asset_id ?? 0,
-      ticker: n.ticker,
-      type: 'PROVENTO',
-      message: n.note || `Novo provento anunciado para ${n.ticker}`,
-      field: 'dividend',
-      severity: 3,
-      action: 'agenda',
-    };
-  }
-
-  const severity = n.condition === 'BELOW' ? 4 : 5;
-  const conditionText = n.condition === 'BELOW' ? 'caiu abaixo de' : 'subiu acima de';
-  const noteText = n.note ? ` · ${n.note}` : '';
-  return {
-    id: `triggered-${n.id}`,
-    triggered_id: n.id,
-    asset_id: n.asset_id ?? 0,
-    ticker: n.ticker,
-    type: 'PREÇO',
-    message: `Alvo atingido: ${conditionText} R$ ${n.target_price.toFixed(2)} (atual R$ ${n.current_price.toFixed(2)})${noteText}`,
-    field: 'price',
-    severity,
-    action: n.asset_id ? 'view' : null,
-  };
-}
-
-export function Notifications({ onFixAsset }: NotificationsProps) {
+export function Notifications({ onFixAsset }: { onFixAsset: (assetId: number) => void }) {
   const router = useRouter();
   const { notify } = useToast();
 
@@ -169,9 +44,7 @@ export function Notifications({ onFixAsset }: NotificationsProps) {
   const firstPollDoneRef = useRef(false);
 
   useEffect(() => {
-    if (!isOpen) {
-      setActiveTab('notifications');
-    }
+    if (!isOpen) setActiveTab('notifications');
   }, [isOpen]);
 
   const fetchActivePriceAlerts = useCallback(async () => {
@@ -233,17 +106,14 @@ export function Notifications({ onFixAsset }: NotificationsProps) {
         triggeredRes?.status === 'Sucesso' && Array.isArray(triggeredRes.notifications)
           ? triggeredRes.notifications
           : [];
-
       const mappedTriggered = rawTriggered.map(mapTriggeredToAlert);
 
-      // Dispara Toast em tempo real apenas quando um TriggeredAlert novo surge durante a sessão
       rawTriggered.forEach((n) => {
         if (!seenTriggeredRef.current.has(n.id)) {
           seenTriggeredRef.current.add(n.id);
           if (firstPollDoneRef.current) {
             const item = mapTriggeredToAlert(n);
-            const toastType = item.type === 'PROVENTO' ? 'success' : 'info';
-            notify(`[${n.ticker}] ${item.message}`, toastType);
+            notify(`[${n.ticker}] ${item.message}`, item.type === 'PROVENTO' ? 'success' : 'info');
           }
         }
       });
@@ -260,15 +130,11 @@ export function Notifications({ onFixAsset }: NotificationsProps) {
   }, [notify]);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchAlerts();
-    }, 3000);
-
+    const timer = setTimeout(() => fetchAlerts(), 3000);
     const interval = setInterval(() => {
       if (typeof document !== 'undefined' && document.hidden) return;
       fetchAlerts();
     }, 120000);
-
     return () => {
       clearTimeout(timer);
       clearInterval(interval);
@@ -277,14 +143,9 @@ export function Notifications({ onFixAsset }: NotificationsProps) {
 
   const handleDismissOne = async (alert: AlertItem) => {
     setAlerts((prev) => prev.filter((a) => a.id !== alert.id));
-    if (!alert.triggered_id) {
-      setDismissedCount((c) => c + 1);
-    }
+    if (!alert.triggered_id) setDismissedCount((c) => c + 1);
     try {
-      await apiCall('/api/alerts/dismiss', {
-        method: 'POST',
-        body: JSON.stringify({ id: alert.id }),
-      });
+      await apiCall('/api/alerts/dismiss', { method: 'POST', body: JSON.stringify({ id: alert.id }) });
     } catch (err) {
       console.error('Erro ao dispensar notificação:', err);
     }
@@ -294,10 +155,7 @@ export function Notifications({ onFixAsset }: NotificationsProps) {
     const prevAlerts = alerts;
     setAlerts([]);
     try {
-      await apiCall('/api/alerts/dismiss', {
-        method: 'POST',
-        body: JSON.stringify({ all: true }),
-      });
+      await apiCall('/api/alerts/dismiss', { method: 'POST', body: JSON.stringify({ all: true }) });
       setDismissedCount((c) => c + prevAlerts.filter((a) => !a.triggered_id).length);
       notify('Notificações marcadas como lidas.', 'success');
     } catch (err) {
@@ -308,10 +166,7 @@ export function Notifications({ onFixAsset }: NotificationsProps) {
 
   const handleRestoreDismissed = async () => {
     try {
-      await apiCall('/api/alerts/dismiss', {
-        method: 'POST',
-        body: JSON.stringify({ restore: true }),
-      });
+      await apiCall('/api/alerts/dismiss', { method: 'POST', body: JSON.stringify({ restore: true }) });
       setDismissedCount(0);
       await fetchAlerts();
       notify('Alertas silenciados restaurados.', 'info');
@@ -322,11 +177,9 @@ export function Notifications({ onFixAsset }: NotificationsProps) {
 
   const handleDeletePriceAlert = async (alertId: number) => {
     try {
-      const data = await apiCall<{ status: string }>('/api/price-alerts/' + alertId, {
-        method: 'DELETE',
-      });
+      const data = await apiCall<{ status: string }>(`/api/price-alerts/${alertId}`, { method: 'DELETE' });
       if (data.status === 'Sucesso') {
-        setActivePriceAlerts((prev) => prev.filter((alert) => alert.id !== alertId));
+        setActivePriceAlerts((prev) => prev.filter((a) => a.id !== alertId));
       }
     } catch (err) {
       console.error('Erro ao deletar alerta ativo:', err);
@@ -380,14 +233,9 @@ export function Notifications({ onFixAsset }: NotificationsProps) {
   const handleTestTelegram = async () => {
     setTestingTelegram(true);
     try {
-      const res = await apiCall<{ status: string; msg?: string }>('/api/alerts/test-telegram', {
-        method: 'POST',
-      });
-      if (res.status === 'Sucesso') {
-        notify(res.msg || 'Mensagem de teste enviada ao Telegram!', 'success');
-      } else {
-        notify(res.msg || 'Não foi possível enviar no Telegram.', 'error');
-      }
+      const res = await apiCall<{ status: string; msg?: string }>('/api/alerts/test-telegram', { method: 'POST' });
+      if (res.status === 'Sucesso') notify(res.msg || 'Mensagem de teste enviada ao Telegram!', 'success');
+      else notify(res.msg || 'Não foi possível enviar no Telegram.', 'error');
     } catch (err) {
       notify(err instanceof Error ? err.message : 'Erro ao testar Telegram.', 'error');
     } finally {
@@ -397,74 +245,20 @@ export function Notifications({ onFixAsset }: NotificationsProps) {
 
   const handleAlertAction = (alert: AlertItem) => {
     setIsOpen(false);
+    if (alert.link) {
+      window.open(alert.link, '_blank', 'noopener,noreferrer');
+      return;
+    }
     if (alert.action === 'agenda') {
       router.push('/agenda');
       return;
     }
     if (alert.action === 'valuation') {
-      router.push('/valuation');
+      if (alert.asset_id > 0) onFixAsset(alert.asset_id);
+      else router.push('/avancado');
       return;
     }
-    if (alert.asset_id > 0) {
-      onFixAsset(alert.asset_id);
-    }
-  };
-
-  const getSeverityStyles = (severity: number, type: string) => {
-    if (type === 'SINAL') {
-      return {
-        icon: <Zap size={17} className="text-purple-400" />,
-        borderClass: 'border-purple-500/40 bg-purple-500/5',
-        hoverClass: 'hover:bg-purple-500/10',
-      };
-    }
-    if (type === 'PROVENTO') {
-      return {
-        icon: <Coins size={17} className="text-status-success" />,
-        borderClass: 'border-emerald-500/40 bg-emerald-500/5',
-        hoverClass: 'hover:bg-emerald-500/10',
-      };
-    }
-    if (severity === 5) {
-      return {
-        icon: <AlertOctagon size={17} className="text-status-error" />,
-        borderClass: 'border-red-500/50 bg-red-500/5',
-        hoverClass: 'hover:bg-red-500/10',
-      };
-    }
-    if (severity === 4) {
-      return {
-        icon: <AlertTriangle size={17} className="text-status-warning" />,
-        borderClass: 'border-amber-500/40 bg-amber-500/5',
-        hoverClass: 'hover:bg-amber-500/10',
-      };
-    }
-    if (type === 'CONFIG') {
-      return {
-        icon: <Settings size={17} className="text-accent" />,
-        borderClass: 'border-blue-400/40 bg-blue-500/5',
-        hoverClass: 'hover:bg-blue-500/10',
-      };
-    }
-    if (type === 'OPORTUNIDADE') {
-      return {
-        icon: <RefreshCw size={17} className="text-status-success" />,
-        borderClass: 'border-emerald-400/40 bg-emerald-500/5',
-        hoverClass: 'hover:bg-emerald-500/10',
-      };
-    }
-    if (type === 'NOVIDADE') {
-      return {
-        icon: <FileText size={17} className="text-purple-400" />,
-        borderClass: 'border-purple-400/40 bg-purple-500/5',
-        hoverClass: 'hover:bg-purple-500/10',
-      };
-    }
-    return {
-      icon: <Info size={17} className="text-text-muted" />,
-      borderClass: 'border-border-subtle bg-surface',
-      hoverClass: 'hover:bg-surface-elevated',
-    };
+    if (alert.asset_id > 0) onFixAsset(alert.asset_id);
   };
 
   return (
@@ -475,9 +269,9 @@ export function Notifications({ onFixAsset }: NotificationsProps) {
         aria-label="Central de Notificações"
         aria-haspopup="menu"
         aria-expanded={isOpen}
-        className={`p-2 rounded-lg transition-all border relative group ${
+        className={`h-9 w-9 rounded-xl flex items-center justify-center transition-colors border relative group ${
           isOpen
-            ? 'bg-surface-elevated border-accent/50 text-text-primary shadow-[0_0_15px_rgba(59,130,246,0.15)]'
+            ? 'bg-surface-elevated border-accent/50 text-text-primary'
             : 'bg-surface-card hover:bg-surface-elevated text-text-muted hover:text-text-primary border-border-subtle'
         }`}
         title="Central de Notificações"
@@ -485,12 +279,9 @@ export function Notifications({ onFixAsset }: NotificationsProps) {
         <Bell
           size={16}
           className={`transition-all duration-300 ${
-            alerts.length > 0
-              ? 'text-status-warning animate-[wiggle_1s_ease-in-out_infinite]'
-              : 'text-text-muted group-hover:text-text-primary'
+            alerts.length > 0 ? 'text-status-warning animate-[wiggle_1s_ease-in-out_infinite]' : 'text-text-muted group-hover:text-text-primary'
           }`}
         />
-
         {alerts.length > 0 && (
           <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-status-error border border-surface text-[9px] font-bold text-white shadow-[0_0_8px_rgba(244,63,94,0.6)]">
             {alerts.length}
@@ -503,7 +294,6 @@ export function Notifications({ onFixAsset }: NotificationsProps) {
           <div className="fixed inset-0 z-40 bg-black/15 backdrop-blur-[0.5px]" onClick={() => setIsOpen(false)} />
 
           <div className="absolute right-0 mt-3 w-96 max-w-[92vw] origin-top-right bg-surface-card border border-border-subtle rounded-2xl shadow-[0_10px_35px_rgba(0,0,0,0.65)] z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-            {/* Header + Tabs */}
             <div className="px-3.5 pt-3 pb-2 border-b border-border-subtle bg-surface-elevated/70 space-y-2.5">
               <div className="flex justify-between items-center">
                 <h3 className="font-bold text-text-primary text-xs uppercase tracking-wider flex items-center gap-1.5">
@@ -539,9 +329,7 @@ export function Notifications({ onFixAsset }: NotificationsProps) {
                   type="button"
                   onClick={() => setActiveTab('notifications')}
                   className={`py-1 px-2 rounded-lg text-[10px] font-bold transition-colors ${
-                    activeTab === 'notifications'
-                      ? 'bg-accent text-white'
-                      : 'text-text-muted hover:text-text-primary'
+                    activeTab === 'notifications' ? 'bg-accent text-white' : 'text-text-muted hover:text-text-primary'
                   }`}
                 >
                   Novas ({alerts.length})
@@ -550,9 +338,7 @@ export function Notifications({ onFixAsset }: NotificationsProps) {
                   type="button"
                   onClick={() => setActiveTab('active')}
                   className={`py-1 px-2 rounded-lg text-[10px] font-bold transition-colors ${
-                    activeTab === 'active'
-                      ? 'bg-accent text-white'
-                      : 'text-text-muted hover:text-text-primary'
+                    activeTab === 'active' ? 'bg-accent text-white' : 'text-text-muted hover:text-text-primary'
                   }`}
                 >
                   Alertas Ativos
@@ -561,9 +347,7 @@ export function Notifications({ onFixAsset }: NotificationsProps) {
                   type="button"
                   onClick={() => setActiveTab('history')}
                   className={`py-1 px-2 rounded-lg text-[10px] font-bold transition-colors flex items-center justify-center gap-1 ${
-                    activeTab === 'history'
-                      ? 'bg-accent text-white'
-                      : 'text-text-muted hover:text-text-primary'
+                    activeTab === 'history' ? 'bg-accent text-white' : 'text-text-muted hover:text-text-primary'
                   }`}
                 >
                   <History size={11} /> Histórico
@@ -571,245 +355,35 @@ export function Notifications({ onFixAsset }: NotificationsProps) {
               </div>
             </div>
 
-            {/* Body */}
             <div className="max-h-[24rem] overflow-y-auto p-2.5 space-y-2 bg-surface/40 scrollbar-thin">
               {activeTab === 'active' ? (
-                <div className="space-y-3">
-                  {/* Status & Configuração do Canal Telegram */}
-                  <div className="p-2.5 rounded-xl bg-surface border border-border-subtle space-y-2.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="min-w-0">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-text-primary block">
-                          Telegram Bot
-                        </span>
-                        <span className="text-[10px] text-text-muted block truncate">
-                          {telegramConfigured
-                            ? `Conectado (${tgMasked || 'ativo'})`
-                            : 'Desativado — configure aqui para receber no celular'}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => setShowTelegramForm((v) => !v)}
-                          className="px-2 py-1 rounded-lg text-[10px] font-bold bg-surface-elevated text-text-primary border border-border-subtle hover:border-accent/50 transition-colors"
-                        >
-                          {showTelegramForm ? 'Fechar' : 'Configurar'}
-                        </button>
-                        {telegramConfigured && (
-                          <button
-                            type="button"
-                            onClick={handleTestTelegram}
-                            disabled={testingTelegram}
-                            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold bg-accent-soft text-accent border border-accent/30 hover:bg-accent/20 disabled:opacity-50 transition-colors"
-                          >
-                            <Send size={11} /> {testingTelegram ? '...' : 'Testar'}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    {showTelegramForm && (
-                      <form onSubmit={handleSaveTelegram} className="space-y-2 pt-2 border-t border-border-subtle">
-                        <p className="text-[10px] text-text-muted leading-snug">
-                          Crie um bot no <span className="font-mono text-text-primary">@BotFather</span> e pegue seu ID no{' '}
-                          <span className="font-mono text-text-primary">@userinfobot</span>.
-                        </p>
-                        <input
-                          type="password"
-                          placeholder={tgMasked ? `Bot Token atual: ${tgMasked}` : 'Bot Token (ex: 123456:ABC...)'}
-                          value={tgTokenInput}
-                          onChange={(e) => setTgTokenInput(e.target.value)}
-                          required
-                          className="w-full bg-surface-input border border-border-subtle rounded-lg px-2.5 py-1.5 text-[11px] font-mono text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent"
-                        />
-                        <input
-                          type="text"
-                          placeholder="Chat ID (ex: 123456789)"
-                          value={tgChatIdInput}
-                          onChange={(e) => setTgChatIdInput(e.target.value)}
-                          required
-                          className="w-full bg-surface-input border border-border-subtle rounded-lg px-2.5 py-1.5 text-[11px] font-mono text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent"
-                        />
-                        <div className="flex items-center justify-between gap-2">
-                          {telegramConfigured ? (
-                            <button
-                              type="button"
-                              onClick={handleClearTelegram}
-                              disabled={savingTelegram}
-                              className="px-2 py-1 rounded-lg text-[10px] font-bold text-status-error hover:bg-red-500/10 transition-colors"
-                            >
-                              Remover
-                            </button>
-                          ) : (
-                            <span />
-                          )}
-                          <button
-                            type="submit"
-                            disabled={savingTelegram}
-                            className="px-3 py-1 rounded-lg text-[10px] font-bold bg-accent text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
-                          >
-                            {savingTelegram ? 'Salvando...' : 'Salvar'}
-                          </button>
-                        </div>
-                      </form>
-                    )}
-                  </div>
-
-                  {loadingSubtab ? (
-                    <div className="text-center py-8 text-text-muted flex flex-col items-center gap-2">
-                      <RefreshCw size={18} className="animate-spin text-accent" />
-                      <p className="text-[10px]">Carregando alertas ativos...</p>
-                    </div>
-                  ) : activePriceAlerts.length === 0 ? (
-                    <div className="text-center py-8 text-text-muted flex flex-col items-center gap-2">
-                      <Bell size={18} className="opacity-30" />
-                      <p className="text-[10px]">Nenhum alerta de preço configurado.</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-1.5">
-                      {activePriceAlerts.map((alert) => (
-                        <div
-                          key={alert.id}
-                          className="flex items-center justify-between p-2.5 bg-surface rounded-xl border border-border-subtle hover:border-accent/40 transition-all gap-2"
-                        >
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="font-bold text-text-primary text-xs">{alert.ticker}</span>
-                              <span
-                                className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${
-                                  alert.condition === 'ABOVE'
-                                    ? 'bg-emerald-500/10 text-status-success border-emerald-500/20'
-                                    : 'bg-red-500/10 text-status-error border-red-500/20'
-                                }`}
-                              >
-                                {alert.condition === 'ABOVE' ? 'Acima ▲' : 'Abaixo ▼'}
-                              </span>
-                              <span className="text-xs font-mono font-bold text-accent">
-                                R$ {Number(alert.target_price).toFixed(2)}
-                              </span>
-                            </div>
-                            {alert.note && (
-                              <p className="text-[10px] text-text-muted truncate mt-0.5">{alert.note}</p>
-                            )}
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleDeletePriceAlert(alert.id)}
-                            className="p-1.5 bg-surface-elevated hover:bg-red-500/15 text-text-muted hover:text-status-error rounded-md border border-border-subtle transition-all shrink-0"
-                            title="Excluir Alerta"
-                          >
-                            <Trash2 size={12} />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                <ActiveAlertsAndTelegramTab
+                  telegramConfigured={telegramConfigured}
+                  tgMasked={tgMasked}
+                  showTelegramForm={showTelegramForm}
+                  tgTokenInput={tgTokenInput}
+                  tgChatIdInput={tgChatIdInput}
+                  testingTelegram={testingTelegram}
+                  savingTelegram={savingTelegram}
+                  loadingSubtab={loadingSubtab}
+                  activePriceAlerts={activePriceAlerts}
+                  onToggleTelegramForm={() => setShowTelegramForm((v) => !v)}
+                  onChangeTgToken={setTgTokenInput}
+                  onChangeTgChatId={setTgChatIdInput}
+                  onTestTelegram={handleTestTelegram}
+                  onSaveTelegram={handleSaveTelegram}
+                  onClearTelegram={handleClearTelegram}
+                  onDeletePriceAlert={handleDeletePriceAlert}
+                />
               ) : activeTab === 'history' ? (
-                loadingSubtab ? (
-                  <div className="text-center py-8 text-text-muted flex flex-col items-center gap-2">
-                    <RefreshCw size={18} className="animate-spin text-accent" />
-                    <p className="text-[10px]">Carregando histórico...</p>
-                  </div>
-                ) : historyEvents.length === 0 ? (
-                  <div className="text-center py-8 text-text-muted flex flex-col items-center gap-2">
-                    <History size={18} className="opacity-30" />
-                    <p className="text-[10px]">Nenhum alerta disparado no histórico ainda.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-1.5">
-                    {historyEvents.map((ev) => {
-                      const mapped = mapTriggeredToAlert(ev);
-                      const dtFmt = ev.triggered_at
-                        ? new Date(ev.triggered_at).toLocaleString('pt-BR', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })
-                        : '';
-                      return (
-                        <div
-                          key={ev.id}
-                          className="p-2.5 rounded-xl bg-surface border border-border-subtle space-y-1"
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-bold text-text-primary text-xs">{ev.ticker}</span>
-                              <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded bg-surface-elevated border border-border-subtle text-text-muted">
-                                {mapped.type}
-                              </span>
-                            </div>
-                            <span className="text-[9px] font-mono text-text-muted">{dtFmt}</span>
-                          </div>
-                          <p className="text-[11px] text-text-muted leading-snug">{mapped.message}</p>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )
-              ) : hasError ? (
-                <div className="text-center py-10 text-text-muted flex flex-col items-center justify-center gap-2">
-                  <WifiOff size={20} className="opacity-50 text-status-error" />
-                  <p className="text-[10px] font-medium">Falha na rede ou servidor instável.</p>
-                </div>
-              ) : alerts.length === 0 ? (
-                <div className="text-center py-10 text-text-muted flex flex-col items-center justify-center gap-3">
-                  <div className="p-3 bg-emerald-500/10 rounded-full border border-emerald-500/20">
-                    <CheckCircle size={22} className="text-status-success" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-text-primary">Tudo em dia</p>
-                    <p className="text-[10px] mt-0.5 text-text-muted">
-                      Nenhuma notificação pendente no momento.
-                    </p>
-                  </div>
-                </div>
+                <NotificationsHistoryTab loadingSubtab={loadingSubtab} historyEvents={historyEvents} />
               ) : (
-                alerts.map((alert) => {
-                  const { icon, borderClass, hoverClass } = getSeverityStyles(alert.severity, alert.type);
-                  return (
-                    <div
-                      key={alert.id}
-                      className={`relative flex gap-2.5 p-3 rounded-xl border transition-all duration-200 group ${borderClass} ${hoverClass}`}
-                    >
-                      <div className="mt-0.5 shrink-0">{icon}</div>
-
-                      <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-bold text-text-primary text-xs">{alert.ticker}</span>
-                          <span className="text-[8px] font-bold text-text-muted uppercase bg-surface px-1.5 py-0.5 rounded border border-border-subtle">
-                            {alert.type}
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-text-muted leading-snug">{alert.message}</p>
-                      </div>
-
-                      <div className="flex items-center gap-1 shrink-0 self-center">
-                        {alert.action && (
-                          <button
-                            type="button"
-                            onClick={() => handleAlertAction(alert)}
-                            className="p-1 rounded-md text-accent hover:bg-accent-soft transition-colors"
-                            title="Abrir detalhes"
-                          >
-                            <ChevronRight size={14} />
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => handleDismissOne(alert)}
-                          className="p-1 rounded-md text-text-muted hover:text-text-primary hover:bg-surface-elevated transition-colors"
-                          title="Marcar como lida"
-                          aria-label={`Dispensar alerta de ${alert.ticker}`}
-                        >
-                          <X size={13} />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })
+                <NotificationsListTab
+                  hasError={hasError}
+                  alerts={alerts}
+                  onAction={handleAlertAction}
+                  onDismissOne={handleDismissOne}
+                />
               )}
             </div>
           </div>

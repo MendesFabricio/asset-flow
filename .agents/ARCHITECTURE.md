@@ -43,15 +43,12 @@ Specialist AI personas for different domains.
 | `frontend-specialist`    | Web UI/UX                  | frontend-design, nextjs-react-expert, tailwind-patterns |
 | `backend-specialist`     | API, business logic        | api-patterns, nodejs-best-practices, database-design     |
 | `database-architect`     | Schema, SQL                | database-design                                          |
-| `mobile-developer`       | iOS, Android, RN           | mobile-design                                            |
-| `game-developer`         | Game logic, mechanics      | game-development                                         |
 | `devops-engineer`        | CI/CD, Docker              | deployment-procedures, server-management                 |
 | `security-auditor`       | Security compliance        | vulnerability-scanner, red-team-tactics                  |
 | `penetration-tester`     | Offensive security         | red-team-tactics                                         |
 | `test-engineer`          | Testing strategies         | testing-patterns, tdd-workflow, webapp-testing           |
 | `debugger`               | Root cause analysis        | systematic-debugging                                     |
 | `performance-optimizer`  | Speed, Web Vitals          | performance-profiling                                    |
-| `seo-specialist`         | Ranking, visibility        | seo-fundamentals, geo-fundamentals                       |
 | `documentation-writer`   | Manuals, docs              | documentation-templates                                  |
 | `product-manager`        | Requirements, user stories | plan-writing, brainstorming                              |
 | `product-owner`          | Strategy, backlog, MVP     | plan-writing, brainstorming                              |
@@ -61,7 +58,7 @@ Specialist AI personas for different domains.
 
 ---
 
-## 🧩 Skills (47)
+## 🧩 Skills (43)
 
 Modular knowledge domains that agents can load on-demand based on task context. Each skill has a `when_to_use` frontmatter field for conditional/intelligent loading.
 
@@ -80,10 +77,10 @@ Modular knowledge domains that agents can load on-demand based on task context. 
 
 | Skill                   | Description                    |
 | ----------------------- | ------------------------------ |
-| `api-patterns`          | REST, GraphQL, tRPC            |
+| `api-patterns`          | REST API design & pagination   |
 | `nodejs-best-practices` | Node.js async, modules         |
-| `python-patterns`       | Python standards, FastAPI      |
-| `rust-pro`              | Rust async, systems, type system |
+| `python-patterns`       | Python standards, Flask/FastAPI |
+| `finance-review`        | AssetFlow domain rules: signals, valuation models, precision, currency & privacy |
 
 ### Database
 
@@ -124,31 +121,11 @@ Modular knowledge domains that agents can load on-demand based on task context. 
 | `plan-writing`  | Task planning, breakdown   |
 | `brainstorming` | Socratic questioning       |
 
-### Mobile
-
-| Skill           | Description           |
-| --------------- | --------------------- |
-| `mobile-design` | Mobile UI/UX patterns |
-
-### Game Development
-
-| Skill              | Description           |
-| ------------------ | --------------------- |
-| `game-development` | Game logic, mechanics |
-
-### SEO & Growth
-
-| Skill              | Description                   |
-| ------------------ | ----------------------------- |
-| `seo-fundamentals` | SEO, E-E-A-T, Core Web Vitals |
-| `geo-fundamentals` | GenAI optimization            |
-
 ### Shell/CLI
 
-| Skill                | Description               |
-| -------------------- | ------------------------- |
-| `bash-linux`         | Linux commands, scripting |
-| `powershell-windows` | Windows PowerShell        |
+| Skill                | Description        |
+| -------------------- | ------------------ |
+| `powershell-windows` | Windows PowerShell |
 
 ### Orchestration & Memory (2026.5.13)
 
@@ -170,9 +147,7 @@ Modular knowledge domains that agents can load on-demand based on task context. 
 | `clean-code`              | Coding standards (Global) |
 | `behavioral-modes`        | Agent personas            |
 | `parallel-agents`         | Multi-agent patterns      |
-| `mcp-builder`             | Model Context Protocol    |
 | `documentation-templates` | Doc formats               |
-| `i18n-localization`       | Internationalization      |
 | `performance-profiling`   | Web Vitals, optimization  |
 | `systematic-debugging`    | Troubleshooting           |
 | `intelligent-routing`     | Request → agent routing   |

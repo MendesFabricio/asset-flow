@@ -135,7 +135,7 @@ def _fetch_statusinvest_dividends(ticker_raw: str, category_name: str, secure_se
                 val = float(m.get("v") or 0)
                 if d_com is None or val <= 0:
                     continue
-                d_pay = _parse_br_date(m.get("pd")) or (d_com + timedelta(days=15))
+                d_pay = _parse_br_date(m.get("pd"))
                 raw_type = m.get("et") or m.get("etd") or "Dividendo"
                 events.append({
                     "date_com": d_com,
@@ -200,11 +200,11 @@ class IntegrationService:
                 norm_q = norm_q.filter(Dividend.user_id == uid)
             changed_norm = False
             for existing_div in norm_q.all():
-                if existing_div.date_payment is None and existing_div.date_com is not None:
-                    existing_div.date_payment = existing_div.date_com + timedelta(days=15)
-                    changed_norm = True
-                eff_date = existing_div.date_payment or existing_div.date_com
-                if existing_div.status != "PAGO" and eff_date is not None and eff_date <= today:
+                if existing_div.date_payment is None:
+                    if existing_div.status != "PROVISIONADO":
+                        existing_div.status = "PROVISIONADO"
+                        changed_norm = True
+                elif existing_div.status != "PAGO" and existing_div.date_payment <= today:
                     existing_div.status = "PAGO"
                     changed_norm = True
             if changed_norm:
@@ -231,7 +231,7 @@ class IntegrationService:
                     si_events = _fetch_statusinvest_dividends(ticker_raw, category_name, secure_session)
                     events = [
                         ev for ev in si_events
-                        if ev["date_com"] >= cutoff or ev["date_payment"] >= cutoff
+                        if ev["date_com"] >= cutoff or (ev["date_payment"] is not None and ev["date_payment"] >= cutoff)
                     ]
 
                     # Yahoo Finance como fallback ou complemento mensal recente (ex.: ITUB3 JCP)
@@ -252,7 +252,7 @@ class IntegrationService:
                                 raw_tp = "JCP" if (is_monthly_bank and val < 0.025) else "Dividendo"
                                 events.append({
                                     "date_com": d_com,
-                                    "date_payment": d_com + timedelta(days=15),
+                                    "date_payment": None,
                                     "value": val,
                                     "raw_type": raw_tp,
                                 })
@@ -264,7 +264,8 @@ class IntegrationService:
                                     continue
                                 has_si_near = any(abs((ev["date_com"] - d_com).days) <= 4 for ev in si_events)
                                 has_si_pay_month = is_monthly_bank and any(
-                                    (ev["date_payment"].year, ev["date_payment"].month) == (d_com.year, d_com.month)
+                                    ev["date_payment"] is not None
+                                    and (ev["date_payment"].year, ev["date_payment"].month) == (d_com.year, d_com.month)
                                     for ev in si_events
                                 )
                                 if has_si_near or has_si_pay_month:
@@ -272,7 +273,7 @@ class IntegrationService:
                                 is_monthly_jcp = is_monthly_bank and val < 0.025
                                 events.append({
                                     "date_com": d_com,
-                                    "date_payment": d_com if is_monthly_jcp else (d_com + timedelta(days=15)),
+                                    "date_payment": d_com if is_monthly_jcp else None,
                                     "value": val,
                                     "raw_type": "JCP" if is_monthly_jcp else "Dividendo",
                                 })
@@ -314,7 +315,7 @@ class IntegrationService:
                         )
                         tol = max(0.35, 0.08 * max(net_total, 1.0))
 
-                        # 1. Já existe exatamente com mesma (date_com, date_payment, type) ou valor próximo no mesmo pagamento?
+                        # 1. Já existe com mesma (date_com, date_payment, type) ou valor próximo no mesmo evento?
                         exact_match = next(
                             (
                                 ex for ex in existing_rows
@@ -327,7 +328,11 @@ class IntegrationService:
                                 or (
                                     ex.date_com is not None
                                     and abs((ex.date_com - d_com).days) <= 4
-                                    and (ex.date_payment is None or abs((ex.date_payment - d_pay).days) <= 4)
+                                    and (
+                                        ex.date_payment is None
+                                        or d_pay is None
+                                        or abs((ex.date_payment - d_pay).days) <= 4
+                                    )
                                     and _types_compat(ex.type, ev_type)
                                     and abs(float(ex.total_value or 0) - net_total) <= tol
                                     and ex.date_com != ex.date_payment
@@ -336,26 +341,34 @@ class IntegrationService:
                             None,
                         )
                         if exact_match:
+                            if exact_match.date_payment is None and d_pay is not None:
+                                exact_match.date_payment = d_pay
+                                exact_match.status = "PAGO" if d_pay <= today else "A RECEBER"
+                                dirty = True
                             consumed_ids.add(id(exact_match))
                             continue
 
                         # 2. Enriquece registro importado da B3 (que tinha date_com == date_payment) com Data-Com real
-                        placeholder_candidates = [
-                            ex for ex in existing_rows
-                            if (id(ex) not in consumed_ids)
-                            and ex.date_payment == d_pay
-                            and ex.date_com == d_pay
-                            and _types_compat(ex.type, ev_type)
-                            and abs(float(ex.total_value or 0) - net_total) <= tol
-                            and not any(
-                                o is not ex
-                                and o.date_com == d_com
-                                and o.date_payment == d_pay
-                                and (o.type or "Dividendo") == (ex.type or "Dividendo")
-                                and round(float(o.total_value or 0), 2) == round(float(ex.total_value or 0), 2)
-                                for o in existing_rows
-                            )
-                        ]
+                        placeholder_candidates = (
+                            [
+                                ex for ex in existing_rows
+                                if (id(ex) not in consumed_ids)
+                                and ex.date_payment == d_pay
+                                and ex.date_com == d_pay
+                                and _types_compat(ex.type, ev_type)
+                                and abs(float(ex.total_value or 0) - net_total) <= tol
+                                and not any(
+                                    o is not ex
+                                    and o.date_com == d_com
+                                    and o.date_payment == d_pay
+                                    and (o.type or "Dividendo") == (ex.type or "Dividendo")
+                                    and round(float(o.total_value or 0), 2) == round(float(ex.total_value or 0), 2)
+                                    for o in existing_rows
+                                )
+                            ]
+                            if d_pay is not None
+                            else []
+                        )
                         placeholder = (
                             min(placeholder_candidates, key=lambda ex: abs(float(ex.total_value or 0) - net_total))
                             if placeholder_candidates
@@ -377,7 +390,12 @@ class IntegrationService:
                         ):
                             continue
 
-                        new_status = "PAGO" if d_pay <= today else "A RECEBER"
+                        if d_pay is None:
+                            new_status = "PROVISIONADO"
+                        elif d_pay <= today:
+                            new_status = "PAGO"
+                        else:
+                            new_status = "A RECEBER"
                         new_div = Dividend(
                             asset_id=asset_id,
                             user_id=pos_uid,
@@ -392,10 +410,11 @@ class IntegrationService:
                         session.add(new_div)
                         existing_rows.append(new_div)
                         dirty = True
-                        if new_status == "A RECEBER":
+                        if new_status in ("A RECEBER", "PROVISIONADO"):
+                            pgto_str = d_pay.strftime('%d/%m/%Y') if d_pay else "A definir"
                             note_txt = (
                                 f"Novo provento ({ev_type}): R$ {net_total:.2f} líquido | "
-                                f"Com {d_com.strftime('%d/%m/%Y')} · Pgto {d_pay.strftime('%d/%m/%Y')}"
+                                f"Com {d_com.strftime('%d/%m/%Y')} · Pgto {pgto_str}"
                             )
                             dup_ta = (
                                 session.query(TriggeredAlert)

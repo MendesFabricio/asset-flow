@@ -126,6 +126,7 @@ def build_historical_price_cache(
         symbol_to_assets.setdefault(sym, []).append((asset, factor, max_dt))
 
     download_list = sorted(symbol_to_assets.keys())
+    has_usd_asset = any(getattr(a, "currency", "BRL") == "USD" for a in user_assets.values())
     if download_list:
         if progress_cb:
             progress_cb(f"Baixando histórico de {len(download_list)} ativos (10 anos)...")
@@ -133,8 +134,12 @@ def build_historical_price_cache(
             import pandas as pd
             import yfinance as yf
 
+            dl_with_fx = list(download_list)
+            if has_usd_asset and "USDBRL=X" not in dl_with_fx:
+                dl_with_fx.append("USDBRL=X")
+
             batch_data = yf.download(
-                download_list,
+                dl_with_fx,
                 period="10y",
                 group_by="ticker",
                 threads=False,
@@ -142,8 +147,28 @@ def build_historical_price_cache(
                 auto_adjust=False,
                 actions=True,
             )
+
+            usd_fx_by_date: dict[date, float] = {}
+            if has_usd_asset:
+                fx_hist = _extract_symbol_history(batch_data, "USDBRL=X", len(dl_with_fx))
+                if not fx_hist.empty and "Close" in fx_hist.columns:
+                    for dt_idx, fx_val in fx_hist["Close"].dropna().items():
+                        d_fx = _to_date(dt_idx)
+                        if d_fx is not None and float(fx_val) > 0:
+                            usd_fx_by_date[d_fx] = float(fx_val)
+
+            def _fx_on(d_target: date) -> float:
+                if not usd_fx_by_date:
+                    return 5.5
+                cur = d_target
+                for _ in range(15):
+                    if cur in usd_fx_by_date:
+                        return usd_fx_by_date[cur]
+                    cur -= timedelta(days=1)
+                return next(iter(usd_fx_by_date.values()))
+
             for sym, targets in symbol_to_assets.items():
-                raw_hist = _extract_symbol_history(batch_data, sym, len(download_list))
+                raw_hist = _extract_symbol_history(batch_data, sym, len(dl_with_fx))
                 if raw_hist.empty or "Close" not in raw_hist.columns:
                     continue
                 hist = raw_hist.dropna(subset=["Close"])
@@ -183,6 +208,8 @@ def build_historical_price_cache(
                         for eff_dt, ratio in eff_splits:
                             if dt < eff_dt:
                                 price *= ratio
+                        if getattr(asset, "currency", "BRL") == "USD":
+                            price *= _fx_on(dt)
                         md_cache[asset.id][dt] = price
         except Exception as exc:
             logging.error(f"Error building historical price cache: {exc}", exc_info=True)

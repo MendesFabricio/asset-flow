@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: 'AssetFlow Pro | Gestão Inteligente de Carteira',
-    description: 'Controle de patrimônio, dividendos, renda fixa, cartões e análise quantitativa avançada com IA.',
+    description: 'Controle de patrimônio, dividendos, renda fixa e análise quantitativa avançada com IA.',
     siteName: 'AssetFlow Pro',
     locale: 'pt_BR',
     type: 'website',

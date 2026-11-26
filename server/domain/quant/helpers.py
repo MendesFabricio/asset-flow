@@ -41,13 +41,13 @@ def _align_prices_to_b3(prices):
         b3_cal = _get_b3_calendar()
         valid_days = b3_cal.schedule(start_date=start_date, end_date=end_date)
         if valid_days.empty:
-            return prices.ffill().bfill()
+            return prices.ffill()
         trading_days = mcal.date_range(valid_days, frequency='1D')
         trading_days = trading_days.tz_localize(None).normalize()
-        prices = prices.reindex(trading_days).ffill().bfill()
+        prices = prices.reindex(trading_days).ffill()
     except Exception as e:
-        logging.warning(f"⚠️ Alinhamento B3 falhou: {e}. Usando ffill/bfill genérico.")
-        prices = prices.ffill().bfill()
+        logging.warning(f"⚠️ Alinhamento B3 falhou: {e}. Usando ffill genérico.")
+        prices = prices.ffill()
     return prices
 
 def _to_yf_ticker(ticker: str, category_name: str) -> str:
@@ -127,15 +127,42 @@ def _get_current_user_id():
         logging.debug(f"Request context user_id fallback: {exc}")
     return 1
 
+def _pick_valid_price_series(adj_s, cls_s):
+    """Usa Adj Close, mas recua para Close se Adj Close tiver salto corrompido relativo ao Close (bug Yahoo)."""
+    valid = (adj_s > 0) & (cls_s > 0)
+    if valid.sum() >= 5:
+        ratio = (adj_s[valid] / cls_s[valid])
+        rj = (ratio / ratio.shift(1)).dropna()
+        if ((rj > 2.5) | (rj < 0.4)).any():
+            logging.warning(f"⚠️ Adj Close corrompido detectado ({getattr(adj_s, 'name', 'ticker')}); usando Close nominal.")
+            return cls_s
+    return adj_s.combine_first(cls_s)
+
+
 def _extract_close_prices(raw_df):
-    """Extrai coluna 'Close' de um DataFrame do Yahoo Finance, lidando com MultiIndex e colunas normais."""
+    """Extrai série Total Return ('Adj Close' com fallback para 'Close') de DataFrame do Yahoo Finance."""
     import pandas as pd
-    if raw_df.empty:
+    if raw_df is None or getattr(raw_df, "empty", True):
         return raw_df
     if isinstance(raw_df.columns, pd.MultiIndex):
+        lvl1 = raw_df.columns.get_level_values(1)
+        if "Adj Close" in lvl1:
+            adj = raw_df.xs("Adj Close", axis=1, level=1)
+            if "Close" in lvl1:
+                cls = raw_df.xs("Close", axis=1, level=1)
+                out = adj.copy()
+                for col in adj.columns:
+                    if col in cls.columns:
+                        out[col] = _pick_valid_price_series(adj[col], cls[col])
+                return out
+            return adj
         return raw_df.xs("Close", axis=1, level=1)
-    else:
-        return raw_df["Close"] if "Close" in raw_df.columns else raw_df
+    if "Adj Close" in raw_df.columns:
+        adj = raw_df["Adj Close"]
+        if "Close" in raw_df.columns:
+            return _pick_valid_price_series(adj, raw_df["Close"])
+        return adj
+    return raw_df["Close"] if "Close" in raw_df.columns else raw_df
 
 def _calculate_ewma_covariance(returns_df, decay=0.94):
     """Calcula a matriz de covariância EWMA para uma série de retornos."""

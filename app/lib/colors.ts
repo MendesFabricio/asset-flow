@@ -6,7 +6,6 @@ export const CATEGORY_COLORS: Record<string, string> = {
   'Cripto': '#f97316',        // orange-500
   'Reserva': '#64748b',       // slate-500
   'Reembolsos': '#ec4899',    // pink-500
-  'Cartões': '#ef4444',       // red-500
   'BDR': '#eab308',           // yellow-500
   'Fundo': '#06b6d4',         // cyan-500
   'Outros': '#94a3b8'         // slate-400

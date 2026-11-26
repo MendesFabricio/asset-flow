@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   ChevronDown, Briefcase, FileText, TrendingUp, 
-  Layers, Brain, RefreshCw, Calendar, Settings,
+  Layers, RefreshCw, Calendar, Settings,
   Download, Database
 } from 'lucide-react';
 import { useToast } from '@/context/ToastContext';
@@ -120,8 +120,8 @@ export function ToolsMenu({
         aria-label="Menu de ferramentas"
         aria-haspopup="menu"
         aria-expanded={isOpen}
-        className={`bg-slate-900/60 hover:bg-slate-800 text-slate-200 hover:text-white px-3 py-2 rounded-lg transition-all flex items-center gap-2 text-xs font-bold border border-slate-800 shadow-sm ${
-          isSyncActive ? 'border-blue-500/50 shadow-[0_0_10px_rgba(59,130,246,0.15)] text-white' : ''
+        className={`h-9 bg-surface-card hover:bg-surface-elevated text-text-primary px-3 rounded-xl transition-colors duration-150 active:scale-[0.98] flex items-center gap-2 text-xs font-semibold border border-border-subtle ${
+          isSyncActive ? 'border-accent/50' : ''
         }`}
       >
         <span className="relative flex items-center gap-1.5 select-none">
@@ -134,7 +134,7 @@ export function ToolsMenu({
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 max-h-[calc(100vh-5rem)] overflow-y-auto bg-slate-950 border border-slate-800/80 rounded-xl shadow-[0_10px_35px_rgba(0,0,0,0.75)] p-4 z-50 animate-in fade-in slide-in-from-top-2 duration-200 ease-out">
+        <div className="absolute right-0 top-full mt-2 w-80 max-h-[calc(100vh-5rem)] overflow-y-auto bg-slate-950 border border-slate-800/80 rounded-xl shadow-[0_10px_35px_rgba(0,0,0,0.75)] p-4 z-50 origin-top-right animate-in fade-in zoom-in-95 slide-in-from-top-2 duration-150 ease-[var(--ease-out)]">
           <div className="space-y-4">
             
             {/* SEÇÃO GESTÃO */}
@@ -170,10 +170,7 @@ export function ToolsMenu({
                 >
                   <FileText size={14} className="text-blue-400" />
                   <div>
-                    <p className="font-bold flex items-center gap-1.5">
-                      <span className="whitespace-nowrap">Importação de Notas (B3)</span>
-                      <span className="px-1.5 py-0.5 bg-blue-500/10 border border-blue-500/20 text-[9px] text-blue-400 rounded-md font-bold uppercase shrink-0">Novo</span>
-                    </p>
+                    <p className="font-bold">Importação de Notas (B3)</p>
                     <p className="text-[9px] text-slate-500">Leitor OCR SINACOR & Conciliação B3</p>
                   </div>
                 </button>
@@ -224,10 +221,7 @@ export function ToolsMenu({
                   >
                     <Layers size={14} className="text-purple-400" />
                     <div>
-                      <p className="font-bold flex items-center gap-1.5">
-                        <span>Eventos Corporativos</span>
-                        <span className="px-1 py-0.2 bg-purple-500/10 border border-purple-500/20 text-[8px] text-purple-400 rounded-md font-bold uppercase">Novo</span>
-                      </p>
+                      <p className="font-bold">Eventos Corporativos</p>
                       <p className="text-[9px] text-slate-500">Splits, Inplits, Bonificações e Incorporações</p>
                     </div>
                   </button>
@@ -292,51 +286,27 @@ export function ToolsMenu({
             <div>
               <div className="flex items-center gap-1.5 px-1.5 mb-1.5">
                 <Settings size={10} className="text-slate-500" />
-                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Sincronizadores</span>
+                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Sincronização</span>
               </div>
-              <div className="space-y-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    onSyncReports();
-                    setIsOpen(false);
-                  }}
-                  disabled={syncingReports}
-                  className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-slate-900/60 transition-colors flex items-center gap-2.5 text-xs text-slate-200 disabled:opacity-50"
-                >
-                  <Layers size={14} className={syncingReports ? 'animate-spin text-purple-400' : 'text-purple-400'} />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold flex items-center justify-between">
-                      <span>CVM (FNET Sync)</span>
-                      {syncingReports && <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse" />}
-                    </p>
-                    <p className="text-[9px] text-slate-500 truncate">
-                      {syncingReports ? syncStatus.message : "Fatos relevantes e PDFs de Fundos"}
-                    </p>
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    onUpdateFundamentals();
-                    setIsOpen(false);
-                  }}
-                  disabled={updatingFundamentals}
-                  className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-slate-900/60 transition-colors flex items-center gap-2.5 text-xs text-slate-200 disabled:opacity-50"
-                >
-                  <Brain size={14} className={updatingFundamentals ? 'animate-pulse text-rose-400' : 'text-rose-400'} />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold flex items-center justify-between">
-                      <span>Metadados Yahoo Finance</span>
-                      {updatingFundamentals && <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse" />}
-                    </p>
-                    <p className="text-[9px] text-slate-500 truncate">
-                      {updatingFundamentals ? fundamentalsStatus.message : "Busca de dividendos históricos"}
-                    </p>
-                  </div>
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  onManualRefresh();
+                  if (!syncingReports) onSyncReports();
+                  if (!updatingFundamentals) onUpdateFundamentals();
+                  setIsOpen(false);
+                }}
+                disabled={isSyncActive || loading || isRefetching}
+                className="w-full text-left px-2 py-2 rounded-lg hover:bg-slate-900/60 transition-colors flex items-center gap-2.5 text-xs text-slate-200 disabled:opacity-50"
+              >
+                <RefreshCw size={14} className={isSyncActive ? 'animate-spin text-purple-400' : 'text-purple-400'} />
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold">Atualizar Dados Agora</p>
+                  <p className="text-[9px] text-slate-500 truncate">
+                    Cotações, fatos CVM e metadados Yahoo Finance
+                  </p>
+                </div>
+              </button>
             </div>
 
           </div>

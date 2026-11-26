@@ -86,7 +86,7 @@ def stream_ollama_chat(
     messages: list[dict],
     model: str,
     base_url: Optional[str] = None,
-    timeout: int = 180,
+    timeout: int = 60,
 ) -> Iterator[str]:
     """Faz streaming de respostas do endpoint /api/chat do Ollama."""
     target_url = f"{(base_url or OLLAMA_BASE_URL).rstrip('/')}/api/chat"
@@ -95,7 +95,7 @@ def stream_ollama_chat(
         "messages": messages,
         "stream": True,
         "options": {
-            "num_ctx": 16384,
+            "num_ctx": 4096,
             "num_predict": 1024,
             "temperature": 0.25,
             "repeat_penalty": 1.15,
@@ -123,7 +123,7 @@ def generate_ollama_completion(
     prompt: str,
     system_prompt: Optional[str] = None,
     json_mode: bool = False,
-    timeout: int = 120,
+    timeout: int = 60,
 ) -> str:
     """Executa uma inferência síncrona no Ollama local (com suporte opcional a JSON)."""
     status = get_ollama_status(timeout=2.0)
@@ -140,7 +140,7 @@ def generate_ollama_completion(
         "messages": messages,
         "stream": False,
         "options": {
-            "num_ctx": 16384,
+            "num_ctx": 4096,
             "num_predict": 1024,
             "temperature": 0.25,
             "repeat_penalty": 1.15,

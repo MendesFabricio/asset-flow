@@ -7,6 +7,11 @@ from sqlalchemy.orm import joinedload
 from schemas import FixedIncomeCreate
 from domain.portfolio.xirr import CDI_FALLBACK_ANNUAL, get_cdi_period_return
 from domain.portfolio.attribution import FALLBACK_MONTHLY_IPCA, get_monthly_ipca_series
+from infrastructure.tesouro_direto import (
+    TesouroDiretoProvider,
+    get_tesouro_quote_safe,
+    infer_index_and_rate,
+)
 
 fixed_income_bp = Blueprint('fixed_income', __name__)
 
@@ -28,7 +33,7 @@ def _compound_ipca_factor(ipca_map: dict, start_dt: date, end_dt: date) -> Decim
     return factor
 
 
-def calculate_fixed_income_metrics(fi, quantity, average_price, db=None):
+def calculate_fixed_income_metrics(fi, quantity, average_price, db=None, market_quote=None):
     today = datetime.now().date()
     issue_dt = fi.issue_date.date() if callable(getattr(fi.issue_date, "date", None)) else fi.issue_date
     due_dt = fi.due_date.date() if callable(getattr(fi.due_date, "date", None)) else fi.due_date
@@ -47,32 +52,43 @@ def calculate_fixed_income_metrics(fi, quantity, average_price, db=None):
         
     total_invested = Decimal(str(quantity)) * Decimal(str(average_price))
     interest_rate_dec = Decimal(str(fi.interest_rate)) / Decimal('100.0')
-    
-    # Rentabilidade bruta acumulada
-    if days_elapsed == 0:
-        rate_acrued = Decimal('1.0')
-    elif fi.index_type == 'PRE':
-        rate_acrued = (Decimal('1.0') + interest_rate_dec) ** (Decimal(str(days_elapsed)) / Decimal('365.0'))
-    elif fi.index_type == 'CDI':
-        # ex: 110% do CDI -> interest_rate_dec = 1.10; BCB SGS 12 retorna % acumulado no período
-        if db is not None:
-            cdi_pct, _ = get_cdi_period_return(db, issue_dt, today)
-            cdi_period = Decimal(str(cdi_pct)) / Decimal('100.0')
-        else:
-            cdi_period = (Decimal('1.0') + Decimal(str(CDI_FALLBACK_ANNUAL))) ** (
-                Decimal(str(days_elapsed)) / Decimal('365.0')
-            ) - Decimal('1.0')
-        rate_acrued = (Decimal('1.0') + cdi_period) ** interest_rate_dec
-    elif fi.index_type == 'IPCA':
-        # Compõe IPCA acumulado (BCB SGS 433) com a taxa prefixada anual: (1 + IPCA) * (1 + taxa) - 1
-        ipca_map, _ = get_monthly_ipca_series(db) if db is not None else ({}, "fallback")
-        ipca_factor = _compound_ipca_factor(ipca_map, issue_dt, today)
-        fixed_factor = (Decimal('1.0') + interest_rate_dec) ** (Decimal(str(days_elapsed)) / Decimal('365.0'))
-        rate_acrued = ipca_factor * fixed_factor
+
+    if market_quote is not None:
+        gross_value = Decimal(str(quantity)) * Decimal(str(market_quote.pu_base))
+        pricing_mode = "TESOURO_MTM"
+        market_pu = float(market_quote.pu_base)
+        market_date = market_quote.price_date.isoformat()
     else:
-        rate_acrued = Decimal('1.0')
-        
-    gross_value = total_invested * rate_acrued
+        pricing_mode = "CURVE"
+        market_pu = None
+        market_date = None
+        # Rentabilidade bruta acumulada
+        if days_elapsed == 0:
+            rate_acrued = Decimal('1.0')
+        elif fi.index_type == 'PRE':
+            rate_acrued = (Decimal('1.0') + interest_rate_dec) ** (Decimal(str(days_elapsed)) / Decimal('365.0'))
+        elif fi.index_type == 'CDI':
+            # ex: 110% do CDI -> interest_rate_dec = 1.10; compõe fator diário (1 + d_cdi * pct_cdi) ** n_dias
+            if db is not None:
+                cdi_pct, _ = get_cdi_period_return(db, issue_dt, today)
+                cdi_period = Decimal(str(cdi_pct)) / Decimal('100.0')
+            else:
+                cdi_period = (Decimal('1.0') + Decimal(str(CDI_FALLBACK_ANNUAL))) ** (
+                    Decimal(str(days_elapsed)) / Decimal('365.0')
+                ) - Decimal('1.0')
+            days_dec = Decimal(str(max(1, days_elapsed)))
+            daily_cdi = (Decimal('1.0') + cdi_period) ** (Decimal('1.0') / days_dec) - Decimal('1.0')
+            rate_acrued = (Decimal('1.0') + (daily_cdi * interest_rate_dec)) ** days_dec
+        elif fi.index_type == 'IPCA':
+            # Compõe IPCA acumulado (BCB SGS 433) com a taxa prefixada anual: (1 + IPCA) * (1 + taxa) - 1
+            ipca_map, _ = get_monthly_ipca_series(db) if db is not None else ({}, "fallback")
+            ipca_factor = _compound_ipca_factor(ipca_map, issue_dt, today)
+            fixed_factor = (Decimal('1.0') + interest_rate_dec) ** (Decimal(str(days_elapsed)) / Decimal('365.0'))
+            rate_acrued = ipca_factor * fixed_factor
+        else:
+            rate_acrued = Decimal('1.0')
+        gross_value = total_invested * rate_acrued
+
     gross_profit = max(Decimal('0.0'), gross_value - total_invested)
     tax_value = gross_profit * (tax_rate / Decimal('100.0'))
     net_value = gross_value - tax_value
@@ -87,7 +103,10 @@ def calculate_fixed_income_metrics(fi, quantity, average_price, db=None):
         "gross_profit": float(gross_profit),
         "tax_value": float(tax_value),
         "net_value": float(net_value),
-        "net_profit": float(net_profit)
+        "net_profit": float(net_profit),
+        "pricing_mode": pricing_mode,
+        "market_pu": market_pu,
+        "market_date": market_date,
     }
 
 @fixed_income_bp.route('/api/fixed-income', methods=['GET', 'POST'])
@@ -179,7 +198,8 @@ def handle_fixed_income():
         for fi, pos in results:
             qty = pos.quantity if pos else Decimal('0')
             pm = pos.average_price if pos else Decimal('0')
-            metrics = calculate_fixed_income_metrics(fi, qty, pm, db=db)
+            market_quote = get_tesouro_quote_safe(fi.asset.ticker)
+            metrics = calculate_fixed_income_metrics(fi, qty, pm, db=db, market_quote=market_quote)
             
             res_list.append({
                 "id": fi.id,
@@ -195,6 +215,31 @@ def handle_fixed_income():
             })
             
         return jsonify(res_list)
+
+
+@fixed_income_bp.route('/api/fixed-income/tesouro-direto', methods=['GET'])
+def list_tesouro_direto_bonds():
+    """Lista títulos disponíveis do Tesouro Direto com PU Base oficial."""
+    try:
+        bonds = TesouroDiretoProvider().get_available_bonds()
+        payload = []
+        for q in bonds:
+            index_type, rate = infer_index_and_rate(q.title_type, q.taxa_compra)
+            payload.append({
+                "ticker": q.ticker,
+                "title_type": q.title_type,
+                "name": f"{q.title_type} {q.maturity_date.year}",
+                "due_date": q.maturity_date.isoformat(),
+                "price_date": q.price_date.isoformat(),
+                "pu_base": float(q.pu_base),
+                "taxa_compra": float(q.taxa_compra) if q.taxa_compra is not None else None,
+                "taxa_venda": float(q.taxa_venda) if q.taxa_venda is not None else None,
+                "index_type": index_type,
+                "interest_rate": float(rate),
+            })
+        return jsonify(payload)
+    except Exception as exc:
+        return jsonify({"status": "Erro", "msg": f"Falha ao consultar Tesouro Direto: {exc}"}), 502
 
 @fixed_income_bp.route('/api/fixed-income/<int:id>', methods=['PUT', 'DELETE'])
 def handle_single_fixed_income(id):

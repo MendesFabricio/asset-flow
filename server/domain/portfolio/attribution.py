@@ -124,7 +124,7 @@ def calculate_monthly_attribution(session, user_id: int) -> dict:
             },
         }
 
-    # Agrupa aportes líquidos (BUY - SELL) por mês
+    # Agrupa aportes líquidos (BUY/DEPOSIT/ADJUSTMENT vs SELL/WITHDRAW/AMORTIZATION) por mês
     txs = (
         session.query(
             AssetTransaction.type,
@@ -133,7 +133,7 @@ def calculate_monthly_attribution(session, user_id: int) -> dict:
         )
         .filter(
             AssetTransaction.user_id == user_id,
-            AssetTransaction.type.in_(["BUY", "SELL"]),
+            AssetTransaction.type.in_(["BUY", "SELL", "DEPOSIT", "WITHDRAW", "AMORTIZATION"]),
         )
         .all()
     )
@@ -143,13 +143,13 @@ def calculate_monthly_attribution(session, user_id: int) -> dict:
         if ym is None:
             continue
         amount = float(total_val or 0.0)
-        signed = amount if tx_type == "BUY" else -amount
+        signed = amount if tx_type in ("BUY", "DEPOSIT") else -amount
         flows_by_ym[ym] = flows_by_ym.get(ym, 0.0) + signed
 
-    # Agrupa dividendos recebidos/pagos no mês
+    # Agrupa somente dividendos efetivamente pagos no mês
     divs = (
         session.query(Dividend.total_value, Dividend.date_payment, Dividend.date_com)
-        .filter(Dividend.user_id == user_id)
+        .filter(Dividend.user_id == user_id, Dividend.status == "PAGO")
         .all()
     )
     divs_by_ym: Dict[Tuple[int, int], float] = {}

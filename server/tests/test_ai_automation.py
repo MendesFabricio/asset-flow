@@ -290,9 +290,9 @@ class TestAIAutomationTools(unittest.TestCase):
         if worker_dir not in sys.path:
             sys.path.insert(0, worker_dir)
         from worker_jobs import JOB_REGISTRY
-        self.assertIn("scheduled_daily_sentiment_analysis", JOB_REGISTRY)
-        self.assertEqual(JOB_REGISTRY["scheduled_daily_sentiment_analysis"]["default_type"], "interval")
-        self.assertEqual(JOB_REGISTRY["scheduled_daily_sentiment_analysis"]["default_interval"], 360)
+        self.assertNotIn("scheduled_daily_sentiment_analysis", JOB_REGISTRY)
+        self.assertIn("scheduled_signal_ledger_capture", JOB_REGISTRY)
+        self.assertIn("scheduled_price_history_sync", JOB_REGISTRY)
 
     def test_format_rationale_item_attaches_source_hyperlink(self):
         from infrastructure.gemini_service import _format_rationale_item, _normalize_news_items

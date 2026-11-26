@@ -54,6 +54,10 @@ def run_migrations_online() -> None:
     connectable = engine
 
     with connectable.connect() as connection:
+        is_sqlite = connectable.dialect.name == "sqlite"
+        if is_sqlite:
+            connection.exec_driver_sql("PRAGMA foreign_keys=OFF")
+            connection.commit()
         context.configure(
             connection=connection, 
             target_metadata=target_metadata,
@@ -62,6 +66,10 @@ def run_migrations_online() -> None:
 
         with context.begin_transaction():
             context.run_migrations()
+        connection.commit()
+        if is_sqlite:
+            connection.exec_driver_sql("PRAGMA foreign_keys=ON")
+            connection.commit()
 
 
 if context.is_offline_mode():

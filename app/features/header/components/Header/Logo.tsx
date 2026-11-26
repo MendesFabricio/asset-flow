@@ -5,12 +5,12 @@ import { Wallet } from 'lucide-react';
 
 export function Logo() {
   return (
-    <Link href="/" className="flex items-center gap-3 group">
-      <div className="bg-blue-600 p-1.5 rounded-lg shadow-[0_0_15px_rgba(37,99,235,0.5)] group-hover:scale-105 transition-transform duration-200">
-        <Wallet className="text-white" size={18} />
+    <Link href="/" className="flex items-center gap-2.5 group">
+      <div className="bg-blue-600 p-2 rounded-xl shadow-sm group-hover:bg-blue-500 transition-colors duration-200">
+        <Wallet className="text-white" size={17} />
       </div>
-      <h1 className="text-lg font-bold text-white tracking-tight mr-2 select-none">
-        AssetFlow <span className="text-blue-500 text-xs font-normal ml-1">Pro</span>
+      <h1 className="text-lg font-bold text-text-primary tracking-tight mr-1 select-none">
+        AssetFlow <span className="text-blue-500 text-xs font-semibold ml-0.5">Pro</span>
       </h1>
     </Link>
   );

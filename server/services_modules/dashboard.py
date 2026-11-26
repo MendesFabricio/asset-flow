@@ -8,7 +8,6 @@ from utils.formatters import extract_position_metrics
 from db.session import Session
 
 from .dashboard_metrics import calculate_fundamental_metrics, apply_strategy
-from .dashboard_alerts import build_alerts
 from datetime import datetime, timedelta, timezone
 
 try:
@@ -217,8 +216,6 @@ class DashboardService:
                     else Decimal('0.0')
                 )
 
-                alertas = build_alerts(ativos_proc, cat_totals, cat_metas, resumo, self, session)
-
                 final_list.sort(key=lambda x: x["score"], reverse=True)
 
                 lista_grafico = [{"name": k, "value": v} for k, v in cat_totals.items() if v > 0]
@@ -228,7 +225,7 @@ class DashboardService:
                     "dolar": dolar_rate, 
                     "resumo": resumo, 
                     "grafico": lista_grafico, 
-                    "alertas": alertas, 
+                    "alertas": [], 
                     "ativos": final_list, 
                     "categorias": cats_info 
                 }
@@ -279,9 +276,10 @@ class DashboardService:
             meta_micro = Decimal(str(pos.target_percent or 0)) / Decimal('100.0')
             meta_global_valor = portfolio_total * meta_macro * meta_micro
             falta = meta_global_valor - total_atual
-            
+            screener_item = session.query(MarketScreenerItem).filter_by(ticker=ticker).first()
+
             rec_text, status, score, motivo, rsi = apply_strategy(
-                pos, metrics, falta, preco, min_6m
+                pos, metrics, falta, preco, min_6m, screener_item=screener_item
             )
             
             return {

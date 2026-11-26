@@ -72,16 +72,3 @@ def sync_stream():
         'X-Accel-Buffering': 'no',
     }
     return Response(stream_with_context(event_generator()), mimetype='text/event-stream', headers=headers)
-
-@sync_stream_bp.route('/api/sync-status', methods=['GET'])
-def get_sync_status():
-    """Retorna o estado pontual de sincronia em JSON."""
-    from flask import jsonify
-    states = get_sync_states_batch_db(("cvm_sync", "yahoo_sync", "radar_sync"))
-    return jsonify({
-        "status": "Sucesso",
-        "message": "Estado de sincronia carregado com sucesso.",
-        "cvm_sync": states["cvm_sync"],
-        "yahoo_sync": states["yahoo_sync"],
-        "radar_sync": states["radar_sync"],
-    })

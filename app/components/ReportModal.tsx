@@ -1,13 +1,13 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import {
-    FileText, Layers, X, ExternalLink, Calendar,
+    FileText, Layers, ExternalLink, Calendar,
     TrendingUp, TrendingDown, Activity, ShieldAlert,
     BarChart3, PieChart, Coins
 } from 'lucide-react';
 import { formatMoney } from '../lib/format';
 import { Asset } from '../types'; // 🛡️ Importa a interface unificada de ativos
+import { ModalShell } from './ModalShell';
 import { PrivateValue } from './ui/PrivateValue';
 
 function formatCompactMoney(val: number): string {
@@ -148,32 +148,22 @@ const ReportModal = ({ isOpen, onClose, ativo }: ReportModalProps) => {
         { id: 'rentabilidade', label: 'Rentabilidade', icon: <PieChart size={12} /> }
     ];
 
-    return createPortal(
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-150">
-            <div className="bg-surface-card w-full max-w-md rounded-2xl border border-slate-800 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-
-                {/* HEADER */}
-                <div className="flex justify-between items-center p-4 border-b border-slate-800 bg-slate-900/50">
-                    <div className="flex items-center gap-3">
-                        <div className="bg-blue-600/20 p-2 rounded-lg border border-blue-500/30">
-                            <Layers size={18} className="text-blue-400" />
-                        </div>
-                        <div>
-                            <h3 className="text-white font-bold text-sm tracking-tight">{ativo.ticker}</h3>
-                            <p className="text-[10px] text-slate-500 uppercase font-black tracking-widest">Terminal Fundamentalista</p>
-                        </div>
-                    </div>
-                    <button type="button" onClick={onClose} className="p-2 hover:bg-slate-800 rounded-full text-slate-400 transition-colors">
-                        <X size={18} />
-                    </button>
-                </div>
-
+    return (
+        <ModalShell
+            onClose={onClose}
+            title={ativo.ticker}
+            subtitle="Terminal Fundamentalista"
+            icon={<Layers size={18} className="text-blue-400" />}
+            maxWidth="md"
+            zIndex={100}
+            noPadding
+        >
                 {/* ABAS PRINCIPAIS */}
                 <div className="flex p-1 bg-slate-900 border-b border-slate-800">
-                    <button type="button" onClick={() => setActiveTab('saude')} className={`flex-1 flex items-center justify-center gap-2 py-2 text-[10px] font-bold uppercase transition-all rounded-md ${activeTab === 'saude' ? 'bg-slate-800 text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}>
+                    <button type="button" onClick={() => setActiveTab('saude')} className={`flex-1 flex items-center justify-center gap-2 py-2 text-[10px] font-bold uppercase transition-colors duration-150 active:scale-[0.98] rounded-md ${activeTab === 'saude' ? 'bg-slate-800 text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}>
                         <Activity size={14} /> Saúde e Risco
                     </button>
-                    <button type="button" onClick={() => setActiveTab('docs')} className={`flex-1 flex items-center justify-center gap-2 py-2 text-[10px] font-bold uppercase transition-all rounded-md ${activeTab === 'docs' ? 'bg-slate-800 text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}>
+                    <button type="button" onClick={() => setActiveTab('docs')} className={`flex-1 flex items-center justify-center gap-2 py-2 text-[10px] font-bold uppercase transition-colors duration-150 active:scale-[0.98] rounded-md ${activeTab === 'docs' ? 'bg-slate-800 text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}>
                         <FileText size={14} /> Documentos
                     </button>
                 </div>
@@ -360,9 +350,7 @@ const ReportModal = ({ isOpen, onClose, ativo }: ReportModalProps) => {
                         </div>
                     )}
                 </div>
-            </div>
-        </div>,
-        document.body
+        </ModalShell>
     );
 };
 

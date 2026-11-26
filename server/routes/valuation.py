@@ -367,49 +367,40 @@ def signal_history():
         limit = 180
 
     try:
-        from db.models import MarketData, SignalSnapshot
+        from db.models import SignalSnapshot
+        from domain.signals.ledger import compute_signal_history_returns
         with Session() as session:
             query = session.query(SignalSnapshot).filter_by(user_id=user_id)
             if ticker:
                 query = query.filter(SignalSnapshot.ticker == ticker)
             rows = query.order_by(SignalSnapshot.date.desc(), SignalSnapshot.ticker.asc()).limit(limit).all()
 
-            asset_ids = sorted({r.asset_id for r in rows if r.asset_id})
-            prices_by_asset: dict[int, tuple[list, list[float]]] = {}
-            if asset_ids:
-                md_rows = (
-                    session.query(MarketData.asset_id, MarketData.date, MarketData.price)
-                    .filter(MarketData.asset_id.in_(asset_ids), MarketData.price > 0)
-                    .order_by(MarketData.asset_id.asc(), MarketData.date.asc())
-                    .all()
-                )
-                tmp_dates: dict[int, list] = {}
-                tmp_prices: dict[int, list[float]] = {}
-                for aid, md_date, md_price in md_rows:
-                    if md_date is None or not md_price:
-                        continue
-                    tmp_dates.setdefault(aid, []).append(md_date)
-                    tmp_prices.setdefault(aid, []).append(float(md_price))
-                for aid in tmp_dates:
-                    prices_by_asset[aid] = (tmp_dates[aid], tmp_prices[aid])
+            prices_by_ticker = compute_signal_history_returns(session, rows)
 
-            def _forward_ret(aid: int, base_date, base_price: float, days: int):
-                if base_price <= 0 or not base_date or aid not in prices_by_asset:
+            def _forward_ret(tkr: str, base_date, base_price: float, days: int):
+                t_u = (tkr or "").strip().upper()
+                if base_price <= 0 or not base_date or t_u not in prices_by_ticker:
                     return None
-                dates_list, prices_list = prices_by_asset[aid]
+                dates_list, prices_list = prices_by_ticker[t_u]
+                idx0 = bisect_left(dates_list, base_date)
+                entry_px = (
+                    prices_list[idx0]
+                    if idx0 < len(prices_list) and dates_list[idx0] <= base_date + timedelta(days=5)
+                    else base_price
+                )
                 idx = bisect_left(dates_list, base_date + timedelta(days=days))
-                if idx >= len(dates_list):
+                if idx >= len(dates_list) or entry_px <= 0:
                     return None
-                return round(((prices_list[idx] - base_price) / base_price) * 100.0, 2)
+                return round(((prices_list[idx] - entry_px) / entry_px) * 100.0, 2)
 
             items = []
             by_status: dict[str, int] = {}
             bt_acc: dict[str, dict] = {}
             for r in rows:
                 base_px = float(r.preco or 0)
-                ret30 = _forward_ret(r.asset_id, r.date, base_px, 30)
-                ret90 = _forward_ret(r.asset_id, r.date, base_px, 90)
-                ret180 = _forward_ret(r.asset_id, r.date, base_px, 180)
+                ret30 = _forward_ret(r.ticker, r.date, base_px, 30)
+                ret90 = _forward_ret(r.ticker, r.date, base_px, 90)
+                ret180 = _forward_ret(r.ticker, r.date, base_px, 180)
                 item = {
                     "ticker": r.ticker,
                     "date": r.date.isoformat() if r.date else None,

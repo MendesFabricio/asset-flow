@@ -2,7 +2,7 @@
 import React from 'react';
 
 
-export function RiskRadarSkeleton() {
+export function PortfolioDonutSkeleton() {
   return (
     <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-6 h-full animate-pulse">
       <div className="h-4 bg-slate-850 rounded w-1/3 mb-4" />
@@ -109,22 +109,6 @@ export function ReceivablesSkeleton() {
   );
 }
 
-export function CreditCardsSkeleton() {
-  return (
-    <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-6 h-[400px] animate-pulse">
-      <div className="h-4 bg-slate-850 rounded w-1/3 mb-4" />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="bg-slate-850/30 rounded-xl p-4 space-y-2">
-            <div className="h-3 bg-slate-850 rounded w-1/2" />
-            <div className="h-3 bg-slate-850 rounded w-1/3" />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 export function FixedIncomeSkeleton() {
   return (
     <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-6 h-[400px] animate-pulse">
@@ -195,9 +179,9 @@ export function SkeletonLoading() {
       {/* StatCards Grid */}
       <StatCardsSkeleton />
 
-      {/* Main Charts Grid - Matches RiskRadar & CategorySummary */}
+      {/* Main Charts Grid - Matches PortfolioDonutChart & CategorySummary */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-[525px] animate-pulse">
-        {/* RiskRadar Skeleton (1 col) */}
+        {/* PortfolioDonut Skeleton (1 col) */}
         <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-6 h-full flex flex-col items-center justify-center">
           <div className="w-32 h-32 rounded-full border-4 border-slate-850 border-t-transparent animate-spin mb-4" />
           <div className="h-3 bg-slate-850 rounded w-1/2" />

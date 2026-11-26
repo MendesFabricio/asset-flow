@@ -2,12 +2,15 @@
 import logging
 import os
 import sqlite3
+import threading
 from datetime import date, datetime
 from decimal import Decimal
 from sqlalchemy.exc import IntegrityError
 from db.models import PortfolioSnapshot, SignalSnapshot, TriggeredAlert, safe_commit
 from db.session import Session
 import json
+
+_BACKUP_LOCK = threading.Lock()
 
 class BackupService:
     def _upsert_signal_snapshots(self, session, user_id: int, ativos: list, snap_date: date):
@@ -37,6 +40,7 @@ class BackupService:
             t[0]
             for t in session.query(TriggeredAlert.ticker)
             .filter(
+                TriggeredAlert.user_id == user_id,
                 TriggeredAlert.condition == "SIGNAL_CHANGE",
                 TriggeredAlert.triggered_at >= datetime.combine(snap_date, datetime.min.time()),
             )
@@ -100,13 +104,16 @@ class BackupService:
         try:
             backup_dir = os.environ.get("BACKUP_DIR", "/app/backups")
             db_path = os.environ.get("DATABASE_PATH", "/app/data/assetflow.db")
-            if not os.path.exists(backup_dir): 
-                os.makedirs(backup_dir)
+            if not os.path.exists(backup_dir):
+                os.makedirs(backup_dir, exist_ok=True)
             filename = f"assetflow_backup_{date.today()}.db"
             dest = os.path.join(backup_dir, filename)
-            with sqlite3.connect(db_path) as src_conn, sqlite3.connect(dest) as dst_conn:
-                src_conn.backup(dst_conn)
-        except Exception as e: 
+            tmp_dest = os.path.join(backup_dir, f".tmp_{filename}.{threading.get_ident()}")
+            with _BACKUP_LOCK:
+                with sqlite3.connect(db_path) as src_conn, sqlite3.connect(tmp_dest) as dst_conn:
+                    src_conn.backup(dst_conn)
+                os.replace(tmp_dest, dest)
+        except Exception as e:
             logging.error(f"❌ Falha automática ao gerar backup físico do banco: {e}")
 
     def take_daily_snapshot(self):
@@ -149,7 +156,6 @@ class BackupService:
                     if dash.get('ativos'):
                         self._upsert_signal_snapshots(session, uid, dash.get('ativos'), today)
                 safe_commit(session)
-                self._backup_database()
             except IntegrityError:
                 session.rollback()
                 logging.warning("⚠️ Concorrência ao salvar snapshot diário; aplicando upsert nos registros existentes.")

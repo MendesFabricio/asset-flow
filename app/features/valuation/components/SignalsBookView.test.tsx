@@ -8,7 +8,7 @@ vi.mock('@/lib/api', () => ({
   apiCall: vi.fn(),
 }));
 
-const MOCK_RESPONSE = {
+const MOCK_HISTORY_RESPONSE = {
   status: 'Sucesso',
   items: [
     {
@@ -52,13 +52,49 @@ const MOCK_RESPONSE = {
   },
 };
 
+const MOCK_V2_RESPONSE = {
+  status: 'Sucesso',
+  regime: {
+    composite_regime: 'BULL_FLAT_NORMAL',
+    label: 'Alta + Juros Estáveis',
+    selic_annual: 11.25,
+  },
+  calibration_summary: {
+    total_audited: 12,
+    brier_score: 0.142,
+    observed_hit_rate: 0.75,
+  },
+  opportunities: [
+    {
+      ticker: 'BBDC4',
+      asset_class: 'ACAO_BR',
+      setup_code: 'VALUE_GRAHAM_BAZIN',
+      triggered: true,
+      confidence_tier: 'ALTA_CERTEZA',
+      calibrated_prob: 0.68,
+      wilson_lb_95: 0.58,
+      sample_size_n: 32,
+      oos_sample_n: 12,
+      win_rate: 0.75,
+      expectancy_net: 0.042,
+      profit_factor: 1.85,
+      max_drawdown_mae: -0.09,
+      oos_consistency_score: 0.82,
+      triggers: [{ metric: 'P/VP', actual: '0.85x', rule: '<= 1.2x' }],
+    },
+  ],
+};
+
 describe('SignalsBookView', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('renders backtest summary, recent changes, and signal table', async () => {
-    vi.mocked(apiCall).mockResolvedValue(MOCK_RESPONSE);
+  it('renders v2 statistical engine cards, regime, backtest summary, and signal table', async () => {
+    vi.mocked(apiCall).mockImplementation(async (url: string) => {
+      if (url.startsWith('/api/signals/v2/opportunities')) return MOCK_V2_RESPONSE;
+      return MOCK_HISTORY_RESPONSE;
+    });
     const onSelectTicker = vi.fn();
 
     render(
@@ -66,6 +102,13 @@ describe('SignalsBookView', () => {
         <SignalsBookView onSelectTicker={onSelectTicker} />
       </PrivacyProvider>
     );
+
+    await waitFor(() => {
+      expect(screen.getByText(/ALTA CERTEZA/i)).toBeInTheDocument();
+      expect(screen.getByText(/BULL_FLAT_NORMAL|Alta \+ Juros Estáveis/i)).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Ver Auditoria & Histórico Completo/i }));
 
     await waitFor(() => {
       expect(screen.getByText('Mudanças Recentes de Sinal')).toBeInTheDocument();
@@ -80,13 +123,19 @@ describe('SignalsBookView', () => {
   });
 
   it('queries filtered ticker when filter input changes and handles empty state', async () => {
-    vi.mocked(apiCall)
-      .mockResolvedValueOnce(MOCK_RESPONSE)
-      .mockResolvedValueOnce({
-        status: 'Sucesso',
-        items: [],
-        summary: { total: 0, by_status: {}, backtest: {}, recent_changes: [] },
-      });
+    vi.mocked(apiCall).mockImplementation(async (url: string) => {
+      if (url.startsWith('/api/signals/v2/opportunities')) {
+        return { ...MOCK_V2_RESPONSE, opportunities: [] };
+      }
+      if (url.includes('ticker=PETR4')) {
+        return {
+          status: 'Sucesso',
+          items: [],
+          summary: { total: 0, by_status: {}, backtest: {}, recent_changes: [] },
+        };
+      }
+      return MOCK_HISTORY_RESPONSE;
+    });
 
     render(
       <PrivacyProvider>
@@ -98,6 +147,8 @@ describe('SignalsBookView', () => {
       expect(apiCall).toHaveBeenCalledWith('/api/valuation/signals/history?limit=300');
     });
 
+    fireEvent.click(screen.getByRole('button', { name: /Ver Auditoria & Histórico Completo/i }));
+
     const input = screen.getByLabelText('Filtrar ticker no Livro de Sinais');
     fireEvent.change(input, { target: { value: 'petr4' } });
 
@@ -108,16 +159,19 @@ describe('SignalsBookView', () => {
   });
 
   it('toggles between latest per asset and full daily history without duplicating tickers in latest mode', async () => {
-    vi.mocked(apiCall).mockResolvedValue({
-      ...MOCK_RESPONSE,
-      items: [
-        ...MOCK_RESPONSE.items,
-        {
-          ...MOCK_RESPONSE.items[0],
-          date: '2026-09-30',
-          score: 79,
-        },
-      ],
+    vi.mocked(apiCall).mockImplementation(async (url: string) => {
+      if (url.startsWith('/api/signals/v2/opportunities')) return MOCK_V2_RESPONSE;
+      return {
+        ...MOCK_HISTORY_RESPONSE,
+        items: [
+          ...MOCK_HISTORY_RESPONSE.items,
+          {
+            ...MOCK_HISTORY_RESPONSE.items[0],
+            date: '2026-09-30',
+            score: 79,
+          },
+        ],
+      };
     });
 
     render(
@@ -125,6 +179,11 @@ describe('SignalsBookView', () => {
         <SignalsBookView onSelectTicker={vi.fn()} />
       </PrivacyProvider>
     );
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Ver Auditoria & Histórico Completo/i })).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Ver Auditoria & Histórico Completo/i }));
 
     await waitFor(() => {
       expect(screen.getAllByText('2026-10-01').length).toBeGreaterThan(0);

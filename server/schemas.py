@@ -11,14 +11,6 @@ class FixedIncomeCreate(BaseModel):
     issue_date: Optional[str] = Field(None, description="ISO date string")
     due_date: Optional[str] = Field(None, description="ISO date string")
 
-class CreditCardCreate(BaseModel):
-    name: str = Field(..., min_length=1, max_length=50)
-    limit: float = Field(..., gt=0)
-    closing_day: int = Field(..., ge=1, le=31)
-    due_day: int = Field(..., ge=1, le=31)
-
-
-
 class RefundConfigUpdate(BaseModel):
     fechamento_dia: int = Field(..., ge=1, le=31)
     vencimento_dia: int = Field(..., ge=1, le=31)

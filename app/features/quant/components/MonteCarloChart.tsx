@@ -2,9 +2,10 @@
 
 import React, { useEffect, useState } from 'react';
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+  ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 import { usePrivacy } from '@/context/PrivacyContext';
+import { useChartPalette } from '@/lib/chartPalette';
 import { apiCall } from '@/lib/api';
 import { Card } from '@/components/ui/Card';
 import { BrainCircuit, Info, HelpCircle } from 'lucide-react';
@@ -69,11 +70,26 @@ export const MonteCarloChart = React.memo(function MonteCarloChart() {
     return () => controller.abort();
   }, []);
 
-  if (loading) return <div className="animate-pulse h-[400px] bg-slate-900/50 rounded-xl border border-slate-800" />;
-  if (data.length === 0) return null;
+  if (loading) return <div className="animate-pulse h-[400px] bg-surface-card rounded-xl border border-border-subtle" />;
+  if (data.length === 0) {
+    return (
+      <Card className="flex flex-col items-center justify-center bg-surface-card border-border-subtle p-8 text-center min-h-[220px]">
+        <BrainCircuit size={24} className="text-text-muted mb-2 opacity-60" />
+        <p className="text-xs font-bold text-text-primary uppercase tracking-wider">Simulação de Monte Carlo indisponível</p>
+        <p className="text-[11px] text-text-muted mt-1">Sem histórico suficiente de Renda Variável ou Cripto para projetar cenários.</p>
+      </Card>
+    );
+  }
+
+  return <MonteCarloChartBody data={data} stats={stats} isHidden={isHidden} />;
+});
+
+function MonteCarloChartBody({ data, stats, isHidden }: { data: SimulationDataPoint[]; stats: { vol: string }; isHidden: boolean }) {
+  const palette = useChartPalette();
+  const chartData = data.map((d) => ({ ...d, range: [d.pior, d.melhor] as [number, number] }));
 
   return (
-    <Card className="flex flex-col bg-surface-card !border-slate-900 shadow-2xl p-6 animate-in fade-in duration-500">
+    <Card className="flex flex-col bg-surface-card border-border-subtle shadow-2xl p-6 animate-in fade-in duration-300">
 
       {/* Cabeçalho Sincronizado */}
       <div className="flex justify-between items-start mb-8">
@@ -82,23 +98,23 @@ export const MonteCarloChart = React.memo(function MonteCarloChart() {
             <BrainCircuit size={16} className="text-purple-400" />
           </div>
           <div>
-            <h3 className="font-bold text-slate-200 text-xs uppercase tracking-widest leading-none flex items-center gap-2">
+            <h3 className="font-bold text-text-primary text-xs uppercase tracking-widest leading-none flex items-center gap-2">
               Simulação de Monte Carlo
               <div className="relative group/tt flex items-center cursor-pointer normal-case">
-                <HelpCircle size={14} className="text-slate-500 hover:text-purple-400 transition-colors" />
-                <div className="absolute bottom-full left-0 mb-2 hidden group-hover/tt:block w-64 p-2 bg-slate-900 text-slate-300 text-[10px] rounded shadow-xl border border-slate-700 z-50 font-normal">
-                  Projeta matematicamente 1.000 futuros possíveis para sua carteira com base na volatilidade histórica. Mostra o cenário mais provável (tendência) e as extremidades (otimista/pessimista) para o próximo ano.
+                <HelpCircle size={14} className="text-text-muted hover:text-purple-400 transition-colors" />
+                <div className="absolute bottom-full left-0 mb-2 hidden group-hover/tt:block w-64 p-2 bg-surface-elevated text-text-primary text-[10px] rounded shadow-xl border border-border-subtle z-50 font-normal">
+                  Projeta matematicamente 1.000 futuros possíveis para sua carteira com base na volatilidade histórica. Mostra o cenário mais provável (tendência) e a banda P5–P95 para o próximo ano.
                 </div>
               </div>
             </h3>
-            <div className="flex flex-col gap-0.5 mt-2 text-slate-500">
+            <div className="flex flex-col gap-0.5 mt-2 text-text-muted">
               <div className="flex items-center gap-1.5">
                 <Info size={10} />
                 <p className="text-[10px] font-medium uppercase tracking-tight">
-                  1.000 Cenários • Movimento Browniano • Projeção 1 Ano
+                  1.000 Cenários • Banda P5–P95 • Projeção 1 Ano
                 </p>
               </div>
-              <p className="text-[10px] text-slate-400">
+              <p className="text-[10px] text-text-muted">
                 Base simulada: Renda Variável &amp; Cripto (exclui Reserva e Renda Fixa)
               </p>
             </div>
@@ -106,7 +122,7 @@ export const MonteCarloChart = React.memo(function MonteCarloChart() {
         </div>
 
         <div className="text-right space-y-1">
-          <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest leading-none">
+          <p className="text-[9px] font-bold text-text-muted uppercase tracking-widest leading-none">
             Volatilidade Anual
           </p>
           <p className="text-xl font-bold text-amber-400 font-mono">
@@ -118,12 +134,12 @@ export const MonteCarloChart = React.memo(function MonteCarloChart() {
       {/* Gráfico */}
       <div className="h-[300px] w-full">
         <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-          <LineChart data={data} margin={{ top: 5, right: 5, left: isHidden ? 0 : -10, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} opacity={0.5} />
+          <ComposedChart data={chartData} margin={{ top: 5, right: 5, left: isHidden ? 0 : -6, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke={palette.grid} vertical={false} opacity={0.5} />
 
             <XAxis
               dataKey="dia"
-              stroke="#475569"
+              stroke={palette.axis}
               fontSize={10}
               fontWeight="bold"
               tickLine={false}
@@ -133,29 +149,38 @@ export const MonteCarloChart = React.memo(function MonteCarloChart() {
             />
 
             <YAxis
-              stroke="#475569"
+              stroke={palette.axis}
               fontSize={10}
               fontWeight="bold"
               tickLine={false}
               axisLine={false}
-              width={isHidden ? 45 : 65}
-              tickFormatter={(val) => isHidden ? '••••' : `R$ ${(val / 1000).toFixed(0)}k`}
+              width={isHidden ? 45 : 70}
+              tickFormatter={(val) => {
+                if (isHidden) return '••••';
+                const num = Number(val);
+                if (Math.abs(num) >= 1000) return `R$ ${(num / 1000).toFixed(1).replace('.', ',')}k`;
+                return `R$ ${num.toFixed(0)}`;
+              }}
               domain={['auto', 'auto']}
             />
 
             <Tooltip
-              cursor={{ stroke: '#334155', strokeWidth: 1 }}
+              cursor={{ stroke: palette.grid, strokeWidth: 1 }}
               contentStyle={{
-                backgroundColor: '#0f172a',
-                borderColor: '#1e293b',
+                backgroundColor: palette.tooltipBg,
+                borderColor: palette.tooltipBorder,
                 borderRadius: '12px',
-                border: '1px solid #334155',
-                boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.5)'
+                boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.25)'
               }}
               itemStyle={{ fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', padding: '2px 0' }}
-              labelStyle={{ color: '#64748b', marginBottom: '8px', fontSize: '10px', fontWeight: 'bold' }}
-              // ⚡ CONTRATO ESTREITO TS: Substituído o 'val: any' por tipagem estruturada estrita
-              formatter={(val) => [isHidden ? '••••••' : `R$ ${Number(val ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, '']}
+              labelStyle={{ color: palette.axis, marginBottom: '8px', fontSize: '10px', fontWeight: 'bold' }}
+              formatter={(val) => {
+                if (Array.isArray(val)) {
+                  if (isHidden) return ['••••••', 'Banda P5–P95'];
+                  return [`R$ ${Number(val[0]).toLocaleString('pt-BR', { maximumFractionDigits: 0 })} – R$ ${Number(val[1]).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`, 'Banda P5–P95'];
+                }
+                return [isHidden ? '••••••' : `R$ ${Number(val ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, ''];
+              }}
               labelFormatter={(label) => `Dia ${label}`}
             />
 
@@ -163,15 +188,23 @@ export const MonteCarloChart = React.memo(function MonteCarloChart() {
               verticalAlign="bottom"
               height={36}
               iconType="circle"
-              formatter={(value) => <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">{value}</span>}
+              formatter={(value) => <span className="text-[10px] font-bold text-text-muted uppercase tracking-tight">{value}</span>}
             />
 
+            <Area
+              type="monotone"
+              dataKey="range"
+              name="Banda P5–P95"
+              stroke="none"
+              fill="#3b82f6"
+              fillOpacity={0.14}
+            />
             <Line
               type="monotone"
               dataKey="melhor"
               name="Otimista (95%)"
               stroke="#10b981"
-              strokeWidth={2}
+              strokeWidth={1.8}
               dot={false}
               activeDot={{ r: 4, strokeWidth: 0 }}
             />
@@ -189,13 +222,13 @@ export const MonteCarloChart = React.memo(function MonteCarloChart() {
               dataKey="pior"
               name="Pessimista (5%)"
               stroke="#ef4444"
-              strokeWidth={2}
+              strokeWidth={1.8}
               dot={false}
               activeDot={{ r: 4, strokeWidth: 0 }}
             />
-          </LineChart>
+          </ComposedChart>
         </ResponsiveContainer>
       </div>
     </Card>
   );
-});
+}

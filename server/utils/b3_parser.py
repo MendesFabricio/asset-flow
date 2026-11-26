@@ -64,7 +64,7 @@ def extract_page_vector_indicators(page):
         logging.warning(f"Erro ao extrair vetores da página B3: {e}")
     return indicators
 
-def extract_b3_extract_transactions(file_stream, filename=""):
+def extract_b3_extract_transactions(file_stream, filename="", password: str | None = None):
     """
     Parseia o Extrato de Movimentação da B3 (PDF).
     Agrupa blocos de texto por faixa de coordenada Y (linhas da tabela) para
@@ -73,6 +73,28 @@ def extract_b3_extract_transactions(file_stream, filename=""):
     doc = None
     try:
         doc = fitz.open(stream=file_stream.read(), filetype="pdf")
+        if doc.needs_pass:
+            if not password or not doc.authenticate(password):
+                return {
+                    "status": "Erro",
+                    "code": "PDF_PASSWORD_REQUIRED",
+                    "msg": "Extrato protegido por senha. Informe a senha (geralmente CPF) para importar.",
+                    "dividends": [],
+                    "transactions": [],
+                    "corporate_events_suggestions": [],
+                    "corporate_events": [],
+                }
+        total_text_chars = sum(len((p.get_text() or "").strip()) for p in doc)
+        if len(doc) > 0 and total_text_chars < 50:
+            return {
+                "status": "Erro",
+                "code": "PDF_SCANNED",
+                "msg": "PDF escaneado ou sem texto selecionável. Exporte o extrato digital diretamente no Portal B3.",
+                "dividends": [],
+                "transactions": [],
+                "corporate_events_suggestions": [],
+                "corporate_events": [],
+            }
         
         meses = {
             "janeiro": "01", "fevereiro": "02", "março": "03", "abril": "04",
@@ -221,3 +243,6 @@ def extract_b3_extract_transactions(file_stream, filename=""):
             "corporate_events_suggestions": [],
             "corporate_events": [],
         }
+    finally:
+        if doc:
+            doc.close()

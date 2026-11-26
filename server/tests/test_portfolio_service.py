@@ -63,7 +63,9 @@ def test_add_transaction_buy(mock_session_cls, mock_commit, service):
         mock_asset,
         mock_position,
     ]
-    mock_session.query.return_value.filter_by.return_value.filter.return_value.first.return_value = None # No duplicate
+    mock_session.query.return_value.filter_by.return_value.filter.return_value.first.return_value = None
+    mock_session.query.return_value.filter.return_value.first.return_value = None # No duplicate
+    mock_session.query.return_value.filter.return_value.first.return_value = None # No later tx
     
     res = service.add_transaction("PETR4", "BUY", 50, 15.0)
     
@@ -88,6 +90,7 @@ def test_add_transaction_sell(mock_session_cls, mock_commit, service):
         mock_position,
     ]
     mock_session.query.return_value.filter_by.return_value.filter.return_value.first.return_value = None
+    mock_session.query.return_value.filter.return_value.first.return_value = None
     
     res = service.add_transaction("PETR4", "SELL", 50, 15.0)
     
@@ -114,6 +117,7 @@ def test_add_transaction_sell_insufficient_qty(mock_session_cls, service):
         mock_position,
     ]
     mock_session.query.return_value.filter_by.return_value.filter.return_value.first.return_value = None
+    mock_session.query.return_value.filter.return_value.first.return_value = None
     
     with pytest.raises(ValueError, match="Quantidade de venda maior que a posição atual"):
         service.add_transaction("PETR4", "SELL", 100, 15.0)

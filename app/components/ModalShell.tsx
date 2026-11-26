@@ -107,7 +107,7 @@ export function ModalShell({
         role="dialog"
         aria-modal="true"
         tabIndex={-1}
-        className={`relative w-full ${maxWidthMap[maxWidth]} max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-2xl shadow-slate-900/10 dark:shadow-black/60 flex flex-col outline-none`}
+        className={`relative w-full ${maxWidthMap[maxWidth]} max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-2xl shadow-slate-900/10 dark:shadow-black/60 flex flex-col outline-none animate-in fade-in zoom-in-95 duration-150 ease-[var(--ease-out)]`}
       >
         {/* Header */}
         <div className="sticky top-0 z-10 bg-white/95 dark:bg-slate-900/95 border-b border-slate-200/80 dark:border-slate-800 px-6 py-4 flex items-center justify-between shrink-0">

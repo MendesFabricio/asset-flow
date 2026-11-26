@@ -95,7 +95,10 @@ def calculate_dcf_price(
     pv_cashflows = 0.0
     cf = fcf
     for yr in range(1, years + 1):
-        cf = cf * (1.0 + g)
+        # Fade linear da taxa de crescimento inicial (g) em direção ao crescimento perpétuo (gt)
+        fade_ratio = (yr - 1) / max(1, years - 1) if years > 1 else 0.0
+        yr_g = g + (gt - g) * fade_ratio
+        cf = cf * (1.0 + yr_g)
         pv_cashflows += cf / ((1.0 + w) ** yr)
 
     terminal_val = (cf * (1.0 + gt)) / (w - gt)
@@ -254,13 +257,14 @@ def evaluate_fundamental_checklist(asset_type: str, m: dict) -> tuple[list[dict]
         else:
             items.append(_eval_criterion("dy", "Dividend Yield (12m)", dy, f"{dy:.2f}%", "DY baixo (< 3%)", "fail"))
 
-        # 6. Preço vs Valor Justo (Bazin / Graham)
-        targets = [v for v in (bazin, graham) if v and v > 0]
+        # 6. Preço vs Valor Justo (Mediana Bazin / Graham para evitar viés otimista)
+        targets = sorted(v for v in (bazin, graham) if v and v > 0)
         if targets and price:
-            best_target = max(targets)
-            margin_safety = ((best_target - price) / price) * 100.0
+            mid = len(targets) // 2
+            blended_target = targets[0] if len(targets) == 1 else (targets[0] + targets[1]) / 2.0
+            margin_safety = ((blended_target - price) / price) * 100.0
             status = "pass" if margin_safety >= 10.0 else ("warn" if margin_safety >= -10.0 else "fail")
-            items.append(_eval_criterion("valuation", "Desconto (Bazin/Graham)", margin_safety, f"{margin_safety:+.1f}%", "Ideal ≥ +10% abaixo do teto/VI", status))
+            items.append(_eval_criterion("valuation", "Desconto (Bazin/Graham)", margin_safety, f"{margin_safety:+.1f}%", "Ideal ≥ +10% abaixo da média Bazin/Graham", status))
         else:
             items.append(_eval_criterion("valuation", "Desconto (Bazin/Graham)", None, "N/D", "Sem LPA/VPA/Dividendo suficiente", "unknown"))
 

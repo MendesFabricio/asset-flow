@@ -1,97 +1,134 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { Coffee, ChevronDown, ChevronUp, Brain, RefreshCw, AlertCircle, Loader2, Target, BarChart3, Newspaper, ExternalLink } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Coffee, RefreshCw, AlertCircle, Calendar, Wallet, BellRing, TrendingUp } from 'lucide-react';
 import { apiCall } from '@/lib/api';
-import { Markdown } from '@/components/ui/Markdown';
+import { usePrivacy } from '@/context/PrivacyContext';
+import { formatMoney } from '@/lib/format';
 
-interface NewsHighlight {
-  ticker: string;
-  title: string;
-  link: string;
-  source?: string;
+interface IndexQuote {
+  price?: number;
+  change?: number;
+  pct?: number;
 }
 
-interface BriefData {
+interface IndicesResponse {
+  ibov?: IndexQuote;
+  ifix?: IndexQuote;
+  dolar?: IndexQuote;
+  selic?: number;
+  cdi?: number;
+}
+
+interface CalendarEvent {
+  ticker?: string;
+  date_com?: string;
+  date_payment?: string;
+  total?: number;
+  total_value?: number;
+  value_per_share?: number;
+  type?: string;
+}
+
+interface CashBridgeResponse {
   status: string;
-  selic_rate: string;
-  dolar_rate: string;
-  rationale: string;
-  brief_text: string;
-  action: string;
-  risk_metrics: Record<string, string | number | undefined>;
-  news_highlights?: NewsHighlight[];
+  net_free_cash_30d?: number;
+  components?: {
+    dividends_30d?: number;
+    receivables_30d?: number;
+  };
+}
+
+interface TriggeredNotification {
+  id: number;
+  ticker: string;
+  note?: string;
+  event_type?: string;
 }
 
 export function MorningBriefing() {
-  const [data, setData] = useState<BriefData | null>(null);
+  const { isHidden } = usePrivacy() as { isHidden: boolean };
+  const [indices, setIndices] = useState<IndicesResponse | null>(null);
+  const [upcomingDataCom, setUpcomingDataCom] = useState<CalendarEvent[]>([]);
+  const [cashBridge, setCashBridge] = useState<CashBridgeResponse | null>(null);
+  const [alerts, setAlerts] = useState<TriggeredNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showCoT, setShowCoT] = useState(false);
-  const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const fetchBrief = useCallback(async (force = false, signal?: AbortSignal) => {
+  const money = (v: number) => (isHidden ? 'R$ •••••' : formatMoney(v));
+
+  const loadBrief = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
     setError(null);
-    if (pollRef.current) clearTimeout(pollRef.current);
     try {
-      const endpoint = force ? '/api/ai/morning-brief?force=true' : '/api/ai/morning-brief';
-      const result = await apiCall<BriefData>(endpoint, { timeout: 30000, signal });
-      setData(result);
-      // Se IA ainda processando, sonda novamente em 20s (menos agressivo)
-      if (result.status === 'Processando') {
-        pollRef.current = setTimeout(() => fetchBrief(false, signal), 20000);
+      const [idxRes, calRes, cashRes, notifRes] = await Promise.allSettled([
+        apiCall<IndicesResponse>('/api/market/indices', { signal }),
+        apiCall<CalendarEvent[] | { agenda?: CalendarEvent[]; calendar?: CalendarEvent[] }>('/api/calendar', { signal }),
+        apiCall<CashBridgeResponse>('/api/cashflow/free-cash-bridge?window_days=30', { signal }),
+        apiCall<{ notifications?: TriggeredNotification[] }>('/api/price-alerts/notifications', { signal }),
+      ]);
+
+      if (signal?.aborted) return;
+
+      if (idxRes.status === 'fulfilled') setIndices(idxRes.value);
+      if (calRes.status === 'fulfilled') {
+        const raw = calRes.value;
+        const list = Array.isArray(raw) ? raw : raw?.agenda || raw?.calendar || [];
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const in7d = new Date(today.getTime() + 7 * 86400000);
+        const filtered = list
+          .filter((ev) => {
+            if (!ev.date_com) return false;
+            const d = new Date(`${ev.date_com}T00:00:00`);
+            return d >= today && d <= in7d;
+          })
+          .sort((a, b) => String(a.date_com || '').localeCompare(String(b.date_com || '')))
+          .slice(0, 8);
+        setUpcomingDataCom(filtered);
+      }
+      if (cashRes.status === 'fulfilled') setCashBridge(cashRes.value);
+      if (notifRes.status === 'fulfilled') setAlerts((notifRes.value.notifications || []).slice(0, 4));
+      if (idxRes.status === 'rejected' && calRes.status === 'rejected') {
+        setError('Não foi possível carregar o resumo diário determinístico.');
       }
     } catch (e: unknown) {
-      if (e instanceof Error && (e.name === 'AbortError' || e.message.includes('AbortError'))) return;
-      console.error(e);
-      setError('Falha ao conectar com o serviço de inteligência.');
+      if (signal?.aborted || (e instanceof Error && (e.name === 'AbortError' || e.message.includes('AbortError')))) return;
+      setError('Falha ao carregar o resumo diário.');
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
     const controller = new AbortController();
-    // Atraso de 5s para não disparar junto com MarketTicker (3s) e outros componentes do header
-    const init = setTimeout(() => fetchBrief(false, controller.signal), 5000);
-    return () => {
-      clearTimeout(init);
-      if (pollRef.current) clearTimeout(pollRef.current);
-      controller.abort();
-    };
-  }, [fetchBrief]);
-
+    loadBrief(controller.signal);
+    return () => controller.abort();
+  }, [loadBrief]);
 
   if (loading) {
     return (
-      <div className="bg-surface-card border border-slate-800/80 backdrop-blur-md rounded-2xl p-5 mb-6 animate-pulse">
-        <div className="flex justify-between items-center mb-3">
-          <div className="h-5 bg-slate-800 rounded w-40" />
-          <div className="flex gap-2">
-            <div className="h-5 bg-slate-800 rounded w-16" />
-            <div className="h-5 bg-slate-800 rounded w-16" />
-          </div>
-        </div>
-        <div className="space-y-2">
-          <div className="h-3 bg-slate-800 rounded w-full" />
-          <div className="h-3 bg-slate-800 rounded w-11/12" />
-          <div className="h-3 bg-slate-800 rounded w-9/12" />
+      <div className="bg-surface-card border border-border-subtle rounded-2xl p-5 animate-pulse h-[420px]">
+        <div className="h-5 bg-surface-elevated rounded w-44 mb-4" />
+        <div className="space-y-3">
+          <div className="h-16 bg-surface-elevated rounded-xl" />
+          <div className="h-24 bg-surface-elevated rounded-xl" />
+          <div className="h-24 bg-surface-elevated rounded-xl" />
         </div>
       </div>
     );
   }
 
-  if (error || !data) {
+  if (error) {
     return (
-      <div className="bg-surface-card border border-red-900/30 backdrop-blur-md rounded-2xl p-4 mb-6 flex justify-between items-center gap-3">
+      <div className="bg-surface-card border border-red-500/30 rounded-2xl p-4 flex justify-between items-center gap-3">
         <div className="flex items-center gap-2 text-red-400">
           <AlertCircle size={16} />
-          <span className="text-xs font-medium">{error || 'Briefing temporariamente indisponível.'}</span>
+          <span className="text-xs font-medium">{error}</span>
         </div>
         <button
-          onClick={() => fetchBrief(false)}
-          className="text-slate-400 hover:text-white transition-colors p-1 hover:bg-slate-800/50 rounded-lg"
+          onClick={() => loadBrief()}
+          className="text-text-secondary hover:text-text-primary min-h-9 min-w-9 flex items-center justify-center rounded-lg hover:bg-surface-elevated transition-colors active:scale-[0.97]"
         >
           <RefreshCw size={14} />
         </button>
@@ -100,137 +137,126 @@ export function MorningBriefing() {
   }
 
   return (
-    <div className="bg-gradient-to-b from-surface-card via-surface-input to-surface-card border border-slate-800/80 backdrop-blur-md rounded-2xl p-5 shadow-2xl transition-all hover:border-blue-500/30 h-[650px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-800">
-      <div className="flex flex-col justify-between items-start gap-4 border-b border-slate-800/60 pb-4 mb-4">
+    <div className="bg-surface-card border border-border-subtle rounded-2xl p-5 shadow-xl h-[650px] overflow-y-auto flex flex-col gap-4">
+      <div className="flex items-center justify-between border-b border-border-subtle pb-3">
         <div className="flex items-center gap-2.5">
           <div className="p-1.5 bg-blue-500/10 rounded-lg border border-blue-500/20 text-blue-400">
-            <Coffee size={16} className="animate-pulse" />
+            <Coffee size={16} />
           </div>
           <div>
-            <h3 className="text-xs font-extrabold uppercase tracking-widest text-slate-200">Briefing Matinal de IA</h3>
-            <p className="text-[10px] text-slate-500">Resumo macroeconômico e riscos ponderados</p>
+            <h3 className="text-xs font-extrabold uppercase tracking-widest text-text-primary">
+              Briefing Determinístico
+            </h3>
+            <p className="text-[10px] text-text-muted">Macro, Data-Com 7d, Fatos & Caixa Livre</p>
           </div>
         </div>
+        <button
+          onClick={() => loadBrief()}
+          title="Atualizar dados"
+          className="min-h-9 min-w-9 flex items-center justify-center rounded-lg border border-border-subtle text-text-secondary hover:text-text-primary hover:bg-surface-elevated transition-colors active:scale-[0.97]"
+        >
+          <RefreshCw size={12} />
+        </button>
+      </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
-          {data.selic_rate && (
-            <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-surface-input text-slate-400 border border-slate-800">
-              Selic: <span className="font-mono text-blue-400">{data.selic_rate}</span>
-            </span>
-          )}
-          {data.dolar_rate && (
-            <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-surface-input text-slate-400 border border-slate-800">
-              Dólar: <span className="font-mono text-emerald-400">
-                {String(data.dolar_rate).includes('R$') ? data.dolar_rate : `R$ ${Number(data.dolar_rate).toFixed(2)}`}
-              </span>
-            </span>
-          )}
-          {data.status === 'Processando' && (
-            <span className="flex items-center gap-1 text-[10px] font-bold text-amber-400">
-              <Loader2 size={11} className="animate-spin" /> Gerando IA...
-            </span>
-          )}
-          <button
-            onClick={() => fetchBrief(true)}
-            title="Reanalisar com IA (forçar recálculo)"
-            className="text-slate-500 hover:text-indigo-400 hover:bg-slate-800/50 p-1.5 rounded-lg transition-all flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider border border-slate-850"
-          >
-            <RefreshCw size={11} className={loading ? "animate-spin" : ""} />
-            <span>Reanalisar</span>
-          </button>
+      {/* Macro Strip */}
+      <div className="grid grid-cols-3 gap-2">
+        <div className="bg-surface-elevated border border-border-subtle rounded-xl p-2.5">
+          <div className="text-[10px] text-text-muted uppercase">IBOV</div>
+          <div className="text-xs font-mono font-bold text-text-primary">
+            {indices?.ibov?.price ? indices.ibov.price.toLocaleString('pt-BR', { maximumFractionDigits: 0 }) : '—'}
+          </div>
+        </div>
+        <div className="bg-surface-elevated border border-border-subtle rounded-xl p-2.5">
+          <div className="text-[10px] text-text-muted uppercase">IFIX</div>
+          <div className="text-xs font-mono font-bold text-text-primary">
+            {indices?.ifix?.price ? indices.ifix.price.toLocaleString('pt-BR', { maximumFractionDigits: 0 }) : '—'}
+          </div>
+        </div>
+        <div className="bg-surface-elevated border border-border-subtle rounded-xl p-2.5">
+          <div className="text-[10px] text-text-muted uppercase">Dólar / Selic</div>
+          <div className="text-xs font-mono font-bold text-emerald-400">
+            {indices?.dolar?.price ? `R$ ${Number(indices.dolar.price).toFixed(2)}` : '—'}
+            {typeof indices?.selic === 'number' ? ` · ${indices.selic.toFixed(2)}%` : ''}
+          </div>
         </div>
       </div>
 
-      <div className="text-xs text-slate-300 leading-relaxed font-normal">
-        <Markdown text={data.brief_text} />
+      {/* Caixa Livre 30d */}
+      <div className="bg-surface-elevated border border-border-subtle rounded-xl p-3.5">
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-text-secondary flex items-center gap-1.5">
+            <Wallet size={13} className="text-emerald-400" />
+            Caixa Livre Projetado (30d)
+          </span>
+          <span className="text-sm font-mono font-extrabold text-emerald-400">
+            {money(cashBridge?.net_free_cash_30d || 0)}
+          </span>
+        </div>
+        <div className="flex items-center justify-between text-[11px] text-text-muted">
+          <span>Proventos provisionados: {money(cashBridge?.components?.dividends_30d || 0)}</span>
+          <span>Recebíveis: {money(cashBridge?.components?.receivables_30d || 0)}</span>
+        </div>
       </div>
 
-      {data.action && (
-        <div className="mt-3 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300">
-          <div className="flex items-center gap-2 mb-1">
-            <Target size={14} />
-            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Ação Recomendada</span>
-          </div>
-          <p className="text-xs text-slate-200 leading-relaxed">{data.action}</p>
+      {/* Data-Com Próximos 7 Dias */}
+      <div className="bg-surface-elevated border border-border-subtle rounded-xl p-3.5">
+        <div className="flex items-center gap-1.5 mb-2">
+          <Calendar size={13} className="text-blue-400" />
+          <span className="text-[10px] font-bold uppercase tracking-wider text-text-secondary">
+            Data-Com nos Próximos 7 Dias
+          </span>
         </div>
-      )}
-
-      {data.risk_metrics && Object.keys(data.risk_metrics).length > 0 && (
-        <div className="mt-3 p-3 rounded-xl bg-surface-input border border-border-subtle">
-          <div className="flex items-center gap-2 mb-2.5">
-            <BarChart3 size={14} className="text-indigo-400" />
-            <span className="text-[10px] font-bold uppercase tracking-wider text-text-secondary">Métricas de Risco</span>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-            {Object.entries(data.risk_metrics).map(([key, value]) => {
-              const labelMap: Record<string, string> = {
-                macro_regime: 'Regime Macro',
-                fx_bias: 'Viés Cambial',
-                posture: 'Postura',
-              };
-              const rawVal = String(value || '').trim();
-              const cleanVal = rawVal.includes('|') ? rawVal.split('|')[0].trim() : rawVal;
-              return (
-                <div key={key} className="bg-surface-card border border-border-subtle rounded-lg px-3 py-2 text-center">
-                  <div className="text-[10px] text-text-secondary uppercase tracking-wider mb-0.5">
-                    {labelMap[key] || key}
-                  </div>
-                  <div className="text-xs font-mono font-semibold text-text-primary">{cleanVal}</div>
+        {upcomingDataCom.length === 0 ? (
+          <p className="text-xs text-text-muted">Nenhuma Data-Com prevista nos próximos 7 dias.</p>
+        ) : (
+          <ul className="space-y-1.5">
+            {upcomingDataCom.map((ev, i) => (
+              <li key={`${ev.ticker}-${i}`} className="flex items-center justify-between gap-2 text-xs">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="font-mono font-bold text-text-primary">{ev.ticker}</span>
+                  <span className="text-text-muted text-[11px]">{ev.date_com}</span>
                 </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-
-      {data.news_highlights && data.news_highlights.length > 0 && (
-        <div className="mt-3 p-3 rounded-xl bg-surface-input border border-border-subtle">
-          <div className="flex items-center gap-2 mb-2">
-            <Newspaper size={14} className="text-blue-400" />
-            <span className="text-[10px] font-bold uppercase tracking-wider text-text-secondary">
-              Principais Notícias da Carteira
-            </span>
-          </div>
-          <ul className="space-y-2">
-            {data.news_highlights.map((item, idx) => (
-              <li key={`${item.ticker}-${idx}`} className="flex items-start justify-between gap-2 text-xs">
-                <a
-                  href={item.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-text-primary hover:text-blue-400 transition-colors leading-snug flex-1"
-                >
-                  <span className="inline-block font-mono text-[10px] font-bold px-1.5 py-0.5 mr-1.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                    {item.ticker}
-                  </span>
-                  {item.title}
-                </a>
-                <ExternalLink size={12} className="text-text-secondary shrink-0 mt-0.5" />
+                <div className="text-right font-mono shrink-0">
+                  <span className="text-emerald-400 font-semibold">{money(ev.total ?? ev.total_value ?? 0)}</span>
+                  {ev.value_per_share != null && ev.value_per_share > 0 && (
+                    <span className="text-[10px] text-text-muted ml-1.5">
+                      ({isHidden ? '••••' : `R$ ${ev.value_per_share.toFixed(4).replace('.', ',')}/un.`})
+                    </span>
+                  )}
+                </div>
               </li>
             ))}
           </ul>
-        </div>
-      )}
+        )}
+      </div>
 
-      {data.rationale && (
-        <div className="mt-3 border-t border-slate-800/40 pt-3">
-          <button
-            onClick={() => setShowCoT(!showCoT)}
-            className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-blue-400/80 hover:text-blue-400 transition-colors"
-          >
-            <Brain size={12} />
-            <span>Ver Raciocínio de Risco (CoT)</span>
-            {showCoT ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-          </button>
-          
-          {showCoT && (
-            <div className="mt-2.5 p-3 rounded-xl bg-surface-input border border-slate-800 text-[11px] text-slate-400 leading-relaxed animate-in fade-in slide-in-from-top-1">
-              <Markdown text={data.rationale} />
-            </div>
-          )}
+      {/* Fatos & Alertas Recentes */}
+      <div className="bg-surface-elevated border border-border-subtle rounded-xl p-3.5">
+        <div className="flex items-center gap-1.5 mb-2">
+          <BellRing size={13} className="text-amber-400" />
+          <span className="text-[10px] font-bold uppercase tracking-wider text-text-secondary">
+            Alertas & Fatos Recentes
+          </span>
         </div>
-      )}
+        {alerts.length === 0 ? (
+          <div className="flex items-center gap-1.5 text-xs text-text-muted">
+            <TrendingUp size={13} className="text-text-muted" />
+            <span>Nenhum alerta pendente no momento.</span>
+          </div>
+        ) : (
+          <ul className="space-y-1.5">
+            {alerts.map((al) => (
+              <li key={al.id} className="text-xs text-text-secondary flex items-start gap-2">
+                <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 shrink-0">
+                  {al.ticker}
+                </span>
+                <span className="line-clamp-2">{al.note || al.event_type || 'Evento disparado'}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }

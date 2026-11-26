@@ -14,7 +14,7 @@ _TX_ORDER = {
     "DEPOSIT": 0,
     "TICKER_CHANGE_IN": 0,
     "SPIN_OFF_RECEIPT": 0,
-    "BONUS": 0,
+    "BONUS": 1,
     "SPLIT": 1,
     "INPLIT": 1,
     "SPIN_OFF": 1,
@@ -67,9 +67,21 @@ def _get_bens_e_direitos(session, user_id: int, year: int) -> list:
 
         pos = portfolio[tx.ticker]
 
-        if tx.type in ("BUY", "TICKER_CHANGE_IN", "SPIN_OFF_RECEIPT", "BONUS"):
+        if tx.type in ("BUY", "TICKER_CHANGE_IN", "SPIN_OFF_RECEIPT"):
             pos["quantity"] += tx.quantity
             pos["total_cost"] += tx.total_value
+        elif tx.type == "BONUS":
+            # BONUS armazena a nova quantidade total e o novo PM pós-bonificação em unit_price
+            pos["quantity"] = tx.quantity
+            u_price = getattr(tx, "unit_price", None)
+            if u_price is not None and Decimal(str(u_price)) > Decimal("0.0"):
+                pos["total_cost"] = tx.quantity * Decimal(str(u_price))
+            elif tx.total_value:
+                pos["total_cost"] += tx.total_value
+        elif tx.type == "SPIN_OFF":
+            u_price = getattr(tx, "unit_price", None)
+            if u_price is not None and pos["quantity"] > Decimal("0.0"):
+                pos["total_cost"] = pos["quantity"] * Decimal(str(u_price))
         elif tx.type == "DEPOSIT":
             if pos["quantity"] <= 0:
                 pos["quantity"] = tx.quantity or Decimal("1.0")
@@ -153,6 +165,7 @@ def calculate_annual_irpf(user_id: int, year: int) -> Dict[str, Any]:
         
         divs = session.query(Dividend).filter(
             Dividend.user_id == user_id,
+            Dividend.status == "PAGO",
             func.date(Dividend.date_payment) >= start_of_year,
             func.date(Dividend.date_payment) <= end_of_year
         ).all()
@@ -226,7 +239,6 @@ def calculate_annual_irpf(user_id: int, year: int) -> Dict[str, Any]:
                     profit_fii += profit
                     irrf_fii += sale_value * Decimal("0.00005")
                 elif is_dt:
-                    sales_total_stocks += sale_value
                     profit_dt += profit
                     if profit > 0:
                         irrf_dt += profit * Decimal("0.01")

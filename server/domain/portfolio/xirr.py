@@ -270,7 +270,7 @@ def calculate_portfolio_returns(session, user_id: int) -> dict:
         session.query(AssetTransaction.type, AssetTransaction.total_value, AssetTransaction.transaction_date)
         .filter(
             AssetTransaction.user_id == user_id,
-            AssetTransaction.type.in_(["BUY", "SELL"]),
+            AssetTransaction.type.in_(["BUY", "SELL", "DEPOSIT", "WITHDRAW", "AMORTIZATION"]),
         )
         .order_by(AssetTransaction.transaction_date.asc())
         .all()
@@ -316,7 +316,7 @@ def calculate_portfolio_returns(session, user_id: int) -> dict:
             continue
         if first_date is None or dt < first_date:
             first_date = dt
-        if tx_type == "BUY":
+        if tx_type in ("BUY", "DEPOSIT"):
             total_compras += val
             cashflows.append((dt, -val))
         else:
@@ -325,7 +325,7 @@ def calculate_portfolio_returns(session, user_id: int) -> dict:
 
     divs = (
         session.query(Dividend.total_value, Dividend.date_payment, Dividend.date_com)
-        .filter(Dividend.user_id == user_id)
+        .filter(Dividend.user_id == user_id, Dividend.status == "PAGO")
         .all()
     )
     total_dividendos = 0.0
@@ -379,7 +379,8 @@ def calculate_portfolio_returns(session, user_id: int) -> dict:
         v1 = float(row.get("patrimonio_fim", 0.0))
         cf = float(row.get("aportes_liquidos", 0.0))
         d = float(row.get("dividendos", 0.0))
-        denom = v0 + 0.5 * cf
+        # No mês inaugural (v0 == 0), o capital total investido cf entra desde o início efetivo da série
+        denom = cf if (v0 <= 1.0 and cf > 1.0) else (v0 + 0.5 * cf)
         if denom > 1.0:
             r_m_raw = (v1 - v0 - cf + d) / denom
             r_m = max(-0.95, min(r_m_raw, 5.0))
@@ -402,9 +403,14 @@ def calculate_portfolio_returns(session, user_id: int) -> dict:
         else None
     )
 
+    cdi_aa_pct = (
+        (((1.0 + (cdi_pct / 100.0)) ** (365.0 / days)) - 1.0) * 100.0
+        if cdi_pct is not None and (1.0 + cdi_pct / 100.0) > 0 and days > 0
+        else None
+    )
     pct_cdi = (
-        round((xirr_periodo_pct / cdi_pct) * 100.0, 1)
-        if xirr_periodo_pct is not None and cdi_pct and cdi_pct > 0
+        round((xirr_aa_pct / cdi_aa_pct) * 100.0, 1)
+        if xirr_aa_pct is not None and cdi_aa_pct and cdi_aa_pct > 0
         else None
     )
 

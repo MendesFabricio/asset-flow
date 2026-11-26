@@ -54,7 +54,7 @@ export const NavigationTabs = memo(function NavigationTabs({
   onPrefetch,
 }: NavigationTabsProps) {
   return (
-    <div className="max-w-7xl mx-auto px-4 py-3 space-y-2">
+    <div className="w-full max-w-7xl mx-auto px-4 lg:px-6 py-3 space-y-2">
       <div className="flex flex-col md:flex-row md:items-center gap-2.5">
         <span className="text-[11px] font-bold text-text-muted uppercase tracking-wider min-w-[125px] shrink-0">
           Minha Carteira:

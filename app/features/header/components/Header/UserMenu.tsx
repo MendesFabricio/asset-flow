@@ -66,13 +66,13 @@ export function UserMenu({ showName = false }: UserMenuProps) {
         aria-label="Menu do usuário"
         aria-haspopup="menu"
         aria-expanded={isOpen}
-        className="flex items-center gap-1.5 bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 p-1.5 rounded-xl transition-all text-xs font-semibold text-slate-200"
+        className="h-9 flex items-center gap-1.5 bg-surface-card hover:bg-surface-elevated border border-border-subtle pl-1.5 pr-2 rounded-xl transition-colors text-xs font-semibold text-text-primary"
       >
-        <div className="w-5 h-5 rounded-full bg-gradient-to-br from-slate-700 to-slate-800 border border-slate-600/40 text-slate-200 flex items-center justify-center font-bold text-[9px] shadow-sm">
+        <div className="w-6 h-6 rounded-lg bg-accent-soft text-accent flex items-center justify-center font-bold text-[11px] tracking-tight">
           {initials}
         </div>
         {showName && <span className="hidden sm:inline">{username || 'Investidor'}</span>}
-        <ChevronDown size={11} className={`transition-transform duration-200 text-slate-500 ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown size={12} className={`transition-transform duration-200 text-text-muted ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (

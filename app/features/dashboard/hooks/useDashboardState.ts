@@ -21,7 +21,6 @@ export const DASHBOARD_CONTENT_TABS = [
   'Comparador',
   'RendaPassiva',
   'Jarvis',
-  'Cartoes',
   'Renda Fixa',
 ] as const;
 
@@ -67,7 +66,6 @@ export function useDashboardState() {
   }, []);
   const [isRefetching, setIsRefetching] = useState(false);
   const [showRefreshSuccess, setShowRefreshSuccess] = useState(false);
-  const [isRadarModalOpen, setIsRadarModalOpen] = useState(false);
 
   const isAddModalOpen = useModalStore(state => state.isAddModalOpen);
   const isSmartModalOpen = useModalStore(state => state.isSmartModalOpen);
@@ -79,9 +77,6 @@ export function useDashboardState() {
   const setEditingAsset = useModalStore(state => state.setEditingAsset);
   const setSelectedDetailsAsset = useModalStore(state => state.setSelectedDetailsAsset);
   const setNewsTicker = useModalStore(state => state.setNewsTicker);
-
-  const openRadarModal = useCallback(() => setIsRadarModalOpen(true), []);
-  const closeRadarModal = useCallback(() => setIsRadarModalOpen(false), []);
 
   const isCorporateActionModalOpen = useModalStore(state => state.isCorporateActionModalOpen);
   const setCorporateActionModalOpen = useModalStore(state => state.setCorporateActionModalOpen);
@@ -124,9 +119,6 @@ export function useDashboardState() {
     setIsRefetching,
     showRefreshSuccess,
     setShowRefreshSuccess,
-    isRadarModalOpen,
-    openRadarModal,
-    closeRadarModal,
     modals,
   };
 }

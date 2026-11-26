@@ -1,20 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  Building2,
-  Compass,
-  Filter,
-  Loader2,
-  Plus,
-  RefreshCw,
-  Search,
-  ShieldCheck,
-  Sparkles,
-  Star,
-  Trash2,
-  TrendingUp,
-} from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Compass, Loader2, Plus, RefreshCw, Search, ShieldCheck } from 'lucide-react';
 import { apiCall } from '@/lib/api';
 import { formatMoney } from '@/lib/format';
 import { ModalShell } from '@/components/ModalShell';
@@ -23,32 +10,17 @@ import { useToast } from '@/context/ToastContext';
 import { ValuationAssetData, WatchlistEntry } from '@/types';
 import { ValuationPanel } from './ValuationPanel';
 import { SignalsBookView } from './SignalsBookView';
-
-type StrategyMode = 'quality' | 'dividends' | 'bargain' | 'magic' | 'fiis' | 'watchlist' | 'signals';
-
-interface RadarResponse {
-  status: string;
-  total_cached: number;
-  sectors: string[];
-  sync_state: { status: string; message: string };
-  items: ValuationAssetData[];
-}
-
-const STRATEGIES: Array<{ id: StrategyMode; label: string; hint: string }> = [
-  { id: 'quality', label: 'Melhor Qualidade', hint: 'Checklist & saúde' },
-  { id: 'dividends', label: 'Radar Dividendos', hint: 'Bazin & DY' },
-  { id: 'bargain', label: 'Barganha / Graham', hint: 'Maior desconto' },
-  { id: 'magic', label: 'Fórmula Mágica', hint: 'EV/EBITDA + ROIC' },
-  { id: 'fiis', label: 'Radar FIIs', hint: 'P/VP & DY' },
-  { id: 'watchlist', label: 'Minha Watchlist', hint: 'Alvos salvos' },
-  { id: 'signals', label: 'Livro de Sinais', hint: 'Backtest & alertas' },
-];
+import { RadarResponse, STRATEGIES, StrategyMode } from './radar/types';
+import { RadarFiltersBar } from './radar/RadarFiltersBar';
+import { WatchlistTable } from './radar/WatchlistTable';
+import { RadarOpportunitiesTable } from './radar/RadarOpportunitiesTable';
 
 export function RadarTab() {
   const { notify } = useToast();
   const { isHidden } = usePrivacy();
   const money = (val: number) => (isHidden ? 'R$ •••••' : formatMoney(val));
-  const [strategy, setStrategy] = useState<StrategyMode>('quality');
+  const [strategy, setStrategy] = useState<StrategyMode>('signals');
+  const [exploreStrategy, setExploreStrategy] = useState<'quality' | 'dividends' | 'bargain' | 'magic' | 'fiis'>('quality');
   const [assetType, setAssetType] = useState<string>('TODOS');
   const [sector, setSector] = useState<string>('TODOS');
   const [search, setSearch] = useState<string>('');
@@ -68,12 +40,8 @@ export function RadarTab() {
   const loadWatchlist = useCallback(async () => {
     try {
       const res = await apiCall<{ status: string; items: WatchlistEntry[] }>('/api/valuation/watchlist');
-      if (res.status === 'Sucesso') {
-        setWatchlist(res.items || []);
-      }
-    } catch {
-      // Silencioso para não bloquear o radar principal
-    }
+      if (res.status === 'Sucesso') setWatchlist(res.items || []);
+    } catch {}
   }, []);
 
   const loadRadar = useCallback(async () => {
@@ -91,9 +59,7 @@ export function RadarTab() {
         setItems(res.items || []);
         setSectors(res.sectors || []);
         setTotalCached(res.total_cached || 0);
-        if (res.sync_state?.status === 'processing') {
-          setRefreshing(true);
-        }
+        if (res.sync_state?.status === 'processing') setRefreshing(true);
       }
     } catch (err) {
       notify(err instanceof Error ? err.message : 'Erro ao carregar Radar B3.', 'error');
@@ -103,9 +69,7 @@ export function RadarTab() {
   }, [strategy, assetType, sector, search, onlyOutside, notify]);
 
   useEffect(() => {
-    if (strategy !== 'signals') {
-      loadRadar();
-    }
+    if (strategy !== 'signals') loadRadar();
   }, [strategy, loadRadar]);
 
   useEffect(() => {
@@ -192,7 +156,6 @@ export function RadarTab() {
 
   return (
     <div className="space-y-6">
-      {/* Cabeçalho + Ações */}
       <div className="bg-surface-card border border-border-subtle rounded-2xl p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
@@ -244,329 +207,94 @@ export function RadarTab() {
         </div>
       </div>
 
-      {/* Estratégias */}
       <div className="flex flex-wrap gap-2">
-        {STRATEGIES.map((s) => {
-          const active = strategy === s.id;
+        {[
+          { id: 'signals' as const, label: 'Oportunidades (Sinais)', hint: 'Onde comprar agora' },
+          { id: exploreStrategy, label: 'Explorar Mercado', hint: 'Ranking de ações e FIIs' },
+          { id: 'watchlist' as const, label: 'Minha Watchlist', hint: 'Alvos salvos' },
+        ].map((tab, idx) => {
+          const isExploreTab = idx === 1;
+          const active = isExploreTab ? strategy !== 'signals' && strategy !== 'watchlist' : strategy === tab.id;
           return (
             <button
-              key={s.id}
+              key={tab.label}
               type="button"
-              onClick={() => setStrategy(s.id)}
-              className={`px-3.5 py-2 rounded-xl border text-left transition-all flex items-center gap-2 ${
+              onClick={() => setStrategy(isExploreTab ? exploreStrategy : tab.id)}
+              className={`px-4 py-2.5 rounded-xl border text-left transition-all flex items-center gap-2 ${
                 active
                   ? 'bg-accent-soft border-accent text-accent shadow-sm'
                   : 'bg-surface-card border-border-subtle text-text-muted hover:text-text-primary'
               }`}
             >
-              <span className="text-xs font-bold">{s.label}</span>
-              <span className="text-[10px] opacity-75 hidden sm:inline">• {s.hint}</span>
+              <span className="text-xs font-bold">{tab.label}</span>
+              <span className="text-[10px] opacity-75 hidden sm:inline">• {tab.hint}</span>
             </button>
           );
         })}
       </div>
 
-      {/* Filtros (ocultos na aba Watchlist e Livro de Sinais) */}
       {strategy !== 'watchlist' && strategy !== 'signals' && (
-        <div className="bg-surface-card border border-border-subtle rounded-xl p-3.5 flex flex-wrap items-center gap-3 text-xs">
-          <div className="flex items-center gap-1.5 text-text-muted font-semibold">
-            <Filter size={13} /> Filtros:
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-[11px] font-semibold text-text-muted mr-1">Critério:</span>
+            {STRATEGIES.filter((s) => s.id !== 'watchlist' && s.id !== 'signals').map((s) => {
+              const active = strategy === s.id;
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => {
+                    const next = s.id as 'quality' | 'dividends' | 'bargain' | 'magic' | 'fiis';
+                    setExploreStrategy(next);
+                    setStrategy(next);
+                  }}
+                  className={`px-3 py-1 rounded-lg border text-[11px] font-bold transition-colors ${
+                    active
+                      ? 'bg-accent-soft border-accent/40 text-accent'
+                      : 'bg-surface-card border-border-subtle text-text-muted hover:text-text-primary'
+                  }`}
+                >
+                  {s.label}
+                </button>
+              );
+            })}
           </div>
-
-          <input
-            type="text"
-            aria-label="Filtrar ticker ou nome no Radar B3"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Filtrar ticker ou nome..."
-            className="px-3 py-1.5 rounded-lg bg-surface-input border border-border-subtle text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent w-44"
+          <RadarFiltersBar
+            search={search}
+            assetType={assetType}
+            sector={sector}
+            sectors={sectors}
+            onlyOutside={onlyOutside}
+            onSearchChange={setSearch}
+            onAssetTypeChange={setAssetType}
+            onSectorChange={setSector}
+            onOnlyOutsideChange={setOnlyOutside}
           />
-
-          <select
-            aria-label="Filtrar por tipo de ativo"
-            value={assetType}
-            onChange={(e) => setAssetType(e.target.value)}
-            className="px-3 py-1.5 rounded-lg bg-surface-input border border-border-subtle text-text-primary focus:outline-none focus:border-accent"
-          >
-            <option value="TODOS">Ações + FIIs</option>
-            <option value="Ação">Somente Ações</option>
-            <option value="FII">Somente FIIs</option>
-          </select>
-
-          <select
-            aria-label="Filtrar por setor"
-            value={sector}
-            onChange={(e) => setSector(e.target.value)}
-            className="px-3 py-1.5 rounded-lg bg-surface-input border border-border-subtle text-text-primary focus:outline-none focus:border-accent"
-          >
-            <option value="TODOS">Todos os Setores</option>
-            {sectors.map((sec) => (
-              <option key={sec} value={sec}>
-                {sec}
-              </option>
-            ))}
-          </select>
-
-          <label className="flex items-center gap-2 cursor-pointer select-none text-text-primary ml-auto">
-            <input
-              type="checkbox"
-              aria-label="Exibir apenas ativos fora da carteira"
-              checked={onlyOutside}
-              onChange={(e) => setOnlyOutside(e.target.checked)}
-              className="accent-accent"
-            />
-            <span>Apenas fora da carteira</span>
-          </label>
         </div>
       )}
 
-      {/* Conteúdo Principal */}
       {strategy === 'signals' ? (
         <SignalsBookView onSelectTicker={(tkr) => setInspectedAsset({ ticker: tkr })} />
       ) : strategy === 'watchlist' ? (
-        <div className="bg-surface-card border border-border-subtle rounded-2xl overflow-hidden">
-          {watchlist.length === 0 ? (
-            <div className="p-10 text-center space-y-2 text-text-muted text-sm">
-              <Star size={28} className="mx-auto text-status-warning opacity-70" />
-              <p className="font-semibold text-text-primary">Sua Watchlist está vazia</p>
-              <p className="text-xs">
-                Clique na estrela de qualquer ativo no Radar B3 ou consulte um ticker acima para monitorar oportunidades.
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-surface-elevated text-text-muted uppercase text-[10px] tracking-wider border-b border-border-subtle">
-                  <tr>
-                    <th scope="col" className="px-4 py-3">Ativo</th>
-                    <th scope="col" className="px-4 py-3 text-right">Cotação</th>
-                    <th scope="col" className="px-4 py-3 text-right">DY Desejado</th>
-                    <th scope="col" className="px-4 py-3 text-right">Preço Teto Alvo</th>
-                    <th scope="col" className="px-4 py-3 text-right">Margem</th>
-                    <th scope="col" className="px-4 py-3 text-right">Qualidade</th>
-                    <th scope="col" className="px-4 py-3 text-center">Ações</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border-subtle">
-                  {watchlist.map((w) => {
-                    const m = w.market || {};
-                    const discount = w.discount_pct;
-                    return (
-                      <tr
-                        key={w.id}
-                        onClick={() => setInspectedAsset({ ticker: w.ticker, asset_type: m.asset_type })}
-                        className="hover:bg-surface-elevated cursor-pointer transition-colors"
-                      >
-                        <td className="px-4 py-3">
-                          <div className="font-bold text-text-primary">{w.ticker}</div>
-                          <div className="text-[10px] text-text-muted">{m.name || m.sector || 'B3'}</div>
-                        </td>
-                        <td className="px-4 py-3 text-right font-mono font-semibold text-text-primary">
-                          {m.price ? money(m.price) : 'N/D'}
-                        </td>
-                        <td className="px-4 py-3 text-right font-mono text-text-muted">
-                          {w.desired_bazin_dy.toFixed(1)}%
-                        </td>
-                        <td className="px-4 py-3 text-right font-mono font-bold text-text-primary">
-                          {w.effective_target_price ? money(w.effective_target_price) : 'N/D'}
-                        </td>
-                        <td className="px-4 py-3 text-right font-mono font-bold">
-                          {discount !== null && discount !== undefined ? (
-                            <span className={discount >= 0 ? 'text-status-success' : 'text-status-error'}>
-                              {discount > 0 ? '+' : ''}
-                              {discount.toFixed(1)}%
-                            </span>
-                          ) : (
-                            'N/D'
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-right font-mono font-bold text-text-primary">
-                          {m.quality_score ?? 0}/100
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <button
-                            type="button"
-                            onClick={(e) => toggleWatchlist(w.ticker, e)}
-                            title="Remover da Watchlist"
-                            className="p-1.5 rounded-lg text-text-muted hover:text-status-error hover:bg-status-error/10 transition-colors"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+        <WatchlistTable
+          watchlist={watchlist}
+          money={money}
+          onSelectAsset={(ticker, asset_type) => setInspectedAsset({ ticker, asset_type })}
+          onRemove={toggleWatchlist}
+        />
       ) : (
-        <div className="bg-surface-card border border-border-subtle rounded-2xl overflow-hidden">
-          {loading ? (
-            <div className="p-10 text-center text-xs text-text-muted flex items-center justify-center gap-2">
-              <Loader2 size={16} className="animate-spin text-accent" />
-              Carregando Radar B3...
-            </div>
-          ) : items.length === 0 ? (
-            <div className="p-10 text-center space-y-3">
-              <Sparkles size={28} className="mx-auto text-accent opacity-80" />
-              <div className="space-y-1">
-                <p className="text-sm font-bold text-text-primary">
-                  {totalCached === 0 ? 'Cache do Radar B3 ainda vazio' : 'Nenhum ativo encontrado com esses filtros'}
-                </p>
-                <p className="text-xs text-text-muted">
-                  {totalCached === 0
-                    ? 'Clique em "Atualizar Radar B3" para buscar preços-teto, múltiplos e checklist dos ~107 papéis líquidos da Bolsa.'
-                    : 'Limpe os filtros ou digite qualquer ticker B3 no campo "Consultar" acima.'}
-                </p>
-              </div>
-              {totalCached === 0 && (
-                <button
-                  type="button"
-                  onClick={handleRefreshScreener}
-                  className="px-4 py-2 rounded-lg bg-accent text-white text-xs font-bold inline-flex items-center gap-1.5"
-                >
-                  <RefreshCw size={13} /> Popular Radar Agora
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-surface-elevated text-text-muted uppercase text-[10px] tracking-wider border-b border-border-subtle sticky top-0 z-10">
-                  <tr>
-                    <th scope="col" className="px-4 py-3">Ativo</th>
-                    <th scope="col" className="px-4 py-3 text-right">Preço</th>
-                    <th scope="col" className="px-4 py-3 text-right">DY 12m</th>
-                    <th scope="col" className="px-4 py-3 text-right">Teto Bazin</th>
-                    <th scope="col" className="px-4 py-3 text-right">V.I. Graham / P/VP</th>
-                    <th scope="col" className="px-4 py-3 text-right">ROE / Magic</th>
-                    <th scope="col" className="px-4 py-3 text-right">Qualidade</th>
-                    <th scope="col" className="px-4 py-3 text-center w-12">Obs.</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border-subtle">
-                  {items.map((item) => {
-                    const isFav = watchlistTickers.has(item.ticker);
-                    const mgBazin = item.margin_bazin_pct;
-                    const q = item.quality_score || 0;
-                    const qBarCls =
-                      q >= 75 ? 'bg-status-success' : q >= 50 ? 'bg-status-warning' : 'bg-status-error';
-
-                    return (
-                      <tr
-                        key={item.ticker}
-                        onClick={() => setInspectedAsset({ ticker: item.ticker, asset_type: item.asset_type })}
-                        className="hover:bg-surface-elevated cursor-pointer transition-colors"
-                      >
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-bold text-text-primary">{item.ticker}</span>
-                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-surface-input text-text-muted border border-border-subtle font-semibold">
-                              {item.asset_type === 'FII' ? <Building2 size={10} className="inline mr-0.5" /> : <TrendingUp size={10} className="inline mr-0.5" />}
-                              {item.asset_type}
-                            </span>
-                            {item.in_portfolio && (
-                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-accent-soft text-accent font-bold">
-                                Em carteira
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-[10px] text-text-muted truncate max-w-[200px]">
-                            {item.name} • {item.sector}
-                          </div>
-                        </td>
-
-                        <td className="px-4 py-3 text-right font-mono font-semibold text-text-primary whitespace-nowrap">
-                          <div>{money(item.price)}</div>
-                          {item.change_percent !== null && (
-                            <div className={`text-[10px] ${item.change_percent >= 0 ? 'text-status-success' : 'text-status-error'}`}>
-                              {item.change_percent > 0 ? '+' : ''}
-                              {item.change_percent.toFixed(2)}%
-                            </div>
-                          )}
-                        </td>
-
-                        <td className="px-4 py-3 text-right font-mono font-bold text-status-success whitespace-nowrap">
-                          {item.dy_12m !== null ? `${item.dy_12m.toFixed(2)}%` : 'N/D'}
-                        </td>
-
-                        <td className="px-4 py-3 text-right font-mono whitespace-nowrap">
-                          <div className="font-semibold text-text-primary">
-                            {item.bazin_price ? money(item.bazin_price) : 'N/D'}
-                          </div>
-                          {mgBazin !== null && mgBazin !== undefined && (
-                            <div className={`text-[10px] font-bold ${mgBazin >= 0 ? 'text-status-success' : 'text-status-error'}`}>
-                              {mgBazin > 0 ? '+' : ''}
-                              {mgBazin.toFixed(1)}%
-                            </div>
-                          )}
-                        </td>
-
-                        <td className="px-4 py-3 text-right font-mono whitespace-nowrap">
-                          {item.asset_type === 'FII' ? (
-                            <span className={`font-bold ${(item.pvp || 9) <= 1.0 ? 'text-status-success' : 'text-text-primary'}`}>
-                              {item.pvp ? `${item.pvp.toFixed(2)}x` : 'N/D'}
-                            </span>
-                          ) : (
-                            <>
-                              <div className="font-semibold text-text-primary">
-                                {item.graham_price ? money(item.graham_price) : 'N/D'}
-                              </div>
-                              {item.margin_graham_pct !== null && item.margin_graham_pct !== undefined && (
-                                <div className={`text-[10px] font-bold ${item.margin_graham_pct >= 0 ? 'text-status-success' : 'text-status-error'}`}>
-                                  {item.margin_graham_pct > 0 ? '+' : ''}
-                                  {item.margin_graham_pct.toFixed(0)}%
-                                </div>
-                              )}
-                            </>
-                          )}
-                        </td>
-
-                        <td className="px-4 py-3 text-right font-mono whitespace-nowrap">
-                          <div className="text-text-primary font-semibold">
-                            {item.roe !== null ? `ROE ${item.roe.toFixed(1)}%` : item.pl !== null ? `P/L ${item.pl.toFixed(1)}x` : 'N/D'}
-                          </div>
-                          {item.magic_score !== null && (
-                            <div className="text-[10px] text-accent font-bold">
-                              Magic: {item.magic_score.toFixed(0)} pts
-                            </div>
-                          )}
-                        </td>
-
-                        <td className="px-4 py-3 text-right whitespace-nowrap">
-                          <div className="flex flex-col items-end gap-1">
-                            <span className="font-mono font-bold text-text-primary">{q}/100</span>
-                            <div className="w-16 h-1.5 rounded-full bg-surface-input overflow-hidden">
-                              <div className={`h-full ${qBarCls}`} style={{ width: `${Math.max(4, q)}%` }} />
-                            </div>
-                          </div>
-                        </td>
-
-                        <td className="px-4 py-3 text-center">
-                          <button
-                            type="button"
-                            onClick={(e) => toggleWatchlist(item.ticker, e)}
-                            title={isFav ? 'Remover da Watchlist' : 'Adicionar à Watchlist'}
-                            className={`p-1.5 rounded-lg transition-colors ${
-                              isFav ? 'text-status-warning bg-status-warning/10' : 'text-text-muted hover:text-status-warning'
-                            }`}
-                          >
-                            <Star size={14} fill={isFav ? 'currentColor' : 'none'} />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+        <RadarOpportunitiesTable
+          loading={loading}
+          totalCached={totalCached}
+          items={items}
+          watchlistTickers={watchlistTickers}
+          money={money}
+          onRefresh={handleRefreshScreener}
+          onSelectAsset={(ticker, asset_type) => setInspectedAsset({ ticker, asset_type })}
+          onToggleWatchlist={toggleWatchlist}
+        />
       )}
 
-      {/* Modal de Inspeção Detalhada de Ativo do Radar */}
       {inspectedAsset && (
         <ModalShell
           onClose={() => setInspectedAsset(null)}

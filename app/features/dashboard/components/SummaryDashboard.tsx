@@ -4,13 +4,13 @@ import dynamic from 'next/dynamic';
 import { memo } from 'react';
 import { BarChart3, Percent, PiggyBank, Target } from 'lucide-react';
 import { StatCard } from '@/components/StatCard';
-import { RiskRadarSkeleton, CategorySummarySkeleton, StatCardsSkeleton } from '@/components/ui/Skeletons';
+import { PortfolioDonutSkeleton, CategorySummarySkeleton, StatCardsSkeleton } from '@/components/ui/Skeletons';
 import { formatMoney } from '@/lib/format';
 import { Asset } from '@/types';
 
 const PortfolioDonutChart = dynamic(
   () => import('@/components/PortfolioDonutChart').then((mod) => mod.PortfolioDonutChart),
-  { ssr: false, loading: () => <RiskRadarSkeleton /> }
+  { ssr: false, loading: () => <PortfolioDonutSkeleton /> }
 );
 const CategorySummary = dynamic(
   () => import('@/components/CategorySummary').then((mod) => mod.CategorySummary),
@@ -31,7 +31,6 @@ interface SummaryDashboardProps {
   isHidden: boolean;
   ativos: Asset[];
   categorias: { name: string; meta: number }[];
-  onOpenRadar: () => void;
   onUpdate: () => void;
   loading?: boolean;
 }
@@ -41,7 +40,6 @@ export const SummaryDashboard = memo(function SummaryDashboard({
   isHidden,
   ativos,
   categorias,
-  onOpenRadar,
   onUpdate,
   loading = false,
 }: SummaryDashboardProps) {
@@ -58,6 +56,25 @@ export const SummaryDashboard = memo(function SummaryDashboard({
         : `c/ Div.: ${totalReturnPct > 0 ? '+' : ''}${totalReturnPct.toFixed(1)}%`
       : 'Total Histórico';
 
+  const nonRfReservaAtivos = ativos.filter(
+    (a) => a.tipo !== 'Renda Fixa' && a.tipo !== 'Reserva'
+  );
+  const totalInvestidoExRfReserva = nonRfReservaAtivos.reduce(
+    (acc, a) => acc + (a.total_investido ?? 0),
+    0
+  );
+  const rendaMensalExRfReserva = nonRfReservaAtivos.reduce(
+    (acc, a) => acc + (a.renda_mensal_est ?? 0),
+    0
+  );
+  const yocExRfReserva =
+    totalInvestidoExRfReserva > 0
+      ? ((rendaMensalExRfReserva * 12) / totalInvestidoExRfReserva) * 100
+      : 0;
+  const yocSubtext = isHidden
+    ? 'Anual Est. · Ex-RF/Res: •••%'
+    : `Anual Est. · Ex-RF/Res: ${yocExRfReserva.toFixed(2)}%`;
+
   return (
     <div className="flex flex-col gap-4 animate-in fade-in duration-150">
       {loading ? (
@@ -67,7 +84,7 @@ export const SummaryDashboard = memo(function SummaryDashboard({
         <StatCard
           title="Yield on Cost Médio"
           value={isHidden ? '•••' : metrics.yocMedio.toFixed(2) + '%'}
-          subtext="Anual Est."
+          subtext={yocSubtext}
           icon={Percent}
           colorClass="text-purple-400"
         />
@@ -100,7 +117,7 @@ export const SummaryDashboard = memo(function SummaryDashboard({
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:min-h-[420px]">
         <div className="h-full w-full">
-          <PortfolioDonutChart ativos={ativos} onOpenRadar={onOpenRadar} />
+          <PortfolioDonutChart ativos={ativos} />
         </div>
         <div className="lg:col-span-2 h-full w-full">
           <CategorySummary ativos={ativos} categorias={categorias} onUpdate={onUpdate} />

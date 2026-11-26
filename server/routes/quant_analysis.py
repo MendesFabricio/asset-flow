@@ -12,6 +12,7 @@ from db.session import Session
 from db.models import SystemCache, Position, Asset
 from sqlalchemy.orm import selectinload
 from domain.quant.constants import VARIABLE_ASSET_CATEGORIES
+from services_modules.dashboard import _BRT_TZ
 
 quant_bp = Blueprint('quant', __name__)
 service = PortfolioService()
@@ -384,7 +385,7 @@ def list_reports():
                 files.append({
                     "filename": f,
                     "size_bytes": stat.st_size,
-                    "created_at": datetime.fromtimestamp(stat.st_mtime).isoformat()
+                    "created_at": datetime.fromtimestamp(stat.st_mtime, tz=_BRT_TZ).isoformat()
                 })
         files.sort(key=lambda x: x["created_at"], reverse=True)
         return jsonify({"status": "Sucesso", "reports": files})
@@ -417,148 +418,24 @@ def download_report():
 def generate_report():
     with Session() as session:
         try:
+            from services_modules.report_data import build_report_payload
             from utils.pdf_generator import generate_monthly_report_pdf
-            
-            dash_data = service.get_dashboard_data()
-            dash_data["dolar_rate"] = float(service.get_usd_rate() or 5.80)
-            fg_data = calculate_local_fear_greed(session)
-            
-            dash_data["fear_greed_score"] = fg_data["score"]
-            dash_data["fear_greed_label"] = fg_data["label"]
-            
-            from domain.quant.risk import calculate_risk_metrics
-            from infrastructure.price_cache import fetch_price_history as _fetch_price_history_fn
-            risk = calculate_risk_metrics(session, _fetch_price_history_fn, dolar_rate=dash_data["dolar_rate"])
-            if risk.get("status") == "Sucesso":
-                dash_data["beta"] = risk.get("beta")
-                dash_data["sharpe"] = risk.get("sharpe_12m")
-                dash_data["var_95"] = risk.get("var_95_monthly_pct")
-                
-            # Consulta de Recebíveis Ativos do usuário logado
-            receivables_list = []
-            from db.models import LoanInstallment
-            installments = session.query(LoanInstallment).filter(LoanInstallment.user_id == g.user_id, LoanInstallment.status.in_(["ABERTA", "ATRASADA"]), LoanInstallment.is_deleted == False).all()
-            for inst in installments:
-                receivables_list.append({
-                    "descricao": inst.loan.descricao,
-                    "devedor": inst.loan.debtor.nome if inst.loan.debtor else "Desconhecido",
-                    "valor_parcela": float(inst.valor_parcela),
-                    "status": inst.status,
-                    "parcela_atual": int(inst.numero_parcela),
-                    "total_parcelas": int(inst.loan.total_parcelas),
-                    "vencimento_dia": int(inst.data_vencimento.day)
-                })
-            dash_data["recebiveis"] = receivables_list
-            
-            from services_modules.dashboard import _BRT_TZ
+
             now_brt = datetime.now(_BRT_TZ)
-            dash_data["generated_at"] = now_brt.strftime("%d/%m/%Y %H:%M")
+            report_payload = build_report_payload(session, g.user_id, service)
+
             date_str = now_brt.strftime("%Y-%m-%d_%H-%M")
             filename = f"relatorio_patrimonial_{date_str}.pdf"
-            
+
             base_dir = os.path.dirname(os.path.abspath(__file__))
             reports_dir = os.path.join(base_dir, '..', 'data', 'reports', str(g.user_id))
             filepath = os.path.join(reports_dir, filename)
-            
-            success = generate_monthly_report_pdf(filepath, dash_data)
+
+            success = generate_monthly_report_pdf(filepath, report_payload)
             if success:
                 return jsonify({"status": "Sucesso", "filename": filename, "msg": "Relatório patrimonial gerado com sucesso!"})
             else:
                 return jsonify({"status": "Erro", "msg": "Erro ao compilar PDF do relatório."}), 500
         except Exception as e:
             logging.error(f"Erro ao gerar relatório patrimonial PDF: {e}", exc_info=True)
-            return jsonify({"status": "Erro", "msg": str(e)}), 500
-
-
-@quant_bp.route('/api/ai/analyze-pdf', methods=['POST'])
-def analyze_pdf_endpoint():
-    body = request.get_json(silent=True) or {}
-    ticker = body.get('ticker', '').strip().upper()
-    if not ticker:
-        return jsonify({"status": "Erro", "msg": "Ticker do ativo é obrigatório."}), 400
-        
-    with Session() as session:
-        try:
-            position = session.query(Position).join(Position.asset).filter(Position.user_id == g.user_id, Asset.ticker == ticker).first()
-            if not position or not position.last_report_url:
-                return jsonify({"status": "Erro", "msg": f"Nenhum link de relatório de RI disponível para o ativo {ticker}."}), 404
-                
-            # Verifica se já está atualizado
-            if position.asset.ai_updated_at and position.last_report_at:
-                try:
-                    last_rep_dt = datetime.fromisoformat(position.last_report_at.replace("Z", "+00:00"))
-                    if position.asset.ai_updated_at >= last_rep_dt:
-                        # Já foi processado
-                        cached_kpis = {
-                            "credit_rating": position.asset.credit_rating,
-                            "duration_years": position.asset.duration_years,
-                            "indexer_cdi_pct": position.asset.indexer_cdi_pct,
-                            "indexer_ipca_pct": position.asset.indexer_ipca_pct
-                        }
-                        return jsonify({"status": "Aviso", "msg": "Os dados já estão atualizados com o último relatório disponível.", "kpis": cached_kpis})
-                except Exception as ex:
-                    logging.warning(f"Erro ao parsear datas para {ticker}: {ex}")
-
-            url = position.last_report_url
-            is_fii = position.asset.category.name in ["FII", "Renda Fixa", "Reserva"]
-            
-            from utils.pdf_extractor import extract_kpis_from_pdf
-            res = extract_kpis_from_pdf(url, is_fii)
-            
-            # Salvar no banco de dados se for sucesso
-            if res.get("status") == "Sucesso" and "kpis" in res:
-                kpis = res["kpis"]
-
-                raw_rating = str(kpis.get("credit_rating") or "").strip()
-                if raw_rating and raw_rating.lower() not in ("null", "none", "n/d", "n/a", "0", "-") and len(raw_rating) <= 12:
-                    position.asset.credit_rating = raw_rating
-                else:
-                    position.asset.credit_rating = None
-
-                raw_dur = kpis.get("duration_years")
-                try:
-                    dur_val = float(raw_dur) if raw_dur is not None else None
-                except (TypeError, ValueError):
-                    dur_val = None
-                position.asset.duration_years = round(dur_val, 2) if dur_val is not None and 0.0 < dur_val <= 40.0 else None
-
-                for field in ("indexer_cdi_pct", "indexer_ipca_pct"):
-                    raw_idx = kpis.get(field)
-                    try:
-                        idx_val = float(raw_idx) if raw_idx is not None else None
-                    except (TypeError, ValueError):
-                        idx_val = None
-                    setattr(
-                        position.asset,
-                        field,
-                        round(idx_val, 2) if idx_val is not None and 0.0 < idx_val <= 100.0 else None,
-                    )
-
-                pdf_vac_fis = kpis.get("vacancia_fisica_pct")
-                pdf_vac_fin = kpis.get("vacancia_financeira_pct")
-                if pdf_vac_fis is not None or pdf_vac_fin is not None:
-                    try:
-                        import json as _json
-                        rep_data = _json.loads(position.last_report_type) if position.last_report_type else {}
-                    except Exception:
-                        rep_data = {}
-                    pdf_kpis = dict(rep_data.get("pdf_kpis") or {})
-                    for v_key, v_raw in (("vacancia_fisica_pct", pdf_vac_fis), ("vacancia_financeira_pct", pdf_vac_fin)):
-                        try:
-                            v_num = float(v_raw) if v_raw is not None else None
-                        except (TypeError, ValueError):
-                            v_num = None
-                        if v_num is not None and 0.0 <= v_num <= 100.0:
-                            pdf_kpis[v_key] = round(v_num, 2)
-                    if pdf_kpis:
-                        rep_data["pdf_kpis"] = pdf_kpis
-                        position.last_report_type = _json.dumps(rep_data)
-
-                position.asset.ai_updated_at = datetime.now()
-                session.query(SystemCache).filter_by(key=f"risk_metrics_{g.user_id}").delete()
-                session.commit()
-                
-            return jsonify(res)
-        except Exception as e:
-            logging.error(f"Erro ao processar relatório RI PDF de {ticker}: {e}", exc_info=True)
             return jsonify({"status": "Erro", "msg": str(e)}), 500

@@ -247,7 +247,7 @@ def fetch_ticker_fundamentals(
                     dy_5y = dy_12m
                     div_ps = price * (dy_norm / 100.0)
 
-        lpa = _safe_float(info.get("trailingEps") or info.get("forwardEps"))
+        lpa = _safe_float(info.get("trailingEps"))
         vpa = _safe_float(info.get("bookValue"))
         pl = _safe_float(info.get("trailingPE")) or ((price / lpa) if (lpa and lpa > 0) else None)
         pvp = ((price / vpa) if (vpa and vpa > 0) else None) if (
@@ -272,8 +272,19 @@ def fetch_ticker_fundamentals(
             else None
         )
 
-        # ROIC aproximado via EBIT / (Patrimônio + Dívida Líquida) ou ROE fallback
-        roic = _safe_pct(info.get("returnOnAssets"))
+        # ROIC real estimado via NOPAT = EBIT*(1-0.34) / (Patrimônio + Dívida - Caixa), com fallback conservador
+        ebit_val = _safe_float(info.get("operatingCashflow"))
+        shares_val = _safe_float(info.get("sharesOutstanding"))
+        equity_val = (vpa * shares_val) if (vpa and vpa > 0 and shares_val and shares_val > 0) else None
+        ebit_proxy = None
+        if ebitda and total_debt is not None:
+            # Aproxima EBIT conservador ~ 80% do EBITDA quando operatingIncome não está exposto
+            ebit_proxy = ebitda * 0.80
+        if ebit_proxy and equity_val is not None:
+            inv_cap = equity_val + (total_debt or 0.0) - total_cash
+            roic = round((ebit_proxy * 0.66 / inv_cap) * 100.0, 2) if inv_cap > 0 else _safe_pct(info.get("returnOnAssets"))
+        else:
+            roic = _safe_pct(info.get("returnOnAssets"))
 
         fcf = _safe_float(info.get("freeCashflow"))
         shares = _safe_float(info.get("sharesOutstanding"))
@@ -321,8 +332,10 @@ def fetch_ticker_fundamentals(
         desired_dy = 8.0 if inferred_type == "FII" else 6.0
         bazin_price = calculate_bazin_price(div_ps, desired_dy)
         graham_price = calculate_graham_price(lpa, vpa) if inferred_type == "Ação" else None
+        from domain.quant.helpers import get_risk_free_rate
+        dyn_req_return = max(11.0, round(get_risk_free_rate() * 100.0 + 4.5, 2))
         gordon_price = (
-            calculate_gordon_price(div_ps, required_return_pct=12.0, growth_pct=5.0)
+            calculate_gordon_price(div_ps, required_return_pct=dyn_req_return, growth_pct=5.0)
             if (inferred_type == "Ação" and dy_12m is not None and 0 < dy_12m <= 25.0)
             else None
         )
@@ -415,6 +428,19 @@ def _collect_db_overrides(
         for d in div_q.all():
             local_divs_by_asset.setdefault(d.asset_id, []).append(d)
 
+    local_splits_by_asset: dict[int, date] = {}
+    if asset_ids:
+        from db.models import CorporateEvent
+        ce_split_q = session.query(CorporateEvent.asset_id, CorporateEvent.date).filter(
+            CorporateEvent.asset_id.in_(asset_ids),
+            CorporateEvent.type.in_(("SPLIT", "INPLIT", "BONUS")),
+        )
+        if user_id is not None:
+            ce_split_q = ce_split_q.filter(CorporateEvent.user_id == user_id)
+        for aid_ce, dt_ce in ce_split_q.all():
+            if dt_ce and (aid_ce not in local_splits_by_asset or dt_ce > local_splits_by_asset[aid_ce]):
+                local_splits_by_asset[aid_ce] = dt_ce
+
     for a in assets:
         tkr_upper = a.ticker.upper()
         entry: dict = {}
@@ -422,12 +448,14 @@ def _collect_db_overrides(
             entry["amort_12m"] = amort_map[tkr_upper]
 
         asset_divs = local_divs_by_asset.get(a.id) or []
+        split_dt_cut = local_splits_by_asset.get(a.id)
+        eff_div_cutoff = max(cutoff_12m_date, split_dt_cut) if split_dt_cut else cutoff_12m_date
         if asset_divs:
             valid_dates = [d.date_com for d in asset_divs if d.date_com]
             seen_div_events: set[tuple] = set()
             div_sum = 0.0
             for d in asset_divs:
-                if not d.date_com or d.date_com < cutoff_12m_date:
+                if not d.date_com or d.date_com < eff_div_cutoff:
                     continue
                 dtype = (d.type or "").lower()
                 if "amort" in dtype:

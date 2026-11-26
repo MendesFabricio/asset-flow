@@ -2,7 +2,6 @@ import logging
 from services import PortfolioService
 from routes.market import update_market_cache
 from routes.alerts_price import check_price_alerts
-from routes.simulation import _run_morning_brief_bg, _build_morning_brief_context
 from domain.quant.helpers import get_risk_free_rate
 from worker_core import _run_with_tracking
 
@@ -75,11 +74,19 @@ def _do_dividends_check():
                 .all()
             )
             if upcoming:
-                lines = [
-                    f"• {d.asset.ticker}: Data-Com {'HOJE' if d.date_com == today else 'AMANHÃ'} "
-                    f"({d.type or 'Provento'} · R$ {float(d.total_value or 0):.2f} líquido)"
-                    for d in upcoming if d.asset
-                ]
+                seen_digest = set()
+                lines = []
+                for d in upcoming:
+                    if not d.asset:
+                        continue
+                    key = (d.user_id, d.asset.ticker, d.date_com, d.type or 'Provento')
+                    if key in seen_digest:
+                        continue
+                    seen_digest.add(key)
+                    lines.append(
+                        f"• {d.asset.ticker}: Data-Com {'HOJE' if d.date_com == today else 'AMANHÃ'} "
+                        f"({d.type or 'Provento'} · R$ {float(d.total_value or 0):.2f} líquido)"
+                    )
                 if lines:
                     send_telegram_message(
                         format_alert_telegram("⏰ Data-Com Próxima — AssetFlow", lines)
@@ -99,86 +106,6 @@ def _do_quant_warm():
     service.get_correlation_matrix()
     service.calculate_risk_metrics()
     service.calculate_efficient_frontier_points()
-
-def scheduled_morning_brief_generation():
-    _run_with_tracking("scheduled_morning_brief_generation", _do_morning_brief)
-
-
-def scheduled_daily_sentiment_analysis():
-    _run_with_tracking("scheduled_daily_sentiment_analysis", _do_daily_sentiment)
-
-
-def _do_daily_sentiment():
-    import time
-    from datetime import datetime, timedelta
-    logging.info("🧠 JOB 07:30: Atualizando IA Sentiment diário dos ativos ativos...")
-    try:
-        from db.models import Session as DBSession, Position
-        from routes.news import fetch_ticker_news
-        from infrastructure.gemini_service import _run_sentiment_analysis
-
-        with DBSession() as session:
-            positions = (
-                session.query(Position)
-                .filter(Position.quantity > 0)
-                .all()
-            )
-            seen_assets = {}
-            for pos in positions:
-                asset = pos.asset
-                if not asset or asset.id in seen_assets:
-                    continue
-                cat_name = asset.category.name if asset.category else ""
-                if cat_name == "Reserva":
-                    continue
-                seen_assets[asset.id] = (asset, pos)
-
-            now = datetime.now()
-            targets = []
-            for asset, pos in seen_assets.values():
-                if asset.ai_status == "success" and asset.ai_updated_at and (now - asset.ai_updated_at) < timedelta(hours=20):
-                    continue
-                targets.append((
-                    asset.id,
-                    asset.ticker,
-                    {
-                        "quantity": float(pos.quantity or 0.0),
-                        "average_price": float(pos.average_price or 0.0),
-                        "target_percent": float(pos.target_percent or 0.0),
-                    },
-                ))
-
-        for asset_id, ticker, pos_info in targets:
-            try:
-                news_list = fetch_ticker_news(ticker.strip().upper().replace(".SA", ""), limit=5)
-                _run_sentiment_analysis(asset_id, ticker, news_list, pos_info)
-                time.sleep(1.0)
-            except Exception as exc:
-                logging.warning(f"⚠️ [IA] Falha ao atualizar sentimento diário de {ticker}: {exc}")
-        logging.info(f"✅ [IA] Sentimento diário finalizado ({len(targets)} ativo(s) processado(s)).")
-    except Exception as e:
-        logging.error(f"❌ [IA] Falha geral no job diário de sentimento: {e}", exc_info=True)
-
-def _do_morning_brief():
-    logging.info("☕ JOB 07:00: Gerando Morning Briefing...")
-    try:
-        from flask import Flask
-        from db.models import Session as DBSession, Position
-        app = Flask(__name__)
-        with app.app_context():
-            with DBSession() as session:
-                user_ids = [r[0] for r in session.query(Position.user_id).distinct().all()]
-                for uid in user_ids:
-                    try:
-                        cache_key = f"morning_brief_{uid}"
-                        selic = get_risk_free_rate()
-                        dolar_rate = service.get_usd_rate()
-                        context = _build_morning_brief_context(uid, dolar_rate, selic)
-                        _run_morning_brief_bg(uid, context, cache_key)
-                    except Exception as e:
-                        logging.warning(f"⚠️ [BRIEF] Falha ao gerar brief para usuário {uid}: {e}")
-    except Exception as e:
-        logging.error(f"❌ [BRIEF] Falha geral no job de Morning Brief: {e}", exc_info=True)
 
 
 def _do_radar_refresh():
@@ -223,23 +150,70 @@ def _do_database_backup():
     prune_expired_system_cache(max_age_days=7)
 
 
-def scheduled_news_summary_warm():
-    _run_with_tracking("scheduled_news_summary_warm", _do_news_summary_warm)
+def scheduled_price_history_sync():
+    _run_with_tracking("scheduled_price_history_sync", _do_price_history_sync)
 
 
-def _do_news_summary_warm():
-    from flask import Flask, g
-    from db.models import Session as DBSession, User
-    from routes.news import get_daily_sector_summary
-
-    logging.info("📰 JOB 07:30: Pré-aquecendo resumo diário de notícias IA...")
-    tmp_app = Flask(__name__)
+def _do_price_history_sync():
+    from db.models import Asset, Category, MarketScreenerItem, Position, Session as DBSession
+    from domain.signals.ledger import sync_price_history_from_yf
+    from domain.signals.regime import detect_and_persist_market_regime
     with DBSession() as session:
-        user_ids = [r[0] for r in session.query(User.id).all()]
-    for uid in user_ids or [1]:
-        with tmp_app.test_request_context('/api/news/daily-summary'):
-            g.user_id = uid
-            get_daily_sector_summary()
+        rows = (
+            session.query(Asset.ticker, Category.name)
+            .join(Position, Position.asset_id == Asset.id)
+            .outerjoin(Category, Asset.category_id == Category.id)
+            .filter(Position.quantity > 0)
+            .distinct()
+            .all()
+        )
+        pairs_map: dict[str, str] = {}
+        for t, c in rows:
+            cat_name = c or "Ação"
+            if cat_name not in ("Reserva", "Renda Fixa", "Cripto"):
+                pairs_map[t.strip().upper()] = cat_name
+        for scr in session.query(MarketScreenerItem.ticker, MarketScreenerItem.asset_type).all():
+            t_u = (scr.ticker or "").strip().upper()
+            cat_name = scr.asset_type or "Ação"
+            if t_u and t_u not in pairs_map and cat_name not in ("Reserva", "Renda Fixa", "Cripto"):
+                pairs_map[t_u] = cat_name
+        pairs = list(pairs_map.items())
+        sync_price_history_from_yf(session, pairs, period="2y")
+        detect_and_persist_market_regime(session)
+        session.commit()
+
+
+def scheduled_signal_ledger_capture():
+    _run_with_tracking("scheduled_signal_ledger_capture", _do_signal_ledger_capture)
+
+
+def _do_signal_ledger_capture():
+    from db.models import Session as DBSession
+    from domain.signals.ledger import capture_daily_signals_to_ledger
+    with DBSession() as session:
+        capture_daily_signals_to_ledger(session)
+
+
+def scheduled_signal_outcome_audit():
+    _run_with_tracking("scheduled_signal_outcome_audit", _do_signal_outcome_audit)
+
+
+def _do_signal_outcome_audit():
+    from db.models import Session as DBSession
+    from domain.signals.ledger import audit_matured_signal_outcomes
+    with DBSession() as session:
+        audit_matured_signal_outcomes(session)
+
+
+def scheduled_walk_forward_recalibration():
+    _run_with_tracking("scheduled_walk_forward_recalibration", _do_walk_forward_recalibration)
+
+
+def _do_walk_forward_recalibration():
+    from db.models import Session as DBSession
+    from domain.signals.walk_forward import recalibrate_all_setups
+    with DBSession() as session:
+        recalibrate_all_setups(session)
 
 
 JOB_REGISTRY = {
@@ -273,24 +247,6 @@ JOB_REGISTRY = {
         "default_type": "cron",
         "default_cron": "0 8,19 * * *",
     },
-    "scheduled_morning_brief_generation": {
-        "func": scheduled_morning_brief_generation,
-        "description": "Gera Morning Briefing diário com IA para a carteira",
-        "default_type": "cron",
-        "default_cron": "0 7 * * *",
-    },
-    "scheduled_news_summary_warm": {
-        "func": scheduled_news_summary_warm,
-        "description": "Pré-aquece resumo diário de notícias por setor (Ações, FIIs e Cripto)",
-        "default_type": "cron",
-        "default_cron": "30 7 * * *",
-    },
-    "scheduled_daily_sentiment_analysis": {
-        "func": scheduled_daily_sentiment_analysis,
-        "description": "Atualiza IA Sentiment automático de todos os ativos da carteira (a cada 6h)",
-        "default_type": "interval",
-        "default_interval": 360,
-    },
     "scheduled_radar_refresh": {
         "func": scheduled_radar_refresh,
         "description": "Atualiza cache do Radar B3 (Preço Teto, Checklist e Fórmula Mágica)",
@@ -308,5 +264,29 @@ JOB_REGISTRY = {
         "description": "Executa backup diário do banco SQLite e limpa caches expirados",
         "default_type": "cron",
         "default_cron": "30 23 * * *",
+    },
+    "scheduled_price_history_sync": {
+        "func": scheduled_price_history_sync,
+        "description": "Sincroniza séries diárias Total Return (adj_close_tr), RSI/SMAs e Regime Macro",
+        "default_type": "cron",
+        "default_cron": "45 18 * * 1-5",
+    },
+    "scheduled_signal_ledger_capture": {
+        "func": scheduled_signal_ledger_capture,
+        "description": "Registra pontos de compra calibrados no Signal Ledger",
+        "default_type": "cron",
+        "default_cron": "15 19 * * 1-5",
+    },
+    "scheduled_signal_outcome_audit": {
+        "func": scheduled_signal_outcome_audit,
+        "description": "Audita outcomes reais pós-horizonte (30/90/180/365d) e Brier Score",
+        "default_type": "cron",
+        "default_cron": "45 19 * * 1-5",
+    },
+    "scheduled_walk_forward_recalibration": {
+        "func": scheduled_walk_forward_recalibration,
+        "description": "Recalibra backtest Purged Walk-Forward e Wilson Lower Bounds",
+        "default_type": "cron",
+        "default_cron": "0 3 * * 0",
     },
 }

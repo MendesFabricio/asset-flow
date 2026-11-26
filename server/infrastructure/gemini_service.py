@@ -274,7 +274,7 @@ def _run_sentiment_analysis(asset_id: int, ticker: str, news_titles: list, posit
             asset = session.query(Asset).filter_by(id=asset_id).first()
             if asset:
                 asset.ai_status = "error"
-                asset.ai_summary = f"Erro na análise de IA: {str(e)}"
+                asset.ai_summary = None
                 session.commit()
         except Exception:
             pass

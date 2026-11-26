@@ -30,8 +30,11 @@ def calculate_fundamental_metrics(pos, preco, fator=Decimal('1.0')):
         qtd = _extract_value(pos.quantity)
         cat_name = pos.asset.category.name if pos.asset and pos.asset.category else ""
         
+        fator_dec = _extract_value(fator) if _extract_value(fator) > Decimal('0.0') else Decimal('1.0')
+        preco_brl = preco * fator_dec
+
         if dy > Decimal('0.0') and preco > Decimal('0.0'):
-            m["renda_mensal_est"] = (preco * dy * qtd) / Decimal('12.0')
+            m["renda_mensal_est"] = (preco_brl * dy * qtd) / Decimal('12.0')
             if cat_name == "FII":
                 m["magic_number"] = int(math.ceil(float(Decimal('12.0') / dy)))
 
@@ -47,14 +50,14 @@ def calculate_fundamental_metrics(pos, preco, fator=Decimal('1.0')):
                     m["gordon_price"] = Decimal(str(gordon_val))
         
         if vpa > Decimal('0.0') and preco > Decimal('0.0'):
-            m["p_vp"] = (preco * _extract_value(fator)) / vpa
+            m["p_vp"] = preco_brl / vpa
 
         if cat_name == "Ação" and lpa > Decimal('0.0') and vpa > Decimal('0.0'):
             vi = calculate_graham_price(float(lpa), float(vpa))
             if vi:
                 m["vi_graham"] = Decimal(str(vi))
-                if preco > Decimal('0.0'):
-                    m["mg_graham"] = ((m["vi_graham"] - preco) / preco) * Decimal('100.0')
+                if preco_brl > Decimal('0.0'):
+                    m["mg_graham"] = ((m["vi_graham"] - preco_brl) / preco_brl) * Decimal('100.0')
     except Exception as exc:
         logging.debug(f"Erro ao calcular métricas fundamentalistas: {exc}")
     return m

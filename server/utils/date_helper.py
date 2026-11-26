@@ -14,11 +14,19 @@ def get_invoice_month_helper(purchase_date, closing_day):
             m += 1
     return f"{y}-{m:02d}"
 
-def get_due_date_helper(invoice_month, due_day):
-    """Retorna o datetime exato do vencimento da fatura com base no dia de vencimento desejado."""
+def get_due_date_helper(invoice_month, due_day, closing_day=None):
+    """Retorna o datetime exato do vencimento da fatura.
+    Quando `due_day < closing_day`, o vencimento ocorre no mês seguinte ao fechamento.
+    """
     parts = invoice_month.split('-')
     y = int(parts[0])
     m = int(parts[1])
+    if closing_day is not None and due_day < closing_day:
+        if m == 12:
+            m = 1
+            y += 1
+        else:
+            m += 1
     last_day = calendar.monthrange(y, m)[1]
     day = min(due_day, last_day)
     return datetime(y, m, day)

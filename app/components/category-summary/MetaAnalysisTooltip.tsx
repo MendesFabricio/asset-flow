@@ -65,7 +65,7 @@ export function MetaAnalysisTooltip({ rect, data }: TooltipState<MetaTooltipData
               <span>{data.visualWidth.toFixed(0)}%</span>
             </div>
             <div className="h-1 bg-slate-800 rounded-full overflow-hidden">
-              <div className={`h-full rounded-full transition-all duration-300 ${data.diff > 2 ? 'bg-amber-500' : 'bg-blue-500'}`} style={{ width: `${Math.min(data.visualWidth, 100)}%` }}></div>
+              <div className={`w-full h-full rounded-full origin-left transition-transform duration-200 ease-[var(--ease-out)] ${data.diff > 2 ? 'bg-amber-500' : 'bg-blue-500'}`} style={{ transform: `scaleX(${Math.min(data.visualWidth, 100) / 100})` }}></div>
             </div>
           </div>
         )}

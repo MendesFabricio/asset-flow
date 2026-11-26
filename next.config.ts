@@ -1,6 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Next 16 bloqueia recursos de dev por cross-origin. Os hosts abaixo sao os
+  // mesmos das labels do Traefik em docker-compose.dev.yml.
+  allowedDevOrigins: [
+    'assetflow.localhost',
+    'assetflow.192.168.3.11.nip.io',
+    'assetflow.100.102.199.1.nip.io',
+  ],
   images: {
     remotePatterns: [
       {

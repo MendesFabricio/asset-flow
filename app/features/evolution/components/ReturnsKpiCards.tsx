@@ -63,14 +63,14 @@ export default function ReturnsKpiCards() {
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      <Card className="p-4 flex flex-col justify-between">
+      <Card className="p-3.5 flex flex-col justify-between">
         <div className="flex items-center justify-between text-text-secondary">
           <span className="text-[11px] font-bold uppercase tracking-wider">
             {data.is_short_horizon ? 'TIR no Período' : 'TIR (XIRR a.a.)'}
           </span>
           <TrendingUp size={16} className={xirrPositive ? 'text-emerald-400' : 'text-rose-400'} />
         </div>
-        <div className={`text-2xl font-black mt-2 ${xirrPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
+        <div className={`text-lg font-bold mt-1.5 ${xirrPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
           {data.is_short_horizon
             ? fmtPct(data.xirr_periodo_pct)
             : fmtPct(data.xirr_aa_pct, '% a.a.')}
@@ -83,12 +83,12 @@ export default function ReturnsKpiCards() {
         </p>
       </Card>
 
-      <Card className="p-4 flex flex-col justify-between">
+      <Card className="p-3.5 flex flex-col justify-between">
         <div className="flex items-center justify-between text-text-secondary">
           <span className="text-[11px] font-bold uppercase tracking-wider">TWR (Modified Dietz)</span>
           <Award size={16} className={twrPositive ? 'text-blue-400' : 'text-rose-400'} />
         </div>
-        <div className={`text-2xl font-black mt-2 ${twrPositive ? 'text-text-primary' : 'text-rose-400'}`}>
+        <div className={`text-lg font-bold mt-1.5 ${twrPositive ? 'text-text-primary' : 'text-rose-400'}`}>
           {fmtPct(data.twr_pct)}
         </div>
         <p className="text-[11px] text-text-secondary mt-1">
@@ -96,12 +96,12 @@ export default function ReturnsKpiCards() {
         </p>
       </Card>
 
-      <Card className="p-4 flex flex-col justify-between">
+      <Card className="p-3.5 flex flex-col justify-between">
         <div className="flex items-center justify-between text-text-secondary">
           <span className="text-[11px] font-bold uppercase tracking-wider">vs. CDI & Benchmarks</span>
           <Landmark size={16} className="text-amber-400" />
         </div>
-        <div className="text-2xl font-black text-text-primary mt-2">
+        <div className="text-lg font-bold text-text-primary mt-1.5">
           {data.benchmarks.pct_cdi !== null ? `${data.benchmarks.pct_cdi.toFixed(1)}% CDI` : 'N/D'}
         </div>
         <p className="text-[11px] text-text-secondary mt-1">
@@ -114,12 +114,12 @@ export default function ReturnsKpiCards() {
         </p>
       </Card>
 
-      <Card className="p-4 flex flex-col justify-between">
+      <Card className="p-3.5 flex flex-col justify-between">
         <div className="flex items-center justify-between text-text-secondary">
           <span className="text-[11px] font-bold uppercase tracking-wider">Aporte Líq. & Proventos</span>
           <Wallet size={16} className="text-purple-400" />
         </div>
-        <div className="text-2xl font-black text-text-primary mt-2">
+        <div className="text-lg font-bold text-text-primary mt-1.5">
           {maskMoney(data.cashflow_summary.aporte_liquido)}
         </div>
         <p className="text-[11px] text-text-secondary mt-1">

@@ -32,65 +32,66 @@ service = PortfolioService()
 
 @dividends_bp.route('/api/dividends', methods=['POST'])
 def add_dividend():
-    from datetime import datetime
     data = request.json or {}
-    ticker = data.get('ticker')
+    ticker = (data.get('ticker') or '').strip().upper()
     amount = data.get('amount')
     date_str = data.get('date')
-    
+
     if not ticker or amount is None or not date_str:
         return jsonify({"msg": "Missing required fields"}), 400
-        
+
     try:
         amount = float(amount)
-        tx_date = datetime.strptime(date_str.split('T')[0], '%Y-%m-%d').date()
+        tx_date = datetime.strptime(str(date_str).split('T')[0], '%Y-%m-%d').date()
+        pay_str = data.get('date_payment')
+        pay_date = (
+            datetime.strptime(str(pay_str).split('T')[0], '%Y-%m-%d').date()
+            if pay_str else tx_date
+        )
         qty = float(data.get('quantity', 1))
-    except Exception as e:
+        div_type = (data.get('type') or 'Dividendo').strip() or 'Dividendo'
+        req_status = (data.get('status') or '').strip().upper()
+        if req_status in ('PAGO', 'A RECEBER', 'PROVISIONADO'):
+            div_status = req_status
+        else:
+            div_status = 'PAGO' if pay_date <= date.today() else 'A RECEBER'
+    except Exception:
         return jsonify({"msg": "Invalid date or amount format"}), 400
 
     with Session() as session:
         try:
             asset = session.query(Asset).filter_by(ticker=ticker).first()
             if not asset:
-                from utils.ticker_helper import to_yf_ticker
-                import yfinance as yf
-                # Try to auto-create asset like add_transaction does
-                yf_ticker = to_yf_ticker(ticker, "Ação")
-                try:
-                    _ = yf.Ticker(yf_ticker).fast_info['lastPrice']
-                except Exception:
-                    pass
                 from db.models import Category
-                category = session.query(Category).filter_by(name="Ação").first()
-                if not category:
-                    category = session.query(Category).first()
+                category = session.query(Category).filter_by(name="Ação").first() or session.query(Category).first()
                 asset = Asset(ticker=ticker, category_id=category.id, currency="BRL")
                 session.add(asset)
                 session.flush()
 
-            # Check duplicate
             duplicate = session.query(Dividend).filter_by(
                 asset_id=asset.id,
                 user_id=g.user_id,
                 date_com=tx_date,
-                total_value=amount
+                date_payment=pay_date,
+                type=div_type,
+                total_value=amount,
             ).first()
-            
+
             if duplicate:
                 return jsonify({"msg": "Duplicate dividend already exists."}), 409
-                
+
             div = Dividend(
                 asset_id=asset.id,
                 user_id=g.user_id,
                 date_com=tx_date,
-                date_payment=tx_date,
+                date_payment=pay_date,
+                type=div_type,
                 value_per_share=(amount / qty) if qty > 0 else amount,
                 quantity_at_date=qty,
                 total_value=amount,
-                status="PAGO"
+                status=div_status,
             )
             session.add(div)
-            from db.models import safe_commit
             safe_commit(session)
             return jsonify({"msg": "Success", "id": div.id}), 201
         except Exception as e:

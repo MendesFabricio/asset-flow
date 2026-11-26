@@ -16,7 +16,7 @@ auth_bp = Blueprint('auth', __name__)
 _rate_limit_store = defaultdict(list)
 
 def _get_client_ip() -> str:
-    xff = request.headers.get("X-Forwarded-For", "")
+    xff = request.headers.get("X-Forwarded-For", "").strip()
     if xff:
         return xff.split(",")[0].strip()
     return request.remote_addr or "unknown"
@@ -98,6 +98,11 @@ def verify_session_token(token: str) -> dict:
             user = session.query(User).filter_by(id=int(data["user_id"])).first()
             if not user or (user.password_hash or "")[-16:] != data["pwd_sig"]:
                 return None
+            data["_verified_user"] = {
+                "id": user.id,
+                "username": user.username,
+                "created_at": user.created_at.isoformat() if user.created_at else None,
+            }
     return data
 
 @auth_bp.route('/api/auth/login', methods=['POST'])
@@ -190,7 +195,7 @@ def register():
             session.add(new_user)
             session.flush() # Atribui o id ao novo usuário antes do commit
 
-            # Cria a configuração padrão de cartões/reembolsos para o novo usuário
+            # Cria a configuração padrão de reembolsos para o novo usuário
             new_config = RefundConfig(
                 user_id=new_user.id,
                 fechamento_dia=15,
@@ -219,6 +224,10 @@ def get_profile():
         if not user_id:
             return jsonify({"status": "Erro", "msg": "Não autenticado."}), 401
         
+        cached_user = getattr(g, "current_user_payload", None)
+        if cached_user and int(cached_user.get("id", 0)) == int(user_id):
+            return jsonify({"status": "Sucesso", "data": cached_user})
+
         with Session() as session:
             user = session.query(User).filter_by(id=int(user_id)).first()
             if not user:

@@ -45,7 +45,7 @@ if __name__ == '__main__':
     
     seed_jobs_if_empty()
     
-    scheduler = BlockingScheduler()
+    scheduler = BlockingScheduler(timezone="America/Sao_Paulo")
     build_scheduler_jobs(scheduler)
     
     # Adiciona a tarefa periódica de sincronização

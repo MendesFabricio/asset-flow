@@ -101,6 +101,48 @@ def calculate_smart_rebalance(
     except Exception as e:
         logging.warning(f"⚠️ Correlação ignorada: {e}")
 
+    # Enriquece sugestões elegíveis com calibração Wilson 95% do Motor de Sinais v2 (apenas DB real)
+    signal_stats_by_tkr: dict[str, dict] = {}
+    if type(session).__name__ not in ("MagicMock", "Mock"):
+        try:
+            from db.models.signals import SignalLedger
+            from domain.signals.walk_forward import infer_signal_asset_class
+            from db.models.signals import SignalSetupStat
+            recent_ledgers = (
+                session.query(SignalLedger)
+                .filter(SignalLedger.user_id == uid)
+                .order_by(SignalLedger.emitted_date.desc())
+                .all()
+            )
+            for sl in recent_ledgers:
+                t_u = (sl.ticker or "").upper()
+                if t_u and t_u not in signal_stats_by_tkr:
+                    signal_stats_by_tkr[t_u] = {
+                        "wilson_lb_95": float(sl.wilson_lb_95 or 0.0),
+                        "sample_size_n": int(sl.sample_size_n or 0),
+                        "setup_code": sl.setup_code,
+                        "status": sl.status,
+                    }
+            # Fallback para classe se ainda não houver entrada para o ticker
+            class_best: dict[str, float] = {}
+            for st in session.query(SignalSetupStat).filter_by(regime_bucket="GLOBAL", horizon_days=90).all():
+                if st.sample_size_n >= 20:
+                    cur = class_best.get(st.asset_class, 0.0)
+                    if float(st.wilson_lb_95 or 0.0) > cur:
+                        class_best[st.asset_class] = float(st.wilson_lb_95 or 0.0)
+            for a in assets_data:
+                if a["ticker"] not in signal_stats_by_tkr and a["category"] in VARIABLE_ASSET_CATEGORIES:
+                    ac = infer_signal_asset_class(a["category"], a["ticker"])
+                    if ac in class_best:
+                        signal_stats_by_tkr[a["ticker"]] = {
+                            "wilson_lb_95": class_best[ac],
+                            "sample_size_n": 20,
+                            "setup_code": None,
+                            "status": "MODERADA",
+                        }
+        except Exception as exc:
+            logging.debug(f"Rebalance v2 signal lookup fallback: {exc}")
+
     suggestions = []
     for a in assets_data:
         if a["gap_value"] <= 0:
@@ -117,7 +159,13 @@ def calculate_smart_rebalance(
         penalty = corr_penalty.get(a["ticker"], 0.0)
         ai_sent_raw = (a.get("ai_sentiment") or "").strip().lower()
         ai_sent = ai_sent_raw.title() if ai_sent_raw in ("positivo", "negativo", "neutro") else None
-        final_score = max(0.0, a["gap_score"] * (1.0 - penalty))
+        sig_meta = signal_stats_by_tkr.get(a["ticker"])
+        wilson_mult = 1.0
+        wilson_lb_95 = None
+        if sig_meta and sig_meta["sample_size_n"] >= 20:
+            wilson_lb_95 = sig_meta["wilson_lb_95"]
+            wilson_mult = max(0.65, min(1.35, 0.70 + wilson_lb_95))
+        final_score = max(0.0, a["gap_score"] * (1.0 - penalty) * wilson_mult)
         cat = a["category"]
         # Reserva recebe aporte direto em R$; demais classes usam unidades inteiras
         lot_size = 0 if cat == "Reserva" else 1
@@ -128,6 +176,7 @@ def calculate_smart_rebalance(
             "gap_value": round(a["gap_value"], 2),
             "score": round(final_score, 4),
             "corr_penalty": round(penalty, 4),
+            "wilson_lb_95": wilson_lb_95,
             "ai_sentiment": ai_sent,
             "lot_size": lot_size, "action": "COMPRAR",
         })

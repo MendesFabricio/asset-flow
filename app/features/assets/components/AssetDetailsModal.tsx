@@ -1,11 +1,12 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Activity, BarChart3, Bell, RefreshCw, Volume2, VolumeX, Sparkles, FileSpreadsheet } from 'lucide-react';
+import { Activity, BarChart3, Bell, RefreshCw, Volume2, VolumeX, Sparkles } from 'lucide-react';
 import { formatMoney } from '@/lib/format';
 import { Asset } from '@/types';
 import { apiCall } from '@/lib/api';
 import { ModalShell } from '@/components/ModalShell';
 import { ValuationPanel } from '@/features/valuation/components/ValuationPanel';
+import { SignalExplainabilityCard, SignalOpportunityV2 } from '@/features/valuation/components/SignalExplainabilityCard';
 import { usePrivacy } from '@/context/PrivacyContext';
 import { useTheme } from '@/context/ThemeContext';
 
@@ -31,27 +32,9 @@ export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalP
     const [explanationText, setExplanationText] = useState('');
     const [explaining, setExplaining] = useState(false);
     const [speaking, setSpeaking] = useState(false);
-
-    interface KpiData {
-        rendimento_distribuido?: number | string | null;
-        valor_patrimonial?: number | string | null;
-        vacancia_fisica_pct?: number | string | null;
-        vacancia_financeira_pct?: number | string | null;
-        receita_liquida?: number | string | null;
-        ebitda?: number | string | null;
-        lucro_liquido?: number | string | null;
-        divida_liquida?: number | string | null;
-        observacao_geral?: string | null;
-    }
-
-    // RI KPIs States
-    const [kpiData, setKpiData] = useState<KpiData | null>(null);
-    const [loadingKpi, setLoadingKpi] = useState(false);
-    const [kpiError, setKpiError] = useState<string | null>(null);
+    const [signalV2, setSignalV2] = useState<SignalOpportunityV2 | null>(null);
 
     // History Tab States removed as they are moved to ManageAssetModal
-
-
 
     // Limpa estados de IA e áudio ao fechar
     useEffect(() => {
@@ -61,8 +44,7 @@ export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalP
             }
             setSpeaking(false);
             setExplanationText('');
-            setKpiData(null);
-            setKpiError(null);
+            setSignalV2(null);
         } else {
             setStatusMsg(null);
             setTargetPrice('');
@@ -70,6 +52,25 @@ export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalP
             setCondition('ABOVE');
         }
     }, [isOpen]);
+
+    useEffect(() => {
+        if (!isOpen || !asset?.ticker) return;
+        let cancelled = false;
+        apiCall<{ opportunities?: SignalOpportunityV2[] }>(
+            `/api/signals/v2/opportunities?horizon=90&ticker=${encodeURIComponent(asset.ticker)}`
+        )
+            .then((res) => {
+                if (!cancelled) {
+                    setSignalV2(res?.opportunities?.[0] ?? null);
+                }
+            })
+            .catch(() => {
+                if (!cancelled) setSignalV2(null);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [isOpen, asset?.ticker]);
 
     const handleCreatePriceAlert = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -142,28 +143,6 @@ export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalP
         window.speechSynthesis.speak(utterance);
     };
 
-    const handleAnalyzeRI = () => {
-        if (!asset) return;
-        setLoadingKpi(true);
-        setKpiError(null);
-        apiCall<{ status: string; kpis?: KpiData; msg?: string }>(`/api/ai/analyze-pdf`, {
-            method: 'POST',
-            body: JSON.stringify({ ticker: asset.ticker })
-        })
-            .then((res) => {
-                if (res.status === 'Sucesso') {
-                    setKpiData(res.kpis ?? null);
-                } else {
-                    setKpiError(res.msg || 'Erro ao analisar PDF.');
-                }
-            })
-            .catch((err) => {
-                console.error(err);
-                setKpiError('Falha ao comunicar com o servidor.');
-            })
-            .finally(() => setLoadingKpi(false));
-    };
-
     useEffect(() => {
         setChartLoaded(false);
     }, [isOpen, asset?.ticker, theme]);
@@ -209,7 +188,7 @@ export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalP
             title={
                 <span className="flex items-center gap-2 text-xl font-bold">
                     {asset.ticker}
-                    <span className="text-xs bg-slate-800 text-slate-400 px-2 py-0.5 rounded border border-slate-700 font-normal">{asset.tipo}</span>
+                    <span className="text-xs bg-surface-elevated text-text-muted px-2 py-0.5 rounded border border-border-subtle font-normal">{asset.tipo}</span>
                 </span>
             }
             subtitle={
@@ -294,27 +273,27 @@ export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalP
                     )}
 
                     <div>
-                        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 font-mono">Definir Alerta de Preço</h3>
-                        <form onSubmit={handleCreatePriceAlert} className="space-y-3 bg-slate-900/40 p-4 rounded-lg border border-slate-800/80 shadow-[0_4px_12px_rgba(0,0,0,0.1)]">
-                            <div className="flex bg-slate-950 p-1 rounded-lg border border-slate-800 gap-1">
+                        <h3 className="text-xs font-bold text-text-muted uppercase tracking-wider mb-3 font-mono">Definir Alerta de Preço</h3>
+                        <form onSubmit={handleCreatePriceAlert} className="space-y-3 bg-surface-card p-4 rounded-lg border border-border-subtle shadow-[0_4px_12px_rgba(0,0,0,0.1)]">
+                            <div className="flex bg-surface-elevated p-1 rounded-lg border border-border-subtle gap-1">
                                 <button
                                     type="button"
                                     onClick={() => setCondition('ABOVE')}
-                                    className={`flex-1 text-[10px] uppercase tracking-wider py-1.5 font-black rounded-md transition-all duration-300 ${condition === 'ABOVE' ? 'bg-emerald-600/90 text-white border border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.25)]' : 'text-slate-500 hover:text-slate-300'}`}
+                                    className={`flex-1 text-[10px] uppercase tracking-wider py-1.5 font-black rounded-md transition-all duration-300 ${condition === 'ABOVE' ? 'bg-emerald-600/90 text-white border border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.25)]' : 'text-text-muted hover:text-text-primary'}`}
                                 >
                                     Subir Acima ▲
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => setCondition('BELOW')}
-                                    className={`flex-1 text-[10px] uppercase tracking-wider py-1.5 font-black rounded-md transition-all duration-300 ${condition === 'BELOW' ? 'bg-rose-600/90 text-white border border-rose-500/30 shadow-[0_0_10px_rgba(244,63,94,0.25)]' : 'text-slate-500 hover:text-slate-300'}`}
+                                    className={`flex-1 text-[10px] uppercase tracking-wider py-1.5 font-black rounded-md transition-all duration-300 ${condition === 'BELOW' ? 'bg-rose-600/90 text-white border border-rose-500/30 shadow-[0_0_10px_rgba(244,63,94,0.25)]' : 'text-text-muted hover:text-text-primary'}`}
                                 >
                                     Cair Abaixo ▼
                                 </button>
                             </div>
 
                             <div className="relative">
-                                <span className="absolute left-3 top-2.5 text-xs text-slate-500 font-mono">R$</span>
+                                <span className="absolute left-3 top-2.5 text-xs text-text-muted font-mono">R$</span>
                                 <input
                                     type="number"
                                     step="0.01"
@@ -322,7 +301,7 @@ export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalP
                                     placeholder="0,00"
                                     value={targetPrice}
                                     onChange={(e) => setTargetPrice(e.target.value)}
-                                    className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-xs text-white font-mono placeholder-slate-600 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 transition-all duration-300"
+                                    className="w-full bg-surface-elevated border border-border-subtle rounded-lg pl-9 pr-3 py-2 text-xs text-text-primary font-mono placeholder-text-muted focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/20 transition-all duration-300"
                                     required
                                 />
                             </div>
@@ -332,13 +311,13 @@ export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalP
                                 placeholder="Nota / Observação"
                                 value={note}
                                 onChange={(e) => setNote(e.target.value)}
-                                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 transition-all duration-300"
+                                className="w-full bg-surface-elevated border border-border-subtle rounded-lg px-3 py-2 text-xs text-text-primary placeholder-text-muted focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/20 transition-all duration-300"
                             />
 
                             <button
                                 type="submit"
                                 disabled={loadingAlert}
-                                className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800/40 text-white text-[11px] font-bold uppercase tracking-wider py-2 rounded-lg transition-all duration-300 hover:scale-[1.01] active:scale-[0.99]"
+                                className="w-full flex items-center justify-center gap-2 bg-accent hover:bg-accent-hover disabled:opacity-50 text-white text-[11px] font-bold uppercase tracking-wider py-2 rounded-lg transition-all duration-300 hover:scale-[1.01] active:scale-[0.99]"
                             >
                                 {loadingAlert ? (
                                     <RefreshCw size={12} className="animate-spin" />
@@ -349,18 +328,25 @@ export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalP
                             </button>
 
                             {statusMsg && (
-                                <p className={`text-[10px] font-bold text-center mt-2 ${statusMsg.type === 'success' ? 'text-emerald-400' : 'text-red-400'}`}>
+                                <p className={`text-[10px] font-bold text-center mt-2 ${statusMsg.type === 'success' ? 'text-status-success' : 'text-status-error'}`}>
                                     {statusMsg.text}
                                 </p>
                             )}
                         </form>
                     </div>
 
+                    {signalV2 && (
+                        <div>
+                            <h3 className="text-xs font-bold text-text-muted uppercase tracking-wider mb-3">Motor Estatístico v2 (90d)</h3>
+                            <SignalExplainabilityCard opportunity={signalV2} />
+                        </div>
+                    )}
+
                     {asset.recomendacao && (
-                        <div className={`p-4 rounded-lg border flex flex-col gap-2.5 ${asset.recomendacao.includes('COMPRA') ? 'bg-emerald-950/40 border-emerald-500/20 text-emerald-300' : 'bg-slate-900/60 border-slate-800 text-slate-300'}`}>
+                        <div className={`p-4 rounded-lg border flex flex-col gap-2.5 ${asset.recomendacao.includes('COMPRA') ? 'bg-status-success/10 border-status-success/20 text-status-success' : 'bg-surface-card border-border-subtle text-text-secondary'}`}>
                             <div>
                                 <h3 className="text-xs font-bold uppercase tracking-wider mb-1 opacity-70 flex items-center gap-1.5">
-                                    <Sparkles size={12} className="text-indigo-400" />
+                                    <Sparkles size={12} className="text-accent" />
                                     Recomendação IA
                                 </h3>
                                 <p className="font-bold text-sm mb-1">{asset.recomendacao}</p>
@@ -368,16 +354,16 @@ export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalP
                             </div>
 
                             {/* Score Explainer Button & Text */}
-                            <div className="border-t border-slate-800/40 pt-2.5">
+                            <div className="border-t border-border-subtle pt-2.5">
                                 {explanationText ? (
                                     <div className="space-y-2">
-                                        <p className="text-[11px] leading-relaxed text-slate-300 bg-slate-950/40 p-2.5 rounded border border-slate-900">
+                                        <p className="text-[11px] leading-relaxed text-text-secondary bg-surface-elevated p-2.5 rounded border border-border-subtle">
                                             {explanationText}
                                         </p>
                                         <button
                                             type="button"
                                             onClick={handleSpeakExplanation}
-                                            className="w-full flex items-center justify-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 text-[10px] font-bold uppercase tracking-wider py-1.5 rounded transition"
+                                            className="w-full flex items-center justify-center gap-1.5 bg-surface-elevated hover:bg-surface-card text-text-secondary text-[10px] font-bold uppercase tracking-wider py-1.5 rounded transition border border-border-subtle"
                                         >
                                             {speaking ? (
                                                 <>
@@ -409,119 +395,6 @@ export const AssetDetailsModal = ({ isOpen, onClose, asset }: AssetDetailsModalP
                                     </button>
                                 )}
                             </div>
-                        </div>
-                    )}
-
-                    {/* RI KPIs Parser Block */}
-                    {asset.last_report_url && (
-                        <div className="p-4 rounded-lg bg-slate-900/40 border border-slate-800/80 flex flex-col gap-2.5">
-                            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                                <FileSpreadsheet size={12} className="text-emerald-500" />
-                                KPIs de Relatório de RI (IA)
-                            </h3>
-
-                            {kpiData ? (
-                                <div className="space-y-3">
-                                    <div className="overflow-x-auto w-full border border-slate-900 rounded">
-                                        <table className="w-full text-[11px] text-left border-collapse bg-slate-950/20">
-                                            <tbody className="divide-y divide-slate-900 text-slate-400">
-                                                {asset.tipo === 'FII' ? (
-                                                    <>
-                                                        <tr className="hover:bg-slate-900/10">
-                                                            <td className="p-2 text-slate-500">Rendimento Distr.:</td>
-                                                            <td className="p-2 font-bold text-slate-300">
-                                                                {typeof kpiData.rendimento_distribuido === 'number'
-                                                                    ? formatMoney(kpiData.rendimento_distribuido)
-                                                                    : kpiData.rendimento_distribuido || '-'}
-                                                            </td>
-                                                        </tr>
-                                                        <tr className="hover:bg-slate-900/10">
-                                                            <td className="p-2 text-slate-500">VP da Cota:</td>
-                                                            <td className="p-2 font-bold text-slate-300">
-                                                                {typeof kpiData.valor_patrimonial === 'number'
-                                                                    ? formatMoney(kpiData.valor_patrimonial)
-                                                                    : kpiData.valor_patrimonial || '-'}
-                                                            </td>
-                                                        </tr>
-                                                        <tr className="hover:bg-slate-900/10">
-                                                            <td className="p-2 text-slate-500">Vacância Física:</td>
-                                                            <td className="p-2 font-bold text-slate-300">
-                                                                {kpiData.vacancia_fisica_pct != null ? `${kpiData.vacancia_fisica_pct}%` : '-'}
-                                                            </td>
-                                                        </tr>
-                                                        <tr className="hover:bg-slate-900/10">
-                                                            <td className="p-2 text-slate-500">Vacância Financeira:</td>
-                                                            <td className="p-2 font-bold text-slate-300">
-                                                                {kpiData.vacancia_financeira_pct != null ? `${kpiData.vacancia_financeira_pct}%` : '-'}
-                                                            </td>
-                                                        </tr>
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <tr className="hover:bg-slate-900/10">
-                                                            <td className="p-2 text-slate-500">Receita Líquida:</td>
-                                                            <td className="p-2 font-bold text-slate-300">
-                                                                {typeof kpiData.receita_liquida === 'number'
-                                                                    ? formatMoney(kpiData.receita_liquida)
-                                                                    : kpiData.receita_liquida || '-'}
-                                                            </td>
-                                                        </tr>
-                                                        <tr className="hover:bg-slate-900/10">
-                                                            <td className="p-2 text-slate-500">EBITDA:</td>
-                                                            <td className="p-2 font-bold text-slate-300">
-                                                                {typeof kpiData.ebitda === 'number'
-                                                                    ? formatMoney(kpiData.ebitda)
-                                                                    : kpiData.ebitda || '-'}
-                                                            </td>
-                                                        </tr>
-                                                        <tr className="hover:bg-slate-900/10">
-                                                            <td className="p-2 text-slate-500">Lucro Líquido:</td>
-                                                            <td className="p-2 font-bold text-slate-300">
-                                                                {typeof kpiData.lucro_liquido === 'number'
-                                                                    ? formatMoney(kpiData.lucro_liquido)
-                                                                    : kpiData.lucro_liquido || '-'}
-                                                            </td>
-                                                        </tr>
-                                                        <tr className="hover:bg-slate-900/10">
-                                                            <td className="p-2 text-slate-500">Dívida Líquida:</td>
-                                                            <td className="p-2 font-bold text-slate-300">
-                                                                {typeof kpiData.divida_liquida === 'number'
-                                                                    ? formatMoney(kpiData.divida_liquida)
-                                                                    : kpiData.divida_liquida || '-'}
-                                                            </td>
-                                                        </tr>
-                                                    </>
-                                                )}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                    {kpiData.observacao_geral && (
-                                        <p className="text-[10px] leading-relaxed text-slate-400 bg-slate-950/40 p-2 rounded">
-                                            <strong>IA:</strong> {kpiData.observacao_geral}
-                                        </p>
-                                    )}
-                                </div>
-                            ) : (
-                                <div className="space-y-2">
-                                    <button
-                                        type="button"
-                                        disabled={loadingKpi}
-                                        onClick={handleAnalyzeRI}
-                                        className="w-full flex items-center justify-center gap-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 text-[10px] font-bold uppercase tracking-wider py-1.5 rounded transition border border-emerald-500/10"
-                                    >
-                                        {loadingKpi ? (
-                                            <>
-                                                <RefreshCw size={10} className="animate-spin" /> Extraindo KPIs...
-                                            </>
-                                        ) : (
-                                            'Extrair KPIs de RI por IA'
-                                        )}
-                                    </button>
-                                    {kpiError && (
-                                        <p className="text-[9px] text-red-400 text-center font-bold">{kpiError}</p>
-                                    )}
-                                </div>
-                            )}
                         </div>
                     )}
 

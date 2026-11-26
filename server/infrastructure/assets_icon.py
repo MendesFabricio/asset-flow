@@ -236,6 +236,12 @@ def _resolve_external_icon(ticker: str, category: str, name: str, currency: str)
     return None
 
 
+def _is_safe_svg(content: bytes) -> bool:
+    low = content[:16384].lower()
+    dangerous = (b"<script", b"javascript:", b"onload=", b"onerror=", b"onclick=", b"<foreignobject", b"<iframe")
+    return not any(tok in low for tok in dangerous)
+
+
 @assets_icon_bp.route('/api/assets/icon/<path:ticker>', methods=['GET'])
 def get_asset_icon(ticker):
     """
@@ -245,25 +251,52 @@ def get_asset_icon(ticker):
     3. Fallback SVG vetorial nítido por categoria
     """
     ticker = ticker.upper().strip()
+    if not re.fullmatch(r"[A-Z0-9.\-^ ]{1,24}", ticker):
+        return Response(b"Invalid ticker", status=400, mimetype="text/plain")
     safe_key = _safe_cache_key(ticker)
 
+    svg_sec_headers = {
+        'Cache-Control': 'public, max-age=86400',
+        'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+        'X-Content-Type-Options': 'nosniff',
+    }
     for ext, mime in (("svg", "image/svg+xml"), ("png", "image/png"), ("jpg", "image/jpeg")):
         cached_path = os.path.join(ICONS_DIR, f"{safe_key}.{ext}")
         if os.path.exists(cached_path):
             with open(cached_path, "rb") as f:
-                return Response(f.read(), mimetype=mime, headers={'Cache-Control': 'public, max-age=86400'})
+                data = f.read()
+                if ext == "svg" and not _is_safe_svg(data):
+                    break
+                hdrs = svg_sec_headers if ext == "svg" else {'Cache-Control': 'public, max-age=86400', 'X-Content-Type-Options': 'nosniff'}
+                return Response(data, mimetype=mime, headers=hdrs)
 
     category, name, currency = _lookup_asset_meta(ticker)
-    resolved = _resolve_external_icon(ticker, category, name, currency)
+    is_known_asset = bool(category or name)
+    resolved = _resolve_external_icon(ticker, category, name, currency) if is_known_asset or len(ticker) <= 10 else None
+    if resolved:
+        content, mime = resolved
+        if "svg" in mime and not _is_safe_svg(content):
+            resolved = None
     if resolved:
         content, mime = resolved
         ext = "svg" if "svg" in mime else ("jpg" if "jpeg" in mime else "png")
         try:
-            with open(os.path.join(ICONS_DIR, f"{safe_key}.{ext}"), "wb") as f:
-                f.write(content)
+            # Cap unauthenticated disk writes to known portfolio/radar assets or small cache
+            if is_known_asset or len(os.listdir(ICONS_DIR)) < 500:
+                with open(os.path.join(ICONS_DIR, f"{safe_key}.{ext}"), "wb") as f:
+                    f.write(content)
         except OSError as exc:
             logging.debug(f"Falha ao gravar cache local do ícone {ticker}: {exc}")
-        return Response(content, mimetype=mime, headers={'Cache-Control': 'public, max-age=86400'})
+        hdrs = svg_sec_headers if ext == "svg" else {'Cache-Control': 'public, max-age=86400', 'X-Content-Type-Options': 'nosniff'}
+        return Response(content, mimetype=mime, headers=hdrs)
 
     svg_badge = _build_svg_badge(ticker, category)
-    return Response(svg_badge, mimetype='image/svg+xml', headers={'Cache-Control': 'public, max-age=3600'})
+    return Response(
+        svg_badge,
+        mimetype='image/svg+xml',
+        headers={
+            'Cache-Control': 'public, max-age=3600',
+            'Content-Security-Policy': "default-src 'none'; sandbox",
+            'X-Content-Type-Options': 'nosniff',
+        },
+    )

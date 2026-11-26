@@ -1,19 +1,21 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode } from 'react';
 import {
   HistoryChartSkeleton,
   QuantSkeleton,
   FixedIncomeSkeleton,
   ReceivablesSkeleton,
-  CreditCardsSkeleton,
   ChatSkeleton,
 } from '@/components/ui/Skeletons';
-import { MorningBriefing } from '@/features/news/MorningBriefing';
 import { SummaryDashboard } from './SummaryDashboard';
-import { DASHBOARD_CONTENT_TABS } from '../hooks/useDashboardState';
 import { Asset, HistoryDataPoint } from '@/types';
+
+const MorningBriefing = dynamic(
+  () => import('@/features/news/MorningBriefing').then((mod) => mod.MorningBriefing),
+  { ssr: false, loading: () => <QuantSkeleton /> }
+);
 
 const MonthlyPnLChart = dynamic(
   () => import('@/features/evolution/components/MonthlyPnLChart'),
@@ -32,16 +34,12 @@ const QuantDashboard = dynamic(
   { ssr: false, loading: () => <QuantSkeleton /> }
 );
 const FixedIncomeTab = dynamic(
-  () => import('@/components/FixedIncomeTab').then((mod) => mod.FixedIncomeTab),
+  () => import('@/features/fixed-income/FixedIncomeTab').then((mod) => mod.FixedIncomeTab),
   { ssr: false, loading: () => <FixedIncomeSkeleton /> }
 );
 const ReceivablesTab = dynamic(
-  () => import('@/features/assets/tabs/receivables/ReceivablesTab').then((mod) => mod.ReceivablesTab),
+  () => import('@/features/receivables/ReceivablesTab').then((mod) => mod.ReceivablesTab),
   { ssr: false, loading: () => <ReceivablesSkeleton /> }
-);
-const CreditCardsTab = dynamic(
-  () => import('@/components/CreditCardsTab').then((mod) => mod.CreditCardsTab),
-  { ssr: false, loading: () => <CreditCardsSkeleton /> }
 );
 const JarvisChat = dynamic(
   () => import('@/features/jarvis/JarvisChat').then((mod) => mod.JarvisChat),
@@ -76,7 +74,6 @@ interface DashboardTabContentProps {
   ativos: Asset[];
   categorias: { name: string; meta: number }[];
   history: HistoryDataPoint[];
-  onOpenRadar: () => void;
   onUpdate: () => void;
 }
 
@@ -94,9 +91,8 @@ const TAB_PREFETCHERS: Record<string, () => Promise<unknown>> = {
   'Radar': () => import('@/features/valuation/components/RadarTab'),
   'Comparador': () => import('@/features/valuation/components/ComparatorTab'),
   'RendaPassiva': () => import('@/features/valuation/components/PassiveIncomeTab'),
-  'Renda Fixa': () => import('@/components/FixedIncomeTab'),
-  'Reembolsos': () => import('@/features/assets/tabs/receivables/ReceivablesTab'),
-  'Cartoes': () => import('@/components/CreditCardsTab'),
+  'Renda Fixa': () => import('@/features/fixed-income/FixedIncomeTab'),
+  'Reembolsos': () => import('@/features/receivables/ReceivablesTab'),
   'Jarvis': () => import('@/features/jarvis/JarvisChat'),
 };
 
@@ -107,8 +103,6 @@ export function prefetchTabChunk(tabId: string) {
   }
 }
 
-const CONTENT_TAB_IDS = new Set<string>(DASHBOARD_CONTENT_TABS);
-
 export function DashboardTabContent({
   tab,
   metrics,
@@ -116,18 +110,9 @@ export function DashboardTabContent({
   ativos,
   categorias,
   history,
-  onOpenRadar,
   onUpdate,
 }: DashboardTabContentProps) {
   const normalizedTab = tab === 'Financeiro' ? 'Reembolsos' : tab;
-  const [visitedTabs, setVisitedTabs] = useState<string[]>(() =>
-    CONTENT_TAB_IDS.has(normalizedTab) ? [normalizedTab] : ['Resumo']
-  );
-
-  useEffect(() => {
-    if (!CONTENT_TAB_IDS.has(normalizedTab)) return;
-    setVisitedTabs((prev) => (prev.includes(normalizedTab) ? prev : [...prev, normalizedTab]));
-  }, [normalizedTab]);
 
   const renderTabPanel = (tabId: string) => {
     switch (tabId) {
@@ -138,7 +123,6 @@ export function DashboardTabContent({
             isHidden={isHidden}
             ativos={ativos}
             categorias={categorias}
-            onOpenRadar={onOpenRadar}
             onUpdate={onUpdate}
           />
         );
@@ -192,12 +176,6 @@ export function DashboardTabContent({
             <ReceivablesTab />
           </Section>
         );
-      case 'Cartoes':
-        return (
-          <Section>
-            <CreditCardsTab />
-          </Section>
-        );
       case 'Jarvis':
         return (
           <div className="animate-in fade-in duration-150 w-full grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -214,16 +192,5 @@ export function DashboardTabContent({
     }
   };
 
-  return (
-    <>
-      {visitedTabs.map((tabId) => {
-        const isActive = normalizedTab === tabId;
-        return (
-          <div key={tabId} hidden={!isActive} className={isActive ? 'w-full' : 'hidden'}>
-            {renderTabPanel(tabId)}
-          </div>
-        );
-      })}
-    </>
-  );
+  return <div className="w-full">{renderTabPanel(normalizedTab)}</div>;
 }

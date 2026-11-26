@@ -31,28 +31,10 @@ def run_monte_carlo(session, fetch_prices, simulations=1000, days=252, dolar_rat
     if not tickers or total_value == 0:
         return {"status": "Erro", "msg": "Carteira vazia ou sem renda variável."}
 
+    from domain.quant.helpers import _extract_close_prices
     ticker_map = dict(zip(tickers, weights))
     data = fetch_prices(tickers, period="1y")
-
-    close_prices = pd.DataFrame()
-    if len(tickers) == 1:
-        t = tickers[0]
-        if "Close" in data.columns:
-            col = data["Close"]
-            close_prices[t] = col.iloc[:, 0] if isinstance(col, pd.DataFrame) else col
-        else:
-            close_prices[t] = data.iloc[:, 0] if isinstance(data, pd.DataFrame) else data
-    else:
-        for t in tickers:
-            try:
-                if t in data.columns:
-                    close_prices[t] = data[t]["Close"]
-                elif "Close" in data.columns and t in data["Close"].columns:
-                    close_prices[t] = data["Close"][t]
-            except Exception:
-                pass
-
-    close_prices = close_prices.dropna(how="all", axis=1)
+    close_prices = _extract_close_prices(data).dropna(how="all", axis=1)
     valid = [c for c in close_prices.columns if close_prices[c].count() >= 60]
     close_prices = close_prices[valid]
     close_prices = _align_prices_to_b3(close_prices)

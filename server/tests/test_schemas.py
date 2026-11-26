@@ -1,7 +1,6 @@
 import pytest
 from schemas import (
     FixedIncomeCreate,
-    CreditCardCreate,
     RefundConfigUpdate,
 )
 
@@ -46,38 +45,6 @@ class TestFixedIncomeCreate:
                 average_price=1000.0,
                 issue_date="2024-01-01",
                 due_date="2025-01-01",
-            )
-
-class TestCreditCardCreate:
-    def test_valid(self):
-        data = {
-            "name": "Nubank",
-            "limit": 5000.0,
-            "closing_day": 5,
-            "due_day": 15,
-        }
-        obj = CreditCardCreate(**data)
-        assert obj.name == "Nubank"
-        assert obj.limit == 5000.0
-        assert obj.closing_day == 5
-        assert obj.due_day == 15
-
-    def test_invalid_closing_day(self):
-        with pytest.raises(Exception):
-            CreditCardCreate(
-                name="Nubank",
-                limit=5000.0,
-                closing_day=0,
-                due_day=15,
-            )
-
-    def test_invalid_due_day(self):
-        with pytest.raises(Exception):
-            CreditCardCreate(
-                name="Nubank",
-                limit=5000.0,
-                closing_day=5,
-                due_day=32,
             )
 
 class TestRefundConfigUpdate:

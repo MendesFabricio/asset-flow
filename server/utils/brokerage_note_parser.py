@@ -45,10 +45,24 @@ def _find_date(clean_text: str) -> str | None:
 
     return None
 
-def extract_brokerage_note_transactions(pdf_path: str) -> dict:
+def extract_brokerage_note_transactions(pdf_path: str, password: str | None = None) -> dict:
     doc = None
     try:
         doc = fitz.open(pdf_path)
+        if doc.needs_pass:
+            if not password or not doc.authenticate(password):
+                return {
+                    "status": "Erro",
+                    "code": "PDF_PASSWORD_REQUIRED",
+                    "msg": "Nota de corretagem protegida por senha. Informe a senha (geralmente seu CPF).",
+                }
+        total_text_chars = sum(len((p.get_text() or "").strip()) for p in doc)
+        if len(doc) > 0 and total_text_chars < 50:
+            return {
+                "status": "Erro",
+                "code": "PDF_SCANNED",
+                "msg": "PDF escaneado ou sem texto selecionável. Exporte a nota em formato PDF digital na corretora.",
+            }
         transactions = []
         current_date = None
 
@@ -118,7 +132,7 @@ def extract_brokerage_note_transactions(pdf_path: str) -> dict:
                 except Exception:
                     iso_date = current_date
 
-            logging.warning(f"[OCR] Page sample: {clean_text[:300]}")
+            logging.debug(f"[OCR] Page sample: {clean_text[:300]}")
             found_any = False
 
             # Tenta padrão NOVO (RV/RF 2025)

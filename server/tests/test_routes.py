@@ -22,14 +22,6 @@ def test_health_endpoint(client):
     assert "services" in data
     assert "database" in data["services"]
 
-def test_sync_status_endpoint(client):
-    response = client.get('/api/sync-status')
-    assert response.status_code == 200
-    
-    data = response.get_json()
-    assert "status" in data
-    assert "message" in data
-
 def test_market_indices_endpoint(client):
     response = client.get('/api/market/indices')
     assert response.status_code == 200
@@ -41,14 +33,6 @@ def test_market_indices_endpoint(client):
 def test_sector_exposure_endpoint(client):
     response = client.get('/api/simulation/exposure')
     assert response.status_code == 200
-
-def test_daily_summary_endpoint(client):
-    from unittest.mock import MagicMock
-    with patch('db.models.safe_commit', return_value=None):
-        with patch('feedparser.parse') as mock_feed:
-            mock_feed.return_value = MagicMock(entries=[])
-            response = client.get('/api/news/daily-summary')
-            assert response.status_code == 200
 
 def test_delete_transaction_endpoint(client):
     with patch('routes.assets.service.delete_transaction', return_value=True):

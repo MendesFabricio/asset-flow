@@ -20,6 +20,92 @@ def _active_assets_query(session, user_id=None):
     return query.distinct()
 
 
+def _process_corporate_notices(session, pos, asset, notices: list[dict], source_label: str) -> None:
+    """Registra TriggeredAlert (e Telegram) para comunicados recentes e rascunhos de emissão."""
+    if not notices:
+        return
+    from db.models import CorporateEvent, TriggeredAlert
+    from crawlers.b3_fnet import B3FnetCrawler
+    from utils.notifier import format_alert_telegram, is_telegram_configured, send_telegram_message
+
+    cutoff_30d = datetime.now() - timedelta(days=30)
+    existing_emissions = (
+        session.query(CorporateEvent)
+        .filter_by(asset_id=asset.id, user_id=pos.user_id, type="EMISSION")
+        .all()
+    )
+    existing_doc_ids = {
+        str((ce.raw_data or {}).get("doc_id"))
+        for ce in existing_emissions
+        if isinstance(ce.raw_data, dict) and ce.raw_data.get("doc_id")
+    }
+    telegram_lines = []
+
+    for notice in notices:
+        doc_id = str(notice.get("doc_id") or "").strip()
+        kind = notice.get("kind")
+        title = str(notice.get("title") or "Comunicado").strip()
+        date_str = str(notice.get("date") or "").strip()
+        link = str(notice.get("link") or "").strip()
+        parsed_dt = B3FnetCrawler._parse_date(date_str)
+        event_date = parsed_dt.date() if parsed_dt != datetime.min else datetime.now().date()
+
+        if kind == "EMISSION" and (not doc_id or doc_id not in existing_doc_ids):
+            same_date = any(ce.date == event_date and (ce.raw_data or {}).get("title") == title for ce in existing_emissions)
+            if not same_date:
+                new_ce = CorporateEvent(
+                    asset_id=asset.id,
+                    user_id=pos.user_id,
+                    type="EMISSION",
+                    date=event_date,
+                    source=source_label,
+                    raw_data={"doc_id": doc_id, "title": title, "link": link},
+                )
+                session.add(new_ce)
+                existing_emissions.append(new_ce)
+                if doc_id:
+                    existing_doc_ids.add(doc_id)
+
+        if parsed_dt == datetime.min or parsed_dt < cutoff_30d:
+            continue
+
+        cond = "EMISSION_ANNOUNCED" if kind == "EMISSION" else "CORP_EVENT_ANNOUNCED"
+        date_short = date_str.split(" ")[0] if date_str else event_date.strftime("%d/%m/%Y")
+        note_txt = f"{title} ({date_short})" + (f" · ID {doc_id}" if doc_id else "")
+
+        dup = (
+            session.query(TriggeredAlert)
+            .filter_by(
+                user_id=pos.user_id,
+                ticker=asset.ticker,
+                condition=cond,
+                note=note_txt,
+            )
+            .first()
+        )
+        if not dup:
+            session.add(
+                TriggeredAlert(
+                    user_id=pos.user_id,
+                    asset_id=asset.id,
+                    event_type="CORPORATE_EVENT",
+                    ticker=asset.ticker,
+                    condition=cond,
+                    target_price=0,
+                    current_price=0,
+                    note=note_txt,
+                    triggered_at=datetime.now(),
+                    is_notified=False,
+                )
+            )
+            telegram_lines.append(f"• {asset.ticker}: {note_txt}" + (f"\n  {link}" if link else ""))
+
+    if telegram_lines and is_telegram_configured():
+        send_telegram_message(
+            format_alert_telegram("📢 Emissão / Evento Corporativo — AssetFlow", telegram_lines)
+        )
+
+
 def collect_amortization_12m_map(session, cutoff_date, user_id=None) -> dict[str, float]:
     """Soma amortizações por cota (AMORTIZATION) na janela de 12m por ticker."""
     from db.models import AssetTransaction
@@ -35,8 +121,14 @@ def collect_amortization_12m_map(session, cutoff_date, user_id=None) -> dict[str
     seen_events: set[tuple] = set()
     for tx in query.all():
         tkr = (getattr(tx, "ticker", None) or "").strip().upper()
-        unit_p = float(getattr(tx, "unit_price", 0) or 0)
-        if not tkr or unit_p <= 0:
+        qty_tx = float(getattr(tx, "quantity", 0) or 0)
+        tot_tx = float(getattr(tx, "total_value", 0) or 0)
+        # tx.unit_price armazena o novo PM pós-amortização; o valor amortizado por cota é total_value / quantity.
+        if qty_tx > 0 and tot_tx > 0:
+            amort_ps = tot_tx / qty_tx
+        else:
+            amort_ps = 0.0
+        if not tkr or amort_ps <= 0:
             continue
         if user_id is None:
             tx_dt = tx.transaction_date.date() if tx.transaction_date else None
@@ -44,7 +136,7 @@ def collect_amortization_12m_map(session, cutoff_date, user_id=None) -> dict[str
             if ev_key in seen_events:
                 continue
             seen_events.add(ev_key)
-        amort_map[tkr] = amort_map.get(tkr, 0.0) + unit_p
+        amort_map[tkr] = amort_map.get(tkr, 0.0) + amort_ps
     return amort_map
 
 
@@ -57,7 +149,11 @@ def _extract_vpa_from_report_json(raw_report):
         cards = (parsed.get("fundamentalist") or {}).get("cards_indicadores") or []
         for card in cards:
             if card.get("titulo") == "VPA":
-                val = str(card.get("valor_formatado", "")).replace("R$", "").replace(",", ".").strip()
+                raw_val = str(card.get("valor_formatado", "")).replace("R$", "").strip()
+                if "," in raw_val:
+                    val = raw_val.replace(".", "").replace(",", ".")
+                else:
+                    val = raw_val
                 num = float(val)
                 if num > 0:
                     return round(num, 2)
@@ -139,6 +235,21 @@ def update_prices(session, invalidate_cache_callback, user_id=None):
                     if prev_close > 0:
                         change_pct = ((current_price - prev_close) / prev_close) * 100
 
+                adj_series = hist['Adj Close'].fillna(hist['Close']) if 'Adj Close' in hist.columns else hist['Close']
+                adj_series = adj_series.astype(float).dropna()
+                sma_20_val = float(adj_series.iloc[-20:].mean()) if len(adj_series) >= 1 else current_price
+                rsi_14_val = 50.0
+                if len(adj_series) >= 15:
+                    delta_s = adj_series.diff()
+                    avg_gain = delta_s.clip(lower=0.0).ewm(alpha=1.0 / 14.0, adjust=False).mean()
+                    avg_loss = (-delta_s).clip(lower=0.0).ewm(alpha=1.0 / 14.0, adjust=False).mean()
+                    last_loss = float(avg_loss.iloc[-1])
+                    if last_loss > 1e-9:
+                        rs = float(avg_gain.iloc[-1]) / last_loss
+                        rsi_14_val = round(100.0 - (100.0 / (1.0 + rs)), 2)
+                    elif float(avg_gain.iloc[-1]) > 0:
+                        rsi_14_val = 100.0
+
                 mdata = existing_mdata.get(asset.id)
                 if not mdata:
                     mdata = MarketData(asset_id=asset.id)
@@ -147,7 +258,27 @@ def update_prices(session, invalidate_cache_callback, user_id=None):
                 mdata.price = current_price
                 mdata.min_6m = absolute_min_6m
                 mdata.change_percent = change_pct
+                mdata.rsi_14 = rsi_14_val
+                mdata.sma_20 = sma_20_val
                 mdata.date = hist.index[-1].date()
+
+                # Persiste também ponto diário em PriceHistoryDaily (Total Return + técnicos)
+                try:
+                    from db.models.signals import PriceHistoryDaily
+                    tkr_u = asset.ticker.strip().upper()
+                    dt_d = mdata.date
+                    phd = session.query(PriceHistoryDaily).filter_by(ticker=tkr_u, date=dt_d).first()
+                    if not phd:
+                        phd = PriceHistoryDaily(ticker=tkr_u, date=dt_d)
+                        session.add(phd)
+                    phd.close_raw = current_price
+                    phd.adj_close_tr = float(adj_series.iloc[-1])
+                    phd.rsi_14 = rsi_14_val
+                    phd.sma_20 = sma_20_val
+                    phd.sma_50 = float(adj_series.iloc[-50:].mean()) if len(adj_series) >= 1 else phd.adj_close_tr
+                    phd.sma_200 = float(adj_series.iloc[-200:].mean()) if len(adj_series) >= 1 else phd.adj_close_tr
+                except Exception:
+                    pass
                 count_ok += 1
 
             except Exception:
@@ -487,6 +618,8 @@ def sync_reports_with_fnet(session, state_dict=None, user_id=None):
             if is_fii and asset.cnpj:
                 doc_package = B3FnetCrawler.get_documents_package(asset.cnpj)
                 if doc_package:
+                    corporate_notices = doc_package.pop("corporate_notices", [])
+                    _process_corporate_notices(session, pos, asset, corporate_notices, "B3_FNET")
                     # Tenta processar o informe mensal do FII para extrair indicadores de saúde
                     fii_indicators = None
                     fii_leverage_pct = None
@@ -539,12 +672,23 @@ def sync_reports_with_fnet(session, state_dict=None, user_id=None):
                         combined["credit_risk"] = {"leverage_pct": fii_leverage_pct}
                     elif prev_rep.get("credit_risk"):
                         combined["credit_risk"] = prev_rep["credit_risk"]
-                    if prev_rep.get("pdf_kpis"):
+                    gerencial = doc_package.get('gerencial')
+                    gerencial_url = gerencial["link"] if gerencial else (list(doc_package.values())[0]["link"] if doc_package else None)
+                    if prev_rep.get("pdf_kpis") and prev_rep.get("pdf_kpis_url") == gerencial_url:
                         combined["pdf_kpis"] = prev_rep["pdf_kpis"]
+                        combined["pdf_kpis_url"] = gerencial_url
+                    elif gerencial_url:
+                        try:
+                            from utils.pdf_extractor import extract_kpis_from_pdf
+                            pdf_res = extract_kpis_from_pdf(gerencial_url, is_fii=True)
+                            if pdf_res.get("status") == "Sucesso" and pdf_res.get("kpis"):
+                                combined["pdf_kpis"] = pdf_res["kpis"]
+                                combined["pdf_kpis_url"] = gerencial_url
+                        except Exception as pdf_err:
+                            logging.debug(f"⚠️ Extração PDF FII falhou para {ticker}: {pdf_err}")
                     pos.last_report_type = json.dumps(combined)
                     
-                    gerencial = doc_package.get('gerencial')
-                    pos.last_report_url = gerencial["link"] if gerencial else list(doc_package.values())[0]["link"]
+                    pos.last_report_url = gerencial_url or ""
                     datas = [f"{k[0].upper()}: {v['ref_date']}" for k, v in doc_package.items() if 'ref_date' in v]
                     pos.last_report_at = " | ".join(datas)
                     count_fii += 1
@@ -559,6 +703,9 @@ def sync_reports_with_fnet(session, state_dict=None, user_id=None):
                         doc_links = CVMEnetCrawler.get_documents(asset.cvm_code)
                     except Exception as enet_err:
                         logging.warning(f"⚠️ Erro ao buscar links de relatórios da CVM para {ticker}: {enet_err}")
+
+                    corporate_notices = doc_links.pop("corporate_notices", []) if doc_links else []
+                    _process_corporate_notices(session, pos, asset, corporate_notices, "CVM_ENET")
 
                     combined = {
                         "fundamentalist": analise_completa,

@@ -23,6 +23,7 @@ name: asset-flow
 x-shared-env: &shared-env
   SECRET_KEY: ${SECRET_KEY:-asset_flow_dev_secret_key_default_value_change_in_prod}
   ENVIRONMENT: production
+  TZ: America/Sao_Paulo
 
 services:
   # --- BACKEND (Flask / Gunicorn) ---
@@ -45,7 +46,7 @@ services:
       PYTHONPATH: /app
       FLASK_DEBUG: "0"
       LOCKS_DIR: /app/data/locks
-      ALLOWED_ORIGINS: http://assetflow.localhost,http://assetflow.192.168.3.11.nip.io
+      ALLOWED_ORIGINS: http://assetflow.localhost,http://assetflow.192.168.3.11.nip.io,http://assetflow.100.102.199.1.nip.io
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:5328/api/health || exit 1"]
       interval: 15s
@@ -103,7 +104,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=gateway_net"
-      - "traefik.http.routers.asset-flow.rule=Host(`assetflow.localhost`) || Host(`assetflow.192.168.3.11.nip.io`)"
+      - "traefik.http.routers.asset-flow.rule=Host(`assetflow.localhost`) || Host(`assetflow.192.168.3.11.nip.io`) || Host(`assetflow.100.102.199.1.nip.io`)"
       - "traefik.http.routers.asset-flow.entrypoints=web"
       - "traefik.http.routers.asset-flow.service=asset-flow"
       - "traefik.http.services.asset-flow.loadbalancer.server.port=3000"

@@ -110,11 +110,6 @@ def get_history():
 
 
 
-@dashboard_bp.route('/api/fundamentals-status', methods=['GET'])
-def get_fundamentals_status():
-    """📡 ROTA DE CHECAGEM: O Next.js bate aqui repetidamente para ler o avanço da barra de progresso"""
-    return jsonify(get_sync_state_db("yahoo_sync"))
-
 @dashboard_bp.route('/api/update-fundamentals', methods=['POST'])
 def trigger_fundamentals():
     try:

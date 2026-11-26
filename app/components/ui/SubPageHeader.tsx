@@ -21,9 +21,9 @@ export function SubPageHeader() {
     <header className="sticky top-0 z-30 w-full bg-surface/85 backdrop-blur-md border-b border-border-subtle">
       <div className="max-w-7xl mx-auto px-4 lg:px-6 h-16 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3 shrink-0">
-          <Link href="/" className="flex items-center gap-2 hover:opacity-90 transition-opacity">
+          <div className="flex items-center gap-2 hover:opacity-90 transition-opacity">
             <Logo />
-          </Link>
+          </div>
           <ThemeToggle />
           <div className="hidden sm:block h-5 w-px bg-border-subtle" />
           <Link

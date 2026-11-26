@@ -1,0 +1,285 @@
+{
+  "version": 2,
+  "skills": {
+    "antv-g2-chart": {
+      "source": "antvis/chart-visualization-skills",
+      "commit": "a105fa12a9fa41fccccc2eba7f4b34973628f5d3",
+      "sourceType": "github",
+      "skillPath": "skills/antv-g2-chart/SKILL.md",
+      "computedHash": "e5814e5d63171bdf6560aff75ab4568806f490505ca8ac55a2d2b61e1eb9b58f"
+    },
+    "antv-g6-graph": {
+      "source": "antvis/chart-visualization-skills",
+      "commit": "a105fa12a9fa41fccccc2eba7f4b34973628f5d3",
+      "sourceType": "github",
+      "skillPath": "skills/antv-g6-graph/SKILL.md",
+      "computedHash": "eb371705f0dc79765a5ff9ec80ce4f043072cad84c7cf2ab0ac9e9ec37db2857"
+    },
+    "antv-gpt-vis": {
+      "source": "antvis/chart-visualization-skills",
+      "commit": "a105fa12a9fa41fccccc2eba7f4b34973628f5d3",
+      "sourceType": "github",
+      "skillPath": "skills/antv-gpt-vis/SKILL.md",
+      "computedHash": "c9371ca7b6c292619ef82cd365dd8fddadfa502f23b4868ce7aac2c492783f36"
+    },
+    "antv-infographic": {
+      "source": "antvis/chart-visualization-skills",
+      "commit": "a105fa12a9fa41fccccc2eba7f4b34973628f5d3",
+      "sourceType": "github",
+      "skillPath": "skills/antv-infographic/SKILL.md",
+      "computedHash": "19c19966f67e9d8f810930c7b119b887571614d3f2dfcf4f9218cf0a80d62f08"
+    },
+    "antv-t8-ntv": {
+      "source": "antvis/chart-visualization-skills",
+      "commit": "a105fa12a9fa41fccccc2eba7f4b34973628f5d3",
+      "sourceType": "github",
+      "skillPath": "skills/antv-t8-ntv/SKILL.md",
+      "computedHash": "f649c6060f21473c245a907d9987a5ced7708fc8397788b0352b04d894e106b9"
+    },
+    "antv-x6-editor": {
+      "source": "antvis/chart-visualization-skills",
+      "commit": "a105fa12a9fa41fccccc2eba7f4b34973628f5d3",
+      "sourceType": "github",
+      "skillPath": "skills/antv-x6-editor/SKILL.md",
+      "computedHash": "e5e5e74fda27344376dfed03752425d0a11fc390c382e429a6ba7dd0ccc548ff"
+    },
+    "chart-visualization": {
+      "source": "antvis/chart-visualization-skills",
+      "commit": "a105fa12a9fa41fccccc2eba7f4b34973628f5d3",
+      "sourceType": "github",
+      "skillPath": "skills/chart-visualization/SKILL.md",
+      "computedHash": "4f5e88d2df95a79552833f3ea6dfee6ca89305a35e11794303e0d165b32e4c49"
+    },
+    "company-valuation": {
+      "source": "himself65/finance-skills",
+      "commit": "a0850786e72aa23b92862f9f1635b0de506fe206",
+      "sourceType": "github",
+      "skillPath": "plugins/market-analysis/skills/company-valuation/SKILL.md",
+      "computedHash": "3fc713eb52cdb6386194b48ee440c45de9fe0282a8ab105a3e5eebd9959b6c10"
+    },
+    "discord-reader": {
+      "source": "himself65/finance-skills",
+      "commit": "a0850786e72aa23b92862f9f1635b0de506fe206",
+      "sourceType": "github",
+      "skillPath": "plugins/social-readers/skills/discord-reader/SKILL.md",
+      "computedHash": "f19272f582643a692700c8c6222398b83f720bde1c2dc4bb235dfe702fac2772"
+    },
+    "earnings-preview": {
+      "source": "himself65/finance-skills",
+      "commit": "a0850786e72aa23b92862f9f1635b0de506fe206",
+      "sourceType": "github",
+      "skillPath": "plugins/market-analysis/skills/earnings-preview/SKILL.md",
+      "computedHash": "f44db4d4e98a22209f2e76bd871adc2e759278cc3ca4a1232d05af51d80755af"
+    },
+    "earnings-recap": {
+      "source": "himself65/finance-skills",
+      "commit": "a0850786e72aa23b92862f9f1635b0de506fe206",
+      "sourceType": "github",
+      "skillPath": "plugins/market-analysis/skills/earnings-recap/SKILL.md",
+      "computedHash": "17253cff9ccc20ca438bd3102bf6506f2191a7c9dfd35bbfcd6180622e09aa45"
+    },
+    "emil-design-eng": {
+      "source": "emilkowalski/skills",
+      "commit": "64eb3deb9a5fbfa041faf783e0bc3fd635872e9c",
+      "sourceType": "github",
+      "skillPath": "skills/emil-design-eng/SKILL.md",
+      "computedHash": "e1b377ccde1d32743d1d3f7d8626629deb8055c9114d180c184697928cc66cc6"
+    },
+    "estimate-analysis": {
+      "source": "himself65/finance-skills",
+      "commit": "a0850786e72aa23b92862f9f1635b0de506fe206",
+      "sourceType": "github",
+      "skillPath": "plugins/market-analysis/skills/estimate-analysis/SKILL.md",
+      "computedHash": "21fc2f016fa88548465b53a9d98f295750be85f42c844fa42008b0b010399baa"
+    },
+    "etf-premium": {
+      "source": "himself65/finance-skills",
+      "commit": "a0850786e72aa23b92862f9f1635b0de506fe206",
+      "sourceType": "github",
+      "skillPath": "plugins/market-analysis/skills/etf-premium/SKILL.md",
+      "computedHash": "1898fbf8332fd3824056efaca7c5ba2ae156e3ece3776aa67233bfea4bb8f402"
+    },
+    "finance-sentiment": {
+      "source": "himself65/finance-skills",
+      "commit": "a0850786e72aa23b92862f9f1635b0de506fe206",
+      "sourceType": "github",
+      "skillPath": "plugins/data-providers/skills/finance-sentiment/SKILL.md",
+      "computedHash": "57331e0b55cdf7d21e913e29af2e92603811d8e427478b3230a173b5732326b2"
+    },
+    "fintel-data": {
+      "source": "himself65/finance-skills",
+      "commit": "a0850786e72aa23b92862f9f1635b0de506fe206",
+      "sourceType": "github",
+      "skillPath": "plugins/data-providers/skills/fintel-data/SKILL.md",
+      "computedHash": "b96763538c145678b3b4f42d9070d3bd16147d1ea8a11cbacc5ca7ddbbf41982"
+    },
+    "generative-ui": {
+      "source": "himself65/finance-skills",
+      "commit": "a0850786e72aa23b92862f9f1635b0de506fe206",
+      "sourceType": "github",
+      "skillPath": "plugins/ui-tools/skills/generative-ui/SKILL.md",
+      "computedHash": "d24634ca4b7abf904f64af57ddd176349325dedbd60f24e4b9d49a32666cdd49"
+    },
+    "gpt-vis": {
+      "source": "antvis/chart-visualization-skills",
+      "commit": "a105fa12a9fa41fccccc2eba7f4b34973628f5d3",
+      "sourceType": "github",
+      "skillPath": "skills/gpt-vis/SKILL.md",
+      "computedHash": "ca1699df7f803dd4a96d7cedf1a7f06e51ba8c0386d9416589b1a5b0f3f78af8"
+    },
+    "hormuz-strait": {
+      "source": "himself65/finance-skills",
+      "commit": "a0850786e72aa23b92862f9f1635b0de506fe206",
+      "sourceType": "github",
+      "skillPath": "plugins/data-providers/skills/hormuz-strait/SKILL.md",
+      "computedHash": "1afd8ffc0f323fa0160b1b5dcfad0c91f097ff8f81b31c3a10337b8ceb60d6d8"
+    },
+    "hyperliquid-reader": {
+      "source": "himself65/finance-skills",
+      "commit": "a0850786e72aa23b92862f9f1635b0de506fe206",
+      "sourceType": "github",
+      "skillPath": "plugins/data-providers/skills/hyperliquid-reader/SKILL.md",
+      "computedHash": "60926ad1edffe86a56a0c54d13daa2271b462b3a8b0021b8e25949c66258e4c8"
+    },
+    "icon-retrieval": {
+      "source": "antvis/chart-visualization-skills",
+      "commit": "a105fa12a9fa41fccccc2eba7f4b34973628f5d3",
+      "sourceType": "github",
+      "skillPath": "skills/icon-retrieval/SKILL.md",
+      "computedHash": "d827c92c6f7073e08e21defbc7b39c27085d73c63d6f79941e1b3289ef4b1df7"
+    },
+    "linkedin-reader": {
+      "source": "himself65/finance-skills",
+      "commit": "a0850786e72aa23b92862f9f1635b0de506fe206",
+      "sourceType": "github",
+      "skillPath": "plugins/social-readers/skills/linkedin-reader/SKILL.md",
+      "computedHash": "5bc076a302957c113b817889ec869b9c2a8829cf255d499e62848da3d8facf08"
+    },
+    "modern-python": {
+      "source": "trailofbits/skills",
+      "commit": "149d7b21f4067765b82e67029730b42d228ef4b4",
+      "sourceType": "github",
+      "skillPath": "plugins/modern-python/skills/modern-python/SKILL.md",
+      "computedHash": "6f78e1948cc291dfc71672a87f83a02de3cec01545ed289312ce432d129ec00b"
+    },
+    "opencli-reader": {
+      "source": "himself65/finance-skills",
+      "commit": "a0850786e72aa23b92862f9f1635b0de506fe206",
+      "sourceType": "github",
+      "skillPath": "plugins/social-readers/skills/opencli-reader/SKILL.md",
+      "computedHash": "c2e3c1731ffc165ddccf0fa6e86b528b7edc107334dea61b37af9b97a4a0dd96"
+    },
+    "options-payoff": {
+      "source": "himself65/finance-skills",
+      "commit": "a0850786e72aa23b92862f9f1635b0de506fe206",
+      "sourceType": "github",
+      "skillPath": "plugins/market-analysis/skills/options-payoff/SKILL.md",
+      "computedHash": "c7415f1e54064dcc5ece4a155221bb90d0d5959beff567b5ec974292ef44422e"
+    },
+    "pdf": {
+      "source": "anthropics/skills",
+      "commit": "e4bb5d960d87126ff3b3a8af1a104b7db67560ba",
+      "sourceType": "github",
+      "skillPath": "skills/pdf/SKILL.md",
+      "computedHash": "c9c58ce1e1c334d4beb50dfe97aee27aee1d074aed17b3aa1df03b8982028200"
+    },
+    "property-based-testing": {
+      "source": "trailofbits/skills",
+      "commit": "149d7b21f4067765b82e67029730b42d228ef4b4",
+      "sourceType": "github",
+      "skillPath": "plugins/property-based-testing/skills/property-based-testing/SKILL.md",
+      "computedHash": "1fadba845ba4a8f8916bb58f5b61dda6142780851ffb6a5a5ff82574b7798bfa"
+    },
+    "review-animations": {
+      "source": "emilkowalski/skills",
+      "commit": "64eb3deb9a5fbfa041faf783e0bc3fd635872e9c",
+      "sourceType": "github",
+      "skillPath": "skills/review-animations/SKILL.md",
+      "computedHash": "50f1de2394b88bb3433eca1e30da6866a4e310963d872a66af20ca77fd77f07d"
+    },
+    "saas-valuation-compression": {
+      "source": "himself65/finance-skills",
+      "commit": "a0850786e72aa23b92862f9f1635b0de506fe206",
+      "sourceType": "github",
+      "skillPath": "plugins/market-analysis/skills/saas-valuation-compression/SKILL.md",
+      "computedHash": "7b9bd4ece6701cc1a3165b99309b3d2ab0c6db6811f89980e4ebba423ec599be"
+    },
+    "sepa-strategy": {
+      "source": "himself65/finance-skills",
+      "commit": "a0850786e72aa23b92862f9f1635b0de506fe206",
+      "sourceType": "github",
+      "skillPath": "plugins/market-analysis/skills/sepa-strategy/SKILL.md",
+      "computedHash": "9da3e862fe56d24bdf603abbddf320889f8543e7af3f714135bcc832251bbbbf"
+    },
+    "skill-creator": {
+      "source": "himself65/finance-skills",
+      "commit": "a0850786e72aa23b92862f9f1635b0de506fe206",
+      "sourceType": "github",
+      "skillPath": "plugins/skill-creator/skills/skill-creator/SKILL.md",
+      "computedHash": "f35b83941726379bd02868acef0661e65dcff6cb38f63cd8c04df54fd65efacc"
+    },
+    "startup-analysis": {
+      "source": "himself65/finance-skills",
+      "commit": "a0850786e72aa23b92862f9f1635b0de506fe206",
+      "sourceType": "github",
+      "skillPath": "plugins/startup-tools/skills/startup-analysis/SKILL.md",
+      "computedHash": "0bb6e28048f0aedde325296e1be9bc968a4ccc4189c7d181cf2cac1257ecfb11"
+    },
+    "stock-correlation": {
+      "source": "himself65/finance-skills",
+      "commit": "a0850786e72aa23b92862f9f1635b0de506fe206",
+      "sourceType": "github",
+      "skillPath": "plugins/market-analysis/skills/stock-correlation/SKILL.md",
+      "computedHash": "680503a1ac352527e79579ddd337c57e2f3fd0fceac561774c35a6440b755496"
+    },
+    "stock-liquidity": {
+      "source": "himself65/finance-skills",
+      "commit": "a0850786e72aa23b92862f9f1635b0de506fe206",
+      "sourceType": "github",
+      "skillPath": "plugins/market-analysis/skills/stock-liquidity/SKILL.md",
+      "computedHash": "c79c3b2feeaccf09c1fddec1259ce8eb65754522d31f82953e3ea5d123bfc9a1"
+    },
+    "telegram-reader": {
+      "source": "himself65/finance-skills",
+      "commit": "a0850786e72aa23b92862f9f1635b0de506fe206",
+      "sourceType": "github",
+      "skillPath": "plugins/social-readers/skills/telegram-reader/SKILL.md",
+      "computedHash": "d2761cd1219efcf6769b0d831b5494e11316bbe4c94d2a696a52abf3520af6a5"
+    },
+    "tradingview-mcp": {
+      "source": "himself65/finance-skills",
+      "commit": "a0850786e72aa23b92862f9f1635b0de506fe206",
+      "sourceType": "github",
+      "skillPath": "plugins/data-providers/skills/tradingview-mcp/SKILL.md",
+      "computedHash": "23e5912c3bd04047733145b9b103f1af2259f3c129d3b1ac378bf4aaf17f610d"
+    },
+    "tradingview-reader": {
+      "source": "himself65/finance-skills",
+      "commit": "a0850786e72aa23b92862f9f1635b0de506fe206",
+      "sourceType": "github",
+      "skillPath": "plugins/data-providers/skills/tradingview-reader/SKILL.md",
+      "computedHash": "1e6142aa714db2509366120be9496588944dad700c008db16d7956a6a2e570c1"
+    },
+    "twitter-reader": {
+      "source": "himself65/finance-skills",
+      "commit": "a0850786e72aa23b92862f9f1635b0de506fe206",
+      "sourceType": "github",
+      "skillPath": "plugins/social-readers/skills/twitter-reader/SKILL.md",
+      "computedHash": "1f84859eb261203a5d7db6f8b249fb446fbf1ac1e5f4e8bc9f669930a136c1d2"
+    },
+    "yc-reader": {
+      "source": "himself65/finance-skills",
+      "commit": "a0850786e72aa23b92862f9f1635b0de506fe206",
+      "sourceType": "github",
+      "skillPath": "plugins/social-readers/skills/yc-reader/SKILL.md",
+      "computedHash": "d7e0eca8381f624af98403b495c330f223e201640263fe559470392394cdfdcf"
+    },
+    "yfinance-data": {
+      "source": "himself65/finance-skills",
+      "commit": "a0850786e72aa23b92862f9f1635b0de506fe206",
+      "sourceType": "github",
+      "skillPath": "plugins/market-analysis/skills/yfinance-data/SKILL.md",
+      "computedHash": "750aea542970ba0878c79c34b73025a85d7f6d827df85df05d0fc6e30c81f566"
+    }
+  }
+}
